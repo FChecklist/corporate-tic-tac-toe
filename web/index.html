@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corporate Tic Tac Toe (prototype)</title>
+<style>
+:root{--bg:#120b22;--panel:#1d1436;--ink:#f3ecff;--mute:#a99bc8;--gold:#f0c24b;--x:#7cf0c8;--o:#ff8fb1;--cell:#2a1d4d}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#3a2370 0,var(--bg) 60%);color:var(--ink);font:16px/1.45 system-ui,Segoe UI,Roboto,sans-serif;min-height:100vh}
+main{max-width:560px;margin:0 auto;padding:16px}
+h1{font-size:20px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:8px 0 2px}
+.sub{color:var(--mute);margin:0 0 12px}
+.panel{background:var(--panel);border:1px solid #3b2b69;border-radius:14px;padding:12px;margin:10px 0}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #4a3a7c;background:#160e2b;color:var(--ink);font-size:16px}
+button{font:inherit}
+.row{display:flex;gap:8px;margin-top:8px}
+.btn{flex:1;padding:12px;border:0;border-radius:10px;background:var(--gold);color:#2a1d00;font-weight:700;cursor:pointer}
+.btn.alt{background:#3b2b69;color:var(--ink)}
+#status{color:var(--mute);min-height:1.4em}
+#turn{font-weight:700}
+#timer{font-size:28px;color:var(--gold);min-height:34px}
+#board{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6px;margin:10px 0}
+.cell{aspect-ratio:1;border:0;border-radius:10px;background:var(--cell);color:var(--ink);font-size:clamp(20px,9vw,44px);font-weight:800;cursor:pointer}
+.cell:disabled{cursor:default}
+.cell.x{color:var(--x)}.cell.o{color:var(--o)}
+.cell.last{outline:2px solid var(--gold)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ul{margin:6px 0 0;padding-left:18px;color:var(--mute);font-size:14px}
+#final h2{margin:0 0 6px;color:var(--gold)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Corporate Tic Tac Toe</h1>
+  <p class="sub">Prototype: phone to phone, no game server. Three boards, points decide.</p>
+
+  <section id="lobby" class="panel">
+    <label for="code">Match code (type the same code on both devices)</label>
+    <input id="code" value="demo" autocomplete="off">
+    <div class="row"><button class="btn" id="create">Create (player A)</button><button class="btn alt" id="join">Join (player B)</button></div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="panel">
+      <div id="status">&nbsp;</div>
+      <div id="boardTitle"></div><div id="youAre" class="sub"></div>
+      <div id="turn"></div><div id="timer"></div>
+      <div id="board" aria-label="board"></div>
+    </div>
+    <div class="cols">
+      <div class="panel" id="mine"></div>
+      <div class="panel" id="theirs"></div>
+    </div>
+    <div class="panel"><div id="total"></div></div>
+    <div class="panel" id="final" hidden></div>
+    <div class="panel"><button class="btn alt" id="showRules" style="width:100%">How points work</button><ul id="rules" hidden></ul></div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

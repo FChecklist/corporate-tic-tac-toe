@@ -1,0 +1,11 @@
+{
+  "name": "corporate-tic-tac-toe-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test test",
+    "build": "bun build src/app.ts --outfile web/app.js --target browser",
+    "serve": "bun server/signal.ts",
+    "sim:komi": "bun sim/komi.ts"
+  }
+}
