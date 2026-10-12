@@ -48,3 +48,6 @@ With no bonus the first player scored more on average (simple bots, 4,000 games 
 1. Test on two real devices on different networks (phone on mobile data and a laptop on Wi-Fi, then behind an office firewall); measure how often a relay is needed.
 2. Decide the relay and IP-privacy approach.
 3. Build the tournament layer and the product site, in the same way as Corporate Bingo (own repo, own Pages project and D1 database, central payment service with plans `tictactoe_pack_<N>`).
+
+## No ties, clear winners (owner rule 2026-10-12, all games)
+Every tournament must end with a strict 1st to 5th and a top-10 list. Ranking chain for Tic Tac Toe (to be built): (1) the round reached (champion, runner-up, then semi-finalists, quarter-finalists and so on), (2) the player's total points over all matches played, (3) points in the last match played, (4) fate (a beacon number per player; lowest wins). A match itself always has a winner (most points over the three boards; tie-breaks: most valuable single run, points on the 5x5 board, then the random beacon). The results screen shows how each tie was decided in one line.
