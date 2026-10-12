@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://corporate-tic-tac-toe.pages.dev/sitemap.xml
