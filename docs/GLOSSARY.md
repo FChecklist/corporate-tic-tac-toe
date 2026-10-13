@@ -19,7 +19,9 @@ This is a company event. We describe what it is: a **tournament** of **boards** 
 | **Bracket** | The knockout chart | Order comes from the sealed seed, not from the order names were typed |
 | **Bye** | An empty place in round 1; the player facing it goes through without playing | |
 | **Move clock** | Seconds a player has for a move: 10, 20 (default), 30 or 60 | |
-| **Clock-out** | The clock ran out; the software plays a square for the player. A second one in a row loses the board | |
+| **Clock-out** | The clock ran out; a square is played for the player (every phone works it out from the server's time stamps). A second one in a row loses the board | |
+| **Mailbox** | Our server in this game: it stores and relays moves, reports and results and decides nothing | |
+| **Opponent absent claim** | A note the waiting phone posts when the other player's clock has run out; the server stamps it with its own clock and every phone then works out the clock-out from that stamp | |
 | **Fate** | The last tie-break, a number made from the sealed seed. Shown on the results screen as "won by fate" | |
 | **Sealed seed** | The secret that makes the draw. Its fingerprint is shown first; the secret is shown at the start so anybody can check | |
 | **Champion** | The winner of the final | |

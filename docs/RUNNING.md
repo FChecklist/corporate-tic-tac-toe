@@ -42,4 +42,4 @@ bun run build:report     # apps/web/public/reportgen.js (organizer report page)
 bun run pages:build      # copy the files a deploy would use into pages/public (does not deploy)
 ```
 
-`build:zgame` belongs to the sister product's phone page and is not used by Tic Tac Toe. `build:play` points to `packages/ttt/src/play-browser.ts`, which does not exist, so that script fails; the player page (`ttt.js`) does not need it, because the server decides every move.
+`build:zgame` belongs to the sister product's phone page and is not used by Tic Tac Toe. `build:play` points to `packages/ttt/src/play-browser.ts`, which does not exist, so that script fails; the player page (`ttt.js`) does not need it. The player page, the big screen and the host page run the game with `tttgame.js`, built from `packages/ttt/src/browser.ts` with `bun run build:ttt` (rebuild it after any change in `packages/ttt/src`).

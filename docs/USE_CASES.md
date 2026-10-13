@@ -61,7 +61,7 @@ Building and publishing are free. The organizer pays before the start time. If i
 | UC-31 | Three in a row; a full board | Win; draw | `classic.test.ts` R04 R05 |
 | UC-32 | A drawn game | Replayed at once with the marks swapped, up to 3 games | `match.test.ts` R08 |
 | UC-33 | Three drawn games | Fate decides (a number from the seed, the board and the player id); the results screen says "won by fate" | `match.test.ts` R10; `bracket.test.ts` R25 |
-| UC-34 | The move clock runs out | The software plays a random empty square drawn from the seed | `match.test.ts` R12 |
+| UC-34 | The move clock runs out | The waiting phone posts an "opponent absent" claim; every phone then plays a random empty square drawn from the seed for the late player (computed from the server's stamp) | `match.test.ts` R12 |
 | UC-35 | A second clock-out in a row in the same game | The board is lost (forfeit) | `match.test.ts` R13 |
 | UC-36 | Both players stay away | The player who was due to start loses | `match.test.ts` R14 |
 | UC-37 | An old screen or a double tap | The stale tap is refused; nothing depends on when somebody looks | `match.test.ts` R15 |
