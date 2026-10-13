@@ -131,8 +131,8 @@ X5 | true | tools/sim2/bracket-sim.ts | Sim result: 1,000 players (100 never sho
 
 | Run | Matches finished | Stuck | Flagged | How results were kept | Moves stored | Virtual time |
 |---|---|---|---|---|---|---|
-| 1,000 players, 100 never show up (`bun tools/sim2/bracket-sim.ts 1000 10 7 0`) | 999 of 999 | 0 | 0 | 899 both players agreed, 100 single report uncontested | 8,099 | 5 minutes |
-| 300 players in teams of 5 (`bun tools/sim2/bracket-sim.ts 300 0 7 5`) | 59 of 59 | 0 | 0 | 295 boards, both players agreed | 2,629 | 2 minutes |
-| 300 players in teams of 5, 30 of them away (`bun tools/sim2/bracket-sim.ts 300 10 7 5`) | 59 of 59 | 0 | 0 | 254 both, 41 uncontested | 2,331 | 7 minutes |
+| 1,000 players, 100 never show up (`bun tools/sim2/bracket-sim.ts 1000 10 7 0`) | 999 of 999 | 0 | 0 | 899 both players agreed, 100 single report uncontested | 8,240 | 5 minutes |
+| 300 players in teams of 5 (`bun tools/sim2/bracket-sim.ts 300 0 7 5`) | 59 of 59 | 0 | 0 | 295 boards, both players agreed | 2,623 | 2 minutes |
+| 300 players in teams of 5, 30 of them away (`bun tools/sim2/bracket-sim.ts 300 10 7 5`) | 59 of 59 | 0 | 0 | 252 both, 43 uncontested | 2,373 | 6 minutes |
 
-In the 1,000-player run the simulated phones made 44,663 reads and 10,429 writes (squares, clock-out claims, reports, registrations of later matches). The Organizer's page made the rest: the draw in two parts, a look every 12 seconds, the final ranking. The server took no decision: every square, clock-out claim, report and the final ranking was posted by a phone.
+In the 1,000-player run the simulated phones made 45,014 reads and 10,595 writes (squares, clock-out claims, reports, registrations of later matches). The Organizer's page made the rest: the draw in two parts, a look every 12 seconds, the final ranking. The server took no decision: every square, clock-out claim, report and the final ranking was posted by a phone.
