@@ -39,8 +39,9 @@ import type { D1, Env } from "./worker";
 export const SITE_CODE = "TTT";
 export const SITE_HOST = "corporate-tic-tac-toe.pages.dev";
 export const SITE_PRODUCT = "corporate_tic_tac_toe";
+export const PLAN_PREFIX = "tictactoe_pack_";
 /** The plan name sent to B for a payment (same recipe as the order notes in pay.ts). */
-export const salePlanOf = (pack: number | null | undefined, productType?: string | null): string => (productType === "payment_test" || !pack ? "payment_test" : `tictactoe_pack_${pack}`);
+export const salePlanOf = (pack: number | null | undefined, productType?: string | null): string => (productType === "payment_test" || !pack ? "payment_test" : `${PLAN_PREFIX}${pack}`);
 
 export const txnIdOf = (paymentId: string): string => `${SITE_CODE}-${String(paymentId).slice(0, 60)}`;
 
@@ -259,7 +260,7 @@ export async function ownerLedger(env: LedgerEnv, url: URL, now: number): Promis
   const payments = pays.map((p: any) => {
     const amountMinor = Math.round(Number(p.amount) * 100), attempts = byPay.get(p.id) ?? [];
     return { txn_id: p.txn_id ?? txnIdOf(p.id), payment_id: p.id, rzp_order_id: p.rzp_order_id, rzp_payment_id: p.rzp_payment_id, amount: p.amount, amount_minor: amountMinor, currency: p.currency, status: p.status, method: p.method, bank: p.bank, card_network: p.card_network, card_type: p.card_type, rrn: p.rrn,
-      fee_minor: p.fee_minor, tax_minor: p.tax_minor, net_minor: p.fee_minor == null ? null : amountMinor - p.fee_minor, paid_utc: iso(p.paid_ms), paid_ist: ist(p.paid_ms), created_utc: iso(p.created_ms), org: p.org_name ?? null, product: p.product, plan: salePlanOf(p.pack, p.product_type), is_test: p.is_test ? 1 : 0,
+      fee_minor: p.fee_minor, tax_minor: p.tax_minor, net_minor: p.fee_minor == null ? null : amountMinor - p.fee_minor, paid_utc: iso(p.paid_ms), paid_ist: ist(p.paid_ms), created_utc: iso(p.created_ms), org: p.org_name ?? null, product: p.product ?? SITE_PRODUCT, plan: salePlanOf(p.pack, p.product_type), is_test: p.is_test ? 1 : 0,
       captured_attempts: attempts.filter((a) => a.status === "captured").length, attempts };
   });
   const refunds = (await db.prepare(`SELECT rzp_refund_id, rzp_payment_id, payment_id, txn_id, currency, amount_minor, status, created_ms, updated_ms FROM payment_refund WHERE created_ms>=? AND created_ms<? ORDER BY created_ms, rzp_refund_id LIMIT 5000`).bind(from, to).all<any>()).results ?? [];
