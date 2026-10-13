@@ -38,7 +38,7 @@ import { mapJson, mapText } from "./ai-functions";
 import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
-import { TTT_SCHEMA, tttRoute, ensureT, tournamentStarted, tttTick } from "./tournament";
+import { TTT_SCHEMA, TTT_MAILBOX_SCHEMA, tttRoute, ensureT, tournamentStarted, tttTick } from "./tournament";
 import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentRequired, hasConsented, recordConsent, textFor, type Kind } from "./consent";
 import { WINNERS_SCHEMA, acceptVotes, auditAi, confirmPrize, listAiAudit, listPrizes, markGiven, myPrizes } from "./winners";
 import { PAUSE_MAX_PARTICIPANTS, safetyForCap, publishControl, readPublished, registerKey, type KV } from "../../../packages/beacon/src/control";
@@ -166,6 +166,8 @@ export const SCHEMA: string[] = [
   ...TTT_SCHEMA,
   // every consent tick: who, game, Terms version, wording, time (0022_consent.sql)
   ...CONSENT_SCHEMA,
+  // the tournament mailbox: moves with the server's stamps, reports, agreed results (0023_mailbox.sql)
+  ...TTT_MAILBOX_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
@@ -1227,7 +1229,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
       });
     }
   }
-  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|ttt)(?:\/([a-z]+))?$/);
+  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|ttt)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
   if (!m) return json({ error: "Not found", hint: "Read the list of what you can do at /api/z/ai-manifest. Engagement routes look like /api/z/{id}/summary, /settings, /roster, /participants, /results, /publish." }, 404);
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
