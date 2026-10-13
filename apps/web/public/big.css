@@ -33,3 +33,5 @@ h2{font:600 clamp(18px,2vw,30px) Inter,sans-serif;margin:1em 0 .4em;color:var(--
 .rk li{margin:.25em 0}.rk small{display:block;color:var(--mute);font-size:.6em}
 footer{font-size:clamp(12px,1.1vw,16px)}
 :focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.blogo{height:44px;width:auto;max-width:160px;object-fit:contain;background:rgba(255,255,255,.92);border-radius:6px;padding:3px;vertical-align:middle}
+#cb-notify{display:none!important} /* a big screen asks nobody to switch on notifications, and the pill covered the footer line */

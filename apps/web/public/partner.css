@@ -34,7 +34,7 @@ body{background:var(--rc);color:var(--ri);margin:0;font-family:var(--sans,Inter,
 .rcalc h3{margin:0 0 10px;font:700 18px var(--serif,Georgia,serif)}
 .rcalc label{display:block;margin:12px 0 6px;font-size:14px;color:#CFEDEA}
 .rcalc select{width:100%;min-height:44px;border-radius:10px;border:0;padding:0 10px;font-size:16px;background:#fff;color:#1b2433}
-.rcalc input[type=range]{width:100%;accent-color:var(--rg)}
+.rcalc input[type=range]{width:100%;min-height:32px;accent-color:var(--rg)}
 .rbig{margin-top:14px;font-size:18px}.rbig b{display:block;font:800 40px/1.1 var(--serif,Georgia,serif);color:var(--rg)}
 .rfine{font-size:12px;color:#b9c9ea;margin:8px 0 0}
 .rsteps,.rgrid{display:grid;gap:12px;margin:16px 0}

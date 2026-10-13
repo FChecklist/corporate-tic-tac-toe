@@ -22,7 +22,7 @@
     { // one price card: the organizer picks the size, then sees the festive price (never a list of every pack)
       const n = S.pack, x = TB.price(n, S.cur), shown = S.cur === "INR" ? x.base : x.total, was = S.cur === "INR" ? shown * 2 + 1 : shown * 2; // "was" is the regular price that applies after the festive offer
       const opts = TB.PACKS.map(([k]) => `<option value="${k}" ${k === n ? "selected" : ""}>Up to ${nf(k)} players</option>`).join("");
-      const perks = ["All features included", "Free AI assistant to build your game", "Bingo for your whole team, wherever they are", "Your message, video or audio between numbers", "Build it free, pay just before the game starts", "No fee to create or edit your game", "Guest names erased within 24 hours of the game", "One payment per game, no yearly plan"];
+      const perks = ["All features included", "Free AI assistant to build your game", "Tic tac toe knockouts for your whole team, wherever they are", "Your company name and logo on every player's page", "Build it free, pay just before the game starts", "No fee to create or edit your game", "Player names erased within 24 hours of the tournament", "One payment per game, no yearly plan"];
       $("packs").innerHTML = `<div class="pcard"><div class="pwho"><label for="pack2">How many players?</label><div class="selwrap"><select id="pack2" aria-label="Number of players">${opts}</select><svg class="ic chev"><use href="#i-chev"/></svg></div></div>` +
         `<div class="pmain"><div class="pburst" title="Festive offer: 50% off"><b>50% OFF</b><span>Festive offer</span><span class="sr">Festive offer: 50% off</span></div>` +
         `<div class="pamt"><span class="was" title="Regular price after the festive offer"><span class="sr">Regular price after the festive offer </span>${TB.money(was, S.cur)}</span>` +
@@ -30,7 +30,7 @@
         `<button type="button" class="btn pcta" data-buy="${n}" aria-label="Create a game for up to ${nf(n)} players">Create your game ${ic("arrow")}</button></div>` +
         `<ul class="pperks">${perks.map((t) => `<li><span class="tick" aria-hidden="true">&#10003;</span>${t}</li>`).join("")}</ul></div>`;
     }
-    if (FREE.on) { $("priceNote").textContent = "You build and publish your game for free. It does not begin until it is paid for. A late payment starts the first number 2 minutes after the payment is confirmed. " + (S.cur === "INR" ? "Prices in Indian rupees." : "Prices in US dollars."); return; }
+    if (FREE.on) { $("priceNote").textContent = "You build and publish your game for free. It does not begin until it is paid for. A late payment opens the game 2 minutes after the payment is confirmed. " + (S.cur === "INR" ? "Prices in Indian rupees." : "Prices in US dollars."); return; }
     $("priceNote").textContent = S.cur === "INR" ? "Prices in Indian rupees. Billed in India." : "Prices in US dollars. Billed outside India.";
   }
   document.addEventListener("click", (e) => {
@@ -79,7 +79,7 @@
     ORDER = { pack };
     const def = TB.guessCountry();
     TB.sheet(`${xbtn}<div class="eyebrow">Your order</div><h2>Up to ${nf(pack)} players</h2>
-      <ul class="facts"><li>${ic("ticket")}Every guest gets their own bingo card on their phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A private game for your closed group, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
+      <ul class="facts"><li>${ic("ticket")}Every player plays on their own phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A private game for your closed group, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
       <div class="sum" id="ordSum"></div>
       <form id="coForm" novalidate>
         <label class="lb" for="oName">Organization name</label><input class="inp" id="oName" autocomplete="organization" placeholder="e.g. Acme Industries">
@@ -114,7 +114,7 @@
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
       <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><svg class="ic" aria-hidden="true"><use href="#i-ticket"/></svg></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
-      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>Add a message, video or lucky draw between calls</span></li><li><span class="bico">${ic("trophy")}</span><span>Pick your prizes: Line, Four Corners, X, Blackout</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group Bingo for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>Every card is unique: no two can ever match</span></li><li><span class="bico">${ic("phone")}</span><span>Each guest gets their own card on their phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
+      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>One against one, or teams of 3 or 5: a knockout with one champion</span></li><li><span class="bico">${ic("trophy")}</span><span>Name the top places and give your own prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group tic tac toe tournament for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>A drawn game is replayed with the marks swapped, then fate decides: always one champion</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
       ${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your email</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled>Create my game ${ic("arrow")}</button></form>

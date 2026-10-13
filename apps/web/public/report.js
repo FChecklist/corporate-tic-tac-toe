@@ -31,11 +31,11 @@
     pg("Laying out the PDF on your device…");
     await new Promise((r) => setTimeout(r, 30));
     const parts = Math.max(1, Math.ceil(head.totalPeople / head.partSize));
-    if (parts === 1) save(RPT.layoutReport({ ...base, people }), `bingo-report-${EID}.pdf`);
+    if (parts === 1) save(RPT.layoutReport({ ...base, people }), `tic-tac-toe-report-${EID}.pdf`);
     else {
       const total = parts + 1;
-      save(RPT.layoutReport({ ...base, people: [], omitPeople: true, totalPeople: head.totalPeople }), `bingo-report-${EID}-part-1-of-${total}-summary.pdf`);
-      for (let k = 0; k < parts; k++) { pg(`Laying out part ${k + 2} of ${total}…`); await new Promise((r) => setTimeout(r, 10)); save(RPT.layoutPeoplePart(base, people.slice(k * head.partSize, (k + 1) * head.partSize), k + 1, parts), `bingo-report-${EID}-part-${k + 2}-of-${total}-people.pdf`); }
+      save(RPT.layoutReport({ ...base, people: [], omitPeople: true, totalPeople: head.totalPeople }), `tic-tac-toe-report-${EID}-part-1-of-${total}-summary.pdf`);
+      for (let k = 0; k < parts; k++) { pg(`Laying out part ${k + 2} of ${total}…`); await new Promise((r) => setTimeout(r, 10)); save(RPT.layoutPeoplePart(base, people.slice(k * head.partSize, (k + 1) * head.partSize), k + 1, parts), `tic-tac-toe-report-${EID}-part-${k + 2}-of-${total}-people.pdf`); }
     }
     draw(`<div class="zcard"><h2>Your report is ready</h2>
       <p class="zsmall">It was made on this device. Save it now: the participants' details are deleted from our systems by ${esc(new Date(base.personalDeleteAtMs).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }))} IST, and this report cannot be made after that.</p>

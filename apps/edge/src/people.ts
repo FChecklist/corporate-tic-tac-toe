@@ -556,7 +556,7 @@ async function meRoute(c: Ctx): Promise<Response> {
     const ended = c.now >= await c.endBound();
     const state = w.status === "waiting" && ended ? "lapsed" : w.status;
     const who = await waitingWho(c, w.overlimit ? "o" : w.inviter);
-    return c.json({ state, with: who, message: state === "waiting" ? `Your request is with ${who}. You can come in as soon as they say yes.` : state === "admitted" ? "You are in. Open your card again to join." : state === "declined" ? "This game could not add you. Please talk to whoever invited you." : "This game has ended." });
+    return c.json({ state, with: who, message: state === "waiting" ? `Your request is with ${who}. You can come in as soon as they say yes.` : state === "admitted" ? "You are in. Open your game link again to join." : state === "declined" ? "This game could not add you. Please talk to whoever invited you." : "This game has ended." });
   }
   return c.json({ error: "Say which: ?pid=<your card id> or ?wid=<your request id>." }, 400);
 }

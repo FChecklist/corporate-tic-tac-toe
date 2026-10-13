@@ -1,8 +1,10 @@
 // Group 1: Organizer sign-up and log-in (e-mail code, fake Google) and the sign-in e-mail link page.
-import { H, fakeGoogle, nextMail, openConsole } from "./kit.mjs";
+import { H, fakeGoogle, nextMail, openConsole, tickTerms, askCodeUi, tickIfAny, tickCode } from "./kit.mjs";
 
+// the home page sign-up sheet: the e-mail, then the Terms box (K2, never ticked in advance; the button stays disabled until it is), then the button
 const signUpUi = async (t, x, email) => {
-  await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", email); await x.page.click("#frGo");
+  await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", email);
+  await tickTerms(t, x.page, { scope: ".tb", btn: "#frGo", what: "Sign-up" }); await x.page.click("#frGo");
 };
 const sessionKey = (page) => page.evaluate(() => sessionStorage.getItem("cbz-org"));
 
@@ -24,7 +26,8 @@ export default [
     id: "S01-02", name: "Sign-up with a bad e-mail shows a calm message and nothing is created",
     async run(t) {
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", "not-an-email"); await x.page.click("#frGo");
+      await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn"); await x.page.fill("#fMail", "not-an-email");
+      await tickTerms(t, x.page, { scope: ".tb", btn: "#frGo", what: "Sign-up" }); await x.page.click("#frGo");
       await x.page.waitForTimeout(500);
       const txt = await t.text(x.page);
       t.check("a friendly e-mail message is shown", /valid work email|valid email/i.test(txt), txt.slice(0, 160));
@@ -37,10 +40,10 @@ export default [
     async run(t) {
       const org = await t.org("li"); const email = org.email;
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(H.SIM + "/#login"); await x.page.fill("#lMail", email); await x.page.click("#lgGo"); await x.page.waitForSelector("#lCode");
+      await askCodeUi(x.page, email); await x.page.waitForSelector("#lCode");
       const m = await H.mailbox.waitFor({ to: email, timeout: 8000 }); const code = H.mailbox.code(m);
       t.check("the mail carries a 6 digit code", /^\d{6}$/.test(code ?? ""), m.subject);
-      await x.page.fill("#lCode", code); await x.page.click("#cdGo"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
+      await x.page.fill("#lCode", code); await tickCode(x.page); await x.page.click("#cdGo"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       const key = await sessionKey(x.page);
       t.check("signed in with a new key", /^cbk_/.test(key ?? "") && key !== org.token);
       t.check("the old key still works (a second device)", (await org.whoami()).body.kind === "master");
@@ -52,12 +55,12 @@ export default [
     async run(t) {
       const org = await t.org("wc");
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(H.SIM + "/#login"); await x.page.fill("#lMail", org.email); await x.page.click("#lgGo"); await x.page.waitForSelector("#lCode");
-      await x.page.fill("#lCode", "000000"); await x.page.click("#cdGo"); await x.page.waitForTimeout(700);
+      await askCodeUi(x.page, org.email); await x.page.waitForSelector("#lCode");
+      await x.page.fill("#lCode", "000000"); await tickCode(x.page); await x.page.click("#cdGo"); await x.page.waitForTimeout(700);
       const bad = await t.text(x.page, "#fErr");
       t.check("wrong code gives an error line", bad.length > 3 && !/\/zc/.test(x.page.url()), bad);
       t.check("TEST mode shows the helper line", !!(await x.page.$("#useCode")));
-      await x.page.fill("#lCode", "12"); await x.page.click("#cdGo"); await x.page.waitForTimeout(300);
+      await x.page.fill("#lCode", "12"); await tickCode(x.page); await x.page.click("#cdGo"); await x.page.waitForTimeout(300);
       t.check("short code says 'Enter the 6-digit passcode'", /6-digit/.test(await t.text(x.page, "#fErr")));
       await x.page.click("#useCode"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       t.check("helper signs in", true);
@@ -67,7 +70,7 @@ export default [
     id: "S01-05", name: "Log in with an unknown e-mail: same calm answer, nothing leaks about who has an account",
     async run(t) {
       const x = await t.open({ device: "laptop" });
-      await x.page.goto(H.SIM + "/#login"); await x.page.fill("#lMail", nextMail("nobody")); await x.page.click("#lgGo");
+      await askCodeUi(x.page, nextMail("nobody"));
       await x.page.waitForSelector("#lCode", { timeout: 8000 });
       t.check("the code box appears for an unknown e-mail too", true);
       t.check("no devCode helper for an unknown e-mail (no account)", !(await x.page.$("#useCode")), "the helper appears only for known e-mails");
@@ -80,7 +83,9 @@ export default [
       const x = await t.open({ device: "laptop" });
       await fakeGoogle(x.ctx, email);
       await x.page.goto(H.SIM + "/"); await x.page.click("#payBtn");
-      await x.page.waitForSelector("#fakegoogle", { timeout: 8000 }); await x.page.click("#fakegoogle");
+      await x.page.waitForSelector("#fakegoogle", { timeout: 8000 });
+      await tickIfAny(t, x.page, { scope: ".tb", what: "Google sign-up" }); // the server refuses a Google sign-in without the K2 tick
+      await x.page.click("#fakegoogle");
       await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       const key = await sessionKey(x.page);
       t.check("signed up with Google: a master key", (await H.call("GET", "/api/whoami", undefined, { "x-organizer": key })).body.kind === "master");
@@ -94,7 +99,8 @@ export default [
       const org = await t.org("g2");
       const x = await t.open({ device: "mobile" });
       await fakeGoogle(x.ctx, org.email);
-      await x.page.goto(H.SIM + "/#login"); await x.page.waitForSelector("#fakegoogle", { timeout: 8000 }); await x.page.click("#fakegoogle");
+      await x.page.goto(H.SIM + "/#login"); await x.page.waitForSelector("#fakegoogle", { timeout: 8000 });
+      await tickIfAny(t, x.page, { scope: ".tb", what: "Google sign-in" }); await x.page.click("#fakegoogle");
       await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       const key = await sessionKey(x.page);
       t.check("Google log-in gives a key for the same account", key && key !== org.token && (await H.call("GET", "/api/org/keys", undefined, { "x-organizer": key })).ok);
@@ -131,7 +137,7 @@ export default [
         const y = await t.open({ device: "mobile" });
         await y.page.goto(link); await y.page.waitForTimeout(600);
         const had = await y.page.$("#go");
-        if (had) { await y.page.click("#go"); await y.page.waitForTimeout(900); }
+        if (had) { await y.page.click("#go", { timeout: 5000 }).catch(() => {}); await y.page.waitForTimeout(900); }
         t.check("the same link a second time does not sign in again", !/\/(zc|ai-link)/.test(y.page.url()), y.page.url());
       }
     },

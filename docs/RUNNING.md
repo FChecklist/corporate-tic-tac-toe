@@ -30,9 +30,13 @@ bun run zlocal           # website + API on http://localhost:8788, SQLite in mem
 
 ```
 bun run sim:bracket      # bun tools/sim2/bracket-sim.ts: whole tournaments through the real routes, fake clock, some players never show up
+bun pages/build.mjs      # (once, and after any change in apps/web/public) copies what a deploy would serve into pages/public
+node tools/sim2/scenarios/ui/run.mjs [--only S01-,S07-05] [--file s07] [--list] [--shots-only-fail]     # = bun run sim:ui
 ```
 
-`tools/sim2/smoke.mjs`, `sim:life`, `sim:matrix` and `sim:ui` were written for the sister product (Corporate Bingo). They have not been checked against Tic Tac Toe; do not trust a result from them yet.
+`sim:ui` is the Chrome simulation of the whole journey, written for this game: the Organizer signs up and fills the ten console steps by tapping, the Host and Co-host come in with their links, players join by name (Terms boxes ticked like a person), the Organizer pays with a test payment, cancels, moves and clones the game, and real Chrome phones play whole tournaments (Start on the tournament page, boards, move clocks, pause, an absent player, the big screen, deletion after the game). It also sweeps every public page, the player pages, the tournament pages and the console at 360 / 768 / 1280 / 1920 px (no sideways scrolling, no text under 12 px, buttons and tick boxes at least 32 px) and scans every screen for internal notes and for words of other games. It uses its own sim server (:8804, database `sim/run-ui.sqlite`) and its own WhatsApp simulator (:8891), one real Chrome, never touches the live site, and needs `C:/Program Files/Google/Chrome/Application/chrome.exe`. Screenshots go to `test-results/sim-ui/`, results to `sim/ui-results.json`. Take `C:/ct/heavy.lock` first (a run takes about 15 minutes).
+
+`tools/sim2/smoke.mjs`, `sim:life` and `sim:matrix` were written for the sister product (Corporate Bingo). They have not been checked against Tic Tac Toe; do not trust a result from them yet.
 
 ## Build steps
 

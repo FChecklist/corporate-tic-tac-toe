@@ -123,8 +123,9 @@ LR-1 | true | apps/edge/test/consent.test.ts (nothing is ever taken from a playe
 LR-6 | true | apps/edge/test/consent.test.ts (K4 notice and 24-hour erasure) | Invite chain is in the box A wording and is erased with the person.
 X1 | true | packages/ttt/test/classic.test.ts, match.test.ts | 3 in a row, draw, who starts, move clock.
 X2 | true | packages/ttt/test/bracket.test.ts; apps/edge/test/tournament.test.ts | 1-v-1, team-v-team, knockout for a crowd, spectator view.
-X3 | false |  | Shell cloned and renamed; the organizer console and organizer report are still Bingo-shaped in places (see the list below).
+X3 | false |  | Shell cloned and renamed. The organizer console (steps 2, 3, 4 and 9, Quick setup, help), the player pages, the pay page and the home page now speak of players, a knockout and the top places. Still Bingo-shaped: the organizer report layout (O8, E5), the AI helper manual and prompt files (`apps/edge/src/ai-*.ts`), and some e-mail and legal wording (`engagement`, "first number").
 X4 | false |  | See the false gates in this table.
+X6 | true | tools/sim2/scenarios/ui (run: `node tools/sim2/scenarios/ui/run.mjs`) | Chrome simulation of the whole organizer-to-player journey, 103 scenarios (sign-up and log-in, the ten console steps, Host and Co-host, joining by name with the Terms boxes, payment, cancel / move / clone, whole tournaments played on Chrome phones, 360 / 768 / 1280 / 1920 px sweeps, a scan for internal notes and words of other games). See docs/RUNNING.md.
 X5 | true | tools/sim2/bracket-sim.ts | Sim result: 1,000 players (100 never show up), 999 of 999 matches, 0 stuck; 300 players in teams of 5, 59 of 59, 0 stuck (also with 30 of the 300 away). Numbers below.
 
 ## Simulation result (tools/sim2/bracket-sim.ts, simulated phones running packages/ttt/src/phone.ts against the mailbox routes, fake clock)

@@ -1,5 +1,5 @@
 // Group 3: Host and Co-host. Invitation through the WhatsApp simulator, first open (e-mail code, fake Google, expired link, new link), what each role sees and cannot do.
-import { H, fakeGoogle, openConsole, openStep, uiPublish, payOnPage, nextPhone, cohostUrl } from "./kit.mjs";
+import { H, fakeGoogle, openConsole, openStep, uiPublish, payOnPage, nextPhone, cohostUrl, tickTerms, tickGuestList, askCodeUi, passK5Gate, setupSendUi, acceptRole, tickIfAny, tickCode, acceptHostRole, tickRest } from "./kit.mjs";
 
 const keyOf = (page) => page.evaluate(() => sessionStorage.getItem("cbz-org"));
 /** the Organizer adds a Host through the API; returns { inv, email, mobile } */
@@ -14,11 +14,13 @@ async function hostFirstOpenUi(t, link, email, mobile) {
   const h = await t.open({ device: "mobile" });
   await h.page.goto(link); await h.page.waitForSelector("#finishsetup", { timeout: 15000 });
   if (await h.page.$("#setupemail")) {
-    await h.page.fill("#setupemail", email); await h.page.click("#setupsend"); await h.page.waitForSelector("#setupcode");
+    await setupSendUi(h.page, email);
     const m = await H.mailbox.waitFor({ to: email, timeout: 8000 }); await h.page.fill("#setupcode", H.mailbox.code(m)); await h.page.click("#setupverify");
     await h.page.waitForFunction(() => !document.getElementById("setupcode"), null, { timeout: 15000 });
+    await acceptHostRole(h.page, 800);
   }
   if (await h.page.$("#setupmobile")) { await h.page.fill("#setupmobile", mobile); await h.page.click("#setupmobilego"); }
+  await acceptHostRole(h.page);
   await h.page.waitForSelector(".zc-sech, #mk, .zc-main", { timeout: 15000 }); await h.page.waitForTimeout(700);
   return { h, key: await keyOf(h.page) };
 }
@@ -41,10 +43,10 @@ export default [
       await t.shot(h.page, "host-finish-setup");
       const txt = await t.text(h.page, "#finishsetup");
       t.check("Finish setup screen asks for e-mail first", /e-mail/i.test(txt) && /works once/i.test(txt), txt.slice(0, 160));
-      await h.page.fill("#setupemail", email); await h.page.click("#setupsend"); await h.page.waitForSelector("#setupcode");
+      await setupSendUi(h.page, email);
       const m = await H.mailbox.waitFor({ to: email, timeout: 8000 });
       await h.page.fill("#setupcode", H.mailbox.code(m)); await h.page.click("#setupverify");
-      await h.page.waitForFunction(() => !document.getElementById("setupcode"), null, { timeout: 15000 }); await h.page.waitForTimeout(800);
+      await h.page.waitForFunction(() => !document.getElementById("setupcode"), null, { timeout: 15000 }); await acceptHostRole(h.page); await h.page.waitForTimeout(800);
       const key = await keyOf(h.page);
       t.check("Host has a device key and is a Host", (await H.call("GET", "/api/whoami", undefined, { "x-organizer": key })).body.kind === "host");
       t.check("the one-time link no longer works", (await H.call("GET", "/api/whoami", undefined, { "x-organizer": inv.hostKey })).status >= 400);
@@ -70,10 +72,11 @@ export default [
       const org = await t.org("o"); await t.game(org);
       const { inv, email } = await addHost(t, org, { withMobile: false });
       const h = await t.open({ device: "mobile" }); await fakeGoogle(h.ctx, email);
-      await h.page.goto(inv.link); await h.page.waitForSelector("#fakegoogle", { timeout: 10000 }); await h.page.click("#fakegoogle");
+      await h.page.goto(inv.link); await h.page.waitForSelector("#fakegoogle", { timeout: 10000 }); await acceptHostRole(h.page, 3000);
+      await tickRest(h.page); await h.page.click("#fakegoogle");
       await h.page.waitForTimeout(1500);
       t.check("after Google the e-mail step is done and the mobile step remains", !!(await h.page.$("#setupmobile")), (await t.text(h.page)).slice(0, 200));
-      await h.page.fill("#setupmobile", "9876500777"); await h.page.click("#setupmobilego"); await h.page.waitForSelector(".zc-sech, #mk", { timeout: 12000 });
+      await h.page.fill("#setupmobile", "9876500777"); await h.page.click("#setupmobilego"); await acceptHostRole(h.page); await h.page.waitForSelector(".zc-sech, #mk", { timeout: 12000 });
       const key = await keyOf(h.page);
       t.check("signed in as Host", (await H.call("GET", "/api/whoami", undefined, { "x-organizer": key })).body.kind === "host");
     },
@@ -84,7 +87,8 @@ export default [
       const org = await t.org("o"); await t.game(org);
       const { inv } = await addHost(t, org, { withMobile: false });
       const h = await t.open({ device: "mobile" }); await fakeGoogle(h.ctx, t.mail("wrong"));
-      await h.page.goto(inv.link); await h.page.waitForSelector("#fakegoogle", { timeout: 10000 }); await h.page.click("#fakegoogle"); await h.page.waitForTimeout(1500);
+      await h.page.goto(inv.link); await h.page.waitForSelector("#fakegoogle", { timeout: 10000 }); await acceptHostRole(h.page, 3000);
+      await tickRest(h.page); await h.page.click("#fakegoogle"); await h.page.waitForTimeout(1500);
       const txt = await t.text(h.page);
       t.check("a calm 'this link was made for another e-mail' style message", /another|different|this link|not the e-?mail|does not match/i.test(txt), txt.slice(0, 260));
       t.check("the console did not open", !!(await h.page.$("#finishsetup")) || !(await h.page.$(".zc-sech")));
@@ -100,7 +104,7 @@ export default [
       const { inv, email } = await addHost(t, org);
       await H.clock.advance(8 * H.DAY); await t.shared.track.refresh();
       const h = await t.open({ device: "mobile" });
-      await h.page.goto(inv.link); await h.page.waitForTimeout(2500);
+      await h.page.goto(inv.link); await h.page.waitForFunction(() => !/Loading/.test(document.body.innerText), null, { timeout: 15000 }).catch(() => {}); await h.page.waitForTimeout(800);
       t.check("an expired link does not open the setup", !(await h.page.$("#setupemail")), (await t.text(h.page)).slice(0, 200));
       t.check("the page says what to do (ask the Organizer for a new link)", /new link|expired|ask/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 220));
       await t.shot(h.page, "host-link-expired");
@@ -146,9 +150,9 @@ export default [
       const { inv, email } = await addHost(t, org);
       await hostFirstOpenUi(t, inv.link, email, "9876500321");
       const x = await t.open({ device: "laptop" });
-      await x.page.goto(H.SIM + "/#login"); await x.page.fill("#lMail", email); await x.page.click("#lgGo"); await x.page.waitForSelector("#lCode");
+      await askCodeUi(x.page, email);
       const mails = await H.mailbox.list({ to: email }); const m = mails[mails.length - 1];
-      await x.page.fill("#lCode", H.mailbox.code(m)); await x.page.click("#cdGo"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
+      await x.page.fill("#lCode", H.mailbox.code(m)); await tickCode(x.page); await x.page.click("#cdGo"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       const k = await keyOf(x.page);
       t.check("second device has its own Host key", (await H.call("GET", "/api/whoami", undefined, { "x-organizer": k })).body.kind === "host");
     },
@@ -190,11 +194,11 @@ export default [
       const c = await org.inviteCohost({ label: "Chandra", phone: nextPhone(), e: g.id });
       t.check("Co-host link from the API is a console link", /zc/.test(c.link ?? ""), c.link);
       const dead = await t.open({ device: "mobile" });
-      await dead.page.goto(c.link); await dead.page.waitForTimeout(2500);
+      await dead.page.goto(c.link); await passK5Gate(dead.page); await dead.page.waitForTimeout(2500);
       t.check("the API's own Co-host link (no game id) opens the game", !!(await dead.page.$(".zc-sech")), (await t.text(dead.page)).slice(0, 220));
       await t.shot(dead.page, "cohost-api-link-deadend");
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(cohostUrl(g.id, c)); await x.page.waitForSelector(".zc-sech", { timeout: 15000 }); await x.page.waitForTimeout(800);
+      await x.page.goto(cohostUrl(g.id, c)); await passK5Gate(x.page); await x.page.waitForSelector(".zc-sech", { timeout: 15000 }); await x.page.waitForTimeout(800);
       const txt = await t.text(x.page);
       const heads = await x.page.$$eval(".zc-sech", (els) => els.map((e) => e.innerText.replace(/\s+/g, " ").slice(0, 40)));
       t.check("exactly three numbered steps (Today's game, Invite people, Payment)", heads.filter((h) => /^\d /.test(h)).length === 3, heads.join(" | "));
@@ -216,9 +220,11 @@ export default [
       const org = await t.org("o"); const g = await t.game(org, { pay: false });
       const c = await org.inviteCohost({ label: "Chandra", phone: nextPhone(), e: g.id });
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(cohostUrl(g.id, c)); await x.page.waitForSelector(".zc-sech", { timeout: 15000 });
+      await x.page.goto(cohostUrl(g.id, c)); await passK5Gate(x.page); await x.page.waitForSelector(".zc-sech", { timeout: 15000 });
       await openStep(x.page, 2); await x.page.waitForTimeout(500);
       const add = await x.page.$("#gadd");
+      if (add) { const b = x.page.locator(".tb input[data-box]").first(); if (!(await b.isChecked())) await b.check(); }
+      if (add) { const b = x.page.locator(".tb input[data-box]").first(); if (!(await b.isChecked())) await b.check(); }
       t.check("the Co-host can add people (name + mobile only, no e-mail field)", !!add && !(await x.page.$('#sec2 input[type=email]')));
       if (add) { await x.page.fill("#gname", "Esha"); await x.page.fill("#gphone", "9811100001"); await x.page.click("#gadd"); await x.page.waitForTimeout(1000); }
       const key = await keyOf(x.page);
@@ -244,6 +250,7 @@ export default [
       const c = await org.inviteCohost({ label: "Chandra", phone: nextPhone(), e: g1.id });
       const key = c.cohostKey; t.check("the Co-host link carries the game and the key (in the part of the address the server never sees)", c.link.includes(`e=${g1.id}`) && c.link.includes(`#cohost=${key}`), c.link);
       const ca = (m, p, b) => H.call(m, p, b, { "x-organizer": key });
+      await acceptRole(key);
       t.check("works for its own game", (await ca("GET", `/api/z/${g1.id}/cohost`)).ok);
       const other = await ca("GET", `/api/z/${g2.id}/cohost`);
       t.check("refused for the other game with a friendly message", other.status === 403 && /different|another|game/i.test(JSON.stringify(other.body)), `${other.status} ${JSON.stringify(other.body).slice(0, 120)}`);

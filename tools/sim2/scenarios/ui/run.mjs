@@ -9,6 +9,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// a late answer to a request of a page that was just closed must not stop the whole run
+process.on("unhandledRejection", (e) => console.error("(late browser error ignored: " + String(e?.message ?? e).split(/\r?\n/)[0].slice(0, 160) + ")"));
 process.env.SIM_PORT = process.env.UI_SIM_PORT ?? "8804";
 process.env.WA_PORT = process.env.UI_WA_PORT ?? "8891";
 const args = process.argv.slice(2);

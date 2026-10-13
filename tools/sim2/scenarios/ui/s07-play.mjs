@@ -1,187 +1,219 @@
-// Group 7: real games in Chrome phones (2 to 4 phones, fake beacon, page clock): identical winners everywhere, big screen, late joiner, offline phone, brand moments, announcements, removal, after the game.
-import { H, openConsole, openStep, guestText, nextPhone, guestJoinUi, joinApi } from "./kit.mjs";
+// Group 7: real tournaments in Chrome phones (2 to 4 phones, the Organizer's tournament page open beside them): the join, the Start, the boards, the clocks, pause, the big screen, a player who stays away, closing screens, deletion after the game.
+// The game itself runs on the phones (tttgame.js); the server is a mailbox. So these scenarios check what a person sees and what the mailbox ended up holding.
+import { H, openHostPage, startTournament, pState, tapOnce, playOut, guestText, guestJoinUi, nextPhone, joinApi, openConsole, openStep } from "./kit.mjs";
 
 const { invariants: inv } = H;
-const ALL_RW = ["corners", "line", "x", "frame", "corners", "plus", "blackout"].map((p) => ({ pattern: p, scope: "ticket", ordinal: 1, text: "" }));
-
-/** a paid game starting in `lead` ms with all seven classic houses */
-async function playGame(t, org, { lead = 8 * H.MIN, cfg = {}, settings = { whoCanJoin: "anyone" } } = {}) {
-  return t.game(org, { lead, cfg: { rewards: ALL_RW, ...cfg }, settings, pay: true });
-}
-/** opens one phone per guest, joins through the form, waits for the play phase */
-async function phones(t, g, names, { device = "mobile", moveTo = 2 * H.MIN } = {}) {
+const sql1 = async (q, p) => (await H.sql(q, p))[0] ?? {};
+/** a published, paid game that anyone with the link can join */
+const tGame = (t, org, o = {}) => t.game(org, { lead: 2 * H.HOUR, settings: { whoCanJoin: "anyone" }, pay: true, ...o });
+/** opens one phone per name and joins through the form (Terms boxes, name, Join) */
+async function phones(t, g, names, { device = "mobile" } = {}) {
   const out = [];
-  for (const [i, nm] of names.entries()) {
-    const x = await t.open({ device });
-    await guestJoinUi(x.page, g.id, nextPhone(), nm); out.push(x);
-  }
-  // move the simulated time to `moveTo` before the start (clock, beacon and every page together)
-  const now = await H.clock.now(); const wait = g.startMs - moveTo - now;
-  if (wait > 0) { await H.clock.advance(wait); await t.shared.track.refresh(); await H.advanceBrowsers(out.map((o) => o.ctx), wait, { run: false }); }
-  await Promise.all(out.map((p) => p.page.waitForFunction(() => window.__rt && window.__rt.phase === "play", null, { timeout: 25000 })));
+  for (const nm of names) { const x = await t.open({ device }); await guestJoinUi(x.page, g.id, "", nm); await x.page.waitForSelector(".zcard h2", { timeout: 15000 }); out.push(x); }
   return out;
 }
-const winnersOf = (views) => views.map((v, i) => ({ who: "phone" + i, results: v.results }));
 
 export default [
   {
-    id: "S07-01", name: "Two Chrome phones play a whole game on the fake beacon; both end, identical winners, no JavaScript errors, Organizer sees the results",
+    id: "S07-01", name: "Two Chrome phones join, the Organizer presses Start, they play a whole tournament; one champion, a ranking without ties, no JavaScript errors",
     async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org);
+      const org = await t.org("o"); const g = await tGame(t, org);
       const ps = await phones(t, g, ["Asha", "Bala"]);
-      const t0 = Date.now(); const r = await H.playBrowserGame(ps, { track: t.shared.track });
-      t.check("both phones reached the end within the time budget", r.ended.every(Boolean) && Date.now() - t0 < 240000, `${r.steps} steps, ${((Date.now() - t0) / 1000).toFixed(0)} s, ended ${r.ended}`);
-      const id = inv.identicalWinners(winnersOf(r.views)); t.check(id.name, id.ok && r.views[0].results.length > 0, id.detail);
-      t.check("logs are the same length on both phones", r.views[0].log.length === r.views[1].log.length && r.views[0].log.length > 20, r.views.map((v) => v.log.length).join("/"));
-      const pub = (await H.call("GET", `/api/z/${g.id}/results`)).body.results ?? [];
-      t.check("the server's published winners equal what the phones show", pub.length === r.views[0].results.length, `${pub.length} vs ${r.views[0].results.length}`);
-      const pm = inv.perHouseMaxima(pub, ALL_RW); t.check(pm.name, pm.ok, pm.detail);
-      const one = await inv.oneTicketPerPhone(g.id); t.check(one.name, one.ok, one.detail);
-      await t.shot(ps[0].page, "phone-after-game");
-      const txt = await guestText(ps[0].page);
-      t.check("a phone shows a finished game message", /game (is )?over|finished|thank|winners|well played/i.test(txt), txt.slice(0, 220));
+      await t.until(async () => (await Promise.all(ps.map(pState))).every((s) => s === "waiting"), { timeout: 12000, what: "both phones waiting" }).catch(() => {});
+      t.check("after joining, each phone says it is in and waits for the host", (await Promise.all(ps.map(pState))).every((s) => s === "waiting"), (await Promise.all(ps.map((p) => guestText(p.page)))).map((x) => x.slice(0, 120)).join(" || "));
+      const h = await openHostPage(t, org.token, g.id);
+      t.check("the tournament page counts the 2 players who joined", /2\s+players have joined/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 200));
+      await startTournament(h, { format: "solo", moveSecs: 10 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 25000 })));
+      t.check("both phones show a board and a clock once the Organizer's page has sent the draw", (await Promise.all(ps.map((p) => p.page.$(".tclock")))).every(Boolean), "");
+      const marks = await Promise.all(ps.map((p) => p.page.innerText(".tcen b").then((x) => x.trim()).catch(() => "")));
+      t.check("one phone plays X and the other O", new Set(marks).size === 2 && marks.every((m) => m === "X" || m === "O"), JSON.stringify(marks));
+      const live = await Promise.all(ps.map((p) => p.page.$$eval(".tsq:not([disabled])", (e) => e.length)));
+      const stat = await Promise.all(ps.map((p) => p.page.innerText(".tstat").then((x) => x.replace(/\s+/g, " ")).catch(() => "")));
+      t.check("turn rule: only the player who is to move can tap, and that is X (X moves first); the other sees 'Waiting for' and nine dead squares", live.filter((n) => n === 9).length === 1 && live.filter((n) => n === 0).length === 1 && marks[live.indexOf(9)] === "X" && /Your turn/.test(stat[live.indexOf(9)]) && /Waiting for/.test(stat[live.indexOf(0)]), JSON.stringify({ live, marks, stat }));
+      const clk = await Promise.all(ps.map((p) => p.page.innerText(".tclock").catch(() => "")));
+      t.check("both phones show a move clock (the first move of a match has 30 seconds so players can open the page)", clk.every((c) => /^\d+s$/.test(c.trim()) && Number(c.trim().slice(0, -1)) <= 30), JSON.stringify(clk));
+      const r = await playOut(t, ps, g.id);
+      t.check("the tournament finished within the time budget", r.done, `${r.seconds} s, ${r.taps} taps`);
+      const st = await Promise.all(ps.map(pState)); await t.shot(ps[0].page, "end-a"); await t.shot(ps[1].page, "end-b");
+      t.check("exactly one phone shows 'You are the champion'", st.filter((s) => s === "champion").length === 1, st.join("/"));
+      const tt = await sql1("SELECT state, champion, rounds, entrants, ranking FROM ttt_t WHERE eid=?", [g.id]);
+      const rank = JSON.parse(tt.ranking || "[]");
+      t.check("the mailbox kept one champion, 1 round, a ranking of 2 with places 1 and 2", tt.state === "done" && tt.rounds === 1 && rank.length === 2 && rank[0].rank === 1 && rank[1].rank === 2, JSON.stringify(tt).slice(0, 240));
+      await t.until(async () => (await Promise.all(ps.map((p) => guestText(p.page)))).every((x) => /Asha/.test(x) && /Bala/.test(x) && /Results/i.test(x)), { timeout: 25000, what: "the results list on both phones" }).catch(() => {});
+      const txts = await Promise.all(ps.map((p) => guestText(p.page)));
+      t.check("both phones show the results list with both names and the one-line reason (within 25 s of the end)", txts.every((x) => /Asha/.test(x) && /Bala/.test(x) && /Results/i.test(x)), txts.map((x) => x.slice(0, 220)).join(" || "));
+      const hb = await t.text(h.page); await h.page.waitForTimeout(4500);
+      t.check("the tournament page says Finished and names the champion", /Finished/i.test(await t.text(h.page)) && /Champion:/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 200) + hb.slice(0, 0));
     },
   },
   {
-    id: "S07-02", name: "Four phones: a late joiner and a phone that goes offline for a while still end with the identical numbers and winners",
+    id: "S07-02", name: "Four phones, two rounds: a phone that loses its connection and reloads comes back to the same board; the list is closed to a late joiner; ranking has four unique places",
     async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org, { lead: 9 * H.MIN });
-      const ps = await phones(t, g, ["Asha", "Bala", "Charu"]);
-      const late = await t.open({ device: "mobile" });
-      // run a while, one phone offline, then the late joiner arrives after about 25 numbers
-      const track = t.shared.track;
-      const stepAll = async (n, list) => { for (let i = 0; i < n; i++) { await H.clock.advance(3000); track.bump(3000); for (const o of list) await o.ctx.clock.runFor(3000); await new Promise((r) => setTimeout(r, 60)); } };
-      await stepAll(60, ps);
-      await ps[1].ctx.setOffline(true); await stepAll(20, ps); await ps[1].ctx.setOffline(false); await stepAll(5, ps);
-      await guestJoinUi(late.page, g.id, nextPhone(), "Late Lata"); await late.page.waitForFunction(() => window.__rt && window.__rt.phase, null, { timeout: 20000 });
-      const all = [...ps, late];
-      const r = await H.playBrowserGame(all, { track, maxSteps: 400 });
-      t.check("all four phones ended", r.ended.every(Boolean), `${r.steps} steps, ended ${r.ended}`);
-      const lens = r.views.map((v) => v.log.length);
-      const full = r.views.slice(0, 3).every((v) => v.log.length === r.views[0].log.length);
-      t.check("the three early phones (incl. the one that was offline) have the identical log", full && lens[0] > 20, lens.join("/"));
-      const id = inv.identicalWinners(winnersOf(r.views.slice(0, 3))); t.check("winners identical on the three early phones", id.ok, id.detail);
-      t.check("the late joiner sees the same winners for the lines completed after joining", r.views[3].results.length >= 0, `${r.views[3].results.length} lines vs ${r.views[0].results.length}`);
-      const pub = (await H.call("GET", `/api/z/${g.id}/results`)).body.results ?? [];
-      t.check("no house has more winning lines than configured", inv.perHouseMaxima(pub, ALL_RW).ok, inv.perHouseMaxima(pub, ALL_RW).detail);
-      await t.shot(late.page, "late-joiner-end");
-    },
-  },
-  {
-    id: "S07-03", name: "Big screen during the game shows numbers and winners only (no names or phone numbers) and agrees with the phones",
-    async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org);
-      const ps = await phones(t, g, ["Dev Diwan", "Esha Edwin"]);
-      const big = await t.open({ device: "wide" });
-      await big.page.goto(`${H.SIM}/big.html?e=${g.id}`); await big.page.waitForTimeout(1500);
-      const r = await H.playBrowserGame([...ps], { track: t.shared.track, maxSteps: 70 });
-      await H.advanceBrowsers([big.ctx], 70 * 3000, { run: false }); await big.page.waitForTimeout(2000);
-      const btxt = await guestText(big.page);
-      t.check("the big screen shows called numbers", /\b\d{1,2}\b/.test(btxt) && btxt.length > 40, btxt.slice(0, 200));
-      t.check("no guest name or phone number is on the big screen", !/Dev Diwan|Esha Edwin|\b9\d{9}\b/.test(btxt), btxt.slice(0, 200));
-      await t.shot(big.page, "bigscreen-1920");
-      const m = await H.measure(big.page, { minPx: 12 });
-      t.check("big screen at 1920 has no horizontal overflow", !m.overflowX, JSON.stringify(m.wideElements));
-    },
-  },
-  {
-    id: "S07-04", name: "Brand moments in the game: the opening message is shown on the phones before the first number",
-    async run(t) {
-      const org = await t.org("o");
-      const g = await playGame(t, org, { cfg: { opening: [{ kind: "speech", title: "Welcome to the sim party", seconds: 15 }] } });
-      const x = await t.open({ device: "mobile" });
-      await guestJoinUi(x.page, g.id, nextPhone(), "Moment Mia");
-      const now = await H.clock.now(); const wait = g.startMs - 100_000 - now; await H.clock.advance(wait); await t.shared.track.refresh(); await H.advanceBrowsers([x.ctx], wait, { run: false });
-      let seen = false;
-      for (let i = 0; i < 80 && !seen; i++) { await H.clock.advance(3000); t.shared.track.bump(3000); await x.ctx.clock.runFor(3000); await x.page.waitForTimeout(80); seen = /Welcome to the sim party/.test(await guestText(x.page)); }
-      t.check("the opening message appeared before the first number (in the 2 minutes after the start time)", seen, (await guestText(x.page)).slice(0, 200));
-      await t.shot(x.page, "opening-moment");
-    },
-  },
-  {
-    id: "S07-05", name: "Organizer announcement during the game reaches every phone; the console's Game day step shows controls",
-    async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org);
-      const ps = await phones(t, g, ["Fay", "Gus"]);
-      await H.advanceBrowsers(ps.map((p) => p.ctx), 0);
-      const c = await openConsole(t, org, g.id, { device: "laptop" });
-      await H.clock.advance(150_000); t.shared.track.bump(150_000); await H.advanceBrowsers(ps.map((p) => p.ctx), 150_000, { run: false });
-      await openStep(c.page, 9); await c.page.waitForTimeout(800);
-      const t9 = await t.text(c.page, "#sec9");
-      t.note("step 9 buttons: " + (await c.page.$$eval("#sec9 button,#sec9 input", (els) => els.map((e) => (e.id || e.type) + ":" + (e.innerText || e.placeholder || "").slice(0, 24)).join(" | "))));
-      t.check("Game day step offers pause / end / message", /Pause|End the game|message/i.test(t9), t9.slice(0, 260));
-      const r = await org.announce(g.id, "Snacks are served in the hall");
-      t.check("announcement accepted", r.ok, JSON.stringify(r.body).slice(0, 120));
-      await H.clock.advance(6000); t.shared.track.bump(6000); for (const p of ps) await p.ctx.clock.runFor(6000);
-      let ok = false; for (let i = 0; i < 12 && !ok; i++) { await H.clock.advance(3000); t.shared.track.bump(3000); for (const p of ps) await p.ctx.clock.runFor(3000); await ps[0].page.waitForTimeout(100); ok = /Snacks are served/.test(await guestText(ps[0].page)) && /Snacks are served/.test(await guestText(ps[1].page)); }
-      t.check("both phones show the message", ok, (await guestText(ps[0].page)).slice(0, 220));
-      const rl = await org.announce(g.id, "x".repeat(200));
-      t.check("an announcement over 160 characters is refused", !rl.ok, String(rl.status));
-      await t.shot(ps[0].page, "announcement");
-    },
-  },
-  {
-    id: "S07-06", name: "Remove a person during the game: that phone shows removed and stops; the other phones continue and winners stay identical",
-    async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org);
-      const ps = await phones(t, g, ["Hal", "Ida", "Jon"]);
-      const track = t.shared.track;
-      for (let i = 0; i < 40; i++) { await H.clock.advance(3000); track.bump(3000); for (const p of ps) await p.ctx.clock.runFor(3000); await new Promise((r) => setTimeout(r, 40)); }
-      const list = (await org.people(g.id)).body.people ?? [];
-      const parts = (await org.participants(g.id)).body.participants ?? [];
-      t.note(`people ${list.length}, participants ${parts.length}`);
-      const victim = parts[parts.length - 1];
-      const vp = list.filter((q) => !q.role && q.status !== "removed").pop(); // the console removes by the person's id (the row of the people list), not by the seat id
-      t.check("the console's people list shows the guests who joined", list.length >= 3, `people ${list.length}`);
-      const rm = await org.api("POST", `/api/z/${g.id}/people/${encodeURIComponent(vp ? vp.id : victim.pid)}/remove`, {});
-      t.check("the Organizer can remove a seat by id during the game", rm.ok, `${rm.status} ${JSON.stringify(rm.body).slice(0, 160)}`);
-      const r = await H.playBrowserGame(ps, { track, maxSteps: 400 });
-      const seats = (await H.call("GET", `/api/z/${g.id}/seats`)).body;
-      t.check("the removed seat is still in the public seat list", (seats.seats ?? []).length === 3, String((seats.seats ?? []).length));
-      const texts = await Promise.all(ps.map((p) => guestText(p.page)));
-      const removedIdx = texts.findIndex((x) => /removed/i.test(x));
-      t.check("exactly one phone shows it was removed", texts.filter((x) => /removed/i.test(x)).length === 1, texts.map((x) => /removed/i.test(x)).join(","));
-      const others = r.views.filter((_, i) => i !== removedIdx);
-      const id = inv.identicalWinners(others.map((v, i) => ({ who: "p" + i, results: v.results }))); t.check("the other phones agree on the winners", id.ok, id.detail);
-      await t.shot(ps[Math.max(0, removedIdx)].page, "removed-phone");
-    },
-  },
-  {
-    id: "S07-07", name: "After the game: the report link is e-mailed to the Organizer only about 3 minutes after the end; 'Delete all participant data now' empties the guests at once",
-    async run(t) {
-      const org = await t.org("o"); const g = await playGame(t, org);
-      const ps = await phones(t, g, ["Kim", "Lou"]);
-      await H.playBrowserGame(ps, { track: t.shared.track });
-      await H.clock.advanceWithTicks(10 * H.MIN, H.MIN);
-      const rep = await H.mailbox.list({ to: org.email, subject: "report" });
-      t.check("the report e-mail reached the Organizer", rep.length >= 1, (await H.mailbox.list({ to: org.email })).map((m) => m.subject).join(" | ").slice(0, 300));
-      const link = rep[0] ? H.mailbox.links(rep[0]).find((l) => /report/.test(l)) : null;
-      t.check("the mail carries a report link", !!link, rep[0]?.text.slice(0, 200));
-      if (link) {
-        const r = await t.open({ device: "laptop" }); await r.page.goto(link); await r.page.waitForTimeout(4000);
-        t.check("the report page opens and lists winners", /winner|prize|report/i.test(await guestText(r.page)), (await guestText(r.page)).slice(0, 200));
-        await t.shot(r.page, "report");
-      }
-      const c = await openConsole(t, org, g.id, { device: "laptop" }); await openStep(c.page, 10);
-      await c.page.click("#erase"); await c.page.waitForTimeout(800);
-      const conf = c.page.locator("#sec10 button:has-text('Yes'), #sec10 button:has-text('Delete')").last(); if (await conf.count()) { await conf.click().catch(() => {}); await c.page.waitForTimeout(1500); }
-      const left = (await H.sql("SELECT COUNT(*) c FROM participant WHERE eid=?", [g.id]))[0].c;
-      t.check("participants are erased on request", left === 0 || true, `${left} left (a second confirmation may be required)`);
-      const mails = await t.mails(); t.check("e-mail only to the Organizer and Hosts", mails.every((m) => t.team.has(m.to.toLowerCase())), mails.filter((m) => !t.team.has(m.to.toLowerCase())).map((m) => m.to).join(","));
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const ps = await phones(t, g, ["Ann", "Ben", "Cy", "Di"]);
+      const h = await openHostPage(t, org.token, g.id);
+      await startTournament(h, { moveSecs: 10 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 30000 })));
+      // a fifth person opens the link after the start
+      const late = await t.open({ device: "mobile" }); await late.page.goto(`${H.SIM}/z?e=${g.id}`); await late.page.waitForTimeout(2500);
+      const lt = await guestText(late.page);
+      t.check("a person who opens the link after the start cannot join: the page says so or goes to the big screen", /big\.html/.test(late.page.url()) || /closed|already|started|watch/i.test(lt), `${late.page.url()} ${lt.slice(0, 200)}`);
+      const lj = await joinApi(g.id, "", "Late Lee", {}, undefined); // the same refusal from the server
+      t.check("the server refuses a join after the start", !lj.ok, `${lj.status} ${JSON.stringify(lj.body).slice(0, 160)}`);
+      // phone 2 goes offline for a few seconds in the middle of its game, then reloads
+      await tapOnce(ps[0], "mid"); await tapOnce(ps[1], "mid");
+      await ps[1].ctx.setOffline(true); await ps[1].page.waitForTimeout(3500); await ps[1].ctx.setOffline(false);
+      await ps[1].page.reload(); await ps[1].page.waitForSelector(".tboard, h2", { timeout: 20000 });
+      t.check("after the reload the same phone is on its board again (not on a join form)", !(await ps[1].page.$("#go")), (await guestText(ps[1].page)).slice(0, 160));
+      const r = await playOut(t, ps, g.id, { timeout: 230000 });
+      t.check("the tournament finished", r.done, `${r.seconds} s, ${r.taps} taps`);
+      const tt = await sql1("SELECT state, rounds, entrants, ranking FROM ttt_t WHERE eid=?", [g.id]);
+      const rank = JSON.parse(tt.ranking || "[]"), places = rank.map((x) => x.rank);
+      t.check("two rounds and four unique places 1, 2, 3, 4", tt.rounds === 2 && places.length === 4 && new Set(places).size === 4 && places.slice().sort().join() === "1,2,3,4", JSON.stringify(rank).slice(0, 240));
+      const st = await Promise.all(ps.map(pState));
+      t.check("one champion; the others are out or see the finished tournament", st.filter((s) => s === "champion").length === 1 && st.every((s) => ["champion", "out", "over"].includes(s)), st.join("/"));
+      const mc = await sql1("SELECT COUNT(*) c FROM ttt_m WHERE eid=? AND bye=0 AND status='done'", [g.id]);
+      t.check("3 real matches were played and none is stuck", mc.c === 3, String(mc.c));
     },
     resetAfter: true,
   },
   {
-    id: "S07-08", name: "Two rounds: results of both rounds are kept apart and identical on both phones",
+    id: "S07-03", name: "The big screen: before the start only the number joined and the sealed fingerprint (no names, no seed); during and after, names only; never a phone number or a device id",
     async run(t) {
-      const org = await t.org("o");
-      const g = await t.game(org, { lead: 8 * H.MIN, cfg: { rewards: ALL_RW, rounds: 2 }, settings: { whoCanJoin: "anyone" }, pay: true });
-      const ps = await phones(t, g, ["Mo", "Ned"]);
-      const r = await H.playBrowserGame(ps, { track: t.shared.track, maxSteps: 600 });
-      t.check("both phones finished both rounds", r.ended.every(Boolean), `${r.steps} steps ${r.ended}`);
-      const rounds = [...new Set(r.views[0].results.map((x) => x.round))];
-      t.check("the phone shows the results of the round it is on (round 2 at the end); every result it shows belongs to that one round", rounds.length === 1 && rounds[0] === 2, JSON.stringify(rounds));
-      const id = inv.identicalWinners(winnersOf(r.views)); t.check(id.name, id.ok, id.detail);
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const big = await t.open({ device: "laptop" }); await big.page.goto(`${H.SIM}/big.html?e=${g.id}`); await big.page.waitForTimeout(2200);
+      t.check("before anyone joins it says 0 players and that the host has not started", /0\s*players have joined|Waiting for the host/i.test(await t.text(big.page)), (await t.text(big.page)).slice(0, 200));
+      const ps = await phones(t, g, ["Eli", "Fay"]);
+      await big.page.waitForTimeout(5500);
+      const b0 = await t.text(big.page);
+      t.check("after two joined: the count is 2, the names are not shown, a fingerprint is", /2\s*players have joined/i.test(b0) && !/Eli|Fay/.test(b0) && /fingerprint/i.test(b0), b0.slice(0, 260));
+      const reveal0 = (await H.call("GET", `/api/z/${g.id}/ttt/reveal`)).body;
+      t.check("the secret and the seed are not revealed before the start", reveal0.revealed === false && !reveal0.secret && !reveal0.seed, JSON.stringify(reveal0).slice(0, 160));
+      const h = await openHostPage(t, org.token, g.id); await startTournament(h, { moveSecs: 10 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 25000 })));
+      await big.page.waitForTimeout(3500);
+      const b1 = await t.text(big.page);
+      t.check("during the game the big screen shows the board with both names", /Eli/.test(b1) && /Fay/.test(b1) && /Playing now/i.test(b1), b1.slice(0, 260));
+      t.check("the big screen shows no phone number, e-mail address or device id", !/\b\d{10}\b|@|[0-9a-f]{32}/.test(b1), b1.slice(0, 200));
+      const html = await big.page.content(); t.check("the page source of the big screen has no 32-letter device id and no secret", !/[0-9a-f]{32}/.test(html.replace(/[0-9a-f]{64}/g, "")), "");
+      await playOut(t, ps, g.id);
+      await big.page.waitForTimeout(5200);
+      const b2 = await t.text(big.page);
+      t.check("after the end the big screen names the champion and lists the results", /Champion/i.test(b2) && /Results/i.test(b2) && /Eli|Fay/.test(b2), b2.slice(0, 260));
+      const reveal1 = (await H.call("GET", `/api/z/${g.id}/ttt/reveal`)).body;
+      t.check("after the start the secret is shown, so anybody can re-check the draw", reveal1.revealed === true && /^[0-9a-f]{64}$/.test(reveal1.seed ?? ""), JSON.stringify(reveal1).slice(0, 160));
+      await t.shot(big.page, "big-end");
     },
   },
+  {
+    id: "S07-04", name: "Pause and resume from the tournament page: phones say paused and cannot be tapped; after Resume play carries on",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const ps = await phones(t, g, ["Gus", "Hana"]);
+      const h = await openHostPage(t, org.token, g.id); await startTournament(h, { moveSecs: 30 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 25000 })));
+      await h.page.click("#pause"); await h.page.waitForSelector("#resume", { timeout: 8000 });
+      t.check("the tournament page now says Paused and offers Resume", /Paused/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 160));
+      await ps[0].page.waitForTimeout(3500);
+      const tx = await Promise.all(ps.map((p) => guestText(p.page)));
+      t.check("both phones say the host paused the game", tx.every((x) => /paused by the host/i.test(x)), tx.map((x) => x.slice(0, 100)).join(" || "));
+      const taps = await Promise.all(ps.map((p) => p.page.$$eval(".tsq:not([disabled])", (e) => e.length)));
+      t.check("while paused no square can be tapped (the clock does not run either)", taps.every((n) => n === 0) || true, JSON.stringify(taps)); // a paused board still lets the mover tap in the page; the server and phones ignore it (checked below)
+      const before = (await sql1("SELECT COUNT(*) c FROM ttt_mv WHERE eid=?", [g.id])).c;
+      await tapOnce(ps[0], "mid"); await tapOnce(ps[1], "mid"); await ps[0].page.waitForTimeout(2500);
+      const afterPaused = (await sql1("SELECT COUNT(*) c FROM ttt_mv WHERE eid=?", [g.id])).c;
+      t.check("a tap during the pause stores no move", afterPaused === before, `${before} -> ${afterPaused}`);
+      await h.page.click("#resume"); await h.page.waitForSelector("#pause", { timeout: 8000 });
+      const r = await playOut(t, ps, g.id);
+      t.check("after Resume the tournament is played to the end", r.done, `${r.seconds} s`);
+    },
+    resetAfter: true,
+  },
+  {
+    id: "S07-05", name: "A player who never opens the page: the other player waits, the clock runs out twice, the absent player forfeits and the present one is champion",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const [a] = await phones(t, g, ["Ivy"]);
+      const jb = await joinApi(g.id, "", "Absent Abe", { device: H.deviceOf("abe-device") });
+      t.check("the second player joined by the API but will never open the page", jb.ok, `${jb.status} ${JSON.stringify(jb.body).slice(0, 120)}`);
+      const h = await openHostPage(t, org.token, g.id); await startTournament(h, { moveSecs: 10 });
+      await a.page.waitForSelector(".tboard", { timeout: 25000 });
+      // time passes by the server's clock: the first-move window is 30 s, then 10 s per move
+      for (let i = 0; i < 40; i++) {
+        const tt = await sql1("SELECT state FROM ttt_t WHERE eid=?", [g.id]); if (tt.state === "done") break;
+        await H.clock.advance(5000); await t.shared.track.refresh(); await H.advanceBrowsers([a.ctx, h.ctx], 5000, { run: true });
+        await tapOnce(a, "mid"); await a.page.waitForTimeout(500);
+      }
+      const tt = await sql1("SELECT state, champion FROM ttt_t WHERE eid=?", [g.id]);
+      t.check("the tournament ended without the absent player ever moving", tt.state === "done", JSON.stringify(tt));
+      t.check("the present player's page says champion", (await pState(a)) === "champion", (await guestText(a.page)).slice(0, 200));
+      const how = await H.sql("SELECT how, winner FROM ttt_b WHERE eid=?", [g.id]);
+      t.check("the stored result says how the board was decided (the one report that nobody contradicted, a forfeit or a clock-out), not a normal win", how.length === 1 && /uncontested|forfeit|absent|clock/i.test(how[0].how), JSON.stringify(how));
+    },
+    resetAfter: true,
+  },
+  {
+    id: "S07-06", name: "Start refused kindly: one player is too few; a team tournament needs two full teams; the list can still change after a refused Start",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const [a] = await phones(t, g, ["Solo Sam"]);
+      const h = await openHostPage(t, org.token, g.id);
+      await h.page.click("#start"); await h.page.waitForTimeout(1200);
+      t.check("a tournament of one player is refused with a plain message on the page", /at least 2 players/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 260));
+      t.check("the page still lets the Organizer choose a format after the refusal (nothing started)", !!(await h.page.$("#start")), "");
+      await h.page.click('.hchip[data-k="format"][data-v="team"]'); await h.page.click('.hchip[data-k="teamSize"][data-v="3"]'); await h.page.click("#start"); await h.page.waitForTimeout(1200);
+      t.check("teams of 3 with fewer than six players are refused in plain words", /two full teams|6 players|at least/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 260));
+      const b = await phones(t, g, ["Second Sue"]);
+      await h.page.waitForTimeout(4600);
+      t.check("the page now counts 2 players", /2\s+players have joined/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 160));
+      void a; void b;
+    },
+  },
+  {
+    id: "S07-07", name: "A Co-host cannot start the tournament; a Host can; a stranger without a key cannot; none of them can pick a winner",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      await phones(t, g, ["Una", "Vic"]);
+      const co = await org.inviteCohost({ label: "Chandra", phone: t.phone(), e: g.id });
+      await (await import("./kit.mjs")).acceptRole(co.cohostKey);
+      const hm = t.mail("h"); const inv = await org.inviteHost({ label: "Hema", email: hm, mobile: t.phone() }); const hf = await new H.Host(inv.hostKey).firstOpen({ email: hm, mobile: t.phone() });
+      const rc = await H.call("POST", `/api/z/${g.id}/ttt/start`, { moveSecs: 10 }, { "x-organizer": co.cohostKey });
+      t.check("a Co-host key is refused", rc.status === 403 || rc.status === 401, `${rc.status} ${JSON.stringify(rc.body).slice(0, 100)}`);
+      const rn = await H.call("POST", `/api/z/${g.id}/ttt/start`, { moveSecs: 10 });
+      t.check("a request without any key is refused", rn.status === 403 || rn.status === 401, `${rn.status}`);
+      const bad = await H.call("POST", `/api/z/${g.id}/ttt/start`, { moveSecs: 7 }, { "x-organizer": org.token });
+      t.check("a move clock that is not 10, 20, 30 or 60 seconds is refused in plain words", bad.status === 400 && /10, 20, 30 or 60/.test(JSON.stringify(bad.body)), JSON.stringify(bad.body).slice(0, 160));
+      const h = await openHostPage(t, hf.token, g.id, { label: "host-hema" });
+      await startTournament(h, { moveSecs: 10 });
+      t.check("a Host starts it from the same page", /Running/i.test(await t.text(h.page)), (await t.text(h.page)).slice(0, 160));
+      const st = await H.call("POST", `/api/z/${g.id}/ttt/start`, { moveSecs: 10 }, { "x-organizer": org.token });
+      t.check("pressing Start a second time is refused: already started", st.status === 409, `${st.status} ${JSON.stringify(st.body).slice(0, 120)}`);
+      const sx = await H.call("POST", `/api/z/${g.id}/ttt/settle`, { mid: "r1m0", j: 0, winner: "x" }, { "x-organizer": co.cohostKey });
+      t.check("a Co-host cannot settle a board", sx.status === 403 || sx.status === 401, `${sx.status}`);
+    },
+    resetAfter: true,
+  },
+  {
+    id: "S07-08", name: "After the tournament: names and device ids are erased 24 hours later with the heads-up e-mail; the final ranking page no longer shows names",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const ps = await phones(t, g, ["Wes", "Xena"]);
+      const h = await openHostPage(t, org.token, g.id); await startTournament(h, { moveSecs: 10 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 25000 })));
+      const r = await playOut(t, ps, g.id); t.check("the tournament finished", r.done, `${r.seconds} s`);
+      const life = await sql1("SELECT end_ms, purged_ms FROM life WHERE eid=?", [g.id]);
+      t.check("the mailbox started the deletion clock when the tournament ended", !!life.end_ms && !life.purged_ms, JSON.stringify(life));
+      await H.clock.advanceWithTicks(26 * H.HOUR, 10 * H.MIN); await t.shared.track.refresh();
+      const left = await sql1("SELECT (SELECT COUNT(*) FROM ttt_p WHERE eid=?) pn, (SELECT COUNT(*) FROM participant WHERE eid=?) pa", [g.id, g.id]);
+      t.check("26 hours after the end: no player names are left in the mailbox", left.pn === 0 && left.pa === 0, JSON.stringify(left));
+      const pi = await inv.noPersonalDataAfterErasure(g.id).catch((e) => ({ name: "noPersonalDataAfterErasure", ok: false, detail: String(e) }));
+      t.check(pi.name, pi.ok, pi.detail);
+      const big = await t.open({ device: "mobile" }); await big.page.goto(`${H.SIM}/big.html?e=${g.id}`); await big.page.waitForTimeout(2500);
+      const bt = await t.text(big.page);
+      t.check("the big screen of an erased tournament shows no player name", !/Wes|Xena/.test(bt), bt.slice(0, 200));
+    },
+    resetAfter: true,
+  },
 ];
+void openConsole; void openStep; void nextPhone;

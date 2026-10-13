@@ -335,3 +335,28 @@ describe("what is visible, and deletion (G18, U6, D4, R30)", () => {
     void b;
   });
 });
+
+describe("removing a player after the host pressed Start (found by the Chrome simulation, S04-09)", () => {
+  test("a tournament the host started before the planned start time counts as started: the removal keeps the seat (blocked) and the player's own page is told 'removed'", async () => {
+    const h = await game("TT-RM"); const ps = await joinAll("TT-RM", 3);
+    await begin("TT-RM", h); // T is long before the planned start (1200 rounds later): only the tournament state says it has started
+    const list = await j(await call("GET", "/api/z/TT-RM/people", undefined, h, T + 5));
+    const victim = (list.people ?? []).find((q: any) => /Player 2/.test(q.name ?? ""));
+    expect(victim).toBeTruthy();
+    const rm = await call("POST", `/api/z/TT-RM/people/${encodeURIComponent(victim.id)}/remove`, {}, h, T + 6); expect(rm.status).toBe(200);
+    expect((await j(rm)).during).toBe(true);
+    expect(sql("SELECT blocked FROM seat WHERE eid='TT-RM' AND pid=?", ps[1]!.pid)[0]?.blocked).toBe(1); // the seat is still there
+    expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='TT-RM'")[0].c).toBe(3);
+    const me = await j(await call("GET", `/api/z/TT-RM/invites?pid=${ps[1]!.pid}`, undefined, {}, T + 7)); expect(me.removed).toBe(true);
+    const other = await j(await call("GET", `/api/z/TT-RM/invites?pid=${ps[0]!.pid}`, undefined, {}, T + 7)); expect(other.removed).toBe(false);
+  });
+  test("before the host presses Start a removal still frees the place (nothing is kept)", async () => {
+    const h = await game("TT-RM2"); const ps = await joinAll("TT-RM2", 3);
+    const list = await j(await call("GET", "/api/z/TT-RM2/people", undefined, h, T + 5));
+    const victim = (list.people ?? []).find((q: any) => /Player 2/.test(q.name ?? ""));
+    const rm = await call("POST", `/api/z/TT-RM2/people/${encodeURIComponent(victim.id)}/remove`, {}, h, T + 6); expect(rm.status).toBe(200);
+    expect((await j(rm)).during).toBe(false);
+    expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='TT-RM2'")[0].c).toBe(2);
+    void ps;
+  });
+});

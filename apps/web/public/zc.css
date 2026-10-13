@@ -23,8 +23,8 @@
 .zc-track{height:6px;border-radius:3px;background:#e7e2d6;overflow:hidden;margin-top:5px}
 .zc-fill{height:6px;background:var(--zc-ok);transition:width .4s}
 .zc-jump{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--zc-mut)}
-.zc-dot{width:30px;height:30px;border-radius:50%;border:0;font-size:12px;font-weight:700;cursor:pointer}
-.zc-pillbtn{padding:4px 12px;border-radius:999px;border:1px solid var(--zc-line);background:transparent;font-size:12px;cursor:pointer;color:var(--zc-ink);min-height:30px}
+.zc-dot{width:32px;height:32px;border-radius:50%;border:0;font-size:12px;font-weight:700;cursor:pointer}
+.zc-pillbtn{padding:4px 12px;border-radius:999px;border:1px solid var(--zc-line);background:transparent;font-size:12px;cursor:pointer;color:var(--zc-ink);min-height:32px}
 .zc-body{display:grid;grid-template-columns:230px minmax(0,1fr)}
 .zc-side{border-right:1px solid var(--zc-line);padding:12px;background:var(--zc-soft)}
 .zc-main{padding:12px;min-width:0}
@@ -72,7 +72,7 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
 .zc-small{font-size:12px;color:var(--zc-mut);margin:6px 0 0}
 .zc-nomargin{margin:0}
 .zc-okt{color:var(--zc-ok)}.zc-badt{color:var(--zc-bad)}.zc-warnt{color:var(--zc-warn)}
-.zc-check{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;cursor:pointer}
+.zc-check{display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;min-height:32px;cursor:pointer}
 .zc-check input{width:18px;height:18px}
 .zc-btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 20px;border:0;border-radius:11px;background:var(--pri,#0B5D5B);color:#fff;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer}
 .zc-btn-s{min-height:40px;padding:0 16px;font-size:14px}
@@ -118,6 +118,7 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
   .zc-where{flex-basis:100%;text-align:left}
   .zc-roles{grid-template-columns:minmax(0,1fr)}
   .zc-stats{grid-template-columns:repeat(2,1fr)}
+  #cb-notify{bottom:64px!important} /* the "Notify me" pill sits above the bottom tabs, not on top of the first tab */
   .zc-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;border-top:1px solid var(--zc-line);background:#f6f3ec;padding-bottom:env(safe-area-inset-bottom)}
   .zc-tab{flex:1;min-height:52px;border:0;background:transparent;font-size:12px;color:var(--zc-ink);cursor:pointer}
   .zc-main{padding:10px 6px}

@@ -353,3 +353,7 @@ html[data-theme] .chip.on{background:#fff}
 .tbslot{margin:0}
 
 /*gb-fix*/.tdots{top:48px!important}@media (max-width:960px){.tdots{top:46px!important}}
+/* tap targets (found by the Chrome simulation): the three colour dots are real 24 px buttons with the 12 px dot inside, and a Terms box line is tappable over its whole height */
+.tdots button{width:24px!important;height:24px!important;box-sizing:border-box;border:6px solid transparent!important;background-clip:content-box!important;outline:2px solid rgba(255,255,255,.55);outline-offset:-6px}
+.tdots button[aria-pressed="true"]{outline-color:#fff;box-shadow:none}
+.tb-row label{flex:1;align-self:stretch;cursor:pointer}

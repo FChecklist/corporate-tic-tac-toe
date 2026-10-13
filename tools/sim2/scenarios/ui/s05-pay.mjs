@@ -1,5 +1,5 @@
 // Group 5: money. The pay page (test payment), double click, paying twice, the pay link anyone can open, credit after a cancel (no refunds), paying late.
-import { H, openConsole, openStep, payOnPage, payStatus, nextPhone } from "./kit.mjs";
+import { H, openConsole, openStep, payOnPage, payStatus, nextPhone, tickTerms } from "./kit.mjs";
 
 const paidCount = async (eid) => (await H.sql("SELECT COUNT(*) c FROM payment WHERE eid=? AND status='paid'", [eid]))[0].c;
 const anyPay = async (eid) => (await H.sql("SELECT COUNT(*) c FROM payment WHERE eid=?", [eid]))[0].c;
@@ -13,7 +13,7 @@ export default [
       await x.page.goto(`${H.SIM}/pay.html?e=${g.id}`);
       await x.page.waitForSelector("#paygo");
       const txt0 = await t.text(x.page);
-      t.check("order summary shows pack, price and total (no GST)", /Up to 100/.test(txt0) && !/GST/.test(txt0) && /2,399/.test(txt0), txt0.slice(0, 220));
+      t.check("order summary shows pack, price and total (no GST)", /Up to 100/.test(txt0) && !/18%|\+ GST|GST \(/.test(txt0) && /2,399/.test(txt0), txt0.slice(0, 220));
       await payOnPage(x.page, { email: org.email });
       await x.page.waitForFunction(() => /PAYMENT RECEIVED/i.test(document.body.innerText), null, { timeout: 15000 });
       t.check("'Payment received' page with an invoice", /invoice/i.test(await t.text(x.page)));
@@ -32,6 +32,7 @@ export default [
       const x = await t.open({ device: "laptop", token: org.token });
       await x.page.goto(`${H.SIM}/pay.html?e=${g.id}`); await x.page.waitForSelector("#paygo");
       await x.page.fill("#nm", "Dbl Click"); await x.page.fill("#em", org.email); await x.page.fill("#org", "Dbl Co");
+      await tickTerms(t, x.page, { scope: ".tb", btn: "#paygo", what: "Pay" });
       await x.page.dblclick("#paygo"); await x.page.waitForTimeout(3500);
       t.check("exactly one paid payment row", (await paidCount(g.id)) === 1, `paid ${await paidCount(g.id)} of ${await anyPay(g.id)} rows`);
       const inv = await H.sql("SELECT COUNT(*) c FROM invoice WHERE payment_id IN (SELECT id FROM payment WHERE eid=?)", [g.id]).catch(() => [{ c: 1 }]);
@@ -89,7 +90,8 @@ export default [
       t.check("stranger sees the price and a single Pay button", /2,399/.test(ptxt) && !!(await p.page.$("#paygo")), ptxt.slice(0, 260));
       t.check("no sign-in is asked; only name + e-mail are required fields", !(await p.page.$('input[type=password]')));
       await t.shot(p.page, "paylink-stranger");
-      await p.page.fill("#nm", "Stranger Sam"); await p.page.fill("#em", t.mail("stranger")); if (await p.page.$("#org")) await p.page.fill("#org", "Sam Ltd"); await p.page.click("#paygo");
+      await p.page.fill("#nm", "Stranger Sam"); await p.page.fill("#em", t.mail("stranger")); if (await p.page.$("#org")) await p.page.fill("#org", "Sam Ltd");
+      await tickTerms(t, p.page, { scope: ".tb", btn: "#paygo", what: "Pay link" }); await p.page.click("#paygo");
       await t.until(async () => (await payStatus(org, g.id)) === "paid", { what: "paid via pay link", timeout: 15000 });
       t.check("the game is paid through the link", true);
       await p.page.waitForTimeout(1000);
