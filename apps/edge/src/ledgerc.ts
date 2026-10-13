@@ -114,6 +114,11 @@ export async function recordAttempt(db: D1, ent: any, status: AttemptStatus, evM
       num(ent.fee), num(ent.tax), t("authorized"), t("captured"), t("failed"), evMs, num(ent.created_at) ? Number(ent.created_at) * 1000 : null, now).run();
 }
 
+/** When the x-razorpay-event-id header did not arrive (the central service forwards only the signature), the same event is still recognised: its name, the payment / refund / order it is about, and Razorpay's own time of it. Null when the message lacks any of these (the rows are idempotent anyway). */
+export function derivedEventKey(ev: any): string | null {
+  const name = str(ev?.event, 60), id = str(ev?.payload?.payment?.entity?.id ?? ev?.payload?.refund?.entity?.id ?? ev?.payload?.order?.entity?.id, 80), at = num(ev?.created_at);
+  return name && id && at ? `d:${name}:${id}:${at}` : null;
+}
 /** Razorpay's own message about a repeated delivery: already handled? */
 export async function eventSeen(db: D1, eventId: string): Promise<boolean> {
   try { return !!(await db.prepare("SELECT 1 AS x FROM event_seen WHERE rzp_event_id=?").bind(eventId).first()); } catch { return false; }

@@ -19,7 +19,7 @@ import { keepLegalParty } from "./legal";
 import { PdfDoc, NAVY } from "./pdf";
 import { ledgerFields, logWebhook, siteOf, type HookRecord } from "./ledger";
 import { partnerCode, phoneHashFor, recordCommission, refCode } from "./partners";
-import { attemptStatusOf, centralOf, eventSeen, markEventSeen, recordAttempt, recordRefund, storePaymentDetails, txnIdOf } from "./ledgerc";
+import { attemptStatusOf, centralOf, derivedEventKey, eventSeen, markEventSeen, recordAttempt, recordRefund, storePaymentDetails, txnIdOf } from "./ledgerc";
 import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
 import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs } from "./credit";
@@ -408,7 +408,8 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const ent = ev?.payload?.payment?.entity, ord = ev?.payload?.order?.entity;
     const orderId = ent?.order_id ?? ord?.id;
     const seen: Partial<HookRecord> = { event: typeof ev?.event === "string" ? ev.event.slice(0, 60) : null, orderId: orderId ?? null, rzpPaymentId: ent?.id ?? null, amountMinor: Number.isFinite(Number(ent?.amount)) ? Number(ent.amount) : null };
-    if (eventId && (await eventSeen(db, eventId))) return hook(json({ ok: true, duplicate: eventId }), "duplicate event ignored", seen); // ledger C: Razorpay's event id is processed once
+    const dedupe = eventId ?? derivedEventKey(ev); // the central service passes the message on without Razorpay's event-id header, so a key made from the message itself stands in for it
+    if (dedupe && (await eventSeen(db, dedupe))) return hook(json({ ok: true, duplicate: dedupe }), "duplicate event ignored", seen); // ledger C: Razorpay's event id is processed once
     const evMs = Number(ev?.created_at) > 0 ? Number(ev.created_at) * 1000 : now; // the gateway's own time of the event (capture time is not on the payment itself)
     const answer = async (): Promise<Response> => {
       const rf = ev?.payload?.refund?.entity;
@@ -439,7 +440,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       return "result" in f ? hook(json({ ok: true, fulfilled: row.id }), wasPaid ? "already paid (no change)" : "marked paid by webhook", { ...seen, paymentId: row.id }) : hook(json({ error: f.error }, f.status), `failed: ${f.error}`, { ...seen, paymentId: row.id });
     };
     const res = await answer();
-    if (eventId && res.status < 300) await markEventSeen(db, eventId, seen.event ?? null, now);
+    if (dedupe && res.status < 300) await markEventSeen(db, dedupe, seen.event ?? null, now);
     return res;
   }
 

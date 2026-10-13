@@ -101,6 +101,15 @@ describe("every attempt is kept (webhook), success and failure, once", () => {
     const outcomes = (raw.query("SELECT outcome FROM webhook_log ORDER BY id").all() as any[]).map((r) => r.outcome);
     expect(outcomes.filter((o) => o === "duplicate event ignored")).toHaveLength(2);
   });
+  test("without Razorpay's event-id header (the central service does not forward it) a repeated message is still recognised from its own content", async () => {
+    const { paymentId, orderId } = await newBuy();
+    const body = JSON.stringify(captured(orderId, "pay_ok")), sign = { "x-razorpay-signature": hmac("whsec", body) };
+    expect((await call("POST", "/api/payments/webhook", body, sign)).status).toBe(200);
+    expect(await (await call("POST", "/api/payments/webhook", body, sign)).json()).toMatchObject({ duplicate: expect.stringMatching(/^d:payment\.captured:pay_ok:\d+$/) });
+    expect(payRow(paymentId).status).toBe("paid"); expect(raw.query("SELECT COUNT(*) c FROM entitlement").get()).toEqual({ c: 1 });
+    const later = JSON.stringify(captured(orderId, "pay_ok", {}, Math.floor(T / 1000) + 5)); // a different moment is a different event
+    expect(await (await call("POST", "/api/payments/webhook", later, { "x-razorpay-signature": hmac("whsec", later) })).json()).toMatchObject({ ok: true, fulfilled: paymentId });
+  });
   test("a payment that failed and was then authorised by the bank (same Razorpay payment) is one row that ends captured, with both times kept; a late failed message never undoes a capture", async () => {
     const { paymentId, orderId } = await newBuy();
     await hook(failed(orderId, "pay_u1", Math.floor(T / 1000) - 120), "e1");
