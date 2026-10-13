@@ -9,6 +9,7 @@
 import type { D1, Env } from "./worker";
 import { sendMail, type PayEnv } from "./pay";
 import { testFlag } from "./mode";
+import { syncCommissions } from "./ledgerc";
 
 export const ATTRIBUTION_DAYS = 30;
 /** The commission every partner earns on the software price (no GST is charged) of a paid, referred purchase. product decision 2026-10-03: 50%. PARTNER_COMMISSION_RATE can lower it (never above 50%). */
@@ -63,6 +64,7 @@ export async function recordCommission(env: PayEnv, p: { id: string; ref?: strin
       rate = x; amount = r2(base * x); status = "accrued";
     }
     await env.DB.prepare("INSERT OR IGNORE INTO commission(payment_id,partner_code,base,currency,rate,amount,status,reason,created_ms,is_test) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(p.id, partner.code, base, p.currency, rate, amount, status, reason, now, (p as any).is_test || partner.is_test ? 1 : 0).run(); // a test payment or a test partner makes a test commission: it never counts in real figures
+    await syncCommissions(env, now, { paymentId: p.id, limit: 1 }).catch(() => null); // ledger C -> B: an accrued row is posted at once (a row that waits for a rate, or is blocked, is not); if B is not ready the lifecycle tick retries
   } catch { /* a ledger problem must never undo a paid purchase; the payment row still carries the ref so it can be rebuilt */ }
 }
 
@@ -185,12 +187,15 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     const code = refCode(b?.code);
     if (!b || !code || typeof b.reference !== "string" || b.reference.length < 3) return json({ error: "Give the partner code and the payment reference." }, 400);
     const r = await db.prepare("UPDATE commission SET status='paid', paid_ref=?, paid_ms=? WHERE partner_code=? AND status='accrued' AND is_test=0").bind(b.reference.slice(0, 80), now, code).run();
+    await syncCommissions(env, now, { partnerCode: code, limit: 10 }).catch(() => null); // ledger C -> B: the paid rows are posted with the payout reference
     return json({ ok: true, paidRows: r.meta?.changes ?? 0 });
   }
   if (req.method === "POST" && p === "/api/partners/commission/void") { // a refunded purchase earns nothing
     const b = await body(req);
     if (!b || typeof b.paymentId !== "string") return json({ error: "Give the payment id." }, 400);
-    return json({ ok: true, voided: await voidCommission(db, b.paymentId, typeof b.reason === "string" ? b.reason.slice(0, 120) : "refund") });
+    const voided = await voidCommission(db, b.paymentId, typeof b.reason === "string" ? b.reason.slice(0, 120) : "refund");
+    await syncCommissions(env, now, { paymentId: b.paymentId, limit: 5 }).catch(() => null); // ledger C -> B: the void is posted
+    return json({ ok: true, voided });
   }
   if (req.method === "POST" && p === "/api/partners/state") {
     const b = await body(req);

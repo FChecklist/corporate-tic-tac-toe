@@ -19,6 +19,7 @@ import { keepLegalParty } from "./legal";
 import { PdfDoc, NAVY } from "./pdf";
 import { ledgerFields, logWebhook, siteOf, type HookRecord } from "./ledger";
 import { partnerCode, phoneHashFor, recordCommission, refCode } from "./partners";
+import { attemptStatusOf, centralOf, eventSeen, markEventSeen, recordAttempt, recordRefund, storePaymentDetails, txnIdOf } from "./ledgerc";
 import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
 import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs } from "./credit";
@@ -55,7 +56,6 @@ const rzpOf = (env: PayEnv): (RazorpayConfig) | null => (env.RAZORPAY_KEY_ID && 
  * razorpay / IT Services / <website> / <stream> / <plan>. This site is the "sales" stream; the plan is the pack (pack_250) or payment_test.
  * Without PAY_SERVICE_KEY, or if the central service cannot be reached, the order is opened directly with Razorpay exactly as before (the webhook still reaches the ledger).
  */
-const centralOf = (env: PayEnv) => (env.PAY_SERVICE_KEY ? { url: (env.PAY_SERVICE_URL ?? "https://itservices-rajat-agarwal.pages.dev").replace(/\/+$/, ""), key: env.PAY_SERVICE_KEY, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev" } : null);
 async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string }): Promise<CreatedOrder> {
   const c = centralOf(env);
   if (c) {
@@ -66,12 +66,12 @@ async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: nu
       console.warn("central order refused", r.status, d?.error);
     } catch (e) { console.warn("central order unreachable", String(e)); }
   }
-  return createOrder(rzp, o);
+  return createOrder(rzp, { ...o, notes: { ...o.notes, txn_id: txnIdOf(o.receipt) } }); // opened straight with Razorpay (central service down or not set): the txn_id still travels in the order notes (A)
 }
 /** After a correctly signed payment: tell the central ledger (best effort, never blocks or fails the buyer; the central webhook records it too). */
-async function reportToCentral(env: PayEnv, b: any): Promise<void> {
-  const c = centralOf(env); if (!c) return;
-  try { await fetch(`${c.url}/api/pay/verify`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, razorpay_order_id: String(b.razorpay_order_id), razorpay_payment_id: String(b.razorpay_payment_id), razorpay_signature: String(b.razorpay_signature) }), signal: AbortSignal.timeout(4000) }); } catch { /* the webhook records it */ }
+async function reportToCentral(env: PayEnv, b: any): Promise<any | null> {
+  const c = centralOf(env); if (!c) return null;
+  try { const r = await fetch(`${c.url}/api/pay/verify`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, razorpay_order_id: String(b.razorpay_order_id), razorpay_payment_id: String(b.razorpay_payment_id), razorpay_signature: String(b.razorpay_signature) }), signal: AbortSignal.timeout(4000) }); return r.ok ? await r.json().catch(() => null) : null; } catch { return null; /* the webhook records it */ }
 }
 /** Optional switch (env FREE_LAUNCH="1"): small engagements (up to FREE_CAP participants) may be published without a purchase. Building a draft is always free. */
 export const FREE_CAP = 100, MAX_DRAFTS = 10;
@@ -337,7 +337,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const ref = refCode(b.ref); // from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
     const bph = partnerCode(b.phone); // optional, only used to spot a partner buying through their own link
     const lf = ledgerFields(siteOf(meta.origin), "game_pack", `pack_${pack}`, boundOrg ?? null);
-    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser).run();
+    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
     if (!rzp) { const f = await fulfil(env, id, now, spend); return "result" in f ? json({ mode: "test", paymentId: id, result: f.result, ...(siteTest ? { testPayment: true, label: "TEST payment: nothing was charged." } : {}) }) : json({ error: f.error }, f.status); }
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: toMinor(pr.total), currency: cur, name: brand.name, description: "(close group bingo software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: payerName.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name, participants: String(pack) }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
@@ -367,7 +367,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (cty === "IN" && taxId && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(taxId)) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
     const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
     const lf = ledgerFields(siteOf(meta.origin), "payment_test", "payment_test", null);
-    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser).run();
+    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: 100, currency: cur, name: brand.name, description: "(close group bingo software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: nm.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
 
@@ -385,11 +385,15 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const unconfirm = async () => { if (marked) await db.prepare("UPDATE payment SET confirming_ms=NULL WHERE id=? AND status<>'paid'").bind(row.id).run(); };
     const pay = await fetchPayment(rzp, String(b.razorpay_payment_id)).catch(() => null);
     if (!pay || pay.order_id !== b.razorpay_order_id || Number(pay.amount) !== toMinor(row.amount)) { await unconfirm(); return json({ error: "The payment details did not match the order." }, 400); }
+    if (pay.status === "failed") { try { await recordAttempt(db, { ...pay, currency: pay.currency ?? row.currency }, "failed", now, now, row.id); } catch { /* the webhook records it too */ } } // ledger C: a failed try is kept with Razorpay's reason; it never marks the payment paid
     if (pay.status === "created") { await db.prepare("UPDATE payment SET rzp_payment_id=COALESCE(rzp_payment_id,?) WHERE id=?").bind(String(b.razorpay_payment_id), row.id).run(); return json({ confirming: true, paid: false, message: "Confirming your payment..." }, 202); } // the page asks again in a few seconds; the gateway's webhook finishes it too
-    if (pay.status === "authorized") await capturePayment(rzp, pay.id, toMinor(row.amount), row.currency).catch(() => null);
+    let done: any = pay;
+    if (pay.status === "authorized") { const cap = await capturePayment(rzp, pay.id, toMinor(row.amount), row.currency).catch(() => null); if (cap && cap.status === "captured") done = cap; }
     else if (pay.status !== "captured") { await unconfirm(); return json({ error: `The payment is ${pay.status}. Nothing was charged to your order.` }, 402); }
     await db.prepare("UPDATE payment SET rzp_payment_id=? WHERE id=?").bind(String(b.razorpay_payment_id), row.id).run();
-    await reportToCentral(env, b);
+    const central = await reportToCentral(env, b);
+    try { await recordAttempt(db, { ...done, currency: done.currency ?? row.currency }, done.status === "captured" ? "captured" : "authorized", now, now, row.id); } catch { /* the webhook records it too */ }
+    await storePaymentDetails(db, row.id, done, central); // ledger C: fee, tax, method, bank reference and txn_id on the payment
     const f = await fulfil(env, row.id, now, spend);
     return "result" in f ? json(f.result) : json({ error: f.error }, f.status);
   }
@@ -404,19 +408,39 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const ent = ev?.payload?.payment?.entity, ord = ev?.payload?.order?.entity;
     const orderId = ent?.order_id ?? ord?.id;
     const seen: Partial<HookRecord> = { event: typeof ev?.event === "string" ? ev.event.slice(0, 60) : null, orderId: orderId ?? null, rzpPaymentId: ent?.id ?? null, amountMinor: Number.isFinite(Number(ent?.amount)) ? Number(ent.amount) : null };
-    if (ev.event === "payment.authorized" && orderId) { // the gateway has the money but has not captured it yet: the buyer sees "Confirming your payment..." and nothing is marked Paid
-      await db.prepare("UPDATE payment SET confirming_ms=? WHERE rzp_order_id=? AND status<>'paid'").bind(now, orderId).run();
-      const pr = await db.prepare("SELECT id FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string }>();
-      return hook(json({ ok: true, confirming: true }), "confirming", { ...seen, paymentId: pr?.id });
-    }
-    if (!["payment.captured", "order.paid"].includes(ev.event) || !orderId) return hook(json({ ok: true, ignored: ev.event }), "ignored: not a payment event", seen);
-    const row = await db.prepare("SELECT * FROM payment WHERE rzp_order_id=?").bind(orderId).first<any>();
-    if (!row) return hook(json({ ok: true, ignored: "unknown order" }), "ignored: unknown order", seen);
-    if (Number(ent?.amount ?? toMinor(row.amount)) !== toMinor(row.amount)) return hook(json({ ok: true, ignored: "amount mismatch" }), "ignored: amount mismatch", { ...seen, paymentId: row.id }); // never fulfil an order that was paid a different amount
-    if (ent?.id) await db.prepare("UPDATE payment SET rzp_payment_id=COALESCE(rzp_payment_id,?) WHERE id=?").bind(ent.id, row.id).run();
-    const wasPaid = row.status === "paid";
-    const f = await fulfil(env, row.id, now, spend);
-    return "result" in f ? hook(json({ ok: true, fulfilled: row.id }), wasPaid ? "already paid (no change)" : "marked paid by webhook", { ...seen, paymentId: row.id }) : hook(json({ error: f.error }, f.status), `failed: ${f.error}`, { ...seen, paymentId: row.id });
+    if (eventId && (await eventSeen(db, eventId))) return hook(json({ ok: true, duplicate: eventId }), "duplicate event ignored", seen); // ledger C: Razorpay's event id is processed once
+    const evMs = Number(ev?.created_at) > 0 ? Number(ev.created_at) * 1000 : now; // the gateway's own time of the event (capture time is not on the payment itself)
+    const answer = async (): Promise<Response> => {
+      const rf = ev?.payload?.refund?.entity;
+      if (typeof ev?.event === "string" && ev.event.startsWith("refund.") && rf) { // ledger C: a refund is one row of payment_refund, however many times it is reported
+        try { await recordRefund(db, ev.event, rf, now); } catch { /* retried by Razorpay's next delivery */ }
+        return hook(json({ ok: true, refund: rf.id ?? null }), `refund recorded: ${ev.event}`, seen);
+      }
+      const attemptStatus = typeof ev?.event === "string" ? attemptStatusOf(ev.event) : null;
+      let prow: { id: string } | null = null;
+      if (attemptStatus && ent?.id && orderId) { // ledger C: every attempt (authorized, captured, failed) of a payment this website opened is kept, with Razorpay's reason when it failed
+        prow = await db.prepare("SELECT id FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string }>();
+        if (prow) { try { await recordAttempt(db, ent, attemptStatus, evMs, now, prow.id); } catch { /* the payment itself is handled below */ } }
+      }
+      if (ev.event === "payment.authorized" && orderId) { // the gateway has the money but has not captured it yet: the buyer sees "Confirming your payment..." and nothing is marked Paid
+        await db.prepare("UPDATE payment SET confirming_ms=? WHERE rzp_order_id=? AND status<>'paid'").bind(now, orderId).run();
+        const pr = await db.prepare("SELECT id FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string }>();
+        return hook(json({ ok: true, confirming: true }), "confirming", { ...seen, paymentId: pr?.id });
+      }
+      if (ev.event === "payment.failed" && prow) return hook(json({ ok: true, attempt: "failed" }), "attempt recorded: failed (the payment stays unpaid)", { ...seen, paymentId: prow.id }); // a failed try never marks the payment paid; a later paying try still can
+      if (!["payment.captured", "order.paid"].includes(ev.event) || !orderId) return hook(json({ ok: true, ignored: ev.event }), "ignored: not a payment event", seen);
+      const row = await db.prepare("SELECT * FROM payment WHERE rzp_order_id=?").bind(orderId).first<any>();
+      if (!row) return hook(json({ ok: true, ignored: "unknown order" }), "ignored: unknown order", seen);
+      if (Number(ent?.amount ?? toMinor(row.amount)) !== toMinor(row.amount)) return hook(json({ ok: true, ignored: "amount mismatch" }), "ignored: amount mismatch", { ...seen, paymentId: row.id }); // never fulfil an order that was paid a different amount
+      if (ent?.id) await db.prepare("UPDATE payment SET rzp_payment_id=COALESCE(rzp_payment_id,?) WHERE id=?").bind(ent.id, row.id).run();
+      const wasPaid = row.status === "paid";
+      const f = await fulfil(env, row.id, now, spend);
+      if ("result" in f && ent?.id && (!row.rzp_payment_id || row.rzp_payment_id === ent.id)) await storePaymentDetails(db, row.id, ent, null); // ledger C: fee, tax, method, bank reference and txn_id on the payment
+      return "result" in f ? hook(json({ ok: true, fulfilled: row.id }), wasPaid ? "already paid (no change)" : "marked paid by webhook", { ...seen, paymentId: row.id }) : hook(json({ error: f.error }, f.status), `failed: ${f.error}`, { ...seen, paymentId: row.id });
+    };
+    const res = await answer();
+    if (eventId && res.status < 300) await markEventSeen(db, eventId, seen.event ?? null, now);
+    return res;
   }
 
   const cm = p.match(/^\/api\/credit-note\/(cn_[0-9a-f]{32})$/); // the GST credit note issued with a refund
