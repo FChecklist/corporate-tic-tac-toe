@@ -351,3 +351,5 @@ html[data-theme] .chip.on{background:#fff}
 .tb-row small{font-size:12px}.tb-row small a{color:var(--muted,#6b7385);text-decoration:underline}
 .tb-err{margin:8px 0;font-size:13px;color:#b3261e}
 .tbslot{margin:0}
+
+/*gb-fix*/.tdots{top:48px!important}@media (max-width:960px){.tdots{top:46px!important}}

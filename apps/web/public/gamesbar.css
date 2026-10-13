@@ -8,3 +8,5 @@
 .cg-line{display:none;color:#C9D3E8}
 .cg-bar nav{display:flex;gap:2px}
 @media (min-width:980px){.cg-line{display:inline}}
+
+/*tap-fix*/.cg-wrap{min-height:44px}.cg-bar a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px}
