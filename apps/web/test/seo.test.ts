@@ -55,7 +55,7 @@ describe("each indexable page", () => {
   });
   test("every image has alt text and a size, and the picture at the top loads early", () => {
     for (const f of [...INDEXABLE, ...NOINDEX]) { let h = ""; try { h = rd(f); } catch { continue; } for (const img of h.match(/<img\b[^>]*>/g) ?? []) { expect([f, /\balt="[^"]+"/.test(img)]).toEqual([f, true]); expect([f, /\bwidth="\d+"/.test(img) && /\bheight="\d+"/.test(img)]).toEqual([f, true]); } }
-    expect(rd("index.html")).toMatch(/<img src="\/img\/card\.webp"[^>]*fetchpriority="high"/);
+    expect(rd("index.html")).toMatch(/<img src="\/img\/card\.png"[^>]*fetchpriority="high"/);
   });
   test("quick loading: fonts are self-hosted and swap in, the two main fonts are preloaded, scripts do not block the page, nothing third-party is loaded on the home page", () => {
     const h = rd("index.html"), f = rd("fonts.css");

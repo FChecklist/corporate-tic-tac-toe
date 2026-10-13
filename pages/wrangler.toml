@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]   # billing uses node:crypto HMAC
 [[d1_databases]]
 binding = "DB"
 database_name = "corporate-tic-tac-toe"
-database_id = "REPLACE_ME"   # create the D1 database "corporate-tic-tac-toe" first; never reuse another product's id
+database_id = "6f1d9846-7716-4209-8cad-85ed83dc8f1f"   # create the D1 database "corporate-tic-tac-toe" first; never reuse another product's id
 
 [vars]
 DAILY_WRITE_BUDGET = "80000"
