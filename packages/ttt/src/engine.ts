@@ -8,7 +8,7 @@ export type Cell = 0 | 1 | 2; // 0 empty, 1 = X (moves first on that board), 2 =
 export const BOARD_SIZES = [3, 4, 5] as const;
 export type Size = (typeof BOARD_SIZES)[number];
 
-/** Points for a run, by its length and direction. Shown to every player before and during the match (owner order: players are told exactly how points are calculated). */
+/** Points for a run, by its length and direction. Shown to every player before and during the match (product rule: players are told exactly how points are calculated). */
 export const POINTS: Readonly<Record<number, Readonly<Record<Dir, number>>>> = {
   2: { H: 1, V: 2, D: 3 },
   3: { H: 5, V: 10, D: 15 },
