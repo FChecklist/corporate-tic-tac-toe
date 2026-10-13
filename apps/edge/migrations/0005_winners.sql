@@ -1,0 +1,6 @@
+-- Winners decided by the software (phones agree), prize records (winner confirms details, organizer ticks "given"), and the external AI's audit trail. test/migrations.test.ts keeps this identical to SCHEMA in the Worker.
+CREATE TABLE IF NOT EXISTS rvote (eid TEXT NOT NULL, round INTEGER NOT NULL, pattern TEXT NOT NULL, ordinal INTEGER NOT NULL, seat INTEGER NOT NULL, digest TEXT NOT NULL, PRIMARY KEY (eid, round, pattern, ordinal, seat));
+CREATE TABLE IF NOT EXISTS rcand (eid TEXT NOT NULL, round INTEGER NOT NULL, pattern TEXT NOT NULL, ordinal INTEGER NOT NULL, digest TEXT NOT NULL, idx INTEGER NOT NULL, pids TEXT NOT NULL, PRIMARY KEY (eid, round, pattern, ordinal, digest));
+CREATE TABLE IF NOT EXISTS prize (eid TEXT NOT NULL, round INTEGER NOT NULL, pattern TEXT NOT NULL, ordinal INTEGER NOT NULL, seat INTEGER NOT NULL, pii TEXT, orig TEXT, trail TEXT, confirmed_ms INTEGER, given_ms INTEGER, given_by TEXT, PRIMARY KEY (eid, round, pattern, ordinal, seat));
+CREATE TABLE IF NOT EXISTS ai_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, org TEXT NOT NULL, eid TEXT, at_ms INTEGER NOT NULL, key_id TEXT, method TEXT NOT NULL, path TEXT NOT NULL, status INTEGER, ip TEXT, ua TEXT, country TEXT);
+CREATE INDEX IF NOT EXISTS seat_dev ON seat (eid, dev);

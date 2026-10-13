@@ -1,0 +1,142 @@
+.zapp{max-width:520px;margin:0 auto;padding:14px 16px 40px;min-height:100vh;min-height:100dvh;color:var(--ink)}
+.zmsg{text-align:center;color:var(--muted);margin:30vh 0 0}
+.zhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.zhead b{font:700 15px var(--sans,inherit);color:var(--pri);display:inline-flex;align-items:center;gap:8px}
+.zhead b::before{content:"";flex:0 0 24px;width:24px;height:24px;border-radius:6px;background:url(/icon-192.png) center/cover}
+.zsnd{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;min-height:36px}
+.zcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.zcard h2{margin:0 0 8px;font:700 13px var(--sans,inherit);letter-spacing:.08em;text-transform:uppercase;color:var(--accd)}
+.zbanner{border-radius:12px;padding:12px 14px;margin:10px 0;font-weight:600}
+.zbanner.warn{background:var(--warnbg);color:var(--warn)}.zbanner.info{background:var(--infobg);color:var(--info)}.zbanner.ok{background:var(--okbg);color:var(--ok)}.zbanner.bad{background:var(--badbg);color:var(--bad)}
+/* letter colours, used on the big ball, the last numbers, the card heads and the call board (white text on each: contrast 5:1 or better) */
+.l0{--lc:#1D4ED8}.l1{--lc:#B91C1C}.l2{--lc:#374151}.l3{--lc:#15803D}.l4{--lc:#C2410C}
+.zball{display:flex;align-items:center;justify-content:center;gap:16px;padding:8px 0}
+.zbig{width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 9%,var(--lc,#374151) 10% 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(6,59,58,.28),inset 0 0 0 5px rgba(255,255,255,.55)}
+.zbig small{font:800 22px/1 var(--sans,inherit);letter-spacing:.06em;margin-bottom:2px}
+.zbig span{font:800 56px/1 var(--sans,inherit);font-variant-numeric:tabular-nums}
+.zbig.none{background:var(--sunk);color:#4B5F5D;box-shadow:none;font:700 30px var(--sans,inherit)}
+.zsub{text-align:center;color:var(--muted);font-size:13px;min-height:18px}
+.zlast{display:flex;gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+.zlast span{min-width:46px;height:46px;border-radius:50%;background:var(--lc);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 16px/1 var(--sans,inherit);padding:0 2px}
+.zlast span i{font:700 10px/1 var(--sans,inherit);font-style:normal;opacity:.9;letter-spacing:.06em}
+/* the card: B I N G O heads, then 5 x 5 squares */
+.zticket{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:360px;margin:0 auto}
+.zticket div,.zticket button{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--sunk);border:0;padding:0;font-weight:800;font-size:clamp(17px,6vw,26px);color:var(--ink);font-variant-numeric:tabular-nums}
+.zticket .h{aspect-ratio:auto;height:34px;background:var(--lc);color:#fff;font:800 20px var(--sans,inherit);letter-spacing:.06em;border-radius:8px}
+.zticket .m{background:var(--pri);color:#fff}
+.zticket .free{background:var(--pri);color:#fff;font:800 clamp(11px,3.4vw,14px) var(--sans,inherit);letter-spacing:.06em;text-align:center;overflow:hidden}
+.zticket .free img.zfl{width:84%;height:84%;object-fit:contain;background:#fff;border-radius:6px;padding:2px}
+.zticket button{cursor:pointer;touch-action:manipulation}
+.zticket button.due{box-shadow:inset 0 0 0 3px var(--acc);background:#fff}
+.zticket button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.zmode{font:700 11px var(--sans,inherit);letter-spacing:.06em;text-transform:none;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 8px;margin-left:6px}
+.znudge{background:#FFF6D6;border:1px solid #FFC93C;color:#5A4300;border-radius:10px;padding:8px 10px}
+/* the call board: one row per letter, 15 numbers each */
+.zboard{display:grid;grid-template-columns:22px repeat(15,1fr);gap:2px}
+.zboard div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(9px,2.7vw,12px);border-radius:4px;background:var(--sunk);color:#4B5F5D;font-variant-numeric:tabular-nums}
+.zboard .bl{background:var(--lc);color:#fff;font-weight:800;font-size:13px}
+.zboard div.c{background:var(--acc);color:var(--deep);font-weight:800}
+.zrow{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line2);font-size:14px}
+.zrow:first-of-type{border-top:0}
+.zrow em{font-style:normal;color:var(--ok);font-weight:700}
+.zrow i{font-style:normal;color:var(--muted)}
+.zform label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.zform input{width:100%;box-sizing:border-box;min-height:46px;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.zbtn{width:100%;min-height:48px;margin-top:14px;border:0;border-radius:12px;background:var(--pri);color:#fff;font:700 16px var(--sans,inherit)}
+.zsmall{font-size:12px;color:var(--muted);margin-top:8px}
+.zref{display:inline-block;margin-top:10px;padding:8px 2px;min-height:24px;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+
+/* link buttons look and align like real buttons */
+a.zbtn{display:flex!important;align-items:center;justify-content:center;text-align:center;text-decoration:none;box-sizing:border-box}
+.zc a.zbtn.s{display:inline-flex!important}
+
+/* waiting room, announcements, scratch cards */
+.zwait h3{margin:14px 0 4px;font-size:15px}
+.zwait .zcount{font:700 44px/1.1 var(--sans,inherit);margin:6px 0}
+.zlist{margin:4px 0 8px;padding-left:20px;font-size:15px}
+.zlist li{margin:2px 0}
+.zann{border:2px solid #FFC93C}
+.zscratch{border:0;border-radius:10px;padding:10px 16px;font:700 14px var(--sans,inherit);color:#555;cursor:pointer;background:repeating-linear-gradient(135deg,#c9c9c9,#ececec 6px,#bdbdbd 12px)}
+a.zbtn#addcal{margin-left:6px}
+
+/* winners, hurray, final thank-you, in-page media */
+.zticket .w{background:#FFC93C;color:#1b1b1b;box-shadow:0 0 0 2px #fff,0 0 10px 2px #FFC93C;font-weight:800}
+.zwin{background:linear-gradient(90deg,#fff6d6,#ffe9a8);border:1px solid #FFC93C;color:#5a4300;border-radius:10px;padding:10px 12px;margin:0 0 10px;font:700 15px/1.35 var(--sans,inherit)}
+.zcard.zwon{border-color:#FFC93C;box-shadow:0 0 0 2px #f1dca0}
+.zprizes{border-color:#FFC93C}
+.zfinal{background:linear-gradient(180deg,#FBFFFE,#fff);border-color:#FFC93C;text-align:center}
+.zfinal .zfbig{font:700 22px/1.3 var(--serif,Georgia,serif);color:var(--pri);margin:4px 0}
+.zhurray{position:fixed;inset:0;z-index:100;background:rgba(11,61,145,.82);display:flex;align-items:center;justify-content:center;padding:16px}
+.zhurray .zconf{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.zhcard{position:relative;background:#fffdf9;border-radius:18px;padding:22px 20px;text-align:center;max-width:380px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.35)}
+.zhbig{font:800 44px/1.1 var(--serif,Georgia,serif);color:#FFC93C;text-shadow:0 1px 0 #8a6b1b}
+.zhsub{font:600 15px var(--sans,inherit);color:#444;margin-top:6px}
+.zhwhat{font:800 26px/1.2 var(--sans,inherit);color:var(--pri);margin:6px 0 10px}
+.zhp{font:600 15px var(--sans,inherit);color:#333;margin:0 0 10px}
+.zmslot{width:100%;aspect-ratio:16/9;max-height:42vh;margin:10px 0 6px}
+@media (prefers-reduced-motion:no-preference){.zhbig{animation:zpop .6s ease-out}@keyframes zpop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}}
+.zsetup{font:700 17px/1.35 var(--sans,inherit);color:var(--pri);background:#fff6d6;border:1px solid #FFC93C;border-radius:10px;padding:10px 12px;margin:6px 0 8px}
+.zcount{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+.zchips{display:flex;flex-wrap:wrap;gap:6px}
+
+.zchip{border:1px solid #FFC93C;background:#fff;color:var(--pri);border-radius:99px;padding:6px 12px;font:600 13px var(--sans,inherit);cursor:pointer}
+
+.zchip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+
+.zinvite{border-color:#FFC93C}
+
+
+/* small, quiet Privacy Policy link under forms that collect a number or an email */
+.spriv{margin:8px 0 0;text-align:center;font-size:12px;line-height:1.3;font-weight:400}.spriv a{color:var(--muted,#6b7385);font-weight:400;text-decoration:underline}
+
+.spriv.accept{font-size:12px}
+.zdemotag{display:inline-block;background:#E4572E;color:#fff;font:800 12px/1 system-ui,sans-serif;letter-spacing:.12em;padding:4px 7px;border-radius:6px;vertical-align:middle}
+.zdemo{border:2px dashed #E4572E}
+
+/* the organizer's company strip at the top of the ticket page (colours are set from the script) and the small credit under it */
+.zbrand{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--pri);color:#fff;font:700 16px/1.25 var(--sans,inherit);min-width:0}
+.zbrand b{min-width:0;overflow-wrap:anywhere}
+.zblogo{width:auto;height:30px;max-width:96px;object-fit:contain;border-radius:4px;background:rgba(255,255,255,.9);padding:2px;flex:0 0 auto}
+.zpow{margin:4px 2px 8px;font-size:12px;line-height:1.3;color:var(--muted,#6b7385);text-align:right}
+/* My invites */
+.zmi{align-items:flex-start;gap:8px;flex-wrap:wrap}
+.zmia{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.gwrap{margin:12px 0 4px;display:flex;justify-content:center;min-height:44px}.gwrap[hidden],.gor[hidden]{display:none}
+.gor{margin:6px 0;text-align:center;font-size:13px;color:var(--muted,#6b7385)}.ggnote{margin:0;text-align:center}
+.zmia .zbtn{width:auto;flex:1 1 auto;min-height:40px;margin-top:0;padding:8px 12px;font-size:14px}
+#mine .zform .zbtn{margin-top:10px}
+/* a phone held sideways: the number on the left, the ticket and the rest on the right, so the ticket is visible without scrolling */
+@media (orientation:landscape) and (max-height:520px){
+.zapp{max-width:none;display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);column-gap:12px;align-content:start;padding:8px max(12px,env(safe-area-inset-right)) 24px max(12px,env(safe-area-inset-left));min-height:0}
+.zapp>*{grid-column:2;margin-top:0}
+.zapp>.zbrand,.zapp>.zhead{grid-column:1/-1}
+.zapp>.zbrand{padding:6px 12px;margin-bottom:6px}
+.zapp>.zhead{margin-bottom:6px}
+.zapp>.zcard:has(.zball){grid-column:1;grid-row:3/span 6;position:sticky;top:8px;align-self:start}
+.zapp .zbig{zoom:.8}
+}
+
+.pbrand{margin:0 0 12px;padding:18px 16px;border-radius:16px;text-align:center;color:#fff;background:linear-gradient(135deg,#8a0f3c 0%,#e8590c 62%,#f59f00 100%);box-shadow:0 6px 18px rgba(138,15,60,.28)}
+.pb-name{font:800 30px/1.1 var(--sans,inherit);letter-spacing:.06em}
+.pb-sub{font:500 12px var(--sans,inherit);opacity:.95;margin-top:3px}
+.pb-own{font:500 13px/1.45 var(--sans,inherit);margin-top:10px}.pb-own b{font:800 16px var(--sans,inherit);letter-spacing:.04em}
+.pb-pay{font:600 12px/1.4 var(--sans,inherit);margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.45)}
+.prcpt{margin:10px 0;padding:12px 14px;border-radius:12px;background:#e8f8ee;border:2px solid #1f9d55;color:#0b3d22}.prcpt p{margin:6px 0;font-size:14px;line-height:1.5}.prcpt .mono{word-break:break-all}
+.pb-own span{font-size:12px;font-weight:600;opacity:.95}
+.pgame{margin:10px 0;padding:12px 14px;border-radius:12px;background:#fff7e0;border:2px solid #f59f00}.pgame b.mono{font-size:15px;word-break:break-all}
+
+.pbrand{padding:20px 18px 18px}
+.pb-name{font-size:32px;text-shadow:0 2px 6px rgba(0,0,0,.25)}
+.pb-sub{font:600 13px var(--sans,inherit);opacity:.95;margin:4px 0 14px}
+.pb-pay{font:600 14px/1.5 var(--sans,inherit);margin:0;padding:14px 4px;border-top:1px solid rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.4)}
+.pb-pay b{display:block;font:800 16px var(--sans,inherit);margin-bottom:4px}
+.pb-pay span{display:block;font-weight:500;max-width:640px;margin:0 auto}
+.pb-own{margin:0;padding-top:14px}
+.pb-own i{display:block;font:500 13px var(--sans,inherit)}
+.pb-own b{display:block;font:800 19px var(--sans,inherit);letter-spacing:.05em;margin:2px 0 8px}
+.pb-own em{display:inline-block;font:600 12px var(--sans,inherit);font-style:normal;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.2)}
+
+input.pfill{color:#8a8f98!important}
+
+.pstmt{margin:0 0 10px;padding:12px 14px;border-radius:12px;background:#fff7e0;border:2px solid #f59f00;font:600 15px/1.5 var(--sans,inherit);color:#4a2c00}.pstmt .mono{word-break:break-all}

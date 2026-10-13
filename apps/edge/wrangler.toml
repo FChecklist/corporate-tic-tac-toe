@@ -1,0 +1,37 @@
+# Cloudflare Worker + D1 for Corporate Tic Tac Toe's zero-server mode. NOT deployed yet; every value below is a placeholder to fill when going live.
+# Free plan limits this is designed around: Workers 100,000 requests/day, D1 100,000 rows written/day (the Worker refuses politely at 80,000).
+name = "corporate-tic-tac-toe-edge"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]   # billing uses node:crypto HMAC
+
+[[d1_databases]]
+binding = "DB"
+database_name = "corporate-tic-tac-toe"
+database_id = "REPLACE_ME"   # create the D1 database "corporate-tic-tac-toe" first; never reuse another product's id
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["17 3 * * *"]   # daily 03:17 UTC: deletes engagements older than 365 days
+
+[vars]
+DAILY_WRITE_BUDGET = "80000"
+MAIL_FROM = "Corporate Tic Tac Toe <tictactoe@veridian-aios.com>"   # own sender: set when the Resend domain exists
+# MAIL_REPLY_TO = "the address organizers should reply to"
+# PUBLIC_ORIGIN = "https://YOUR-DOMAIN"
+COMPANY_JSON = '{"email":"rajatsiroffice@gmail.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
+
+# Route the API on the same domain as the Pages site so phones never make a cross-origin call (set when the domain is bought):
+# routes = [{ pattern = "YOUR-DOMAIN/api/*", zone_name = "YOUR-DOMAIN" }]
+
+# Secrets are never written in files. Set them once, by hand:
+#   wrangler secret put ORGANIZER_SECRET   (our platform key)
+#   wrangler secret put PHONE_SALT         (random 32+ characters; keeps phone hashes unguessable)
+#   wrangler secret put VISIT_KEY          (optional, random 32+ characters; keys the hash of visitors' network addresses on the public pages. Without it the key is derived from DATA_KEY)
+
+# Optional but recommended at scale: serve the pause file from the CDN instead of the Worker (phones poll it every ~9 s).
+# Create a public bucket, attach a custom domain with caching, then:
+# [[r2_buckets]]
+# binding = "CONTROL_R2"
+# bucket_name = "corporate-tic-tac-toe-control"
+# and set CONTROL_BASE = "https://c.YOUR-DOMAIN"

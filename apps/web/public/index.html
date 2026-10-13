@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Corporate Tic Tac Toe | Tournaments for remote and hybrid teams</title>
+<meta name="description" content="Run a tic tac toe tournament for your team in minutes. Share one link, players join on their own phone with just a name. Players never pay. Software only.">
+<link rel="canonical" href="https://corporate-tic-tac-toe.pages.dev/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#0B5D5B">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Tic Tac Toe"><meta property="og:title" content="Corporate Tic Tac Toe | Tournaments for remote and hybrid teams"><meta property="og:description" content="Run a tic tac toe tournament for your team in minutes. Share one link, players join on their own phone with just a name. Players never pay. Software only."><meta property="og:url" content="https://corporate-tic-tac-toe.pages.dev/"><meta property="og:image" content="https://corporate-tic-tac-toe.pages.dev/img/card.webp"><meta property="og:image:alt" content="Corporate Tic Tac Toe on a phone: a 3 by 3 board with crosses and noughts"><meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Corporate Tic Tac Toe | Tournaments for remote and hybrid teams"><meta name="twitter:description" content="Run a tic tac toe tournament for your team in minutes. Share one link, players join on their own phone with just a name. Players never pay. Software only."><meta name="twitter:image" content="https://corporate-tic-tac-toe.pages.dev/img/card.webp">
+<script type="application/ld+json">[{"@context":"https://schema.org","@type":"Organization","name":"Corporate Tic Tac Toe","url":"https://corporate-tic-tac-toe.pages.dev/","logo":"https://corporate-tic-tac-toe.pages.dev/img/card.webp"},{"@context":"https://schema.org","@type":"WebSite","name":"Corporate Tic Tac Toe","url":"https://corporate-tic-tac-toe.pages.dev/"},{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Corporate Tic Tac Toe","applicationCategory":"BusinessApplication","operatingSystem":"Web","description":"Run a tic tac toe tournament for your team in minutes. Share one link, players join on their own phone with just a name. Players never pay. Software only.","url":"https://corporate-tic-tac-toe.pages.dev/","publisher":{"@type":"Organization","name":"IT Services by Rajat Agarwal"},"offers":{"@type":"AggregateOffer","priceCurrency":"INR","lowPrice":"2399","highPrice":"29499","offerCount":"8"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How do I set up a game?","acceptedAnswer":{"@type":"Answer","text":"Use the free AI assistant (the easiest way): tell it what you want and your draft is ready in minutes. Or set it up yourself in the organizer console. Building and publishing are free."}},{"@type":"Question","name":"Do players pay or install anything?","acceptedAnswer":{"@type":"Answer","text":"No. Players never pay and there is no app to download. They open your link and type a display name. Nothing else is asked."}},{"@type":"Question","name":"Is there any prize money?","acceptedAnswer":{"@type":"Answer","text":"No. Players never pay and never stake money. There are no cash prizes and no betting. Any gift is supplied by the organizer, outside the product. Corporate Tic Tac Toe is software only. We never hold or pay prize money."}},{"@type":"Question","name":"Who decides the winners?","acceptedAnswer":{"@type":"Answer","text":"The software only. The bracket, the clocks and every result are decided on the server from a sealed random seed, and a phone sends only the square a player picked. No person, including the organizer and us, can change a draw or a result. Cheating is very hard."}},{"@type":"Question","name":"How is the organizer verified?","acceptedAnswer":{"@type":"Answer","text":"Through the link or the 6-digit code we send to your work e-mail. There is no password to remember."}},{"@type":"Question","name":"Can people in other countries play?","acceptedAnswer":{"@type":"Answer","text":"Yes. Anyone with the link can play on their own phone, in any country."}}]}]</script>
+<link rel="preload" href="/fonts/Inter-normal-400.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/fonts/Fraunces-normal-500-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/site.css"><script src="/theme.js"></script>
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><script src="/pwa.js" defer></script><script src="/rum.js" defer></script><script src="/v.js" defer></script><link rel="icon" href="/icon-192.png" type="image/png"><script src="/gamesbar.js" defer></script></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+<symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
+<symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10"/><path d="M19 21V10"/><path d="M9 21V10"/><path d="M15 21V10"/><path d="M12 3 2 8h20Z"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m11 18-6-6 6-6"/></symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2Z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0"/><path d="M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z"/></symbol>
+<symbol id="i-slides" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M12 16v5"/><path d="M8 21h8"/><path d="M7 12l3-3 2 2 4-4"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-4-6.3"/></symbol>
+<symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v9H5v-9"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v5"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M7 5H4a3 3 0 0 0 3 4"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 16v-4.5"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 22V4"/><path d="M5 4h11l-2 4 2 4H5"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+<symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+<symbol id="i-rules" viewBox="0 0 24 24"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></symbol>
+<symbol id="i-draw" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M9 15h.01M15 15h.01M12 12h.01"/></symbol>
+<symbol id="i-eng" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.5 7L4 20l1.2-4.2A8 8 0 1 1 21 12z"/></symbol><symbol id="i-inv" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol><symbol id="i-tog" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z"/></symbol>
+</defs></svg>
+<header class="site" id="top">
+  <div class="sin"><nav class="snav" aria-label="Main">
+    <a class="brand" href="#top" aria-label="Corporate Tic Tac Toe home"><span class="mark"><svg class="ic"><use href="#i-ticket"/></svg></span><span class="brandtx"><span class="word">Corporate Tic Tac Toe<i>.</i><small class="chg">(close group, online engagement)</small></span><span class="tag">A tic tac toe tournament for remote and hybrid teams</span></span></a>
+    <span class="links"><a href="#ai-host" class="aipill"><svg class="ic"><use href="#i-star"/></svg>Free AI assistant for organizers</a><a href="#how" class="how">How it works</a><a href="/demo.html" class="how demo">Demo</a><a href="/organizer-guide.html" class="how guide">Guide</a><a href="/brochure.pdf" class="how brochure">Brochure</a><a href="/partner.html" class="refer">Refer &amp; earn</a><a href="#pricing" class="pricing">Pricing</a><a href="#login" class="login" id="loginLink">Log in</a></span>
+  </nav></div>
+  <div class="sin" style="display:flex;align-items:center"><div class="smain" style="width:100%">
+    <section aria-labelledby="h1"><div class="eyebrow">A tic tac toe tournament for remote and hybrid teams</div>
+      <h1 id="h1">Tic tac toe for your whole company, <em>on every phone.</em></h1>
+      <ul class="acts"><li><span class="b"><svg class="ic"><use href="#i-link"/></svg></span>Share one link.</li><li><span class="b"><svg class="ic"><use href="#i-vol"/></svg></span>Every move has a clock.</li><li><span class="b"><svg class="ic"><use href="#i-trophy"/></svg></span>The software names the winners.</li></ul>
+      <div class="three"><span>Simple</span><span>Fair</span><span>Private by design</span></div>
+      <div class="buy"><div class="buytop"><span>Price per game &middot; no yearly plan</span></div>
+        <div class="buyrow"><div class="selwrap"><select id="pack" aria-label="Number of players"></select><svg class="ic chev"><use href="#i-chev"/></svg></div>
+          <button class="btn" id="payBtn" type="button"><span class="bt">Create your Corporate Tic Tac Toe <small>(close group, online engagement)</small></span><svg class="ic"><use href="#i-arrow"/></svg></button></div>
+                <div class="def">Every player plays on their own phone. Players never pay.</div></div>
+    </section>
+    <section class="who" aria-label="Who you can play with"><div class="eyebrow">Play with&hellip;</div><ul id="whoL"><li>Remote teams</li><li>Hybrid teams</li><li>New hires</li><li>Customers</li><li>Departments</li><li>Partners</li><li>Everyone you value</li></ul>
+      <div class="eq"><p><b>One link</b><span>= everyone is in the game.</span></p><p><b>Laughing together</b><span>= a closer team.</span></p></div></section>
+    <section class="svis"><ul class="vtop"><li><svg class="ic"><use href="#i-eng"/></svg>Fun</li><li><svg class="ic"><use href="#i-inv"/></svg>Together</li><li><svg class="ic"><use href="#i-tog"/></svg>Easy</li></ul><div class="tkt"><img src="/img/card.webp" width="1400" height="879" decoding="async" fetchpriority="high" alt="Corporate Tic Tac Toe on a phone: a 3 by 3 board with crosses and noughts">
+      <div class="call c2"><span class="d"><svg class="ic"><use href="#i-play"/></svg></span><span><b>Brand moment</b><span class="play" id="bbp">Your message or video, shown to everyone at once</span></span></div>
+      <div class="call c1"><span class="d"><svg class="ic"><use href="#i-users"/></svg></span><span><b>Every player</b>on their own phone, in any country</span></div></div><p class="vbot">Closed group &middot; company events and teams</p></section>
+  </div></div>
+  <div class="strip"><div class="sin">
+    <span><svg class="ic"><use href="#i-trash"/></svg><span><b>Guest names and numbers</b> erased within 24 hours of the game ending</span></span>
+    <span><svg class="ic"><use href="#i-shield"/></svg><span><b>Designed to follow</b> India&rsquo;s DPDP Act, the EU GDPR and US state privacy laws such as the CCPA.</span></span>
+    <span><svg class="ic"><use href="#i-phone"/></svg><span><b>No app to download</b>, nothing for guests to set up</span></span>
+    <span><svg class="ic"><use href="#i-link"/></svg><span><b>One link</b> for Slack, Teams, Zoom chat, e-mail or WhatsApp</span></span>
+    <span><svg class="ic"><use href="#i-gift"/></svg><span><b>Players never pay</b> or stake money. No cash prizes, no betting. Software only: we never hold or pay prize money.</span></span>
+  </div></div>
+</header>
+
+<main>
+<section class="sec alt" id="benefits" aria-labelledby="bh"><div class="in">
+  <div class="eyebrow">Why teams like it</div><h2 class="h" id="bh">A game everyone can join in under a minute.</h2>
+  <div class="benef" style="margin-top:22px">
+    <article><span class="bi"><svg class="ic"><use href="#i-link"/></svg></span><h3>One link, any place</h3><p>Share one link in Slack, Teams, Zoom chat, e-mail or WhatsApp. It works for remote, hybrid and in-room teams.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-phone"/></svg></span><h3>Just a name to join</h3><p>Players type a display name and they are in. No app to download and no account.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-vol"/></svg></span><h3>Clear boards</h3><p>A plain 3 by 3 board where three in a row wins. A spectator view and a big-screen page work for a projector or a shared video call.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-shield"/></svg></span><h3>Fair by design</h3><p>Who plays X first comes from a sealed random seed. Its fingerprint is public before anyone joins, and the secret is shown after the start, so anyone can check the bracket. Nobody can change a draw or a result.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-trophy"/></svg></span><h3>Every match has a winner</h3><p>A drawn game is replayed at once with the marks swapped, up to 3 games. Then fate decides. The final ranking has no ties.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-play"/></svg></span><h3>Your own moments</h3><p>Add your logo and brand moments, such as a message or a video, for everyone to see. Great for an opening or a closing word.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-trash"/></svg></span><h3>Privacy by design</h3><p>Guest names are erased within 24 hours of the game ending. We keep only the winners record and the organizer&rsquo;s details for 365 days. We never e-mail guests and never sell data.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-flag"/></svg></span><h3>A report when it ends</h3><p>The organizer gets a report link by e-mail a few minutes after the game ends, with a PDF to share.</p></article>
+  </div></div></section>
+
+<section class="sec" id="uses" aria-labelledby="uh"><div class="in">
+  <div class="eyebrow">Made for</div><h2 class="h" id="uh">Seven ways teams use it.</h2>
+  <div class="benef" style="margin-top:22px">
+    <article><span class="bi"><svg class="ic"><use href="#i-gift"/></svg></span><h3>Virtual holiday party</h3><p>A friendly game for the whole company, wherever people are.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-mic"/></svg></span><h3>All-hands opener</h3><p>Start the meeting with something fun, then your message.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-users"/></svg></span><h3>New-hire welcome</h3><p>Help new people meet the team in a relaxed way.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-globe"/></svg></span><h3>Customer event</h3><p>Keep guests engaged and show your brand on the big screen.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-clock"/></svg></span><h3>Friday team break</h3><p>A short game to end the week together.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-star"/></svg></span><h3>Team offsite</h3><p>A bracket for the whole team, in the room or remote.</p></article>
+    <article><span class="bi"><svg class="ic"><use href="#i-trophy"/></svg></span><h3>Diwali party (India)</h3><p>A festive game for teams celebrating together.</p></article>
+  </div></div></section>
+
+<section class="sec alt" id="faq" aria-labelledby="fh"><div class="in faq">
+  <div class="eyebrow">Questions</div><h2 class="h" id="fh">Good to know</h2>
+  <details open><summary>How do I set up a game?</summary><div class="opts">
+    <div class="opt best"><span class="ob">Easiest</span><h4><svg class="ic"><use href="#i-star"/></svg>Option 1: use the free AI assistant</h4><p>Your own AI assistant builds a draft for you from a private work link. You check it, then publish and pay.</p></div>
+    <div class="opt"><h4><svg class="ic"><use href="#i-sliders"/></svg>Option 2: set it up yourself</h4><p>Work in the organizer console. Pick the time, size, format and move clock.</p></div>
+  </div></details>
+  <details open><summary>Do players pay or install anything?</summary><p>No. Players never pay and there is no app to download. They open your link and type a display name. Nothing else is asked.</p></details>
+  <details open><summary>Is there any prize money?</summary><p>No. Players never pay and never stake money. There are no cash prizes and no betting. Any gift is supplied by the organizer, outside the product. Corporate Tic Tac Toe is software only: we never hold or pay prize money. It is for adults (18+), at company events.</p></details>
+  <details open><summary>Who decides the winners?</summary><p>The software only. The bracket, the clocks and every result are decided on the server from a sealed random seed, and a phone sends only the square a player picked. No person, including the organizer and us, can change a draw or a result. Cheating is very hard.</p></details>
+  <details open><summary>How does the game play?</summary><p>It is a plain 3 by 3 game. X moves first, and three of your marks in a row, in a column or on a diagonal win. A drawn game is replayed at once with the marks swapped, up to 3 games. If all three are drawn, fate decides, so every match has a winner. Every move has a clock of 10, 20, 30 or 60 seconds, chosen by the organizer. When it runs out, the software plays a square for the player. Two clock-outs in a row lose the board.</p></details>
+  <details open><summary>Which formats are there?</summary><p>A one against one knockout bracket for a crowd, up to the size of your plan (tested with 1,000 players), or team against team with teams of 3 or 5 and one board per seat. There is also a spectator view and a big-screen page.</p></details>
+  <details open><summary>How is the ranking decided?</summary><p>There are no ties. The order is the round reached, then total points, then points in the last match, then fate. 1st to 5th are named and a top 10 is listed, with one line saying how each tie was decided.</p></details>
+  <details open><summary>What if a player loses the connection?</summary><p>They can open the link again and see the board as it is. The host can pause, and while the game is paused the clocks wait.</p></details>
+  <details open><summary>How is the organizer verified?</summary><p>Through the link or the 6-digit code we send to your work e-mail. There is no password to remember.</p></details>
+  <details open><summary>What happens to the data?</summary><p>Guest names (and mobile numbers, if asked) are erased within 24 hours after the game ends. Backups clear within 7 days. We keep the winners record and the organizer&rsquo;s details for 365 days, then delete them automatically. A game that never starts is treated the same way. Corporate Tic Tac Toe is designed to follow India&rsquo;s DPDP Act, the EU GDPR and US state privacy laws such as the CCPA. Read the <a href="/legal.html#privacy">privacy summary</a>.</p></details>
+  <details open><summary>Can people in other countries play?</summary><p>Yes. Anyone with the link can play on their own phone, in any country.</p></details>
+</div></section>
+<section class="sec" id="how" aria-labelledby="hh"><div class="in">
+  <div class="eyebrow">How it works</div><h2 class="h" id="hh">From setup to winners, in five steps.</h2>
+  <p class="lead">One organizer sets it up in a few minutes. Players need only a phone and a link: no app to download.</p>
+  <ol class="steps">
+    <li><span class="hnum">1</span><h3>Create the game</h3><p>Sign in with your work e-mail. Pick the time, the size, the format and the move clock. Building and publishing are free. You pay once per game, before it starts. No yearly plan.</p></li>
+    <li><span class="hnum">2</span><h3>Share one link</h3><p>Send it in Slack, Teams, Zoom chat, e-mail or WhatsApp, or show it on a big screen.</p></li>
+    <li><span class="hnum">3</span><h3>Players join with a name</h3><p>They open the link and type a display name. No app, no account.</p></li>
+    <li><span class="hnum">4</span><h3>The bracket plays itself</h3><p>Matches are played on phones, one move at a time, each move on a clock. Winners move up on their own.</p></li>
+    <li><span class="hnum">5</span><h3>Winners and report</h3><p>The software names 1st to 5th and lists a top 10. Any gift is yours to supply, outside the product. A report arrives by e-mail.</p></li>
+  </ol></div></section>
+</main>
+
+<section class="aihost" id="ai-host" aria-labelledby="aih"><div class="sin"><div class="eyebrow">Included with every game</div>
+  <h2 id="aih">An AI assistant for the organizer. Free.</h2>
+  <p>You get a private work link for your own AI assistant. It can build a draft, change it before the start, message guests and read the results. It cannot pay, publish, cancel, erase, pause or choose winners. Those stay with you.</p>
+</div></section>
+<section class="sec" id="pricing" aria-labelledby="ph"><div class="in">
+  <div class="eyebrow">Pricing</div>
+  <div class="pricehead"><h2 class="h" id="ph" style="margin:6px 0 0">Simple pricing, per game, no commitment.</h2><span class="cur" role="group" aria-label="Currency" data-cur></span></div>
+  <p class="lead">Packs are sold as &ldquo;Up to N players&rdquo;, per game. No yearly plan, no tax added. We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. See the <a href="/pricing.html">full price list</a>.</p>
+  <p class="offer"><b>Festive offer: 50% off</b> on every pack</p>
+  <div class="packs" id="packs" aria-live="polite"></div>
+  <p class="pricenote" id="priceNote"></p>
+</div></section>
+<footer class="foot"><div class="in">
+  <div><p><b>Corporate Tic Tac Toe</b></p><p>Write to us: <a href="mailto:rajatsiroffice@gmail.com">rajatsiroffice@gmail.com</a></p><p class="tiny">Designed to follow India&rsquo;s DPDP Act, the EU GDPR and US state privacy laws such as the CCPA. Software only: we never hold or pay prize money.</p></div>
+
+
+  <nav class="fl" aria-label="Legal"><a href="/legal.html#rules">Rules</a><a href="/legal.html#privacy">Privacy</a><a href="/legal.html#disclaimer">Disclaimer</a><a href="/about.html">About</a><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms</a><a href="/legal-position.html">Legal position</a><a href="/refund-policy.html">Refund policy</a><a href="/dpa.html">Data processing</a><a href="/subprocessors.html">Sub-processors</a><a href="/organizer-guide.html">Organizer guide</a><a href="/partner-terms.html">Partner terms</a><a href="/partner.html">Refer &amp; earn</a><a href="/demo.html">Demo</a><a href="/brochure.pdf">Brochure</a><a href="/">Home</a></nav>
+</div><div class="in own"><p>&copy; 2026 Corporate Tic Tac Toe. All rights reserved.</p></div>
+</footer>
+
+<script src="/common.js"></script><script src="/google.js"></script><script src="/termsbox.js" defer></script><script src="/site.js"></script>
+</body></html>

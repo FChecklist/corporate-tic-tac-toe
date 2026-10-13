@@ -1,0 +1,19 @@
+# Corporate Tic Tac Toe on Cloudflare Pages + Functions + D1: free plan only, no custom domain (https://corporate-tic-tac-toe.pages.dev).
+# Deploy with:  bun run pages:deploy   (see README.md in this folder). Secrets are NOT in this file.
+name = "corporate-tic-tac-toe"
+pages_build_output_dir = "public"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]   # billing uses node:crypto HMAC
+
+[[d1_databases]]
+binding = "DB"
+database_name = "corporate-tic-tac-toe"
+database_id = "REPLACE_ME"   # create the D1 database "corporate-tic-tac-toe" first; never reuse another product's id
+
+[vars]
+DAILY_WRITE_BUDGET = "80000"
+PUBLIC_ORIGIN = "https://corporate-tic-tac-toe.pages.dev"
+PAY_HOP_URL = "https://itservices-rajat-agarwal.pages.dev/payframe/"   # Option 1: the Razorpay window runs on the website registered with Razorpay
+MAIL_FROM = "Corporate Tic Tac Toe <tictactoe@veridian-aios.com>"
+OWNER_EMAIL = "rajatsiroffice@gmail.com"
+COMPANY_JSON = '{"email":"rajatsiroffice@gmail.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'

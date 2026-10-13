@@ -1,0 +1,10 @@
+# The scheduled job of Corporate Tic Tac Toe (free plan). Deploy:  bun x wrangler@3 deploy  (from this folder), then set the secret:  wrangler secret put CRON_KEY
+name = "corporate-tic-tac-toe-cron"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["* * * * *"]   # every minute: bounded work per call, safe to repeat
+
+[vars]
+TARGET = "https://corporate-tic-tac-toe.pages.dev"

@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ai/
+Disallow: /pay.html
+Disallow: /paytest.html
+Disallow: /signin.html
+Disallow: /ai-link.html
+Disallow: /report.html
+Disallow: /z.html
+Disallow: /zc.html
+Disallow: /big.html
+Disallow: /preview.html
+Disallow: /demo.html
+
+Sitemap: https://corporate-tic-tac-toe.pages.dev/sitemap.xml

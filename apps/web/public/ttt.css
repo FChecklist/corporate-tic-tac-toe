@@ -1,0 +1,25 @@
+/* Corporate Tic Tac Toe: the board and result styles for the player's page (z.html) and the host page (host.html). Phone first. */
+.tboard{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:340px;margin:12px auto}
+.tsq{aspect-ratio:1;border:2px solid var(--line);border-radius:14px;background:var(--surface,#fff);font:800 clamp(40px,16vw,72px)/1 var(--sans,inherit);color:var(--ink);min-height:84px;touch-action:manipulation}
+.tsq.x{color:#0B5D5B}.tsq.o{color:#8A5A00}
+.tsq:not(:disabled):hover{border-color:var(--pri);background:var(--sunk,#E9F2F1)}
+.tsq:disabled{cursor:default;opacity:1}
+.tsq:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.tvs{text-align:center;font-size:17px;margin:4px 0}
+.tstat{text-align:center;font-weight:700;font-size:18px;margin:6px 0;color:var(--muted)}
+.tstat.mine{color:var(--ok)}
+.tclock{display:inline-block;min-width:3em;padding:2px 10px;margin-left:6px;border-radius:999px;background:var(--sunk,#E9F2F1);color:var(--ink);font-variant-numeric:tabular-nums}
+.tcen{text-align:center}
+.tcheck{display:flex!important;gap:8px;align-items:flex-start;margin:10px 0;font-size:14px;color:var(--ink)!important}
+.tcheck input{width:22px!important;min-height:22px!important;margin-top:2px}
+.trank{margin:0;padding-left:1.4em}.trank li{margin:6px 0}.trank small{display:block;color:var(--muted);font-size:12px}
+.mono{font-family:var(--mono,ui-monospace,monospace)}
+/* host page */
+.hwrap{max-width:760px;margin:0 auto;padding:14px 16px 60px}
+.hwrap .zcard h2{margin-bottom:10px}
+.hchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.hchip{border:2px solid var(--line);background:var(--surface,#fff);border-radius:999px;padding:8px 14px;font-weight:600;min-height:40px}
+.hchip[aria-pressed="true"]{border-color:var(--pri);background:var(--pri);color:#fff}
+.hrow{display:flex;gap:8px;flex-wrap:wrap}
+.hrow .zbtn{width:auto;flex:1 1 140px}
+.hbad{background:var(--bad,#B3261E)}

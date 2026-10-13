@@ -1,11 +1,33 @@
 {
-  "name": "corporate-tic-tac-toe-prototype",
+  "name": "corporate-tic-tac-toe",
   "private": true,
-  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
   "scripts": {
-    "test": "bun test test",
-    "build": "bun build src/app.ts --outfile web/app.js --target browser",
-    "serve": "bun server/signal.ts",
-    "sim:komi": "bun sim/komi.ts"
+    "test": "bun test packages apps tools/control-worker",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "bun run apps/edge/src/local.ts",
+    "build:control": "bun build packages/beacon/src/control-browser.ts --target browser --format iife --minify --outfile apps/web/public/control.js",
+    "build:report": "bun build apps/edge/src/report-browser.ts --target browser --format iife --minify --outfile apps/web/public/reportgen.js",
+    "build:zgame": "bun build packages/beacon/src/zgame-browser.ts --target browser --format iife --minify --outfile apps/web/public/zgame.js",
+    "zlocal": "bun run apps/edge/src/local.ts",
+    "pages:build": "bun run pages/build.mjs",
+    "pages:deploy": "bun run pages/build.mjs && cd pages && bunx wrangler@3 pages deploy public --project-name corporate-tic-tac-toe --branch main --commit-dirty=true",
+    "sim": "node tools/sim2/smoke.mjs",
+    "sim:life": "node tools/sim2/scenarios/life/run.mjs --seed 7",
+    "sim:matrix": "bun tools/sim2/scenarios/matrix/run.ts --seed 7",
+    "sim:ui": "node tools/sim2/scenarios/ui/run.mjs",
+    "test:ttt": "bun test packages/ttt",
+    "sim:bracket": "bun tools/sim2/bracket-sim.ts",
+    "sim:komi": "bun prototype/sim/komi.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.6.0",
+    "playwright-core": "^1.48.0"
   }
 }

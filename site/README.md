@@ -8,4 +8,4 @@ Deploy (free Cloudflare Pages), only after the owner says go:
 
     wrangler pages deploy site --project-name corporate-tic-tac-toe --branch main
 
-The legal pages are first drafts for a lawyer to read before launch.
+The legal pages are first drafts for The owner to read before launch.

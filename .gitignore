@@ -1,4 +1,22 @@
-node_modules
+.wrangler/
+node_modules/
+dist/
+.env*
+data*/
+config/company.json
+*.sqlite*
+pages/public/
+.wrangler-state/
+config/telemetry-report-key.txt
+config/live-secrets.txt
+config/platform-key.txt
+
+# simulation (tools/sim2)
+sim/
+
+# UI simulation screenshots (tools/sim2/scenarios/ui)
+/test-results/
+
+# prototype build
+prototype/web/app.js
 *.log
-web/app.js
-.wrangler
