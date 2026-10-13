@@ -19,10 +19,11 @@ async function openPlayerPage(search = "?e=GAME-1") {
     if (u.includes("/api/consent/text")) return ok({ version: VER, kind: "K4", boxes: Object.entries(K4).map(([id, text]) => ({ id, text })) });
     if (u.endsWith("/info")) return ok({});
     if (u.endsWith("/join")) return ok({ pid: "1x000000000001" });
-    if (u.includes("/ttt/me")) return ok({ phase: "waiting", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32) });
+    if (u.includes("/ttt/setup")) return ok({ eid: "GAME-1", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32), pauses: [] });
     return ok({}, 404);
   };
   w.document.body.innerHTML = '<main id="app"></main>';
+  new Function("globalThis", pub("tttgame.js"))(w); // the game engine the page runs on the phone (window.TTT), built from packages/ttt
   for (const f of ["termsbox.js", "ttt.js"]) new Function("window", "document", "location", "localStorage", "fetch", "history", "navigator", "setTimeout", "clearTimeout", "setInterval", "clearInterval", pub(f))(w, w.document, w.location, w.localStorage, w.fetch, w.history, w.navigator, (fn: any, ms?: number) => setTimeout(fn, ms), clearTimeout, (fn: any, ms?: number) => setInterval(fn, ms), clearInterval);
   await tick(40);
   return { w, d: w.document, sent };

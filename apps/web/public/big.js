@@ -1,12 +1,13 @@
-/* Corporate Tic Tac Toe, the spectator view and big screen (big.html). No sign-in. It only reads the public view of the tournament: names and boards, never a seed before the start,
-   never a device id. It never joins the game. Works on a projector, a laptop and a phone. */
+/* Corporate Tic Tac Toe, the spectator view and big screen (big.html). No sign-in. It only reads what the mailbox stored (names, stored moves) and replays it on THIS screen with the rules (tttgame.js),
+   never a seed before the start, never a device id. It never joins the game. Works on a projector, a laptop and a phone. */
 (function () {
   const $app = document.getElementById("app");
   const q = new URLSearchParams(location.search);
   const EID = (q.get("e") || "").trim();
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let skew = 0, view = null, err = "", page = null;
-  const j = async (url) => { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw Object.assign(new Error("http " + r.status), { status: r.status }); return r.json(); };
+  const read = async (method, url) => { const r = await fetch(url, { cache: "no-store" }); if (!r.ok) throw Object.assign(new Error("http " + r.status), { status: r.status }); return r.json(); };
+  const watcher = window.TTT ? new window.TTT.TttWatcher(read, EID) : null;
   const mark = (c) => (c === 1 ? "X" : c === 2 ? "O" : "");
   const mini = (b) => `<div class="mb ${b.done ? "done" : ""}" role="img" aria-label="${esc(b.aName)} versus ${esc(b.bName)}">
     <div class="who"><span>${esc(b.x)} <b>X</b></span><span>${esc(b.o)} <b>O</b></span></div>
@@ -29,7 +30,7 @@
       <footer class="meta">Names only. Nothing else about you is shown. <a href="/legal.html#privacy">Privacy</a>${v.commit ? ` &middot; Draw fingerprint <span class="mono">${esc(v.commit.slice(0, 12))}</span>` : ""}</footer>`;
   }
   async function tick() {
-    try { view = await j(`/api/z/${EID}/ttt/view`); err = ""; skew = (view.serverNow || Date.now()) - Date.now(); }
+    try { view = await watcher.view(); err = ""; skew = (view.serverNow || Date.now()) - Date.now(); }
     catch (e) { err = e.status === 403 ? "This game is not open yet." : e.status === 404 ? "That game was not found." : "Connecting..."; }
     paint(); setTimeout(tick, view && view.state === "running" ? 2500 : 5000);
   }

@@ -1,5 +1,6 @@
 /* Corporate Tic Tac Toe, the player's page (z.html). Phone first. Joins with a name only, then shows the waiting room, the board, the result.
-   The browser sends only "my square". Everything else (who has X, the bracket, the clocks, the winner) is decided on the server from the sealed seed (docs/RULES.md). */
+   THIS PHONE RUNS THE GAME: tttgame.js (window.TTT, built from packages/ttt) builds the bracket and every starter from the sealed seed, replays the stored moves with the rules, computes the clocks and the winner,
+   and reports the result. Our server only stores and relays (docs/RULES.md, "Who computes what"). This file only draws what TTT.TttPhone returns and passes on a tap. */
 (function () {
   const $app = document.getElementById("app");
   const q = new URLSearchParams(location.search);
@@ -13,7 +14,8 @@
   const pidKey = () => "ttt:" + EID + ":pid";
   let pid = ls.get(pidKey()) || "";
   const TOKEN = (q.get("t") || "").trim().slice(0, 80), FROM = Number(q.get("from")) || 0, CAT = (q.get("c") || "").slice(0, 20);
-  let skew = 0, timer = null, last = null, joinMsg = "", INFO = null;
+  let skew = 0, timer = null, last = null, joinMsg = "", INFO = null, phone = null;
+  const thePhone = () => (phone && phone.deps.pid === pid ? phone : (phone = new window.TTT.TttPhone({ api, eid: EID, pid, device, now: () => Date.now() })));
   const api = async (method, path, body) => {
     const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     const j = await r.json().catch(() => ({}));
@@ -84,15 +86,16 @@
     const status = b.done ? (b.winner === s.you ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn);
     set(`${brand()}${head()}<div class="zcard"><h2>${esc(s.roundName)}${s.team ? " &middot; " + esc(s.team) : ""}</h2>
       <p class="tvs"><b>${esc(s.you)}</b> vs <b>${esc(s.vs || (b.a === s.you ? b.b : b.a))}</b></p>
+      ${s.flagged ? `<div class="zbanner warn" role="alert">The two reports of this board are different. The organizer will settle it.</div>` : ""}
       <p class="tstat ${b.yourTurn ? "mine" : ""}" role="status">${status}${t !== null && !s.paused ? ` <span class="tclock" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p>
       ${boardHtml(b, true)}
-      <p class="zsmall tcen">Game ${b.gameNo}${b.games > 1 ? " (earlier games were drawn)" : ""}. A draw is replayed with the marks swapped, up to 3 games. If the clock runs out, the software plays a square for you. Twice in a row loses the board.</p></div>${others(s)}
+      <p class="zsmall tcen">Game ${b.gameNo}${b.games > 1 ? " (earlier games were drawn)" : ""}. A draw is replayed with the marks swapped, up to 3 games. If the clock runs out, a square is played for you. Twice in a row loses the board.</p></div>${others(s)}
       <p class="zsmall tcen"><a href="/big.html?e=${encodeURIComponent(EID)}" target="_blank" rel="noopener">Watch the whole bracket</a></p>`);
-    document.querySelectorAll(".tsq").forEach((el) => el.addEventListener("click", () => play(Number(el.dataset.i), b.ply)));
+    document.querySelectorAll(".tsq").forEach((el) => el.addEventListener("click", () => play(Number(el.dataset.i))));
   };
   const others = (s) => (s.boards && s.boards.length > 1 ? `<div class="zcard"><h2>Your team's boards</h2>${s.boards.map((x) => `<p class="zsmall">${esc(x.a)} vs ${esc(x.b)}: ${x.done ? (x.winner ? esc(x.winner) + " won" : "done") : "playing, game " + x.gameNo}</p>`).join("")}</div>` : "");
-  const play = async (cell, ply) => {
-    try { await api("POST", `/api/z/${EID}/ttt/move`, { pid, device, cell, ply }); } catch (e) { /* stale or too late: the next look shows the board as it is */ }
+  const play = async (cell) => {
+    try { await thePhone().play(cell); } catch (e) { /* stale or too late: the next look shows the board as it is */ }
     tick();
   };
   const rankHtml = (r) => (r && r.length ? `<div class="zcard"><h2>Results</h2><ol class="trank">${r.map((x) => `<li><b>${esc(x.name)}</b>${x.tie ? `<small>${esc(x.tie)}</small>` : ""}</li>`).join("")}</ol></div>` : "");
@@ -108,9 +111,9 @@
   };
   const tick = async () => {
     clearTimeout(timer);
-    try { render(await api("GET", `/api/z/${EID}/ttt/me?pid=${encodeURIComponent(pid)}&device=${encodeURIComponent(device)}`)); }
+    try { render(await thePhone().tick()); }
     catch (e) {
-      if (e.status === 403 || e.status === 400) { ls.del(pidKey()); pid = ""; joinMsg = e.code === "other-phone" ? "This place is on another phone." : ""; joinView(); return; }
+      if (e.status === 403) { ls.del(pidKey()); pid = ""; joinMsg = e.code === "other-phone" ? "This place is on another phone." : ""; joinView(); return; }
       if (e.code === "cancelled" || e.code === "did-not-start") { set(`${head()}<div class="zcard" role="status"><h2>${e.code === "cancelled" ? "This game was cancelled" : "This game did not start"}</h2><p class="zsmall">There is nothing to do on this page.</p></div>`); return; }
       set(`${head()}<div class="zcard" role="status"><h2>No connection</h2><p class="zsmall">Trying again in a moment.</p></div>`);
     }

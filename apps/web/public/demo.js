@@ -1,6 +1,6 @@
 /* Corporate Tic Tac Toe, try it (demo.html): one board against the computer, on this page only. Nothing is sent anywhere and nothing is stored.
    It shows the real rules in a few clicks: three in a row wins; a drawn game is replayed with the marks swapped, up to 3 games; then fate decides (here a coin).
-   The tournament itself runs on the server, from a sealed seed (docs/RULES.md). */
+   The tournament itself runs on the phones (tttgame.js), from a sealed seed; the server only stores and relays (docs/RULES.md). */
 (function () {
   const $app = document.getElementById("app");
   const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
