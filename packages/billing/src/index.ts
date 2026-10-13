@@ -18,7 +18,7 @@ export interface Brand {
   line: string; // one-line description on the invoice
 }
 export const BRANDS: Record<BrandId, Brand> = {
-  corporate_tic_tac_toe: { id: "corporate_tic_tac_toe", name: "Corporate Tic Tac Toe", domain: "corporate-tic-tac-toe.example", invoicePrefix: "CB", theme: "#0B5D5B", line: "Live engagement software" },
+  corporate_tic_tac_toe: { id: "corporate_tic_tac_toe", name: "Corporate Tic Tac Toe", domain: "corporate-tic-tac-toe.example", invoicePrefix: "CB", theme: "#0B5D5B", line: "Live game software" },
   dpdp: { id: "dpdp", name: "dpdp.VERIDIAN-AIOS.COM", domain: "dpdp.veridian-aios.com", invoicePrefix: "DPDP", theme: "#0E7C6E", line: "Data protection compliance software" },
   projexa: { id: "projexa", name: "projexa-ai.com", domain: "projexa-ai.com", invoicePrefix: "PXA", theme: "#1C2B3A", line: "Project management software" },
   dewberry: { id: "dewberry", name: "dewberry.in", domain: "dewberry.in", invoicePrefix: "DEW", theme: "#5B3A8C", line: "Software solutions" },
@@ -122,7 +122,7 @@ export const INVOICE_KEEP_NOTE = "The details on this invoice (including the pay
 export const INVOICE_TERMS: string[] = [
   "This invoice is issued by IT Services by Rajat Agarwal for the service named on page 1. Online payments are processed by Razorpay.",
   "We do not give refunds. If a paid game is cancelled before it starts, the payment stays as credit on the organizer's account and can be used for another game. Credit lapses 365 days after the payment date. No credit note is raised for credit that lapses.",
-  "A payment buys one engagement for up to the number of participants named on the invoice. Participants never pay; rewards are given by the organizer. Unused places are not credited once the game has started.",
+  "A payment buys one game for up to the number of participants named on the invoice. Participants never pay; rewards are given by the organizer. Unused places are not credited once the game has started.",
   "Prices are in the currency shown. Payments from India are in Indian rupees (INR); payments from outside India are in US dollars (USD). Bank, card and currency-conversion charges of the payer's own bank are the payer's own.",
   "Where GST applies it is shown on page 1. Where it is not charged, the invoice says so. The payer is responsible for any withholding tax, VAT or duty that applies in the payer's own country.",
   "The organizer is responsible for the rewards, the participants' consent and the conduct of the game. The service runs the game software and does not take part in the draw of rewards.",

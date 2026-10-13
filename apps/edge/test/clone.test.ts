@@ -78,7 +78,7 @@ describe("what the new game is", () => {
     const r = await clone(t.master, { withPeople: false }); const b = await j(r); const newId = b.id as string;
     expect(newId).toMatch(/^OLD-1-[A-Z2-9]{4}$/);
     expect({ ok: b.ok, openUrl: b.openUrl, peopleCopied: b.peopleCopied }).toEqual({ ok: true, openUrl: `https://bingo.test/zc.html?e=${newId}`, peopleCopied: 0 });
-    expect(Array.isArray(b.copied)).toBe(true); expect(b.copied).toContain("Prizes (all houses and their texts)"); expect(b.copied).toContain("Brand strip"); expect(b.copied).toContain("Guest invites"); expect(b.copied).toContain("Rounds");
+    expect(Array.isArray(b.copied)).toBe(true); expect(b.copied).toContain("Prizes (all places and their texts)"); expect(b.copied).toContain("Brand strip"); expect(b.copied).toContain("Guest invites");
     const n = row(newId);
     expect(n).toMatchObject({ org: before.org, pack: 0, cap: 300, call_seconds: 12, tickets: 2, closed: 1, cohost_limit: 50, cancelled_ms: null, unplayed_ms: null });
     expect(JSON.parse(n.config)).toEqual(JSON.parse(before.config)); // prizes, brand, rounds, invites, brand moments, name: all of it

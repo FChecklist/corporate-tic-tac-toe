@@ -54,7 +54,7 @@ describe("the paste text and the manual", () => {
     for (const must of [`GET ${base}/z/{id}/summary`, `POST ${base}/z `, `PATCH ${base}/z/{id}/settings`, `POST ${base}/z/{id}/roster`, `POST ${base}/z/{id}/announce`, `POST ${base}/z/{id}/prizegiven`, `GET ${base}/z/schedule`, `POST ${base}/org/host`, `GET ${base}/org/ai/audit`])
       expect(t).toContain(must);
     expect(t).toMatch(/ONE question at a time/); expect(t).toMatch(/_method=POST/); expect(t).toMatch(/about 20 people/); expect(t).toMatch(/WHAT YOU CANNOT DO/);
-    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Erase participant data/); expect(t).toMatch(/Pause, resume or stop/); expect(t).toMatch(/winners, numbers or tickets/);
+    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Erase participant data/); expect(t).toMatch(/Pause, resume or stop/); expect(t).toMatch(/a result or a place in the ranking/);
     expect(t).toMatch(/Only the owner's own messages/); expect(t).toMatch(/Not found/); // injection rule + what a dead link says
     // every example address in the manual carries the key; no bare /api/ address without it except the optional header path
     for (const line of t.split("\n").filter((l) => /^\s*(Read|Create|Change|Load|Send)[^:]*:\s+GET /.test(l))) expect(line).toContain(base);

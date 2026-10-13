@@ -7,7 +7,7 @@ export const TERMS_VERSION = "2026-10-13"; // the one version of the Terms: term
 
 export const BRAND = {
   name: "Corporate Tic Tac Toe",
-  tagline: "Live engagements for companies",
+  tagline: "Live games for companies",
   support: "rajatsiroffice@gmail.com", // the contact address the site's legal page publishes
   legalPath: "/legal.html",
   defaultOrigin: "https://corporate-tic-tac-toe.pages.dev",

@@ -40,21 +40,21 @@ sc("M06", "no key, token or work link of any kind in lifecycle mails (cancel, cr
 });
 sc("M07", "the report mail goes to the Organizer only (never to Hosts or anyone else)", async (w) => {
   const org = await w.org(); const host = await w.host(org); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 2 });
-  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const rm = await w.mails(undefined, "engagement report"); w.eq("one report mail", rm.length, 1); w.eq("to the Organizer", rm[0]?.to, org.email);
-  w.eq("Host got none", await w.mailCount(host.email, "engagement report"), 0);
+  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const rm = await w.mails(undefined, "game report"); w.eq("one report mail", rm.length, 1); w.eq("to the Organizer", rm[0]?.to, org.email);
+  w.eq("Host got none", await w.mailCount(host.email, "game report"), 0);
 });
 
 sc("P01", "report mail: not before 3 minutes after the end, exactly one at 3 minutes, with the closing time (end+22h) in it", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 3 });
-  await w.tickAt(g.endMs + 3 * MIN - 1000); w.eq("none at 2m59", await w.mailCount(org.email, "engagement report"), 0);
-  await w.tickAt(g.endMs + 3 * MIN); await w.go(2 * MIN, 30_000); w.eq("one at 3m", await w.mailCount(org.email, "engagement report"), 1);
-  const m = (await w.mails(org.email, "engagement report"))[0]; w.expect("mail has the report link", !!reportUrl(m), m.text.slice(0, 300));
+  await w.tickAt(g.endMs + 3 * MIN - 1000); w.eq("none at 2m59", await w.mailCount(org.email, "game report"), 0);
+  await w.tickAt(g.endMs + 3 * MIN); await w.go(2 * MIN, 30_000); w.eq("one at 3m", await w.mailCount(org.email, "game report"), 1);
+  const m = (await w.mails(org.email, "game report"))[0]; w.expect("mail has the report link", !!reportUrl(m), m.text.slice(0, 300));
   const when = new Date(g.endMs + 22 * HOUR).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }); w.expect("subject names the closing day", m.subject.includes("open it before"), m.subject); void when;
-  await w.go(2 * HOUR, 10 * MIN); w.eq("still one", await w.mailCount(org.email, "engagement report"), 1);
+  await w.go(2 * HOUR, 10 * MIN); w.eq("still one", await w.mailCount(org.email, "game report"), 1);
 });
 sc("P02", "report link works until end+22h, answers 'gone' from then on, while guest data lives until end+23h", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 3 });
-  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const url = reportUrl((await w.mails(org.email, "engagement report"))[0]); w.expect("link found", !!url);
+  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const url = reportUrl((await w.mails(org.email, "game report"))[0]); w.expect("link found", !!url);
   await w.tickAt(g.endMs + 22 * HOUR - 1); const ok = await api(url); w.expect("works 1 ms before 22h", ok.status === 200 && ok.body.base, `${ok.status} ${JSON.stringify(ok.body).slice(0, 120)}`);
   await w.tickAt(g.endMs + 22 * HOUR); const closed = await api(url); w.expect("gone at 22h (404 code gone)", closed.status === 404 && closed.body.code === "gone", `${closed.status} ${JSON.stringify(closed.body).slice(0, 120)}`);
   w.expect("guest data still held between 22h and 23h", (await w.personal(g.id)) >= 3);
@@ -67,12 +67,12 @@ sc("P03", "reminder 6 hours before the link closes, once, only if the report was
 });
 sc("P04", "no reminder when the Organizer opened the report", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 2 });
-  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const url = reportUrl((await w.mails(org.email, "engagement report"))[0]); await api(url);
+  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const url = reportUrl((await w.mails(org.email, "game report"))[0]); await api(url);
   await w.goTo(g.endMs + 20 * HOUR, 30 * MIN); w.eq("no reminder", await w.mailCount(org.email, "Reminder: open your"), 0);
 });
 sc("P05", "replacing the report link (lost / shared by mistake) kills the old one at once", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 2 });
-  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const old = reportUrl((await w.mails(org.email, "engagement report"))[0]);
+  await w.goTo(g.endMs + 10 * MIN, 5 * MIN); const old = reportUrl((await w.mails(org.email, "game report"))[0]);
   const r = await org.api("POST", `/api/z/${g.id}/reportlink`, {}); w.expect("new link", r.status === 200 && r.body.url && r.body.url !== old, JSON.stringify(r.body));
   w.eq("old link 403", (await api(old)).status, 403); w.eq("new link 200", (await api(r.body.url)).status, 200);
   const ai = await call("POST", `/api/z/${g.id}/reportlink`, {}, { "x-organizer": org.aiKey }); w.expect("an AI key cannot replace it", ai.status === 403, `${ai.status}`);
@@ -81,15 +81,15 @@ sc("P05", "replacing the report link (lost / shared by mistake) kills the old on
 sc("P06", "a wrong or missing report key is refused (403); a made-up game is refused", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 1 }); await w.goTo(g.endMs + 10 * MIN, 5 * MIN);
   w.eq("no key", (await call("GET", `/api/report/${g.id}`)).status, 403); w.eq("wrong key", (await call("GET", `/api/report/${g.id}?k=${"0".repeat(40)}`)).status, 403);
-  const url = reportUrl((await w.mails(org.email, "engagement report"))[0]); const k = new URL(url).searchParams.get("k"); w.expect("the key of game A does not open game B", (await call("GET", `/api/report/NOSUCHGAME1?k=${k}`)).status >= 400);
+  const url = reportUrl((await w.mails(org.email, "game report"))[0]); const k = new URL(url).searchParams.get("k"); w.expect("the key of game A does not open game B", (await call("GET", `/api/report/NOSUCHGAME1?k=${k}`)).status >= 400);
 });
 sc("P07", "no report for a game that did not start, nor for a cancelled game", async (w) => {
   const org = await w.org(); const a = await w.game(org, { leadMs: 2 * HOUR, guests: 2 }); const b = await w.game(org, { leadMs: 5 * HOUR, pay: true, guests: 2 }); await org.cancel(b.id);
-  await w.goTo(a.erasureMs + 2 * HOUR, 30 * MIN); w.eq("no report mail at all", await w.mailCount(org.email, "engagement report"), 0);
+  await w.goTo(a.erasureMs + 2 * HOUR, 30 * MIN); w.eq("no report mail at all", await w.mailCount(org.email, "game report"), 0);
 });
 sc("P08", "report link answer carries the game's totals and the deletion times, not guest data in the base part", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 3 }); await w.goTo(g.endMs + 10 * MIN, 5 * MIN);
-  const r = await api(reportUrl((await w.mails(org.email, "engagement report"))[0])); w.eq("200", r.status, 200);
+  const r = await api(reportUrl((await w.mails(org.email, "game report"))[0])); w.eq("200", r.status, 200);
   w.eq("personal delete time in the report = end+23h", r.body.base?.personalDeleteAtMs, g.endMs + 23 * HOUR); w.eq("people counted", r.body.totalPeople, 3);
   w.expect("base part holds no planted guest string", !w.planted.some((s) => JSON.stringify(r.body.base).includes(s)));
 });

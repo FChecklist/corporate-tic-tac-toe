@@ -96,7 +96,7 @@ export const inviterOf = (o: FromOwner): string => (o.kind === "org" ? "o" : o.k
 /** What `seat.src` says for a person who came in under this inviter (a Co-host's count of people brought reads it). */
 export const srcOf = (inviter: string): string => (inviter.startsWith("c:") ? "co:" + inviter.slice(2) : inviter.startsWith("h:") ? "ho:" + inviter.slice(2) : "link");
 
-export const waMessage = (name: string | null, game: string, link: string) => `${name ? name + ", you" : "You"} are invited to ${game}. Open your card here: ${link}`;
+export const waMessage = (name: string | null, game: string, link: string) => `${name ? name + ", you" : "You"} are invited to ${game}. Open your game here: ${link}`;
 export const waLinkOf = (digits: string, text: string) => `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 
 /** Callers of the people routes. `all` = sees every list of the game (Organizer, Host). */
@@ -136,11 +136,11 @@ async function callerOf(c: Ctx, bodyMe?: unknown): Promise<{ who: Caller } | { r
     return { res: c.json({ error: "Not allowed." }, 403) };
   }
   const pid = c.req.headers.get("x-cb-pid") || c.url.searchParams.get("me") || (typeof bodyMe === "string" ? bodyMe : "");
-  if (!pid) return { res: c.json({ error: "Please sign in, or open your card link first." }, 403) };
+  if (!pid) return { res: c.json({ error: "Please sign in, or open your personal link first." }, 403) };
   const seat = await c.env.DB.prepare("SELECT seq, role, inv, blocked FROM seat WHERE eid=? AND pid=?").bind(c.eid, pid).first<{ seq: number; role: string | null; inv: number | null; blocked: number | null }>();
   if (!seat) return { res: c.json({ error: "Not a participant of this game." }, 403) };
   if (seat.blocked) return { res: c.json({ error: "You were removed from this game.", code: "removed" }, 403) };
-  if (seat.role) return { res: c.json({ error: "Your team seat invites through the console, not through the card." }, 403) };
+  if (seat.role) return { res: c.json({ error: "Your team seat invites through the console, not through the game page." }, 403) };
   if (seat.inv !== null) return { res: c.json({ error: "Guests invited by a guest can play but cannot invite more people." }, 403) };
   if (!c.invites.on) return { res: c.json({ error: "The organizer has not switched on guest invitations for this game." }, 403) };
   return { who: { id: "s:" + seat.seq, kind: "guest", all: false, limit: c.invites.per, label: "Guest", seat: seat.seq } };
@@ -151,7 +151,7 @@ async function labelsOf(c: Ctx): Promise<(id: string | null) => string> {
   const rows = (await c.env.DB.prepare("SELECT substr(hash,1,7) AS h, kind, label FROM organizer_key WHERE org=? AND kind IN ('host','cohost') AND (eid IS NULL OR eid=?)").bind(c.e.org, c.eid).all<{ h: string; kind: string; label: string | null }>()).results ?? [];
   const m = new Map<string, string>();
   for (const r of rows) m.set((r.kind === "host" ? "h:" : "c:") + r.h, `${r.kind === "host" ? "Host" : "Co-host"}${r.label ? " " + r.label : ""}`);
-  return (id) => (!id ? "" : id === "o" ? "Organizer" : id.startsWith("s:") ? `Guest (card ${id.slice(2)})` : m.get(id) ?? (id.startsWith("h:") ? "Host" : "Co-host"));
+  return (id) => (!id ? "" : id === "o" ? "Organizer" : id.startsWith("s:") ? `Guest (seat ${id.slice(2)})` : m.get(id) ?? (id.startsWith("h:") ? "Host" : "Co-host"));
 }
 
 export interface PersonView { id: string; name: string; maskedPhone: string; status: "invited" | "joined" | "waiting" | "removed"; link: string | null; waLink: string | null; role?: string; inviter?: string; approvedBy?: string }
@@ -604,9 +604,9 @@ export async function joinLinkPage(env: Env, token: string, origin: string, game
   if (!e || e.cancelled_ms || e.unplayed_ms) return gone();
   const pii = await openPii(env, row.pii), first = (pii?.name ?? "").trim().split(/\s+/)[0] ?? "", game = gameNameOf(e);
   const target = `${origin}/z.html?e=${encodeURIComponent(row.eid)}&t=${encodeURIComponent(token.toLowerCase())}`;
-  const title = `You are invited to ${game}`, desc = `${first ? first + ", tap" : "Tap"} to open your card. Corporate Tic Tac Toe needs no app and no sign-up.`;
+  const title = `You are invited to ${game}`, desc = `${first ? first + ", tap" : "Tap"} to open your game. Corporate Tic Tac Toe needs no app and no sign-up.`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url=${esc(target)}"><title>${esc(title)}</title>`
     + `<meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Tic Tac Toe"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(origin + "/j/" + token.toLowerCase())}">`
-    + `<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(title)}"></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>${esc(title)}</h1><p><a href="${esc(target)}">Open your card</a></p></body></html>`;
+    + `<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(title)}"></head><body style="font-family:system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>${esc(title)}</h1><p><a href="${esc(target)}">Open your game</a></p></body></html>`;
   return new Response(html, { headers });
 }

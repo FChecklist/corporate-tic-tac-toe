@@ -9,7 +9,7 @@ sc("E01", "PLAYED game: guests, people list and Co-host details exist 1 ms befor
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true, guests: 3, people: 2 });
   await org.inviteCohost({ label: "Chitra", phone: "9822200021", e: g.id });
   await w.goTo(g.endMs + 10 * MIN, 5 * MIN); // the game was played (time passed), the report went out
-  w.expect("report mail went to the Organizer", (await w.mails(org.email, "engagement report")).length === 1, JSON.stringify((await w.mails(org.email)).map((m) => m.subject)));
+  w.expect("report mail went to the Organizer", (await w.mails(org.email, "game report")).length === 1, JSON.stringify((await w.mails(org.email)).map((m) => m.subject)));
   await w.tickAt(g.erasureMs - 1);
   w.expect("guests present 1 ms before", (await w.personal(g.id)) >= 5, JSON.stringify(await rowsAll(g.id)));
   w.eq("Co-host details present 1 ms before", await w.cohostRows(g.id), 1);

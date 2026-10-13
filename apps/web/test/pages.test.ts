@@ -181,7 +181,7 @@ describe("console (organizer page)", () => {
     o.world.now = START_MS + 5 * 60_000;
     const p = await consolePage(o, "UI-HELD");
     const t = await p.waitFor((x) => /could not begin/i.test(x));
-    expect(t).toMatch(/Pay now and start/); expect(t).toMatch(/0 \/ 75/); expect(p.errors).toEqual([]);
+    expect(t).toMatch(/Pay now and start/); expect(t).not.toMatch(/\/ 75|numbers called/); expect(p.errors).toEqual([]);
   });
   test("UC-54 a payment-due card counts down to the start and offers Pay now", async () => {
     const o = await organizer(); await make(o, "UI-DUE"); await publish(o, "UI-DUE");
@@ -413,7 +413,7 @@ test("'Change of phone': the organizer enters a number, and the next device that
     const p = await consolePage(o, "UI-MOVE");
     await p.waitFor((x) => /Your game|Last step/i.test(x)); openStep(p, 6); await p.waitFor((x) => /Change of phone/.test(x));
     (p.$("#ubph") as any).value = "98555 55555"; p.click("#unbind");
-    await p.waitFor((x) => /next phone they join with keeps their card/i.test(x));
+    await p.waitFor((x) => /next phone they join with keeps their seat/i.test(x));
     expect((await o.api("POST", "/api/z/UI-MOVE/join", { phone: "9855555555", device: "2".repeat(32) })).status).toBe(200);
     expect((await o.api("POST", "/api/z/UI-MOVE/join", { phone: "9855555555", device: "1".repeat(32) })).status).toBe(423);
   }, 60_000);

@@ -1,4 +1,4 @@
-/* Corporate Tic Tac Toe: the engagement report. The e-mailed link opens this page; it fetches the report's data in small pieces and lays the PDF out on THIS device
+/* Corporate Tic Tac Toe: the game report. The e-mailed link opens this page; it fetches the report's data in small pieces and lays the PDF out on THIS device
    (nothing is built on our side), then offers the PDF to save. The link works only until the participants' details are deleted (within 24 hours of the game ending). */
 (function () {
   const $app = document.getElementById("app");

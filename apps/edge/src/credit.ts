@@ -228,7 +228,7 @@ export async function creditRoute(req: Request, env: PayEnv, now: number, spend:
   if (a.kind === "ai") return json({ error: "Paying is for people to do themselves. Ask the owner to use their credit in the console." }, 403);
   if (!a.org || a.viaLink || !a.kind || !PAYER_KINDS.has(a.kind)) return json({ error: "Not allowed." }, 403);
   const e = await db.prepare("SELECT * FROM engagement WHERE id=?").bind(m[1]!).first<any>();
-  if (!e || e.org !== a.org) return json({ error: "No such engagement." }, 404);
+  if (!e || e.org !== a.org) return json({ error: "No such game." }, 404);
   if (a.kind === "cohost" && a.eid && a.eid !== e.id) return json({ error: "Your Co-host link is for a different game." }, 403);
   if (e.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for.", code: "cancelled" }, 409);
   if (e.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);

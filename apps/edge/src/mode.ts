@@ -125,6 +125,6 @@ export async function modeRoute(req: Request, env: ModeEnv, now: number, owner: 
   }
   if (req.method !== "POST") return json({ error: "Not found" }, 404);
   const b = await readBody(req);
-  if (b?.confirm !== "purge test data") return json({ error: 'This deletes every test engagement, account, partner and payment. Send {"confirm":"purge test data"} to go ahead.' }, 400);
+  if (b?.confirm !== "purge test data") return json({ error: 'This deletes every test game, account, partner and payment. Send {"confirm":"purge test data"} to go ahead.' }, 400);
   return json({ ok: true, deleted: await purge(now) });
 }

@@ -32,7 +32,7 @@ export async function acceptVotes(env: Env & PiiEnv, e: any, eid: string, b: any
   const seat = typeof b?.pid === "string" ? seatOfPid(b.pid) : null;
   if (!b || seat === null || !Array.isArray(b.results) || b.results.length < 1 || b.results.length > 3) return json({ error: "Bad report." }, 400);
   const who = await env.DB.prepare("SELECT 1 AS x FROM participant WHERE eid=? AND pid=?").bind(eid, b.pid).first();
-  if (!who) return json({ error: "Not a participant of this engagement." }, 403);
+  if (!who) return json({ error: "Not a participant of this game." }, 403);
   const cfg = cfgOfRow(e), valid = new Set<string>(keysInPlay(cfg.rewards)), luckyCount = cfg.breaks.filter((x) => x.kind === "lucky").length;
   const people = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 1;
   const need = quorumFor(people);
@@ -79,9 +79,9 @@ export async function confirmPrize(env: Env & PiiEnv, eid: string, b: any, now: 
   if (!b || seat === null || typeof b.device !== "string" || !/^[0-9a-f]{16,64}$/.test(b.device)) return json({ error: "Bad request." }, 400);
   const dev = (await sha(`dev|${eid}|${b.device}`)).slice(0, 32);
   const mine = await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND pid=? AND dev=?").bind(eid, b.pid, dev).first();
-  if (!mine) return json({ error: "This is not the phone that holds this card." }, 403);
+  if (!mine) return json({ error: "This is not the phone that holds this seat." }, 403);
   const rows = (await env.DB.prepare("SELECT round, pattern, ordinal, pii, orig, trail FROM prize WHERE eid=? AND seat=?").bind(eid, seat).all<any>()).results ?? [];
-  if (!rows.length) return json({ error: "No reward recorded for this card." }, 404);
+  if (!rows.length) return json({ error: "No reward recorded for this seat." }, 404);
   const name = cleanName(b.name), typedPhone = typeof b.phone === "string" ? b.phone.trim() : "", phone = typedPhone ? digitsOf(typedPhone) : ""; // a mobile number is optional: guests who joined with a name only may leave it empty
   if (!name) return json({ error: "Please write your name." }, 400);
   if (phone === null) return json({ error: "That mobile number does not look right. Leave it empty or check it." }, 400);
@@ -103,7 +103,7 @@ export async function myPrizes(env: Env & PiiEnv, eid: string, url: URL, json: J
   const seat = seatOfPid(pid);
   if (seat === null || !/^[0-9a-f]{16,64}$/.test(device)) return json({ error: "Bad request." }, 400);
   const dev = (await sha(`dev|${eid}|${device}`)).slice(0, 32);
-  if (!(await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND pid=? AND dev=?").bind(eid, pid, dev).first())) return json({ error: "This is not the phone that holds this card." }, 403);
+  if (!(await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND pid=? AND dev=?").bind(eid, pid, dev).first())) return json({ error: "This is not the phone that holds this seat." }, 403);
   const rows = (await env.DB.prepare("SELECT round, pattern, ordinal, pii, confirmed_ms FROM prize WHERE eid=? AND seat=? ORDER BY round, pattern, ordinal").bind(eid, seat).all<any>()).results ?? [];
   const cur = rows.length ? await openPii(env, rows[0].pii) : null;
   return json({ prizes: rows.map((r: any) => ({ round: r.round, pattern: r.pattern, ordinal: r.ordinal })), name: cur?.name ?? "", phone: cur?.phone ?? "", confirmed: rows.some((r: any) => r.confirmed_ms) });

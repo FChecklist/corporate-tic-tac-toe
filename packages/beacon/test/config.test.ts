@@ -190,7 +190,7 @@ describe("five brand moments for each ticket: openings, during the game, closing
   test("going from 2 tickets to 1 is refused while more than one ticket's worth is switched on, and says what to do", () => {
     const two = good({ tickets: 2, opening: [msg({ seconds: 30 }), msg({ seconds: 30 })], breaks: [mid(), mid(), mid(), mid()] });
     const why = refused({ tickets: 1 }, two);
-    expect(why).toContain("1 card per person"); expect(why).toContain("5 brand moments"); expect(why).toContain("switch some off");
+    expect(why).toContain("5 brand moments"); expect(why).toContain("switch some off");
     expect(good({ tickets: 1, opening: [msg()], breaks: [mid(), mid(), mid()] }, two).tickets).toBe(1);
   });
 

@@ -121,7 +121,7 @@ endstream`) : 0;
     });
     const tree = add(`<< /Type /Pages /Kids [${pageIds.map((i) => `${i} 0 R`).join(" ")}] /Count ${pages.length} >>`);
     const cat = add(`<< /Type /Catalog /Pages ${tree} 0 R >>`);
-    const info = add(`<< /Title (${esc("Corporate Tic Tac Toe engagement report")}) /Producer (Corporate Tic Tac Toe) >>`);
+    const info = add(`<< /Title (${esc("Corporate Tic Tac Toe game report")}) /Producer (Corporate Tic Tac Toe) >>`);
     if (tree !== pagesId) throw new Error("pdf object numbering");
     let out = "%PDF-1.4\n"; const offs: number[] = [];
     objs.forEach((o, i) => { offs.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });

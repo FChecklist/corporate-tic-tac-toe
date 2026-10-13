@@ -43,7 +43,7 @@ O4 | false | apps/edge/test/pay.test.ts (invoice and mail queued) | Mail is queu
 O5 | false | apps/edge/test/branding.test.ts | Name, colour and logo on the player screen yes; logo upload not re-tested for this product.
 O6 | true | apps/edge/test/roles.test.ts, consent.test.ts (K5) | 
 O7 | false | apps/edge/test/people.test.ts (see and remove) | Remove works; 'end a game' is not built.
-O8 | false |  | The organizer report is still the Bingo report layout; no results section for the tournament.
+O8 | true | apps/edge/test/no-other-game-words.test.ts | The organizer report now shows the tournament: when it started, the format, the bracket rounds, the move clock, the players, the champion and the final places. Still plain: no bracket drawing.
 O9 | true | apps/edge/test/cancel.test.ts, reopen.test.ts, reschedule-window.test.ts, credit.test.ts | No refund; credit and 365-day move window.
 O10 | true | apps/edge/test/privacy.test.ts (erase), tournament.test.ts G18 | 
 O11 | false | apps/web/public/contact.html | Contact page works (mail link); no auto-reply.
@@ -68,7 +68,7 @@ E1 | false | apps/edge/test/account.test.ts | Queued in the local outbox; not re
 E2 | false | apps/edge/test/pay.test.ts | Same.
 E3 | false | apps/edge/test/people.test.ts | Same.
 E4 | false |  | No reminder mail for the tournament.
-E5 | false |  | No results mail (report is the Bingo report).
+E5 | false |  | No separate results mail; the report mail at the end of the game carries the tournament report.
 E6 | n/a |  | No refunds; a credit mail exists (credit.test.ts).
 E7 | false | apps/edge/test/unplayed.test.ts | Same outbox limit.
 E8 | false |  | No auto-reply.
@@ -123,7 +123,7 @@ LR-1 | true | apps/edge/test/consent.test.ts (nothing is ever taken from a playe
 LR-6 | true | apps/edge/test/consent.test.ts (K4 notice and 24-hour erasure) | Invite chain is in the box A wording and is erased with the person.
 X1 | true | packages/ttt/test/classic.test.ts, match.test.ts | 3 in a row, draw, who starts, move clock.
 X2 | true | packages/ttt/test/bracket.test.ts; apps/edge/test/tournament.test.ts | 1-v-1, team-v-team, knockout for a crowd, spectator view.
-X3 | false |  | Shell cloned and renamed. The organizer console (steps 2, 3, 4 and 9, Quick setup, help), the player pages, the pay page and the home page now speak of players, a knockout and the top places. Still Bingo-shaped: the organizer report layout (O8, E5), the AI helper manual and prompt files (`apps/edge/src/ai-*.ts`), and some e-mail and legal wording (`engagement`, "first number").
+X3 | true | apps/edge/test/no-other-game-words.test.ts, apps/edge/test/ai-enablement.test.ts, tools/sim2/scenarios/ui (scan for words of other games) | The words of the old game are gone from what a person can read: the console, the player pages, the pay page (Razorpay description too), the home page, the AI helper manual, prompt files and guided path, the organizer report, the e-mails and the legal wording now speak of players, a tournament, seats and the top places. What still carries the old names is inside the code only: file names, comments, the database table `engagement`, route and field names, and the unused card engine in the built bundles.
 X4 | false |  | See the false gates in this table.
 X6 | true | tools/sim2/scenarios/ui (run: `node tools/sim2/scenarios/ui/run.mjs`) | Chrome simulation of the whole organizer-to-player journey, 103 scenarios (sign-up and log-in, the ten console steps, Host and Co-host, joining by name with the Terms boxes, payment, cancel / move / clone, whole tournaments played on Chrome phones, 360 / 768 / 1280 / 1920 px sweeps, a scan for internal notes and words of other games). See docs/RUNNING.md.
 X5 | true | tools/sim2/bracket-sim.ts | Sim result: 1,000 players (100 never show up), 999 of 999 matches, 0 stuck; 300 players in teams of 5, 59 of 59, 0 stuck (also with 30 of the 300 away). Numbers below.

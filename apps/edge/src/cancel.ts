@@ -178,7 +178,7 @@ export async function mailDataDeleted(env: PayEnv, e: { id: string; org: string 
       await mailTeam(env, e.org, e.id, `Your game did not start: ${name}`, [`Your game did not start. We erased the guest list at ${istStamp(now, tzOfRow(e))}.`, `For the game "${name}" (${e.id}), every guest's name and mobile number was permanently deleted, as promised. The game is now closed: nobody can join or pay for it.`, "Your own details and your settings stay. Open the game and tap Create a new game like this one to start again with the same settings."].join("\n\n"), now);
       return;
     }
-    const text = [`Your guests' personal data has been deleted.`, `For the game "${name}" (${e.id}), every guest's name and mobile number was permanently deleted on ${istStamp(now, tzOfRow(e))}, as promised.`, "Nothing more is needed from you. The winners record (card number, prize, time) stays for your records, as explained in your Terms."].join("\n\n");
+    const text = [`Your guests' personal data has been deleted.`, `For the game "${name}" (${e.id}), every guest's name and mobile number was permanently deleted on ${istStamp(now, tzOfRow(e))}, as promised.`, "Nothing more is needed from you. The winners record (seat number, prize, time) stays for your records, as explained in your Terms."].join("\n\n");
     await mailTeam(env, e.org, e.id, `Your guests' personal data has been deleted: ${name}`, text, now);
   } catch { /* the deletion already happened; a mail is a courtesy */ }
 }

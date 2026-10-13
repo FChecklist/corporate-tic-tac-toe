@@ -29,7 +29,7 @@ export function checkUpload(text: string, country: string, exists: (e164: string
     const r = normalize(num, country);
     if (!r.ok) { out.bad.push({ ln, reason: r.reason }); return; }
     if (seen.has(r.e164)) { out.repeats.push({ ln, reason: "Repeated in your list" }); return; }
-    if (exists(r.e164)) { out.repeats.push({ ln, reason: "Already in this engagement" }); return; }
+    if (exists(r.e164)) { out.repeats.push({ ln, reason: "Already in this game" }); return; }
     seen.add(r.e164);
     (r.changed ? out.fixed : out.ready).push({ ln, name, e164: r.e164 });
   });

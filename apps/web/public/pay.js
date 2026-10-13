@@ -15,22 +15,22 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status });
     return j;
   };
-  const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Publish engagement</b><a class="zsnd" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none">Back to my engagement</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
+  const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Publish game</b><a class="zsnd" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none">Back to my game</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
   const packFor = (cap) => { const p = TB.PACKS.find((x) => x[0] >= cap); return p ? p[0] : null; };
 
   function view() {
     if (!secret) return `${head}<div class="zcard"><h2>Please sign in first</h2><p class="zsmall" style="margin-top:0">Open your console from the home page, or sign in with your work email: we send you a 6-digit code.</p><a class="zbtn" href="/#login" id="goLogin" style="text-decoration:none;display:inline-block">Sign in with email</a></div>`;
     if (S.done) {
       const d = S.done;
-      return `${head}<div class="zcard" style="border:2px solid #2e7d4f"><h2>Payment received. Your engagement will begin on time.</h2>${TB.payReceipt ? TB.payReceipt(d, d.eid || eid) : ""}
-        <p style="margin:0 0 10px">${d.paidFromCredit ? "Paid from your credit. " : ""}Thank you. Your engagement for up to <b>${nf(d.pack)}</b> participants is confirmed.${d.restartedAtMs ? ` It begins at <b>${esc(new Date(d.restartedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}</b>, for everyone already waiting.` : " Share the link with your participants from your console if you have not already."}</p>
+      return `${head}<div class="zcard" style="border:2px solid #2e7d4f"><h2>Payment received. Your game will begin on time.</h2>${TB.payReceipt ? TB.payReceipt(d, d.eid || eid) : ""}
+        <p style="margin:0 0 10px">${d.paidFromCredit ? "Paid from your credit. " : ""}Thank you. Your game for up to <b>${nf(d.pack)}</b> participants is confirmed.${d.restartedAtMs ? ` It begins at <b>${esc(new Date(d.restartedAtMs).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}</b>, for everyone already waiting.` : " Share the link with your participants from your console if you have not already."}</p>
         ${d.invoiceUrl ? `${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">We also emailed it to you and to the organizer.</p>` : ""}
-        <a class="zbtn" href="/zc.html?e=${encodeURIComponent(d.eid || eid)}" style="text-decoration:none;display:inline-block">Open my engagement</a></div>`;
+        <a class="zbtn" href="/zc.html?e=${encodeURIComponent(d.eid || eid)}" style="text-decoration:none;display:inline-block">Open my game</a></div>`;
     }
     if (!S.info) return `${head}<p class="zmsg">${S.err ? esc(S.err) : "Loading…"}</p>`;
     const pack = packFor(S.info.cap);
-    if (!S.info.draft && !S.info.unpaid) return `${head}<div class="zcard"><h2>This engagement is already paid and published</h2><a class="zbtn" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none;display:inline-block">Open my engagement</a></div>`;
-    if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">An engagement for more than 10,000 participants is arranged with us directly. Please write to us from the contact page.</p></div>`;
+    if (!S.info.draft && !S.info.unpaid) return `${head}<div class="zcard"><h2>This game is already paid and published</h2><a class="zbtn" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none;display:inline-block">Open my game</a></div>`;
+    if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">A game for more than 10,000 participants is arranged with us directly. Please write to us from the contact page.</p></div>`;
     const x = TB.price(pack, S.cur);
     const applied = S.cur === "INR" ? Math.max(Number(S.credited) || 0, Number(S.info.creditApplied) || 0) : 0; // credit already put on this game (by you, or by a Host); it comes off what you pay
     const toPay = Math.max(0, Math.round((x.total - applied) * 100) / 100);
@@ -42,7 +42,7 @@
       + (applied ? `<div class="zrow"><span>Your credit used</span><em>- ${TB.money(applied, "INR")}</em></div><div class="zrow"><span><b>To pay now</b></span><em><b>${TB.money(toPay, "INR")}</b></em></div>` : "");
     const off = S.mode === "off";
     return `${head}
-      ${off ? `<div class="zbanner info"><b>Online payment opens soon.</b> Your engagement is saved and nothing is lost. Come back to this page when payment is switched on. Until then it stays held at its start time.</div>` : ""}
+      ${off ? `<div class="zbanner info"><b>Online payment opens soon.</b> Your game is saved and nothing is lost. Come back to this page when payment is switched on. Until then it stays held at its start time.</div>` : ""}
       <div class="zcard"><h2>Payment</h2>
         <p class="pstmt">Payment is for Game ID <b class="mono">${esc(eid)}</b>; Amount <b>${TB.money(applied ? toPay : x.total, S.cur)}</b>;</p>
         <div class="pgame"><div class="zrow"><span><b>GAME ID</b></span><em><b class="mono">${esc(eid)}</b></em></div>${S.info.startMs ? `<div class="zrow"><span>Starts</span><em>${esc(new Date(S.info.startMs).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}</em></div>` : ""}<div class="zrow"><span>Players</span><em>Up to ${nf(pack)}</em></div></div>
@@ -126,7 +126,7 @@
 
   (async () => {
     if (!secret) return draw();
-    if (!eid) { S.err = "No engagement was chosen."; return draw(); }
+    if (!eid) { S.err = "No game was chosen."; return draw(); }
     try {
       const st = await fetch("/api/payments/status").then((r) => r.json()); S.mode = st.mode;
       const h = await call("GET", `/api/z/${eid}/cohost`); // only the Organizer, a Host or a Co-host of THIS game's account passes; anyone else gets a 403 and a calm message
@@ -135,7 +135,7 @@
         if (e0.status !== 403) throw e0;
         S.info = { cap: h.cap, startMs: h.startMs, draft: !h.inviteLink, unpaid: !h.payment || h.payment.status !== "paid", credit: h.credit, creditExpiresMs: h.creditExpiresMs, creditApplied: h.creditApplied, erasureMs: h.erasureMs };
       }
-    } catch (e) { S.err = e.status === 403 || e.status === 404 ? "We could not open this engagement with your sign-in. Open it from your console." : e.message; }
+    } catch (e) { S.err = e.status === 403 || e.status === 404 ? "We could not open this game with your sign-in. Open it from your console." : e.message; }
     draw();
   })();
 })();

@@ -1,4 +1,4 @@
-// The engagement report the organizer receives by e-mail: one PDF with everything we hold about the game and its people, and a plain statement of what
+// The game report the organizer receives by e-mail: one PDF with everything we hold about the game and its people, and a plain statement of what
 // is deleted and when. This file only lays data out; it knows nothing about the database (see lifecycle.ts for where the data comes from).
 import { BRAND } from "./brand";
 import { GOLD, NAVY, PdfDoc, WHITE, type Column } from "./pdf";
@@ -13,6 +13,8 @@ export interface ReportData {
   engagementId: string; organizerEmail: string; sentAtMs: number;
   scheduledMs: number; firstNumberMs: number; endMs: number; endReason: string; wasHeld: boolean;
   rounds: number; callSeconds: number; ticketsPerPerson: number; cap: number; inviteOnly: boolean; numbersCalled: number;
+  /** The tournament itself, once it has started: filled in by lifecycle.ts from the mailbox. (rounds, callSeconds, ticketsPerPerson and numbersCalled above are kept for old callers; the report no longer shows them.) */
+  play?: { format: string; rounds: number; moveSecs: number; players: number; champion: string | null };
   people: ReportPerson[];
   prizes: ReportPrize[];
   lucky: { title: string; winners: ReportWinner[] }[];
@@ -40,27 +42,27 @@ const who = (w: { name: string | null; phone: string | null }) => `${w.name || "
 
 export function layoutReport(d: ReportData): Uint8Array {
   const pdf = new PdfDoc();
-  pdf.footer = `Corporate Tic Tac Toe  |  Engagement ${d.engagementId}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
+  pdf.footer = `Corporate Tic Tac Toe  |  Game ${d.engagementId}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
 
   // ---- title band
   pdf.rect(0, pdf.H, pdf.W, 92, NAVY); pdf.rect(0, pdf.H - 92, pdf.W, 3, GOLD);
   if (d.logoPix) pdf.logo(d.logoPix, pdf.W - pdf.M - 64, pdf.H - 14, 64, 64); // the organizer's logo, on a white tile at the right of the band
   pdf.y = pdf.H - 28;
   pdf.para(d.brand && d.brand.name ? `${d.brand.name} | Corporate Tic Tac Toe` : "Corporate Tic Tac Toe", { font: "F2", size: 11, color: GOLD, gap: 2 });
-  pdf.para("Complete engagement report", { font: "F2", size: 22, color: WHITE, gap: 2 });
-  pdf.para(`Engagement ${d.engagementId}   |   ${d.people.length} people   |   ${d.prizes.reduce((n, p) => n + p.winners.length, 0)} prize wins`, { size: 9.5, color: WHITE });
+  pdf.para("Complete game report", { font: "F2", size: 22, color: WHITE, gap: 2 });
+  pdf.para(`Game ${d.engagementId}   |   ${d.people.length} people   |   ${d.prizes.reduce((n, p) => n + p.winners.length, 0)} prize wins`, { size: 9.5, color: WHITE });
   pdf.y = pdf.H - 92 - 16;
 
   pdf.box("Sent to you", [
     `E-mail address: ${d.organizerEmail}`,
     `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`,
-    "This PDF is the complete record of your engagement, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once we delete ours.",
+    "This PDF is the complete record of your game, including the names and mobile numbers of everyone who took part. Please keep it safe: it is the only copy of this data that exists once we delete ours.",
   ], [0.93, 0.96, 1], NAVY);
 
   pdf.box("What we keep, and what we delete", [
-    `We have given you ALL the data we hold about the people in this engagement. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, we permanently delete from our systems every participant's name, mobile number, join record, card assignment and invite link record. After that nobody at Corporate Tic Tac Toe, and nothing in our software or database, holds them.`,
-    "We keep, for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); (2) the winners record: which prize, which round, at what time, and the card seat number; and (3) the name and mobile number each winner confirmed for the prize hand-over, with the date it was given. The winners record itself holds no names or numbers.",
-    `Everything about this engagement, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
+    `We have given you ALL the data we hold about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, we permanently delete from our systems every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Tic Tac Toe, and nothing in our software or database, holds them.`,
+    "We keep, for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); (2) the winners record: which prize, which place, at what time, and the seat number; and (3) the name and mobile number each winner confirmed for the prize hand-over, with the date it was given. The winners record itself holds no names or numbers.",
+    `Everything about this game, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
     `Backups of our database roll off within ${d.backupDays} days, so any copy of deleted data in a backup is gone within ${d.backupDays} days of the deletion.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
   ]);
@@ -69,49 +71,41 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.h1("1. The game");
   pdf.table([{ head: "Item", width: 32 }, { head: "Detail", width: 78 }], [
     ["Scheduled time you gave", istFull(d.scheduledMs, d.tz)],
-    ["First number called", d.wasHeld ? "The game did not start (see note below)" : istFull(d.firstNumberMs, d.tz) + "  (2 minutes after the scheduled time)"],
+    ["Tournament started", d.wasHeld ? "The game did not start (see note below)" : istFull(d.firstNumberMs, d.tz)],
     ["Game ended", `${istFull(d.endMs, d.tz)}`],
     ["How it ended", d.endReason],
     ["Playing time", d.wasHeld ? "-" : dur(d.endMs - d.firstNumberMs)],
-    ["Rounds", String(d.rounds)],
-    ["Numbers called in the last round", String(d.numbersCalled)],
-    ["Call speed", `one number every ${d.callSeconds} seconds`],
-    ["Cards per person", String(d.ticketsPerPerson)],
+    ...(d.play ? [["Format", d.play.format], ["Rounds in the bracket", String(d.play.rounds)], ["Move clock", `${d.play.moveSecs} seconds for every move`], ["Players in the draw", String(d.play.players)], ["Champion", d.play.champion || "-"]] : []),
     ["Participant limit", `${d.cap}${d.inviteOnly ? "  (invitation only)" : ""}`],
   ]);
-  if (d.wasHeld) pdf.para("Note: this game was not started (for example it was not paid for by its start time), so no numbers were called.", { size: 9 });
-  if (d.breaks.length) { pdf.h2("Brand breaks"); pdf.table([{ head: "After number", width: 13, align: "r" }, { head: "Kind", width: 10 }, { head: "Title", width: 60 }], d.breaks.map((b) => [String(b.after), b.kind, b.title])); }
+  if (d.wasHeld) pdf.para("Note: this game was not started (for example it was not paid for by its start time), so no tournament was played.", { size: 9 });
+
 
   // ---- 2 participants over time
   pdf.h1("2. How many people were in the game");
-  pdf.para("Counted at chosen numbers of round 1. 'Late' are people who joined after the first number was called: they see only the numbers called from 90 seconds after they joined, and prizes already awarded are gone for them.", { size: 9, gap: 4 });
-  pdf.table([{ head: "At number", width: 10, align: "r" }, { head: `Time (${zoneAbbr(d.firstNumberMs || d.scheduledMs, d.tz)})`, width: 12 }, { head: "People", width: 8, align: "r" }, { head: "Of them late", width: 12, align: "r" }], d.timeline.map((t) => [String(t.callNo), hm(t.atMs, d.tz), String(t.present), String(t.late)]), { zebra: true });
+  pdf.para("Counted at set moments after the game opened. 'Late' are people who joined after play had started.", { size: 9, gap: 4 });
+  pdf.table([{ head: "Check no.", width: 10, align: "r" }, { head: `Time (${zoneAbbr(d.firstNumberMs || d.scheduledMs, d.tz)})`, width: 12 }, { head: "People", width: 8, align: "r" }, { head: "Of them late", width: 12, align: "r" }], d.timeline.map((t) => [String(t.callNo), hm(t.atMs, d.tz), String(t.present), String(t.late)]), { zebra: true });
 
   // ---- 3 prizes and winners
   pdf.h1("3. Prizes and winners");
   { const t0 = d.prizes.length, w0 = d.prizes.filter((p) => p.winners.length).length;
   pdf.para(`${t0} prize lines were set up; ${w0} were won (${t0 - w0} not won).`, { size: 9.5, gap: 4 }); }
   for (const pr of d.prizes) {
-    pdf.h2(`${d.rounds > 1 ? `Round ${pr.round}  |  ` : ""}${pr.label}${pr.text ? `   -   ${pr.text}` : ""}`);
+    pdf.h2(`${pr.label}${pr.text ? `   -   ${pr.text}` : ""}`);
     if (!pr.winners.length) { pdf.para("Not won.", { size: 9, color: [0.4, 0.43, 0.48] }); continue; }
-    pdf.table([{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 21 }, { head: "Mobile", width: 12 }, { head: "At call", width: 6, align: "r" }, { head: "Time", width: 8 }, { head: "Role", width: 10 }, { head: "Agreed by", width: 8 }, { head: "Prize given", width: 12 }],
-      pr.winners.map((w) => [w.seat === null ? "-" : String(w.seat), w.name || "(no name)", mob(w.phone), w.callNo === null ? "-" : String(w.callNo), w.atMs ? hm(w.atMs, d.tz) : "-", w.role || "participant", w.verified ? "phones" : "-", w.given ? w.given : "not yet"]));
+    pdf.table([{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 24 }, { head: "Mobile", width: 14 }, { head: "Time", width: 9 }, { head: "Role", width: 12 }, { head: "Agreed by", width: 10 }, { head: "Prize given", width: 14 }],
+      pr.winners.map((w) => [w.seat === null ? "-" : String(w.seat), w.name || "(no name)", mob(w.phone), w.atMs ? hm(w.atMs, d.tz) : "-", w.role || "participant", w.verified ? "phones" : "-", w.given ? w.given : "not yet"]));
     for (const w of pr.winners) if (w.changedFrom) pdf.para(`Seat ${w.seat === null ? "-" : w.seat}: details changed after the game (${w.changedFrom}).`, { size: 8.5, color: [0.7, 0.15, 0.1] });
   }
-  { // the ranking: 1st, 2nd, 3rd ... and the top 10 (prize order, then call number); every prize line has exactly one winner
-    const base = (l: string) => l.replace(/^\d+(st|nd|rd|th) /, "");
+  { // the final places: 1st, 2nd, 3rd ... (every prize line has exactly one winner; the ranking has no ties)
     const flat = d.prizes.flatMap((p) => p.winners.map((w) => ({ p, w })));
     if (flat.length) {
-      pdf.h2("Ranking: top winners");
-      const rows = flat.slice(0, 10).map((x, i) => { const tied = flat.some((y) => y !== x && base(y.p.label) === base(x.p.label) && y.w.callNo !== null && y.w.callNo === x.w.callNo); return [String(i + 1), x.p.label, x.w.seat === null ? "-" : String(x.w.seat), x.w.name || "(no name)", x.w.callNo === null ? "-" : String(x.w.callNo), tied ? "tied on the same call; decided by fate" : ""]; });
-      pdf.table([{ head: "Rank", width: 5, align: "r" }, { head: "Prize", width: 17 }, { head: "Seat", width: 5, align: "r" }, { head: "Name", width: 18 }, { head: "At call", width: 7, align: "r" }, { head: "How decided", width: 24 }], rows);
+      pdf.h2("Final places");
+      const rows = flat.slice(0, 10).map((x, i) => [String(i + 1), x.p.label, x.w.seat === null ? "-" : String(x.w.seat), x.w.name || "(no name)"]);
+      pdf.table([{ head: "Place", width: 8, align: "r" }, { head: "Prize", width: 30 }, { head: "Seat", width: 8, align: "r" }, { head: "Name", width: 40 }], rows);
     }
   }
-  for (const l of d.lucky) {
-    pdf.h2(`Lucky draw  -  ${l.title}`);
-    pdf.table([{ head: "Seat", width: 5, align: "r" }, { head: "Name", width: 24 }, { head: "Mobile", width: 12 }], l.winners.map((w) => [w.seat === null ? "-" : String(w.seat), w.name || "(no name)", mob(w.phone)]));
-  }
-  pdf.para("Every winner here was worked out by the software from the public numbers, and was accepted only when several different phones reported exactly the same result ('Agreed by: phones'). Neither you nor anyone at Corporate Tic Tac Toe can choose, change or remove a winner or a number. Names and mobile numbers are those the winner confirmed on their own phone after the game; if they changed them, that is shown under the table.", { size: 8.5 });
+  pdf.para("Every result here was worked out by the players' phones from the sealed draw and the moves that were played, and was accepted only when the phones agreed ('Agreed by: phones'). Neither you nor anyone at Corporate Tic Tac Toe can choose, change or remove a winner or a place in the bracket. Names and mobile numbers are those the winner confirmed on their own phone after the game; if they changed them, that is shown under the table.", { size: 8.5 });
 
   // ---- 4 statistics
   const total = d.prizes.length, won = d.prizes.filter((p) => p.winners.length).length;
@@ -122,11 +116,11 @@ export function layoutReport(d: ReportData): Uint8Array {
     ["People who took part (joined)", String(g.joined)],
     ["On your invitation list", String(g.onRoster)],
     ["Invited but never joined", String(g.notJoined)],
-    ["Joined after the first number (late)", String(g.late)],
+    ["Joined after play had started (late)", String(g.late)],
     ["Joined through someone's invite link", String(g.viaInvite)],
     ["People who invited at least one person", String(g.inviters)],
     ["Most invites by one person", g.topInviter ? `${g.topInviter[1]} (seat ${g.topInviter[0]})` : "0"],
-    ["Organizer / host / co-host with a card", String(g.roles)],
+    ["Organizer / host / co-host with a seat", String(g.roles)],
     ["Prize lines won / not won", `${won} / ${total - won}`],
     ["Total prize wins (no prize is shared)", String(d.prizes.reduce((n, p) => n + p.winners.length, 0))],
     ["Prize wins by organizer / host / co-host", String(d.prizes.reduce((n, p) => n + p.winners.filter((w) => w.role).length, 0))],
@@ -146,8 +140,8 @@ export function layoutReport(d: ReportData): Uint8Array {
 
   pdf.h1("8. Our commitment to your data");
   pdf.box("All of it is deleted. Here is exactly what, and when.", [
-    `1. Everything about the people in this engagement (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
-    "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which round, at what time, which seat number). The winners record has no names and no mobile numbers.",
+    `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
+    "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
     `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
     `4. Backups of our database roll off within ${d.backupDays} days, so no copy of deleted data remains after that.`,
     "5. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
@@ -207,11 +201,11 @@ function listSection(pdf: PdfDoc, people: ReportPerson[], tz?: string) {
 /** One of the extra PDFs of a big game: the invite tree and the list for up to 1,500 people. */
 export function layoutPeoplePart(d: ReportData, people: ReportPerson[], k: number, n: number): Uint8Array {
   const pdf = new PdfDoc();
-  pdf.footer = `Corporate Tic Tac Toe  |  Engagement ${d.engagementId}  |  people part ${k} of ${n}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
+  pdf.footer = `Corporate Tic Tac Toe  |  Game ${d.engagementId}  |  people part ${k} of ${n}  |  sent ${istFull(d.sentAtMs, d.tz)}`;
   pdf.rect(0, pdf.H, pdf.W, 70, NAVY); pdf.rect(0, pdf.H - 70, pdf.W, 3, GOLD);
   pdf.y = pdf.H - 26;
   pdf.para("Corporate Tic Tac Toe", { font: "F2", size: 11, color: GOLD, gap: 2 });
-  pdf.para(`People, part ${k} of ${n}  |  Engagement ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
+  pdf.para(`People, part ${k} of ${n}  |  Game ${d.engagementId}`, { font: "F2", size: 16, color: WHITE });
   pdf.y = pdf.H - 70 - 14;
   pdf.box("Sent to you", [`E-mail address: ${d.organizerEmail}`, `Sent on: ${istFull(d.sentAtMs, d.tz)}  (${utcFull(d.sentAtMs)})`, `All data about the people is deleted from our systems by ${istFull(d.personalDeleteAtMs, d.tz)}. Keep these PDFs safe: they are the only copy.`], [0.93, 0.96, 1], NAVY);
   treeSection(pdf, people); listSection(pdf, people, d.tz);

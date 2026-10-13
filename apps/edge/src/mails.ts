@@ -72,7 +72,7 @@ export function coHostLinkMail(origin: string, key: string, owner: string, expir
   const { text, html } = shell({
     origin, warning: HOST_WARNING,
     title: "A Host AI work link",
-    intro: `For the Corporate Tic Tac Toe engagements of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Do not forward this email.`,
+    intro: `For the Corporate Tic Tac Toe games of ${owner}. Watch and announce only. Give it to your Host by pasting the box. Do not forward this email.`,
     expiry: `THIS HOST LINK WORKS FOR 24 HOURS ONLY (until ${istStamp(expiresMs)}).`,
     button: { label: "Open my console", url: `${origin}/zc.html`, note: "Your lasting Host link is in your console." },
     pasteLabel: "YOUR HOST PASTES THIS INTO AN AI CHAT",
