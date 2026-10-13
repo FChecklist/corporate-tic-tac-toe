@@ -229,6 +229,15 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const again = await mk(firstP).tick(); expect(again.board.cells[4]).not.toBe(0); expect(again.board.ply).toBe(1); expect(again.board.yourTurn).toBe(false);
     const other = await mk(secondP).tick(); expect(other.board.yourTurn).toBe(true); expect(other.board.deadlineMs).toBe(T + 5000 + 20_000); // the clock runs from the stored move, not from when the page was opened
   });
+  test("M11: a board nobody plays shows up on the Organizer's page after a while; the Organizer settles it by hand and the tournament closes", async () => {
+    const h = await game("MB-12"); const ps = await joinAll("MB-12", 2); const { clock, con } = await begin("MB-12", h);
+    clock.t = T + 400_000;
+    const w = await con.waiting(300_000); expect(w.length).toBe(1); expect([w[0]!.a.name, w[0]!.b.name].sort()).toEqual(["Player 1", "Player 2"]);
+    expect((await call("POST", "/api/z/MB-12/ttt/settle", { mid: w[0]!.mid, j: w[0]!.j, winner: w[0]!.a.pid }, h, clock.t)).status).toBe(200);
+    expect((await con.tick()).finished).toBe(true); // the page computes the ranking and sends it
+    const v = await view("MB-12", clock.t); expect(v.state).toBe("done"); expect(v.champion).toBe(w[0]!.a.name);
+    void ps;
+  });
   test("M10: the server never sees a rule: no table of the mailbox holds a board, a clock or a bracket, only ids, squares, stamps and who reported what", () => {
     const cols = (t: string) => (sql(`PRAGMA table_info(${t})`) as any[]).map((c) => c.name);
     expect(cols("ttt_mv")).toEqual(["eid", "mid", "j", "seq", "pid", "sq", "client_ms", "at_ms"]);

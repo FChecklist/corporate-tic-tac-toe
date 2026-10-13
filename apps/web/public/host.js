@@ -34,7 +34,7 @@
     } else {
       body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : v.paused ? "Paused" : "Running"}</h2><p>${esc(v.players || v.joined)} players &middot; ${esc(v.rounds || "")} rounds</p>${v.champion ? `<p>Champion: <b>${esc(v.champion)}</b></p>` : ""}${links()}
         ${v.state === "running" ? `<div class="hrow">${v.paused ? `<button class="zbtn" id="resume">Resume</button>` : `<button class="zbtn" id="pause">Pause for everyone</button>`}</div><p class="zsmall">While paused no clock runs and nobody can move. After Resume every clock has the same time left.</p>` : ""}</div>
-        ${S.disputed.length ? `<div class="zcard"><h2>Boards to settle</h2><p class="zsmall">The two players reported different winners. Pick the winner you saw.</p>${S.disputed.map((d) => `<p>${esc(d.a.name)} vs ${esc(d.b.name)} <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.a.pid)}">${esc(d.a.name)} won</button> <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.b.pid)}">${esc(d.b.name)} won</button></p>`).join("")}</div>` : ""}
+        ${S.disputed.length ? `<div class="zcard"><h2>Boards to settle</h2><p class="zsmall">These boards are waiting for you: the two players reported different winners, or nobody has played them for a long time. Pick the winner.</p>${S.disputed.map((d) => `<p>${esc(d.a.name)} vs ${esc(d.b.name)} <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.a.pid)}">${esc(d.a.name)} won</button> <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.b.pid)}">${esc(d.b.name)} won</button></p>`).join("")}</div>` : ""}
         <div class="zcard"><h2>Check the draw</h2><p class="zsmall">Fingerprint (shown before anybody joined): <span class="mono">${esc((v.commit || "").slice(0, 32))}</span></p><p class="zsmall"><a href="${esc(BASE)}/api/z/${esc(EID)}/ttt/reveal" target="_blank" rel="noopener">Show the secret and the seed</a>. The code that re-computes the bracket is open to an auditor.</p></div>`;
     }
     $app.innerHTML = `<div class="zhead"><b>Corporate Tic Tac Toe</b><span class="zsmall">${esc(EID)}</span></div>${S.msg ? `<div class="zbanner warn" role="alert">${esc(S.msg)}</div>` : ""}${body}`;
@@ -47,7 +47,7 @@
   }
   async function load() {
     try { S.view = await (await fetch(BASE + `/api/z/${EID}/ttt/view`, { cache: "no-store" })).json(); } catch (e) { S.msg = "Connecting..."; }
-    try { if (con && S.view && S.view.state !== "open" && S.view.state !== "done") { await con.tick(); S.disputed = S.view.disputed ? await con.disputed() : []; } } catch (e) { /* the next look tries again */ }
+    try { if (con && S.view && S.view.state !== "open" && S.view.state !== "done") { await con.tick(); S.n = (S.n || 0) + 1; if (S.n % 5 === 1) S.disputed = [...(S.view.disputed ? await con.disputed() : []), ...(await con.waiting())]; } } catch (e) { /* the next look tries again */ }
     paint();
   }
   if (!EID) { $app.innerHTML = `<p class="zmsg">Open this page from your console.</p>`; return; }

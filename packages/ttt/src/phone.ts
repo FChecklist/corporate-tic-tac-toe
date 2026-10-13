@@ -224,7 +224,7 @@ export class TttPhone {
       // 1. a clock-out that is due and not yet claimed: claim it (the mailbox stamps the claim with its own clock; every phone then computes the clock-out from that stamp)
       if (!paused && rep.due[mine.j] && !mine.done && this.claimedAt.get(`${m.mid}:${mine.j}`) !== nextSeq) {
         this.claimedAt.set(`${m.mid}:${mine.j}`, nextSeq); this.counters.claims++;
-        try { await this.post("move", { ...this.id(), mid: m.mid, seq: nextSeq, absent: true, client_ms: this.deps.now() }); } catch (e: any) { if (e?.status !== 409) throw e; }
+        try { await this.post("move", { ...this.id(), mid: m.mid, seq: nextSeq, absent: true, client_ms: Math.round(this.serverNow()) /* the server time this phone saw when it made the claim; the mailbox keeps it beside its own stamp */ }); } catch (e: any) { if (e?.status !== 409) throw e; }
         return this.refresh(m.mid);
       }
       // 2. my board is decided (by the rules): report the winner once
@@ -397,6 +397,12 @@ export class TttConsole {
     return { claims, reports };
   }
   flags = () => this.get("flags");
+  /** Boards that have waited a long time for a result although the rules cannot decide them (for example this page was closed while both players were away): the Organizer can settle these by hand. */
+  async waiting(ms = 300_000, max = 20): Promise<{ mid: string; j: number; a: { pid: string; name: string }; b: { pid: string; name: string } }[]> {
+    const r = await this.get(`stuck?ms=${ms}`); const { plan } = await this.loaded(); const out = [];
+    for (const rec of r.matches as MatchRec[]) for (const br of rec.boards) if (!br.result && out.length < max) out.push({ mid: rec.mid, j: br.j, a: { pid: br.a, name: plan.names[br.a] ?? "?" }, b: { pid: br.b, name: plan.names[br.b] ?? "?" } });
+    return out;
+  }
   /** Boards whose two reports differ: who is on them, by name, for the Organizer to settle. */
   async disputed(): Promise<{ mid: string; j: number; a: { pid: string; name: string }; b: { pid: string; name: string } }[]> {
     const f = await this.flags(); const { plan } = await this.loaded(); const out = [];

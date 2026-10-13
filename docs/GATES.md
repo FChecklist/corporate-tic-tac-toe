@@ -7,7 +7,7 @@ ID | status | proof | note
 G1 | true | apps/edge/test/tournament.test.ts (lobby), apps/web/public/host.js | Organizer creates the game (POST /api/z) and the Host chooses format and move clock at the start. Pages not driven in a real browser.
 G2 | true | apps/edge/test/tournament.test.ts G12 (view shows format, move clock, players) | What the host chose is read back.
 G3 | true | apps/edge/test/people.test.ts (common link and personal links) | Join link is z.html?e=ID.
-G4 | true | apps/web/test/ttt-page.test.ts (390 px window, no account) | Simulated phone browser, not a real phone.
+G4 | true | apps/web/test/ttt-page.test.ts (390 px window, no account), apps/web/test/ttt-play-page.test.ts (the page plays a move through the real routes) | Simulated phone browser, not a real phone.
 G5 | true | apps/edge/test/tournament.test.ts (view.joined) and ttt.js waiting screen | 
 G6 | true | apps/edge/test/tournament.test.ts: refused with fewer than 2 players, only Organizer or Host | 
 G7 | true | packages/ttt/test/classic.test.ts, match.test.ts, bracket.test.ts (rules R01-R30 in docs/RULES.md, one test each) | 
