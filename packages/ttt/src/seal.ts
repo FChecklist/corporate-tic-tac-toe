@@ -5,7 +5,7 @@
 //   3. The secret is then revealed, so anyone can check the fingerprint and re-compute the bracket, every starter and every fate number.
 // The browser never holds the secret and sends nothing that goes into the seed. Honest limit: the server draws the secret, so it is trusted to draw it fairly and not to look; the beacon value
 // (a public number the organizer's console can add at the start) removes even that, because the server cannot know it before the start.
-import { sha256Hex } from "./random";
+import { sha256Hex } from "./hash";
 
 export const newSecret = (): string => { const b = crypto.getRandomValues(new Uint8Array(32)); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); };
 export const commitOf = (secret: string): Promise<string> => sha256Hex(`TTT-COMMIT|${secret}`);

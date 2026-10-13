@@ -3,9 +3,9 @@
 // the software, a player) can know a pairing, a starting mark or a tie-break in advance, and anyone can re-compute it afterwards.
 // Here the beacon value is just a hex string passed in; `label` separates the different draws made from one value.
 
+import { sha256Hex } from "./hash";
+export { sha256Hex };
 const enc = new TextEncoder();
-const hex = (b: ArrayBuffer): string => Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, "0")).join("");
-export const sha256Hex = async (s: string): Promise<string> => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
 
 /** A deterministic stream of 32-bit numbers from (seed, label). Same input, same stream, on every device. */
 export async function stream(seed: string, label: string, count: number): Promise<number[]> {
