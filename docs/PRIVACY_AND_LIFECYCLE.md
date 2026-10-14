@@ -92,6 +92,7 @@ Every action that writes something (join, consent, each move, start, pause, cons
 | Host name, e-mail or mobile (sealed), label | A Host runs the tournament | `organizer_key` (`email_sealed`, `pii`, `label`) | CF, Resend | Host: while the key lives. A Co-host's name and mobile are deleted with the players' data (23 h after the end) |
 | Sign-in codes and links (hash only) | Sign-in | `login_code` | CF | 10 minutes; row deleted 1 day after expiry |
 | Mail outbox | A mail that failed is retried | `outbox` | CF | A sent mail keeps no body; an unsent one 3 days, with a link none |
+| Mail delivery events from the mail service (bounced, complained, delivered): a one-way hash of the address, the address with its middle hidden (j***@example.com), the subject line, the kind, the time | So the owner can see which mails did not arrive and tell the organizer | `mail_bounce` (no name, no full address) | CF; the mail service (Resend) sends the event | 90 days |
 | AI work link: log of each call (time, key id, call, status, network address, program, country) | The organizer can see what their AI did | `ai_audit` | CF | 365 days |
 | Partner (refer and earn): name, random code, hashes of phone and e-mail | Commission | `partner`, `commission` | CF | While active; commissions kept as accounting records without a link to a person |
 

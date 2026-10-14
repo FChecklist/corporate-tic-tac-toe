@@ -19,6 +19,7 @@
     if (!view) { $app.innerHTML = `<p class="msg">${esc(err || "Loading...")}</p>`; return; }
     const v = view; let body = "";
     if (v.phase === "waiting") body = `<div class="big1"><div class="num">${esc(v.joined)}</div><p>players have joined</p><p class="meta">Waiting for the host to start. The draw is sealed: fingerprint <span class="mono">${esc((v.commit || "").slice(0, 16))}</span></p></div>`;
+    else if (v.endedEarly) body = `<div class="big1"><p class="meta">Ended</p><div class="num">The organizer ended the tournament</div><p class="meta">Thank you for playing.</p></div>`;
     else if (v.champion) body = `<div class="big1"><p class="meta">Champion</p><div class="num champ">${esc(v.champion)}</div></div><h2>Results</h2>${ranking(v.ranking)}${v.final ? v.final.map(matchCard).join("") : ""}`;
     else {
       const pr = {}; (v.perRound || []).forEach((x) => { pr[x.round] = pr[x.round] || { live: 0, done: 0 }; pr[x.round][x.status === "live" ? "live" : "done"] += x.n; });

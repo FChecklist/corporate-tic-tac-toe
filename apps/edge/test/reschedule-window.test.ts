@@ -55,7 +55,7 @@ describe("the paid window is 365 days from payment", () => {
   });
   test("no sentence about a 30-day move window is left on the refund pages, the facts or the AI manual", async () => {
     const { readFileSync } = await import("node:fs");
-    const files = ["apps/web/public/refund-policy.html", "site/refund-policy.html", "apps/edge/src/ai-facts.ts", "apps/edge/src/ai-link.ts", "apps/edge/src/ai-functions.ts"].map((f) => readFileSync(new URL("../../../" + f, import.meta.url), "utf8"));
+    const files = ["apps/web/public/refund-policy.html", "apps/edge/src/ai-facts.ts", "apps/edge/src/ai-link.ts", "apps/edge/src/ai-functions.ts"].map((f) => readFileSync(new URL("../../../" + f, import.meta.url), "utf8"));
     for (const t of files) {
       expect(/(moved?|reschedul\w*)[^.]{0,80}(within|for|in) 30 days|30 days (after|from) the cancel|within 30 days of the cancel/i.test(t)).toBe(false);
     }

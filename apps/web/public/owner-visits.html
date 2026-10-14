@@ -9,5 +9,13 @@
 <form id="f"><input id="key" type="password" autocomplete="off" placeholder="Platform key" aria-label="Platform key"><input id="from" type="date" aria-label="From"><input id="to" type="date" aria-label="To"><button type="submit">Show</button></form>
 <form id="jf"><input id="jid" autocomplete="off" placeholder="Visitor id, or ip_ and the address hash" aria-label="Visitor id or address hash" size="44"><button type="submit">Show one journey</button></form>
 <p id="msg" class="muted" role="status"></p><div id="out"></div>
+<h1 style="margin-top:28px">Owner desk</h1>
+<p class="muted">Uses the same platform key as above.</p>
+<p><button type="button" id="deskSite">Site switch</button> <input id="deskNote" autocomplete="off" placeholder="Note (optional)" aria-label="Note for the switch" size="24"></p>
+<p><button type="button" id="deskReq">Data requests</button> <select id="deskStatus" aria-label="Which requests"><option value="open">open</option><option value="done">closed</option><option value="all">all</option></select></p>
+<p><button type="button" id="deskMailEv">Mail events</button> <select id="deskEvent" aria-label="Which mail events"><option value="">all</option><option value="bounced">bounced</option><option value="complained">complained</option><option value="delivered">delivered</option></select> <button type="button" id="deskErr">Errors</button></p>
+<form id="deskOrg"><input id="deskMail" type="email" autocomplete="off" placeholder="Organizer e-mail" aria-label="Organizer e-mail" size="30"><button type="submit">Find games</button></form>
+<p id="deskmsg" class="muted" role="status"></p><div id="deskout"></div>
 <script src="/owner-visits.js"></script>
+<script src="/owner-desk.js"></script>
 </body></html>

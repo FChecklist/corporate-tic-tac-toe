@@ -32,8 +32,8 @@
         <p class="zsmall">If a player's clock runs out, a square is played for them. Two clock-outs in a row lose the board. A drawn game is replayed with the marks swapped, up to 3 games, then fate decides.</p>
         <button class="zbtn" id="start">Start the tournament</button></div>`;
     } else {
-      body = `<div class="zcard"><h2>${v.state === "done" ? "Finished" : v.paused ? "Paused" : "Running"}</h2><p>${esc(v.players || v.joined)} players &middot; ${esc(v.rounds || "")} ${Number(v.rounds) === 1 ? "round" : "rounds"}</p>${v.champion ? `<p>Champion: <b>${esc(v.champion)}</b></p>` : ""}${links()}
-        ${v.state === "running" ? `<div class="hrow">${v.paused ? `<button class="zbtn" id="resume">Resume</button>` : `<button class="zbtn" id="pause">Pause for everyone</button>`}</div><p class="zsmall">While paused no clock runs and nobody can move. After Resume every clock has the same time left.</p>` : ""}</div>
+      body = `<div class="zcard"><h2>${v.state === "done" ? (v.endedEarly ? "Ended" : "Finished") : v.paused ? "Paused" : "Running"}</h2><p>${esc(v.players || v.joined)} players &middot; ${esc(v.rounds || "")} ${Number(v.rounds) === 1 ? "round" : "rounds"}</p>${v.champion ? `<p>Champion: <b>${esc(v.champion)}</b></p>` : ""}${links()}
+        ${v.state === "running" ? `<div class="hrow">${v.paused ? `<button class="zbtn" id="resume">Resume</button>` : `<button class="zbtn" id="pause">Pause for everyone</button>`}</div><p class="zsmall">While paused no clock runs and nobody can move. After Resume every clock has the same time left.</p><div class="hrow"><button class="zbtn" id="end">End the tournament</button></div><p class="zsmall">Ends it for everybody now. Nobody is ranked and this cannot be undone.</p>` : ""}</div>
         ${S.disputed.length ? `<div class="zcard"><h2>Boards to settle</h2><p class="zsmall">These boards are waiting for you: the two players reported different winners, or nobody has played them for a long time. Pick the winner.</p>${S.disputed.map((d) => `<p>${esc(d.a.name)} vs ${esc(d.b.name)} <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.a.pid)}">${esc(d.a.name)} won</button> <button class="hchip" data-settle="${esc(d.mid)}|${d.j}|${esc(d.b.pid)}">${esc(d.b.name)} won</button></p>`).join("")}</div>` : ""}
         <div class="zcard"><h2>Check the draw</h2><p class="zsmall">Fingerprint (shown before anybody joined): <span class="mono">${esc((v.commit || "").slice(0, 32))}</span></p><p class="zsmall"><a href="${esc(BASE)}/api/z/${esc(EID)}/ttt/reveal" target="_blank" rel="noopener">Show the secret and the seed</a>. The code that re-computes the bracket is open to an auditor.</p></div>`;
     }
@@ -44,6 +44,7 @@
     document.querySelectorAll("[data-settle]").forEach((b) => b.addEventListener("click", async () => { const [mid, j, winner] = b.dataset.settle.split("|"); try { await call("POST", `/api/z/${EID}/ttt/settle`, { mid, j: Number(j), winner }); S.msg = ""; } catch (e) { S.msg = e.message; } load(); }));
     on("pause", async () => { try { await call("POST", `/api/z/${EID}/ttt/pause`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
     on("resume", async () => { try { await call("POST", `/api/z/${EID}/ttt/resume`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
+    on("end", async () => { if (!confirm("End the tournament for everybody now? Nobody is ranked and this cannot be undone.")) return; try { await call("POST", `/api/z/${EID}/ttt/end`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
   }
   async function load() {
     try { S.view = await (await fetch(BASE + `/api/z/${EID}/ttt/view`, { cache: "no-store" })).json(); } catch (e) { S.msg = "Connecting..."; }

@@ -14,16 +14,18 @@ import { ctxOf, feedersOf, finalizeMatchP, midOf, openMatchP, parentOf, rankings
 
 /** Square number of an "opponent absent" claim in the stored event list (a move has 0 to 8). */
 export const ABSENT = -1;
+/** What every phone says when the Organizer or a Host has ended the tournament. */
+export const ENDED_MESSAGE = "The organizer ended the tournament. Thank you for playing.";
 
 export interface Opts { format: "solo" | "team"; teamSize: number; moveMs: number; readyMs: number }
 export interface Setup {
   eid: string; state: "open" | "starting" | "running" | "done"; commit: string; secret?: string; seed?: string; roster?: PlayerIn[]; opts?: Opts;
-  startedMs: number | null; endedMs?: number | null; pauses: [number, number | null][]; serverNow: number; planDigest?: string | null; joined?: number; rounds?: number; entrants?: number;
+  startedMs: number | null; endedMs?: number | null; /** Over because the Organizer or a Host ended it, not because the final was played. */ endedEarly?: boolean; pauses: [number, number | null][]; serverNow: number; planDigest?: string | null; joined?: number; rounds?: number; entrants?: number;
 }
 export interface EventRow { seq: number; pid: string; sq: number; ms: number; client?: number | null }
 export interface ResultRec { winner: string | null; how: string; ms: number; flag?: boolean }
 export interface BoardRec { j: number; a: string; b: string; events: EventRow[]; result: ResultRec | null; reports: { pid: string; winner: string }[] }
-export interface MatchRec { mid: string; reg: { round: number; idx: number; a: string; b: string; bye: boolean; winner?: string | null; opened: number | null; ms: number | null } | null; complete: boolean; boards: BoardRec[]; t: { state: Setup["state"]; pauses: [number, number | null][]; serverNow: number } }
+export interface MatchRec { mid: string; reg: { round: number; idx: number; a: string; b: string; bye: boolean; winner?: string | null; opened: number | null; ms: number | null } | null; complete: boolean; boards: BoardRec[]; t: { state: Setup["state"]; endedEarly?: boolean; pauses: [number, number | null][]; serverNow: number } }
 export type Api = (method: "GET" | "POST", path: string, body?: unknown) => Promise<any>;
 
 // ---------------------------------------------------------------------------------------------------------------- time
@@ -135,14 +137,17 @@ export class TttPhone {
     const s = await this.loadSetup(); const base = { serverNow: this.serverNow(), state: s.state, commit: s.commit, paused: false };
     if (s.state === "open" || s.state === "starting") return (this.last = { ...base, phase: "waiting", joined: s.joined ?? 0, message: s.state === "open" ? "You are in. Waiting for the host to start." : "The host has started the game. Getting the draw ready." });
     const p = this.plan!; const me = this.deps.pid; const name = p.names[me];
+    if (s.state === "done" && s.endedEarly) return (this.last = { ...base, phase: "ended", message: ENDED_MESSAGE }); // the Organizer or a Host ended it: every phone stops here
     if (!name) return (this.last = { ...base, phase: "watching", message: "The list closed before you joined. You can watch." });
     const ent = p.entOfPid.get(me);
     if (!ent) return (this.last = { ...base, phase: "reserve", you: name, message: "There were not enough players for a full team for you. You can watch the games." });
-    const v = await this.walk(ent); return (this.last = { ...base, ...v });
+    const v = await this.walk(ent);
+    if (this.setup?.state === "done" && this.setup.endedEarly) return (this.last = { ...base, state: "done", phase: "ended", message: ENDED_MESSAGE }); // found out while reading the boards
+    return (this.last = { ...base, ...v });
   }
 
   private async fetchMatch(mid: string): Promise<MatchRec> {
-    const r: MatchRec = await this.get(`m/${mid}`); this.sync(r.t); if (r.t) this.setup = { ...this.setup!, state: r.t.state, pauses: r.t.pauses }; return r;
+    const r: MatchRec = await this.get(`m/${mid}`); this.sync(r.t); if (r.t) this.setup = { ...this.setup!, state: r.t.state, endedEarly: r.t.endedEarly, pauses: r.t.pauses }; return r;
   }
   private pausesNow = () => this.setup?.pauses ?? [];
   private isPaused = () => this.pausesNow().some(([, t]) => t === null);

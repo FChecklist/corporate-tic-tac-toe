@@ -872,7 +872,7 @@
     return `<section class="zc-card zc-acct" id="acct"><button type="button" class="zc-sech" data-acct="1" aria-expanded="${open}" style="background:var(--surface-1)"><span class="zc-num zc-num-dark">A</span><span class="zc-syntx"><b>Your account</b><br><span class="zc-hint">These are for the Organizer only: your AI link, sign-in keys and records. Closing your account deletes your games.</span></span><span class="zc-st">${open ? "&#9650;" : "&#9660;"}</span></button>${open ? `<div class="zc-secb">${aiBlock()}${credits}${keys}${sugs}${audit}${close}</div>` : ""}</section>`;
   }
   // ---------- notes above the steps ----------
-  const ACTTEXT = { publish: "Publishing is free. Check your e-mail and mobile number, then press \"Confirm and publish\" yourself.", erase: "Press \"Delete all participant data now\" only if you want every guest's name and number erased. It cannot be undone.", pause: "Open the tournament page below and press \"Pause for everyone\" there. The clocks stop for every player until you press Resume.", stop: "A tournament ends by itself when the final is decided. To stop it for a while, open the tournament page below and press \"Pause for everyone\" there." };
+  const ACTTEXT = { publish: "Publishing is free. Check your e-mail and mobile number, then press \"Confirm and publish\" yourself.", erase: "Press \"Delete all participant data now\" only if you want every guest's name and number erased. It cannot be undone.", pause: "Open the tournament page below and press \"Pause for everyone\" there. The clocks stop for every player until you press Resume.", stop: "To end the tournament now, open the tournament page below and press \"End the tournament\" there. Nobody is ranked. To stop it for a while, press \"Pause for everyone\" instead." };
   const actBanner = () => (ACT && ACTTEXT[ACT] && eid && canRun() ? `<div class="zc-toast" role="status" id="actbanner"><b>Your AI assistant brought you here.</b> ${ACTTEXT[ACT]} Nobody but you can press it.</div>` : "");
   const ACTSTEP = { publish: 7, erase: 10, pause: 9, stop: 9 };
   /** The AI helper switch: one small line inside the AI Assistant box (Organizer only). Off by default. The shield behaviour itself is unchanged. */
@@ -1446,12 +1446,6 @@
       refreshEng();
     };
     if ($("annClear")) $("annClear").onclick = async () => { try { await call("POST", `/api/z/${eid}/announce`, { text: "" }); S.annNote = "Message cleared."; } catch (e) { S.annNote = e.message; } refreshEng(); };
-    all("[data-ctl]", (b) => (b.onclick = async () => {
-      const action = b.dataset.ctl;
-      if (action === "stop" && !confirm("End this game for everyone? This cannot be undone.")) return;
-      try { const r = await TBControl.publish(eid, { token: secret, base: BASE, prefix: "/api/z" }, action, action === "pause" ? { pauseForRounds: 600 } : {}); S.ctlNote = r.status === 200 ? action[0].toUpperCase() + action.slice(1) + " sent. Phones follow within about 40 seconds." : (r.data && r.data.error) || "Not accepted."; } catch (e) { S.ctlNote = e.message; }
-      refreshEng();
-    }));
     all("[data-given]", (c) => (c.onchange = async () => {
       const p = (S.prizes || [])[Number(c.dataset.given)]; if (!p) return;
       try { await call("POST", `/api/z/${eid}/prizegiven`, { round: p.round, pattern: p.pattern, ordinal: p.ordinal, seat: p.seat, given: c.checked }); S.note = c.checked ? "Marked as given." : "Tick removed."; } catch (e) { S.note = e.message; }
@@ -1476,7 +1470,10 @@
         try { const x = await call("POST", `/api/z/${eid}/erase`, {}); S.note = x.erased + " participants erased."; await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch (e) { S.note = e.message; }
         return refreshEng();
       }
-      try { const x = await TBControl.publish(eid, { token: secret, base: BASE, prefix: "/api/z" }, r.action, r.action === "pause" ? { pauseForRounds: 600 } : {}); S.ctlNote = x.status === 200 ? r.action + " sent." : (x.data && x.data.error) || "Not accepted."; await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch (e) { S.ctlNote = e.message; }
+      // your press is what pauses, resumes or ends the tournament, not the AI's request: the tournament's own addresses (the same ones the run page uses)
+      if (r.action === "stop" && !confirm("End the tournament for everybody now? Nobody is ranked and this cannot be undone.")) return;
+      const route = { pause: "pause", resume: "resume", stop: "end" }[r.action];
+      try { if (!route) throw new Error("This request cannot be carried out here."); await call("POST", `/api/z/${eid}/ttt/${route}`, {}); S.note = r.action === "stop" ? "The tournament was ended." : r.action === "pause" ? "Paused for everyone." : "Resumed."; await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch (e) { S.note = e.message; }
       refreshEng();
     };
     if ($("reqno")) $("reqno").onclick = async () => { try { await call("POST", `/api/z/${eid}/control/request/clear`, {}); } catch {} refreshEng(); };

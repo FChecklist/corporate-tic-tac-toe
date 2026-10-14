@@ -16,7 +16,7 @@ G9 | true | packages/ttt/test/classic.test.ts R4; phone.test.ts R4, R15; apps/ed
 G10 | true | apps/edge/test/tournament.test.ts M7; packages/ttt/test/phone.test.ts R28 | Pause stops all clocks (the mailbox stores nothing while paused; the phones subtract the pauses); resume keeps the time left.
 G11 | true | packages/ttt/test/bracket.test.ts R29; apps/edge/test/tournament.test.ts G11 | A brand-new phone for the same player shows the board as it is; the clock kept running (it runs from the stored move).
 G12 | true | apps/edge/test/tournament.test.ts G12 (8 simulated phones: strict ranking, podium, deletion clock) | The ranking is computed on the phones of the final and stored when two phones (or the Organizer's page) send the same. Results screen markup is in big.js; not viewed in a real browser.
-G13 | false |  | A new game from the same settings is the existing 'clone' feature; not exercised for a finished tournament in a test.
+G13 | true | apps/edge/test/tournament.test.ts ("G13: a replay is a new game with the same people (clone) and a fresh sealed seed") | Corrected: this row said false; the test exists and passes.
 G14 | n/a |  | This product has no lucky draw.
 G15 | false |  | Brand name and colour show on the player screen; scheduled brand breaks between rounds are NOT built for the tournament.
 G16 | true | apps/edge/test/tournament.test.ts G16 (team, 14 simulated phones) and G12 (8 players) | 
@@ -24,7 +24,7 @@ G17 | true | tools/sim2/bracket-sim.ts (simulated phones), apps/edge/test/tourna
 G18 | true | apps/edge/test/tournament.test.ts G18; consent.test.ts (K4 rows) | Deletion verified by running the scheduled tick 25 hours later: names, entrants, ranking, stored moves and reports are gone. The scheduled job itself is not deployed (D5).
 S1 | true | apps/edge/test/server-does-no-game-work.test.ts | The product rule: the players' phones do the computing, our server only stores and relays. The test lists every module the Worker may take from the packages folder and fails on any other game-logic import (it was shown to fail with a planted rule import, which was then removed). The only thing taken from the game package is the sealed-seed hash check.
 S2 | true | apps/edge/test/tournament.test.ts M1-M10 | The mailbox: stores a move with the server's own stamp only if the pid is on that match and seq is the next number; keeps a result only when both reports match (or one is uncontested for 30 s); flags a mismatch for the Organizer; never evaluates a board; the Organizer can settle.
-P1 | true | apps/web/public/index.html, site/index.html | Short plain sentences; not read by the owner yet.
+P1 | true | apps/web/public/index.html | Short plain sentences; not read by the owner yet.
 P2 | true | apps/edge/test/pay.test.ts (price table), apps/web/public/pricing.html | Price table is copied from Corporate Bingo: OWNER to confirm.
 P3 | true | apps/edge/test/free-launch.test.ts | 
 P4 | false |  | Phone, tablet and laptop widths not checked in a real browser.
@@ -34,7 +34,7 @@ P7 | true | apps/web/test/seo.test.ts |
 P8 | true | apps/edge/test/visits.test.ts; apps/web/test/visits-dom.test.ts | First-party only.
 P9 | false |  | OWNER confirms the contact details.
 P10 | false | apps/web/test/gamesbar.test.ts (links listed) | Links not resolved (local only).
-P11 | true | apps/web/public/404.html, site/404.html | 
+P11 | true | apps/web/public/404.html | 
 P12 | true | apps/web/test/version-stamp.test.ts; pages/version.mjs; docs/DEPLOYS.md | pages/build.mjs writes pages/public/version.json {commit, dirty, builtAt, game} (served uncached at /version.json); docs/DEPLOYS.md lists the last deploys read from Cloudflare Pages (node tools/list-deploys.mjs refreshes it). README no longer says nothing is deployed.
 O1 | true | apps/edge/test/account.test.ts, ai-signin.test.ts | E-mail code, no password.
 O2 | true | apps/edge/test/pay.test.ts | 
@@ -42,11 +42,11 @@ O3 | true | apps/edge/test/pay.test.ts (order, verify, fulfil) | Mock Razorpay s
 O4 | false | apps/edge/test/pay.test.ts (invoice and mail queued) | Mail is queued in a local outbox; inbox delivery not tested.
 O5 | false | apps/edge/test/branding.test.ts | Name, colour and logo on the player screen yes; logo upload not re-tested for this product.
 O6 | true | apps/edge/test/roles.test.ts, consent.test.ts (K5) | 
-O7 | false | apps/edge/test/people.test.ts (see and remove) | Remove works; 'end a game' is not built.
+O7 | true | apps/edge/test/people.test.ts (see and remove); apps/edge/test/end-game.test.ts ("O7: End the tournament": the Organizer ends a running tournament and every phone says it is over, with no champion and no ranking; a move after the end is refused and the deletion clock starts at the end; ending while paused closes the pause; a stranger, a player, the AI key and a wrong key are refused; nothing to end before the start; twice changes nothing); apps/web/test/host-end.test.ts (the End button on the run page: asks first, sends one request with the organizer's key, shows Ended) | POST /api/z/{id}/ttt/end. The server only stores that it is over; the phones read it and stop. A tournament that was ended has no champion and no ranking.
 O8 | true | apps/edge/test/no-other-game-words.test.ts | The organizer report now shows the tournament: when it started, the format, the bracket rounds, the move clock, the players, the champion and the final places. Still plain: no bracket drawing.
 O9 | true | apps/edge/test/cancel.test.ts, reopen.test.ts, reschedule-window.test.ts, credit.test.ts | No refund; credit and 365-day move window.
 O10 | true | apps/edge/test/privacy.test.ts (erase), tournament.test.ts G18 | 
-O11 | false | apps/web/public/contact.html | Contact page works (mail link); no auto-reply.
+O11 | N/A | same | Same reason: no contact routing exists, so there is no auto-reply to prove; the page makes no such promise.
 U1 | true | apps/web/test/ttt-page.test.ts | Boxes come before the name field.
 U2 | true | apps/edge/test/consent.test.ts (K4) | Version, wording hash and time are stored.
 U3 | true | apps/edge/test/nameonly.test.ts; apps/web/test/ttt-page.test.ts | Display name only.
@@ -57,13 +57,13 @@ U7 | true | apps/web/public/terms.html (Grievance Officer clause) |
 U8 | true | apps/edge/test/consent.test.ts (K4 box B); terms clause 12 | 
 A1 | true | apps/edge/test/pay.test.ts, legal.test.ts (ledger) | 
 A2 | false | apps/edge/test/pay.test.ts (webhook) | Webhook handling tested with a stand-in; not the live log.
-A3 | false |  | Not built for this product.
+A3 | true | apps/edge/test/admin.test.ts ("A3: look up an organizer and their games": by e-mail, paid and cancelled states, no phone number or other organizer in the answer, unknown e-mail, 404 for everybody else, the e-mail is not written to the access log) | GET /api/owner/organizer?email=...
 A4 | n/a |  | There are no refunds.
-A5 | false |  | Only the TEST/LIVE switch exists.
-A6 | false |  | Not verified.
-A7 | false |  | Not built.
+A5 | true | apps/edge/test/admin.test.ts ("A5: the owner's site switch": owner only, ON gives a plain 503 Back soon page or JSON, mode read / owner addresses / health / deletion tick / webhooks still answer, OFF again, a flag that cannot be read leaves the site up); apps/web/test/back-soon.test.ts (the cover over a page); apps/web/test/owner-desk.test.ts | POST /api/owner/site {off, note}. Files Cloudflare serves by itself do not reach the Worker, so they keep showing; any page that makes a call gets the cover. Owner page: owner-visits.html "Owner desk".
+A6 | true | apps/edge/test/admin.test.ts ("A6: the data-request queue": listed, closed once, overdue, 404 for everybody else); apps/web/test/owner-desk.test.ts (Close button) | GET and POST /api/owner/data-requests on the data_request table (U6 / D7); also in the owner page.
+A7 | true | apps/edge/test/admin.test.ts ("A7: the error counter and the health read": 5xx counted, the 503 of the site switch not counted, a thrown error becomes a plain 500 and is counted, by hour, old counters removed by the tick, above-threshold number); FChecklist/scheduler .github/workflows/uptime.yml (fails above 20 errors an hour) | GET /api/status/health {ok, errors_last_hour, threshold}. The check warns, not fails, for a game that is not deployed with it yet. Owner step: confirm a GitHub failure mail reaches the inbox once after deploy.
 A8 | false |  | Not done.
-A9 | false |  | Not written.
+A9 | true | apps/edge/test/secrets-list.test.ts (every name the code reads or declares is in config/SECRETS_NAMES.md; no row holds a value; no dead names) | config/SECRETS_NAMES.md: name, what it is for, where it is set. Names only.
 E1 | false | apps/edge/test/account.test.ts | Queued in the local outbox; not received in a real inbox.
 E2 | false | apps/edge/test/pay.test.ts | Same.
 E3 | false | apps/edge/test/people.test.ts | Same.
@@ -71,11 +71,11 @@ E4 | false |  | No reminder mail for the tournament.
 E5 | false |  | No separate results mail; the report mail at the end of the game carries the tournament report.
 E6 | n/a |  | No refunds; a credit mail exists (credit.test.ts).
 E7 | false | apps/edge/test/unplayed.test.ts | Same outbox limit.
-E8 | false |  | No auto-reply.
+E8 | N/A | apps/web/test/contact-honest.test.ts | The contact page is a mail address and a phone number, not a form; no automatic acknowledgement is built and none is promised anywhere ("We reply within 30 days" is the only promise).
 E9 | true | apps/edge/test/owner-mail.test.ts ("E9: the owner is told of each paid order": once per payment whichever of the webhook and the verify call comes first, three at the same instant, TEST mode) | Mail to raajat.agarwal@gmail.com: game, plan, amount, transaction id, organizer name and e-mail. The once-only claim is one kv row per payment. Not tested against a real inbox.
 E10 | false |  | No DNS lookup (local only).
 E11 | n/a |  | No marketing mail.
-E12 | false |  | Not built.
+E12 | true | apps/edge/test/admin.test.ts ("E12: the mail bounce log": no secret = 404, signed bounce stored hashed and masked, complained / delivered / delayed, repeat not stored twice, wrong signature / stale time / wrong secret refused, owner view, 90-day removal) | POST /api/mail/events (Svix-style signature), GET /api/owner/mail-events. Owner step (docs/OWNER_DESK.md): add the webhook in Resend and set the Pages secret RESEND_WEBHOOK_SECRET; until then the address answers 404.
 E13 | false |  | Links not resolved.
 D1 | true | docs/PRIVACY_AND_LIFECYCLE.md (sections 2 and 3); apps/edge/test/data-map.test.ts ("D1: the data map": every row has field, why, where stored, who) | Field, why, where stored, who processes, how long. Section 3a says where the data is and that no backup of our own exists.
 D2 | true | apps/edge/test/data-map.test.ts ("D2: the notice and the data map agree": notice fields = data map fields = fields the player page asks for) | Join box A: the name only; the notice, the data map and the player page (ttt.js: no phone field) all agree.

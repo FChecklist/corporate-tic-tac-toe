@@ -125,7 +125,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
   // ------------------------------------------------------------------ setup: everything a phone needs to compute the game, and nothing it should not see before the start
   if (sub === "setup" && method === "GET") {
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
-    const head = { eid, state: t.state, commit: t.commit_hash, serverNow: now, joined, startedMs: t.started_ms, endedMs: t.ended_ms, pauses: await pausesOf(env, eid) };
+    const head = { eid, state: t.state, commit: t.commit_hash, serverNow: now, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t), pauses: await pausesOf(env, eid) };
     if (t.state === "open") return json({ ...head, pauses: [] });
     if (t.state === "starting" && !c.allowed) return json(head); // the seed and the list are shown to everybody when the clocks start (the Organizer's page needs them one moment earlier to send the draw)
     const roster = ((await env.DB.prepare("SELECT pid, name FROM ttt_p WHERE eid=? ORDER BY pid").bind(eid).all<{ pid: string; name: string }>()).results ?? []);
@@ -200,6 +200,16 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     return json({ ok: true, paused: sub === "pause" });
   }
 
+  // ------------------------------------------------------------------ end: the Organizer or a Host ends the tournament now (O7). The server only stores that it is over and starts the deletion clock;
+  // the phones read "ended" and stop. Nobody is ranked and no champion is named: a tournament that was ended early has no result.
+  if (sub === "end" && method === "POST") {
+    if (!c.allowed) return json({ error: "Only the Organizer or a Host can end the tournament." }, 403);
+    if (t.state === "done") return json({ ok: true, ended: true, again: true });
+    if (t.state !== "running" && t.state !== "starting") return json({ error: "The tournament has not started.", code: t.state }, 409);
+    await endEarly(env, t, now);
+    return json({ ok: true, ended: true });
+  }
+
   // ------------------------------------------------------------------ open: a later-round match is registered by its own players, naming the two finished matches it comes from
   if (sub === "open" && method === "POST") {
     const b = await c.body(req, 4096); if (!b) return json({ error: "Bad request." }, 400);
@@ -249,7 +259,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!MID.test(mailRead)) return json({ error: "Not found" }, 404);
     await sweep(env, eid, now, mailRead);
     const recs = await matchRecs(env, eid, [mailRead]);
-    return json({ ...(recs[0] ?? { mid: mailRead, reg: null, complete: false, boards: [] }), t: { state: t.state, pauses: await pausesOf(env, eid), serverNow: now } });
+    return json({ ...(recs[0] ?? { mid: mailRead, reg: null, complete: false, boards: [] }), t: { state: t.state, endedEarly: endedEarly(t), pauses: await pausesOf(env, eid), serverNow: now } });
   }
 
   // ------------------------------------------------------------------ result: one player's report. Two matching reports (or a single one nobody contradicts) are kept as the agreed result; different reports are flagged for the Organizer.
@@ -359,7 +369,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     await sweep(env, eid, now);
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
     const o = optsOf(t);
-    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms };
+    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t) };
     if (t.state === "open") return json({ ...head, phase: "waiting" });
     const counts = (await env.DB.prepare("SELECT round, status, COUNT(*) AS n FROM ttt_m WHERE eid=? AND bye=0 GROUP BY round, status").bind(eid).all<{ round: number; status: string; n: number }>()).results ?? [];
     const flags = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_b WHERE eid=? AND flag=1").bind(eid).first<{ c: number }>())?.c ?? 0;
@@ -377,6 +387,18 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
 }
 
 const PODIUM = ["first", "second", "third", "fourth", "fifth"] as const;
+/** Over, but not because the final was played: no champion and no ranking. */
+const endedEarly = (t: Pick<TRow, "state" | "champion">): boolean => t.state === "done" && !t.champion;
+/** The Organizer or a Host ended the tournament: it is over for everybody now, any pause is closed, the deletion clock starts (the same clock a finished tournament has). */
+async function endEarly(env: Env, t: TRow, now: number): Promise<void> {
+  const eid = t.eid;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE ttt_t SET state='done', ended_ms=?, pause_at=NULL WHERE eid=? AND state<>'done'").bind(now, eid),
+    env.DB.prepare("UPDATE ttt_z SET to_ms=? WHERE eid=? AND to_ms IS NULL").bind(now, eid),
+    env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'phones') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms, end_src='phones' WHERE life.purged_ms IS NULL").bind(eid, now),
+  ]);
+  t.state = "done";
+}
 /** The tournament is over because two phones (or the Organizer's page) sent the same ranking: store it, put the podium into the winners record (opaque seat numbers, never names), start the deletion clock. */
 async function finishWith(env: Env, t: TRow, r: { champion: string; podium: string[][]; ranking: unknown[] }, now: number): Promise<void> {
   const eid = t.eid;

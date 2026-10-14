@@ -1,3 +1,22 @@
+/* Back soon: while the owner has switched the site off, every address answers 503 {maintenance:true} (src/admin.ts). The first such answer a page gets puts a plain cover over it.
+   Static pages are served by Cloudflare itself and never reach the Worker, so a page that makes no call keeps showing its own text. */
+(function () {
+  var f = window.fetch; if (!f) return;
+  function cover() {
+    if (document.getElementById("back-soon") || !document.body) return;
+    var d = document.createElement("div"); d.id = "back-soon"; d.setAttribute("role", "alert");
+    d.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:2147483647;background:#fff;color:#14213d;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font:18px/1.5 system-ui,sans-serif";
+    var b = document.createElement("div"), h = document.createElement("h1"), p = document.createElement("p");
+    h.textContent = "Back soon"; h.style.cssText = "margin:0 0 8px;font-size:28px"; p.textContent = "We are making a small change. Please try again in a few minutes."; p.style.margin = "0";
+    b.appendChild(h); b.appendChild(p); d.appendChild(b); document.body.appendChild(d);
+  }
+  window.fetch = function () {
+    return f.apply(this, arguments).then(function (r) {
+      if (r && r.status === 503) { try { r.clone().json().then(function (j) { if (j && j.maintenance === true) cover(); }, function () {}); } catch (e) {} }
+      return r;
+    });
+  };
+})();
 /* Tiny first-party monitoring: page views, speed (Core Web Vitals), JavaScript errors, failed and slow API calls.
    No cookies, no IP address, no query string, no personal data. Sent to /api/telemetry on our own domain. */
 (function () {
