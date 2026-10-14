@@ -124,9 +124,9 @@ sc("E15", "UNPLAYED game with a Co-host: Co-host details erased with the guests,
   await w.tickAt(g.erasureMs); w.eq("Co-host details gone", await w.cohostRows(g.id), 0);
   const r = await call("GET", `/api/z/${g.id}/cohost`, undefined, { "x-organizer": c.cohostKey }); w.expect("Co-host key no longer works", r.status === 401 || r.status === 403, `${r.status}`);
 });
-sc("E16", "backups statement: the life API says backups clear within 7 days and the dates add up", async (w) => {
+sc("E16", "deletion dates add up (no backup claim is made)", async (w) => {
   const org = await w.org(); const g = await w.game(org, { leadMs: 2 * HOUR, pay: true });
-  const l = await w.life(org, g.id); w.eq("backupDays", l.backupDays, 7);
+  const l = await w.life(org, g.id); w.expect("the life API makes no backup claim", l.backupDays === undefined, String(l.backupDays));
   w.eq("personalDeleteAt = end + 23 h", l.personalDeleteAtMs - l.endMs, 23 * HOUR);
   w.expect("fullDeleteAt is 00:00 IST after end + 365 d", (l.fullDeleteAtMs + 19_800_000) % DAY === 0 && l.fullDeleteAtMs > l.endMs + 365 * DAY && l.fullDeleteAtMs <= l.endMs + 366 * DAY, `${l.fullDeleteAtMs}`);
 });

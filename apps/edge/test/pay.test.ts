@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
+import { OWNER_NOTIFY_EMAIL } from "../src/owner-mail";
 import { makeD1 } from "./d1-sqlite";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
@@ -107,7 +108,8 @@ describe("verify (the buyer's browser says it paid)", () => {
     expect(again.ok).toBe(true);
     expect(raw.query("SELECT COUNT(*) c FROM entitlement").get()).toEqual({ c: 1 });
     expect(raw.query("SELECT COUNT(*) c FROM invoice").get()).toEqual({ c: 1 });
-    expect(raw.query("SELECT COUNT(*) c FROM outbox").get()).toEqual({ c: 1 });
+    expect(raw.query("SELECT COUNT(*) c FROM outbox WHERE to_addr<>?").get(OWNER_NOTIFY_EMAIL)).toEqual({ c: 1 }); // the buyer's one mail; the owner's own note (E9) is counted in owner-mail.test.ts
+    expect(raw.query("SELECT COUNT(*) c FROM outbox WHERE to_addr=?").get(OWNER_NOTIFY_EMAIL)).toEqual({ c: 1 }); // and paying again sent no second note
   });
   test("a wrong signature is refused and nothing is granted", async () => {
     rz.payments.pay_1 = { id: "pay_1", order_id: orderId, status: "captured", amount: 469900 };
@@ -341,7 +343,8 @@ describe("e-mail through Resend (organizers only)", () => {
   });
   test("the purchase mail goes from the Corporate Tic Tac Toe sender on the shared verified domain, to the buyer only", async () => {
     const r = await (await buy({ email: "Boss@Acme.com" })).json() as any;
-    expect(sent).toHaveLength(1);
+    expect(sent.filter((m) => !m.to.includes(OWNER_NOTIFY_EMAIL))).toHaveLength(1); // the buyer's mail; the owner gets a separate short note (E9)
+    const ownerNote = sent.filter((m) => m.to.includes(OWNER_NOTIFY_EMAIL)); expect(ownerNote).toHaveLength(1); expect(ownerNote[0].text).not.toContain(r.result.organizerKey);
     expect(sent[0]).toMatchObject({ from: "Corporate Tic Tac Toe <noreply@corporate-tic-tac-toe.example>", to: ["boss@acme.com"], reply_to: "help@corporate-tic-tac-toe.example", headers: { "Auto-Submitted": "auto-generated" } });
     expect(sent[0].auth).toBe("Bearer re_test_dummy");
     expect(sent[0].text).toContain(r.result.organizerKey);
@@ -362,16 +365,16 @@ describe("e-mail through Resend (organizers only)", () => {
     expect(row.body).toContain("INVOICE");
     resendUp = true;
     const { retryOutbox } = await import("../src/pay");
-    expect(await retryOutbox(env, T + 3600_000)).toMatchObject({ retried: 1 });
+    expect(await retryOutbox(env, T + 3600_000)).toMatchObject({ retried: 2 }); // the buyer's mail and the owner's note (E9)
     expect(raw.query("SELECT sent, body FROM outbox").get()).toEqual({ sent: 1, body: "" });
-    expect(sent).toHaveLength(1);
+    expect(sent).toHaveLength(2);
   });
   test("mail older than 3 days is dropped whether sent or not", async () => {
     resendUp = false; await buy();
     const { retryOutbox } = await import("../src/pay");
     resendUp = false;
     const r = await retryOutbox(env, T + 4 * 86_400_000);
-    expect(r.dropped).toBe(1);
+    expect(r.dropped).toBe(2); // the buyer's mail and the owner's note (E9)
     expect(raw.query("SELECT COUNT(*) c FROM outbox").get()).toEqual({ c: 0 });
   });
   test("sign-in codes are mailed to the organizer's address only, and the code is not kept afterwards", async () => {

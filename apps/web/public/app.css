@@ -1,5 +1,5 @@
 
-:root{--pri:#0B5D5B;--pri2:#117A77;--deep:#063B3A;--acc:#FFC93C;--acc2:#FFE08A;--accd:#B07A00;--ivory:#F7FBFA;--bg:#F3F8F7;--surface:#fff;--sunk:#E9F2F1;--ink:#0F1D1C;--ink2:#2B403E;--muted:#5C6F6D;--faint:#93A5A3;--line:#D5E3E1;--line2:#E4EEEC;
+:root{--pri:#0B5D5B;--pri2:#117A77;--deep:#063B3A;--acc:#FFC93C;--acc2:#FFE08A;--accd:#8A5A00;--ivory:#F7FBFA;--bg:#F3F8F7;--surface:#fff;--sunk:#E9F2F1;--ink:#0F1D1C;--ink2:#2B403E;--muted:#5C6F6D;--faint:#93A5A3;--line:#D5E3E1;--line2:#E4EEEC;
   --ok:#1F7A55;--okbg:#E4F3EC;--warn:#8A5A00;--warnbg:#FBF0D9;--bad:#B3261E;--badbg:#FBE7E4;--info:#1F4E8C;--infobg:#E6EEF9;
   --serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   --shadow:0 1px 2px rgba(15,29,28,.05),0 14px 34px -22px rgba(15,29,28,.45)}

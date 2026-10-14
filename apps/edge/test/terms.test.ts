@@ -20,8 +20,8 @@ const LINKS = ["/terms.html", "/dpa.html", "/subprocessors.html", "/organizer-gu
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We erase Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-13", "IT SERVICES BY RAJAT AGARWAL"],
-    "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "Backups clear within 7 days", "365 days", "without undue delay", "/subprocessors.html"],
+    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We erase Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-14", "IT SERVICES BY RAJAT AGARWAL"],
+    "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube"],
     "partner-terms.html": ["independent partner", "No spam", "Tax may be deducted at source", "You are responsible for your own taxes", "No payment from the buyer, no commission"],
     "organizer-guide.html": ["Never ask for a fee", "Players are 18 or older", "INR 10,000", "tax deducted at source", "Check your state", "The game does not begin until it is paid for"],

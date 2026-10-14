@@ -40,7 +40,8 @@ const REFUSED = { error: "Please tick the box to continue.", code: "consent-requ
 describe("test 5: the wording is the contract's wording, from one place", () => {
   test("consent-text.json holds the version and the exact boxes; the version is the one constant in brand.ts", () => {
     expect((TEXT as any).version).toBe(TERMS_VERSION); expect(CONSENT_VERSION).toBe(TERMS_VERSION);
-    if (existsSync(JSON_FILE)) expect(JSON.parse(readFileSync(JSON_FILE, "utf8"))).toEqual(TEXT);
+    const strip = (o: any) => { const x = JSON.parse(JSON.stringify(o)); delete x.version; if (x.K4) delete x.K4.A; return x; }; // since 2026-10-14 the join box A and the version are set per game (data map, gate D2)
+    if (existsSync(JSON_FILE)) expect(strip(JSON.parse(readFileSync(JSON_FILE, "utf8")))).toEqual(strip(TEXT));
     expect(boxesOf("K1").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K4").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K2").map((b) => b[0])).toEqual(["A"]);
   });
   test("the server gives the pages that exact wording for every point, string for string", async () => {

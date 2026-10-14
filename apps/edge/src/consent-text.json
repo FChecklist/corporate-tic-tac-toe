@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-13",
+  "version": "2026-10-14",
   "K1": {
     "A": "I have read and agree to the Terms & Conditions, the Privacy Policy and the Refund Policy.",
     "B": "I confirm: players pay nothing to play. I provide and hand over any prize. This game is allowed in my State. I am allowed to invite these guests."
@@ -11,7 +11,7 @@
     "A": "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit."
   },
   "K4": {
-    "A": "I agree that my name and mobile number are used for this game only and deleted within 24 hours after it ends. I know who invited me is recorded until then.",
+    "A": "I agree that my name is used for this game only and deleted within 24 hours after it ends. I know who invited me is recorded until then.",
     "B": "I am 18 or older, or I am on a parent's or guardian's device with their permission."
   },
   "K5": {

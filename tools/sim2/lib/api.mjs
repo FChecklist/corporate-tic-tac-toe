@@ -40,8 +40,11 @@ export async function call(method, path, body, headers = {}, { base = SIM, ip } 
 const must = (r, what) => { if (!r.ok) throw new Error(`${what}: HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`); return r.body; };
 
 // ---- the e-mail sink (never real mail) ----
+export const OWNER_MAIL = "raajat.agarwal@gmail.com";
 export const mailbox = {
-  list: async ({ to, subject, since } = {}) => { const q = new URLSearchParams(); if (to) q.set("to", to); if (subject) q.set("subject", subject); if (since) q.set("since", String(since)); return (await fetch(`${SIM}/__sim/mail.json?${q}`)).json(); },
+  // the owner of the platform gets a short note on every paid order and on every player data request (apps/edge/src/owner-mail.ts): those are not mail to the team or to a guest, so list() leaves them out
+  // unless the caller asks for the owner's address (to: OWNER_MAIL) or passes owner: true
+  list: async ({ to, subject, since, owner = false } = {}) => { const q = new URLSearchParams(); if (to) q.set("to", to); if (subject) q.set("subject", subject); if (since) q.set("since", String(since)); const rows = await (await fetch(`${SIM}/__sim/mail.json?${q}`)).json(); return owner || String(to ?? "").toLowerCase() === OWNER_MAIL ? rows : rows.filter((m) => String(m.to).toLowerCase() !== OWNER_MAIL); },
   clear: () => fetch(`${SIM}/__sim/mail.json`, { method: "DELETE" }),
   /** waits for a mail to `to` (optionally with `subject` text) and returns the newest one */
   async waitFor({ to, subject, timeout = 10000, since }) {

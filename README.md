@@ -2,7 +2,7 @@
 
 A company event game. An organizer makes a tournament, shares one link, and the players open it on their phones. It is a knockout of tic tac toe boards, one against one or team against team, up to 10,000 players. The game runs on the players' own phones and laptops: each phone works out the draw, who has X, the clocks and the winner from the same public sealed seed. Our server only stores and relays data (sign-in, payment, saving, moves, agreed results, deletion after 24 hours, e-mail). Players type a display name only. Players never pay and never stake money; there are no cash prizes. Adults (18+) only.
 
-**Everything is local. Nothing is deployed.** There is no live site, no live database and no live payment. The names `corporate-tic-tac-toe.pages.dev` and the Cloudflare ids in the config files are placeholders for the day the owner says go.
+**The site is live** on Cloudflare Pages (project `corporate-tic-tac-toe`, database `corporate-tic-tac-toe`). What is live right now is in `/version.json` on the site (the commit and the build time); the last deploys are listed in `docs/DEPLOYS.md`. Whether payments are real follows the site's TEST / LIVE mode (`/api/mode`).
 
 ## Layout
 

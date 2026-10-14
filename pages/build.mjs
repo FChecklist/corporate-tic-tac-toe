@@ -1,9 +1,11 @@
 // Copies the files the live product needs into public/ (the older server-driven pages are deliberately left out: they need a server).
 import { cpSync, mkdirSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { versionStamp } from "./version.mjs";
 const SRC = join(import.meta.dir, "../apps/web/public"), OUT = join(import.meta.dir, "public");
 rmSync(OUT, { recursive: true, force: true }); mkdirSync(OUT, { recursive: true });
-const FILES = ["index.html", "report.html", "report.js", "reportgen.js", "manifest.webmanifest", "zsw.js", "pwa.js", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "site.js", "theme.js", "rum.js", "v.js", "owner-visits.html", "owner-visits.js", "robots.txt", "sitemap.xml", "site.css", "gamesbar.js", "gamesbar.css", "common.js", "termsbox.js", "ttt.js", "tttgame.js", "ttt.css", "host.html", "host.js", "app.css", "fonts.css", "legal.html", "terms.html", "legal-position.html", "about.html", "contact.html", "pricing.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "partner.html", "partner.js", "partner.css", "404.html", "ai-link.html", "ai-link.js", "signin.html", "signin.js", "google.js", "z.html", "z.css", "demo.html", "demo.js", "trust.html", "llms.txt", "zc.html", "zc.js", "zc.css", "zgame.js", "control.js", "pay.html", "pay.js", "paytest.html", "paytest.js", "paylink.html", "paylink.js", "big.html", "big.js", "big.css", "preview.html", "preview.js"];
+const FILES = ["index.html", "report.html", "report.js", "reportgen.js", "manifest.webmanifest", "zsw.js", "pwa.js", "rights.js", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "site.js", "theme.js", "rum.js", "v.js", "owner-visits.html", "owner-visits.js", "robots.txt", "sitemap.xml", "site.css", "gamesbar.js", "gamesbar.css", "common.js", "termsbox.js", "ttt.js", "tttgame.js", "ttt.css", "host.html", "host.js", "app.css", "fonts.css", "legal.html", "terms.html", "legal-position.html", "about.html", "contact.html", "pricing.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "partner.html", "partner.js", "partner.css", "404.html", "ai-link.html", "ai-link.js", "signin.html", "signin.js", "google.js", "z.html", "z.css", "demo.html", "demo.js", "trust.html", "llms.txt", "zc.html", "zc.js", "zc.css", "zgame.js", "control.js", "pay.html", "pay.js", "paytest.html", "paytest.js", "paylink.html", "paylink.js", "big.html", "big.js", "big.css", "preview.html", "preview.js"];
 for (const f of FILES) { if (!existsSync(join(SRC, f))) throw new Error("missing " + f); cpSync(join(SRC, f), join(OUT, f)); }
 for (const d of ["fonts", "img"]) cpSync(join(SRC, d), join(OUT, d), { recursive: true });
 // security headers; styles allow inline because the pages set a few style attributes, scripts stay locked to our own files
@@ -23,7 +25,9 @@ const PAGES = [ // [clean path, csp, noindex]
 let rules = "";
 for (const [path, csp, noindex] of PAGES) { const h = hdr(csp, noindex ? NOINDEX : ""); rules += `${path}.html${h}${path}${h}`; }
 rules += "/" + hdr(GOOGLECSP);
+rules += "/version.json\n  Cache-Control: no-store\n";
 rules += "/*.js\n  Cache-Control: no-cache\n/img/*\n  Cache-Control: public, max-age=604800\n/*.css\n  Cache-Control: no-cache\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n";
 writeFileSync(join(OUT, "_headers"), rules);
+writeFileSync(join(OUT, "version.json"), JSON.stringify(versionStamp({ root: join(import.meta.dir, ".."), game: JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8")).name })) + "\n"); // what is live (P12): served at /version.json
 writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/api/*", "/ai/*", "/j/*"], exclude: [] }));
 console.log("pages/public ready");

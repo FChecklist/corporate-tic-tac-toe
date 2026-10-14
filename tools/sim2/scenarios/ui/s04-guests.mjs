@@ -293,4 +293,60 @@ export default [
       await t.shot(x.page, "unknown-game");
     },
   },
+  {
+    id: "S04-15", name: "A player leaves from the player page (Leave this game): it asks first, the seat and the name are deleted, the page says so, the Organizer's count drops, and the same phone can join again later",
+    async run(t) {
+      const org = await t.org("o"); const g = await listGame(t, org, { who: "anyone" });
+      const x = await t.open({ device: "mobile" });
+      await guestJoinUi(x.page, g.id, "", "Leah Leaver"); await x.page.waitForTimeout(3000);
+      t.check("the player is in", /You are in/i.test(await guestText(x.page)), (await guestText(x.page)).slice(0, 160));
+      t.check("one seat before leaving", (await org.participants(g.id)).body.total === 1, String((await org.participants(g.id)).body.total));
+      await x.page.waitForSelector("#rt-leave", { timeout: 8000 }); await t.shot(x.page, "before-leave");
+      await x.page.click("#rt-leave"); await x.page.waitForSelector("#rt-yes", { timeout: 5000 });
+      t.check("it asks first, in plain words, and offers 'No, stay'", /Leave this game\?/.test(await guestText(x.page)) && !!(await x.page.$("#rt-no")), (await guestText(x.page)).slice(0, 200));
+      await x.page.click("#rt-no"); await x.page.waitForTimeout(300);
+      t.check("'No, stay' leaves the seat alone", (await org.participants(g.id)).body.total === 1, "");
+      await x.page.click("#rt-leave"); await x.page.waitForSelector("#rt-yes"); await x.page.click("#rt-yes");
+      await x.page.waitForFunction(() => /You have left the game/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+      const txt = await guestText(x.page); await t.shot(x.page, "after-leave");
+      t.check("the page says, in plain words, that the player left and the name was deleted", /You have left the game/.test(txt) && /deleted/i.test(txt), txt.slice(0, 220));
+      t.check("the Organizer's count is back to zero", (await org.participants(g.id)).body.total === 0, String((await org.participants(g.id)).body.total));
+      t.check("no name is left in the database", (await H.sql("SELECT COUNT(*) c FROM participant WHERE eid=?", [g.id]))[0].c === 0, "");
+      t.check("this phone forgot the game too", (await x.page.evaluate(() => localStorage.getItem("ttt:device"))) === null, "");
+      const y = await t.open({ device: "mobile" });
+      await guestJoinUi(y.page, g.id, "", "Leah Again"); await y.page.waitForTimeout(3000);
+      t.check("a player who left can join again as a new player", (await org.participants(g.id)).body.total === 1, String((await org.participants(g.id)).body.total));
+    },
+  },
+  {
+    id: "S04-16", name: "'What do you hold about me / delete me': the page shows the promised answer time, answers with what is held, records the request and mails the Organizer and the owner; a deletion request removes the player at once",
+    async run(t) {
+      const org = await t.org("o"); const g = await listGame(t, org, { who: "anyone" });
+      const x = await t.open({ device: "mobile" });
+      await guestJoinUi(x.page, g.id, "", "Dora Data"); await x.page.waitForTimeout(3000);
+      await x.page.waitForSelector("#rt-hold", { timeout: 8000 });
+      await x.page.click("#rt-hold"); await x.page.waitForSelector("#rt-form", { timeout: 5000 });
+      t.check("before sending, the page shows the promised answer time", /within 7 days/.test(await guestText(x.page)), (await guestText(x.page)).slice(0, 200));
+      await t.shot(x.page, "request-form");
+      await x.page.click("#rt-send");
+      await x.page.waitForFunction(() => /We have your request/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+      const a = await guestText(x.page);
+      t.check("the answer shows what is held (the name given) and the promised time", /Dora Data/.test(a) && /within 7 days/.test(a), a.slice(0, 260));
+      const rows = await H.sql("SELECT kind, status FROM data_request WHERE eid=?", [g.id]);
+      t.check("the request is stored", rows.length === 1 && rows[0].kind === "access" && rows[0].status === "open", JSON.stringify(rows));
+      const orgMail = await H.mailbox.waitFor({ to: org.email, subject: "data request", timeout: 8000 }).catch(() => null);
+      const ownerMail = await H.mailbox.waitFor({ to: H.OWNER_MAIL, subject: "data request", timeout: 8000 }).catch(() => null);
+      t.check("the Organizer is told by e-mail", !!orgMail && /within 7 days/.test(orgMail.text), orgMail ? "" : "no mail");
+      t.check("the owner is told by e-mail, and the note names no player", !!ownerMail && !/Dora/.test(ownerMail.text), ownerMail ? "" : "no mail");
+      await x.page.click("#rt-ok");
+      await x.page.click("#rt-hold"); await x.page.waitForSelector("#rt-form");
+      await x.page.click('input[value="erasure"]'); await x.page.waitForTimeout(200);
+      t.check("choosing deletion shows the warning", /cannot undo/i.test(await guestText(x.page)), "");
+      await x.page.click("#rt-send");
+      await x.page.waitForFunction(() => /deleted just now/i.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+      t.check("the player is removed at once", (await org.participants(g.id)).body.total === 0 && (await guestText(x.page)).match(/deleted just now/i) !== null, (await guestText(x.page)).slice(0, 200));
+      const done = await H.sql("SELECT kind, status FROM data_request WHERE eid=? ORDER BY created_ms", [g.id]);
+      t.check("both requests are recorded, the deletion closed", done.length === 2 && done[1].kind === "erasure" && done[1].status === "done", JSON.stringify(done));
+    },
+  },
 ];

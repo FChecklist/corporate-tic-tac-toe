@@ -16,6 +16,7 @@ import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { GRACE_ROUNDS } from "../../../packages/beacon/src/config";
 import type { D1, Env } from "./worker";
 import { keepLegalParty } from "./legal";
+import { notifyOwnerOfPaidOrder, ownerAddress } from "./owner-mail";
 import { PdfDoc, NAVY } from "./pdf";
 import { ledgerFields, logWebhook, siteOf, type HookRecord } from "./ledger";
 import { partnerCode, phoneHashFor, recordCommission, refCode } from "./partners";
@@ -89,10 +90,10 @@ const KEYRE = /cb[kah]_[0-9a-f]{48}/g;
  * mail that could not be sent is kept (with any organizer key blanked out) only so the daily job can try again, then it is dropped after 3 days.
  * Without RESEND_API_KEY (local/test) the mail simply stays in the outbox so it can be read.
  */
-export async function sendMail(env: PayEnv, db: D1, to: string, subject: string, text: string, now: number, opts: { html?: string; secret?: boolean } = {}): Promise<boolean> {
+export async function sendMail(env: PayEnv, db: D1, to: string, subject: string, text: string, now: number, opts: { html?: string; secret?: boolean; owner?: boolean } = {}): Promise<boolean> {
   // `secret` = the mail carries a personal AI work link: if it cannot be sent, no body is kept at all (nothing to retry later; the organizer can replace the link and get a fresh mail).
   // TEST mode (mode.ts): only the owner's allow-list is ever e-mailed; everyone else is dropped and logged. Not sent = false, and no body is kept.
-  if ((await getMode(env)) === "TEST") { if (!(await mailGate(env, to, subject, now))) return false; subject = "[TEST] " + subject; }
+  if ((await getMode(env)) === "TEST") { if (!opts.owner && !(await mailGate(env, to, subject, now))) return false; subject = "[TEST] " + subject; } // `owner` = a note to the owner of the platform (owner-mail.ts): always allowed
   const html = opts.html ?? plainToHtml(subject, text, env.PUBLIC_ORIGIN); // every mail carries the brand header and footer, whoever built it
   text = withFooter(text, env.PUBLIC_ORIGIN);
   if (!env.RESEND_API_KEY) { await db.prepare("INSERT INTO outbox(to_addr,subject,body,at_ms,sent) VALUES(?,?,?,?,0)").bind(to, subject, text, now).run(); return true; }
@@ -244,6 +245,8 @@ export async function fulfil(env: PayEnv, paymentId: string, now: number, spend:
   if (keptCredit && closedGame) await mailCreditCreated(env, keptCredit, closedGame, "late", now); // the Organizer and the Hosts are told once; the payer got the receipt above
   if (published) await recordFunnelForOrg({ DB: db }, org, "published", now); // marketing funnel (visits.ts): counted once, against the visitor's first visit
   await recordFunnelForOrg({ DB: db }, org, "paid", now);
+  // E9: the owner is told of every paid order, once (the claim is inside notifyOwnerOfPaidOrder), whichever path - the webhook or the verify call - got here first
+  try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
   return { result };
 }
 

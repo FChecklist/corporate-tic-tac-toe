@@ -3,7 +3,7 @@
 // The name is always exactly "Corporate Tic Tac Toe". The palette is the site's (wine, gold, ivory).
 
 /** The version of the Terms in force (the date at the top of /terms.html). Stored with the organizer when they continue. */
-export const TERMS_VERSION = "2026-10-13"; // the one version of the Terms: terms.html, the consent boxes and the tests all read this value
+export const TERMS_VERSION = "2026-10-14"; // the one version of the Terms: terms.html, the consent boxes and the tests all read this value
 
 export const BRAND = {
   name: "Corporate Tic Tac Toe",

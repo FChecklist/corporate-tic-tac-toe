@@ -24,7 +24,7 @@ describe("the report of a tournament says what happened in a tournament", () => 
     engagementId: "WORD-1", organizerEmail: "boss@acme.com", sentAtMs: 1_800_000_000_000, scheduledMs: 1_799_990_000_000, firstNumberMs: 1_799_990_100_000, endMs: 1_799_995_000_000, endReason: "The tournament was played to the final and the places were agreed.", wasHeld: false,
     rounds: 1, callSeconds: 9, ticketsPerPerson: 1, cap: 100, inviteOnly: false, numbersCalled: 75, people: [],
     prizes: [{ round: 1, label: "Champion (1st)", text: "Gift hamper", winners: [{ seat: 3, name: "Asha", phone: "9876543210", role: null, verified: true, callNo: 1, atMs: 1_799_995_000_000 }] }],
-    lucky: [], timeline: [{ callNo: 1, atMs: 1_799_990_100_000, present: 5, late: 0 }], breaks: [], personalDeleteAtMs: 1_800_050_000_000, fullDeleteAtMs: 1_830_000_000_000, backupDays: 7,
+    lucky: [], timeline: [{ callNo: 1, atMs: 1_799_990_100_000, present: 5, late: 0 }], breaks: [], personalDeleteAtMs: 1_800_050_000_000, fullDeleteAtMs: 1_830_000_000_000,
     play: { format: "One against one", rounds: 3, moveSecs: 20, players: 6, champion: "Asha" }, ...extra,
   });
   const text = (b: Uint8Array) => Buffer.from(b).toString("latin1");

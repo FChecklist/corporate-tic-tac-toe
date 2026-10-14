@@ -19,6 +19,7 @@ import { TERMS_VERSION } from "./brand";
 import { LINK_MAIL_TTL_MS, aiLinkMail, coHostLinkMail, hostLinkMail, newUseAlertMail, signInMail } from "./mails";
 import { cancelGame, cancelPreview, reopenGame, teamEmails } from "./cancel";
 import { LEGAL_SCHEMA } from "./legal";
+import { RIGHTS_SCHEMA, leaveRoute, requestRoute } from "./rights";
 import { LEDGER_SCHEMA } from "./ledger";
 import { LEDGERC_SCHEMA, ledgerCTick, ownerLedger } from "./ledgerc";
 import { CREDIT_SCHEMA, activeCreditSummary, creditAppliedFor, creditRoute } from "./credit";
@@ -171,6 +172,7 @@ export const SCHEMA: string[] = [
   ...TTT_MAILBOX_SCHEMA,
   // ledger C: txn_id, fee/tax/method/bank reference on a payment, every payment attempt (success and failure), refunds, commission sync marks (0024_ledger_c.sql)
   ...LEDGERC_SCHEMA,
+  ...RIGHTS_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
@@ -1240,7 +1242,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
       });
     }
   }
-  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|ttt)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
+  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|leave|datareq|ttt)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
   if (!m) return json({ error: "Not found", hint: "Read the list of what you can do at /api/z/ai-manifest. Game routes look like /api/z/{id}/summary, /settings, /roster, /participants, /results, /publish." }, 404);
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
@@ -1274,9 +1276,9 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
   const didNotStart = !!e.unplayed_ms; // a game nobody paid for whose time and 23 hours went by: its guest data is erased and it is closed. Nobody joins, nobody pays; settings stay 30 days so a new game can be made like it.
   const DNS_MSG = "This game did not start. Your details have been erased.";
   if (didNotStart && req.method === "POST" && action === "join") return json({ error: DNS_MSG, code: "did-not-start", didNotStart: true }, 403);
-  if (didNotStart && req.method !== "GET" && !["erase", "forget", "person", "cancel", "clone"].includes(action!)) return json({ error: DNS_MSG, code: "did-not-start", didNotStart: true }, 409);
+  if (didNotStart && req.method !== "GET" && !["erase", "forget", "person", "cancel", "clone", "leave", "datareq"].includes(action!)) return json({ error: DNS_MSG, code: "did-not-start", didNotStart: true }, 409);
   if (cancelled && req.method === "POST" && action === "join") return json({ error: "This game was cancelled by the organizer.", code: "cancelled", cancelled: true }, 403);
-  if (cancelled && req.method !== "GET" && !["erase", "forget", "person", "cancel", "reopen", "clone"].includes(action!)) return json({ error: "This game was cancelled by the organizer.", code: "cancelled", cancelled: true }, 409);
+  if (cancelled && req.method !== "GET" && !["erase", "forget", "person", "cancel", "reopen", "clone", "leave", "datareq"].includes(action!)) return json({ error: "This game was cancelled by the organizer.", code: "cancelled", cancelled: true }, 409);
   if (action === "cancel-preview" && req.method === "GET") { // what cancelling would do, and the refund in numbers: Organizer and Host only
     if (!can(a, e, true)) return deny(a);
     return json(await cancelPreview(env as PayEnv, e, now));
@@ -1416,6 +1418,12 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (row.dev && row.dev !== dev) return json({ error: "This place is already on another phone. A place plays on one device only. Ask your organizer if you need to move it.", code: "other-phone" }, 423);
     await recordConsent(env.DB, { subject: row.pid, kind: "K4", ref: eid!, now }); // K4: stored with the seat, erased with it
     return reply(row.pid, { jr: row.jr ?? 0, ...(row.role ? { role: row.role } : {}) });
+  }
+  if ((action === "leave" || action === "datareq") && req.method === "POST") { // a player's own rights (rights.ts): leave at any time, and "what do you hold about me / correct / delete me"; the player's card id AND their phone's own device id are the proof
+    const rc = { env: env as PayEnv, db: env.DB, e, eid: eid!, now, started: await tournamentStarted(env, eid!), // the tournament begins when the Organizer or a Host starts it (tournament.ts), not at a clock time
+      extraLeave: (x: string, pid: string) => [env.DB.prepare("UPDATE ttt_p SET name='Left player' WHERE eid=? AND pid=?").bind(x, pid), env.DB.prepare("UPDATE ttt_e SET name='Left player' WHERE eid=? AND members=?").bind(x, JSON.stringify([pid]))], // the draw lists the player by id; the name goes, the place stays (a team keeps its team name)
+      b: await body(req, 2_048), json, gameName: cfgOf(e).name || e.id, orgEmail: async () => (await teamEmails(env as PayEnv, e.org, e.id)).organizer, erasureMs: () => erasureOf(env, e), spend: (n: number) => spend(env, now, n) };
+    return action === "leave" ? leaveRoute(rc) : requestRoute(rc);
   }
   if (action === "seats" && req.method === "GET") {
     // Public: seat number, participant id and join round of everyone who joined (no names, no phone numbers). Every phone reads this to work out the winners itself.
@@ -1612,7 +1620,7 @@ Did not ask for this? Ignore this e-mail.`, now, { secret: true });
     if (!can(a, e)) return deny(a);
     const l = await env.DB.prepare("SELECT * FROM life WHERE eid=?").bind(eid).first<any>();
     const end = l && l.end_src === "phones" ? l.end_ms : await endBoundMs(env, e);
-    return json({ endMs: end, endSrc: l?.end_src ?? "schedule", reportSent: !!l?.report_ms, reportState: l?.report_state ?? null, purged: !!l?.purged_ms, personalDeleteAtMs: personalDeleteAt(end), fullDeleteAtMs: fullDeleteAt(end), backupDays: 7, started: now >= roundMs(e.start_round + GRACE_ROUNDS) });
+    return json({ endMs: end, endSrc: l?.end_src ?? "schedule", reportSent: !!l?.report_ms, reportState: l?.report_state ?? null, purged: !!l?.purged_ms, personalDeleteAtMs: personalDeleteAt(end), fullDeleteAtMs: fullDeleteAt(end), started: now >= roundMs(e.start_round + GRACE_ROUNDS) });
   }
   if (action === "won" && req.method === "POST") return acceptWon(env, e, eid!, await body(req), now, json, spend);
   if (action === "over" && req.method === "POST") return acceptOver(env, e, eid!, await body(req), now, json, spend);

@@ -21,7 +21,7 @@ export interface ReportData {
   /** Participants present at chosen call numbers of round 1. */
   timeline: { callNo: number; atMs: number; present: number; late: number }[];
   breaks: { after: number; kind: string; title: string }[];
-  personalDeleteAtMs: number; fullDeleteAtMs: number; backupDays: number;
+  personalDeleteAtMs: number; fullDeleteAtMs: number;
   /** Totals about the people, when the list itself is spread over several PDFs. */
   agg?: Agg; omitPeople?: boolean; totalPeople?: number;
   /** The organizer's own company name and logo (a data URL). The report page turns the logo into raw pixels (`logoPix`) before laying the PDF out. */
@@ -63,7 +63,6 @@ export function layoutReport(d: ReportData): Uint8Array {
     `We have given you ALL the data we hold about the people in this game. Within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}, we permanently delete from our systems every participant's name, mobile number, join record, seat assignment and invite link record. After that nobody at Corporate Tic Tac Toe, and nothing in our software or database, holds them.`,
     "We keep, for 365 days, only: (1) the details of the organizer, host and co-hosts (name, e-mail, mobile number); (2) the winners record: which prize, which place, at what time, and the seat number; and (3) the name and mobile number each winner confirmed for the prize hand-over, with the date it was given. The winners record itself holds no names or numbers.",
     `Everything about this game, including those two records, is permanently deleted at 00:00 hours (IST) on ${istDate(d.fullDeleteAtMs)}, which is the end of the 365th day. The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
-    `Backups of our database roll off within ${d.backupDays} days, so any copy of deleted data in a backup is gone within ${d.backupDays} days of the deletion.`,
     "For your next game you can reuse the people list until it is deleted (the reuse button in your console), or upload your own list again afterwards from this report.",
   ]);
 
@@ -133,7 +132,6 @@ export function layoutReport(d: ReportData): Uint8Array {
   pdf.h1("7. When your data is deleted");
   pdf.table([{ head: "Data", width: 62 }, { head: "Deleted by", width: 48 }], [
     ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
-    ["Backups holding any of the above", `within ${d.backupDays} days after that`],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
   pdf.para("You can ask us to delete everything sooner: press 'Erase' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail us from your registered address.", { size: 9 });
@@ -143,8 +141,7 @@ export function layoutReport(d: ReportData): Uint8Array {
     `1. Everything about the people in this game (every name, mobile number, seat, join record and invite record) is permanently deleted from our systems within 24 hours of the game ending, and no later than ${istFull(d.personalDeleteAtMs, d.tz)}. You have all of it in this report; after that we hold none of it.`,
     "2. We keep only two things, for 365 days: the details of the organizer, host and co-hosts (name, e-mail address and mobile number), and the winners record (which prize, which place, at what time, which seat number). The winners record has no names and no mobile numbers.",
     `3. At 00:00 hours IST on ${istDate(d.fullDeleteAtMs)}, the end of the 365th day, everything else is permanently deleted too. The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
-    `4. Backups of our database roll off within ${d.backupDays} days, so no copy of deleted data remains after that.`,
-    "5. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
+    "4. Names and mobile numbers are stored encrypted while we hold them, and only your own game's report is ever built from them.",
   ]);
   pdf.box("The laws we follow", [
     "Corporate Tic Tac Toe is built to follow India's Digital Personal Data Protection Act, 2023 (DPDP Act), the European Union's General Data Protection Regulation (GDPR) and the United Kingdom's equivalent, and the privacy laws of the United States, including state laws such as the California Consumer Privacy Act (CCPA / CPRA).",

@@ -6,10 +6,11 @@ Everything is kept in one Cloudflare D1 database (table `kv` holds small keyed r
 
 | Data | Where | Kept | Then |
 |---|---|---|---|
-| Player names (sealed copy), seat, device hashes, consent record (Terms version, boxes and time), invite record, people lists, waiting requests, the names shown on the bracket and in the top-100 ranking, report working copies | `participant`, `seat`, `person`, `waiting`, `ttt_p`, `ttt_e`, `ttt_consent`, `ttt_t.ranking`, `kv seats-base/ rpt* seats-blk/` | 23 hours after the end | Deleted (`erasePersonal`). Backups clear within 7 days |
+| Player names (sealed copy), seat, device hashes, consent record (Terms version, boxes and time), invite record, people lists, waiting requests, the names shown on the bracket and in the top-100 ranking, report working copies | `participant`, `seat`, `person`, `waiting`, `ttt_p`, `ttt_e`, `ttt_consent`, `ttt_t.ranking`, `kv seats-base/ rpt* seats-blk/` | 23 hours after the end | Deleted (`erasePersonal`). |
 | The personal part of players' security-log rows (network address, browser string, device id, fields sent, network number) | `audit_pii`, key salt in `eng_key` | 23 hours after the end | Crypto-shredded: salt and blobs destroyed, the hash chain still verifies |
 | Match record: the two sides (opaque ids), the moves of each game (square and time), clocks, results | `ttt_m` | Until 00:00 IST at the end of day 365 | Deleted with the tournament (`eraseEverything`) |
 | Tournament settings, sealed seed and secret, counts, start and end times | `ttt_t` | Until the end of day 365 | Deleted |
+| A player's request to see, correct or delete their data (card id, kind, short note, times: no name, no number) | `data_request` | 22 hours after the game ends, with the participants | Deleted (`erasePersonal`); again with the game at 365 days |
 | Winners record: the opaque seat numbers of first to fifth place | `winner` | Until the end of day 365 | Deleted |
 | Tournament, its settings, the end-of-game clock, organizer contact | `engagement`, `life`, `cbl_request`, `kv control/ contact/ pub/ ann/` | Until 00:00 IST at the end of day 365 after the end. An unpublished draft: 30 days | Deleted (`eraseEverything`) |
 | Security log, non-personal core of players' rows; whole rows of organizers, hosts, co-hosts, AI keys | `audit_log` | 365 days (deleted with the tournament) | Deleted; an anonymous count (`audit_stats`) and a deletion certificate (`audit_cert`) stay |
