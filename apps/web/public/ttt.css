@@ -66,9 +66,9 @@
 .hrow .zbtn{width:auto;flex:1 1 140px}
 .hbad{background:var(--bad,#B3261E)}
 
-/* the small "Notify me" pill only on the join and waiting screens, never over a board or a result */
+/* the small "Notify me" pill only on the waiting screen, never over a form, a board or a result */
 #cb-notify{display:none!important}
-body:has(.tjoin) #cb-notify,body:has(.twait) #cb-notify{display:flex!important}
+body:has(.twait) #cb-notify{display:flex!important}
 /* a phone held sideways: the banner on the left, the board on the right and in full view */
 @media (orientation:landscape) and (max-height:520px){
 .zapp{display:block;max-width:none;padding-top:8px;padding-bottom:24px}
