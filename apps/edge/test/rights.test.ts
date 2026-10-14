@@ -166,3 +166,17 @@ describe("the request rows do not outlive the game", () => {
     expect((life.match(/DELETE FROM data_request/g) ?? []).length).toBeGreaterThanOrEqual(2); // erasePersonal and deleteEngagementRows
   });
 });
+
+describe("the answer time the pages promise is the one constant", () => {
+  test("the Privacy page(s) and the data map say the same number of days as PROMISE_DAYS (change the constant and this test shows every place to change)", async () => {
+    const root = new URL("../../../", import.meta.url);
+    const plain = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    for (const f of ["apps/web/public/legal.html", "apps/web/public/privacy.html"]) {
+      const file = Bun.file(new URL(f, root)); if (!(await file.exists())) continue;
+      const t = plain(await file.text()); if (!/A player can leave/.test(t)) continue; // the page that carries the player's rights sentence
+      expect([f, t.includes(`We answer within ${PROMISE_DAYS} days.`)]).toEqual([f, true]);
+    }
+    const doc = await Bun.file(new URL("docs/PRIVACY_AND_LIFECYCLE.md", root)).text();
+    expect(doc).toContain(`(\`PROMISE_DAYS = ${PROMISE_DAYS}\``);
+  });
+});
