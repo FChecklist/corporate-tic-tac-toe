@@ -7,7 +7,7 @@ Everything here is for the owner only. It uses the platform key (`ORGANIZER_SECR
 | Site switch (A5) | `GET /api/owner/site`, `POST /api/owner/site {"off": true, "note": "..."}` (false switches it on) | `apps/edge/test/admin.test.ts` "A5" |
 | Organizer lookup (A3) | `GET /api/owner/organizer?email=name@company.com` - their games: id, state, start, paid, created | "A3" |
 | Data requests (A6) | `GET /api/owner/data-requests?status=open\|done\|all`, `POST /api/owner/data-requests {"id": "...", "action": "close"}` | "A6" |
-| Errors (A7) | `GET /api/owner/errors` (by hour), and the public `GET /api/status/health` -> `{ok, errors_last_hour, threshold, maintenance}` | "A7" |
+| Errors (A7) | `GET /api/owner/errors` (by hour), and the public `GET /api/status/health` -> `{ok, errors_last_hour, threshold, overdue_purge, overdue_hours, maintenance}` | "A7", "A7b" |
 | Mail events (E12) | `GET /api/owner/mail-events?event=bounced` | "E12" |
 
 ## The site switch
@@ -17,6 +17,10 @@ While it is ON every page and address that reaches the Worker answers a plain 50
 ## Error signal
 
 Every 5xx answer is counted in a 10-minute bucket in the `kv` table (`err/...`). `GET /api/status/health` reports the last 60 minutes. The scheduler's uptime check (`FChecklist/scheduler`, `.github/workflows/uptime.yml`, every 15 minutes) calls it for each game and fails above 20 errors in an hour; GitHub then e-mails the owner. Old counters are removed by the tick after 48 hours.
+
+## The 24-hour deletion alarm (A7b)
+
+The health read also counts `overdue_purge`: tournaments that are more than 30 minutes past their 23-hour deletion and still hold players' details (a tournament under a legal hold is left out; a tournament the tick has never looked at is found from its scheduled start). When it is above 0, `ok` is `false` and `overdue_hours` says how long the oldest has waited; the same uptime check fails on `ok: false` and GitHub e-mails the owner. Look at the `game-ticks` schedule first (`cron.job_run_details`), then run `POST /api/lifecycle/tick` by hand with the platform key. The same tick forgets mail-log rows older than 3 days every hour.
 
 ## Mail bounce log - owner steps
 

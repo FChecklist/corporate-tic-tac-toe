@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
+import { eraseEverything } from "../src/lifecycle";
 import { makeD1 } from "./d1-sqlite";
 import { commitOf, seedOf, verifyReveal } from "../../../packages/ttt/src/seal";
 import { TttConsole, TttPhone, planOf, replayMatch, type MatchRec, type Setup } from "../../../packages/ttt/src/phone";
@@ -324,6 +325,9 @@ describe("what is visible, and deletion (G18, U6, D4, R30)", () => {
     expect(sql("SELECT ranking FROM ttt_t WHERE eid='TT-14'")[0].ranking).toBeNull();
     expect(JSON.stringify(sql("SELECT data FROM ttt_m WHERE eid='TT-14'"))).not.toContain("Player");
     expect(sql("SELECT COUNT(*) c FROM winner WHERE eid='TT-14'")[0].c).toBeGreaterThan(0);
+    expect(sql("SELECT COUNT(*) c FROM ttt_b WHERE eid='TT-14'")[0].c).toBeGreaterThan(0); // the agreed results (player codes, no names) stay until day 365
+    await eraseEverything(env, "TT-14", later); // day 365: nothing of the tournament is left, the agreed results and pause times included
+    for (const t of ["ttt_t", "ttt_m", "ttt_b", "ttt_z", "winner", "life"]) expect([t, sql(`SELECT COUNT(*) c FROM ${t} WHERE eid='TT-14'`)[0].c]).toEqual([t, 0]);
   }, 60_000);
   test("U5/D13: a tournament never reads or writes another game's rows", async () => {
     const h1 = await game("TT-15"), h2 = await game("TT-16"); const a = await joinAll("TT-15", 2), b = await joinAll("TT-16", 2, 10);

@@ -180,12 +180,33 @@ async function engSalt(env: AuditEnv, eid: string, now: number): Promise<string 
   await env.DB.prepare("INSERT OR IGNORE INTO eng_key(eid,salt,made_ms) VALUES(?,?,?)").bind(eid, salt, now).run();
   return get();
 }
-export const chainOf = (eid: string | null, org: string | null) => (eid ? eid : org ? "org:" + org : "sys");
+/** Anonymous visitors (no game, no organizer: a refused try, a failed payment, a wrong key) are kept 90 days, not 365, and their network address is cut to its first part before sealing. */
+export const ANON_DAYS = 90;
+/** Their rows live in a chain of their own, so the oldest can be removed from its front after ANON_DAYS without leaving a hole in any other chain. */
+export const ANON_CHAIN = "anon";
+export const chainOf = (eid: string | null, org: string | null, actor?: string) => (eid ? eid : org ? "org:" + org : actor === "participant" ? ANON_CHAIN : "sys");
+/** An anonymous visitor's row: no game, no organizer, and the caller is nobody we know. */
+export const isAnonymous = (r: { eid: string | null; org: string | null; actor: string }) => r.actor === "participant" && !r.eid && !r.org;
+/**
+ * The network address with its last part removed: the first 3 numbers of an IPv4 address (a /24, 203.0.113.0) or the first 3 groups of an IPv6 address (a /48, 2001:db8:1234::).
+ * An address that is neither is dropped (""), never kept whole. This is what an anonymous visitor's row holds, so it can no longer point to one person's connection.
+ */
+export function truncateIp(ip: string): string {
+  const s = (ip || "").trim().toLowerCase();
+  const v4 = (x: string) => { const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(x); return m && m.slice(1).every((n) => Number(n) <= 255) ? `${Number(m[1])}.${Number(m[2])}.${Number(m[3])}.0` : null; };
+  const direct = v4(s); if (direct) return direct;
+  const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(s); if (mapped) return v4(mapped[1]!) ?? "";
+  if (!/^[0-9a-f:]+$/.test(s) || !s.includes(":") || (s.match(/::/g) ?? []).length > 1) return "";
+  const [head, tail] = s.split("::"), h = head ? head.split(":") : [], t = tail === undefined ? [] : tail ? tail.split(":") : [];
+  const groups = tail === undefined ? h : [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t];
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return "";
+  return `${groups.slice(0, 3).map((g) => g.replace(/^0+(?=.)/, "")).join(":")}::`;
+}
 
 /** Appends one row to a chain. Never throws: the log must not break the work it records. Returns true when written. */
 export async function appendAudit(env: AuditEnv, r: RecordIn): Promise<boolean> {
   try {
-    const chain = chainOf(r.eid, r.org), split = splitsPersonal(r);
+    const chain = chainOf(r.eid, r.org, r.actor), split = splitsPersonal(r);
     const json = JSON.stringify(r.details);
     let sealed = "", pii: string | null = null, pdig: string | null = null;
     if (!split) sealed = await sealText(env, json);
@@ -252,6 +273,7 @@ export async function auditRequest(env: AuditEnv, req: Request, peek: Request | 
       server_utc: new Date(now).toISOString(), ai, changes: fields, body_note: bodyNote,
     };
     const org = a.org ?? null;
+    if (isAnonymous({ eid, org, actor })) details.ip = truncateIp(ctx.ip); // an anonymous visitor keeps the first part of the address only (IPv4 /24, IPv6 /48)
     await appendAudit(env, { eid, org, actor, event: c.event, target: c.target, status, now, details, country: ctx.country, asn: ctx.asn, aiVendor: vendor, keyId, proof, mismatch, corr: ctx.corr });
   } catch { /* the log must never break the work */ }
 }
@@ -386,7 +408,8 @@ export async function closeAuditFor(env: AuditEnv, eid: string, now: number): Pr
   return true;
 }
 /** Rows that belong to no live engagement (sign-ins, refused attempts, calls to ids that never existed) go 365 days after they were written. A held engagement still exists, so its rows stay. */
-export async function sweepAudit(db: D1, now: number, days = 365): Promise<void> {
+export async function sweepAudit(db: D1, now: number, days = 365, anonDays = ANON_DAYS): Promise<void> {
+  await db.prepare("DELETE FROM audit_log WHERE chain=? AND at_ms < ?").bind(ANON_CHAIN, now - anonDays * 86_400_000).run().catch(() => undefined); // anonymous visitors: 90 days
   await db.prepare("DELETE FROM audit_log WHERE at_ms < ? AND (eid IS NULL OR eid NOT IN (SELECT id FROM engagement))").bind(now - days * 86_400_000).run().catch(() => undefined);
   await db.prepare("DELETE FROM audit_pii WHERE NOT EXISTS (SELECT 1 FROM audit_log a WHERE a.chain=audit_pii.chain AND a.seq=audit_pii.seq)").run().catch(() => undefined);
   await db.prepare("DELETE FROM eng_key WHERE eid NOT IN (SELECT id FROM engagement)").run().catch(() => undefined);

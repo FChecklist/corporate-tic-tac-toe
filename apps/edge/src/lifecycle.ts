@@ -15,7 +15,7 @@ import { cfgOf as controlCfg, readPublished, resolveControl, type KV } from "../
 import { seatOfPid } from "../../../packages/beacon/src/unique-ticket";
 import { openPii, openText, sealText, type PiiEnv } from "./pii";
 import { layoutReport, layoutPeoplePart, istDate, istFull, emptyAgg, type Agg, type ReportData, type ReportPerson, type ReportPrize, type ReportWinner } from "./report-layout";
-import { sendReportMail, type PayEnv } from "./pay";
+import { purgeOutbox, retryOutbox, sendReportMail, type PayEnv } from "./pay";
 import { eraseCohostsSql, mailDataDeleted, mailErasureHeadsUp } from "./cancel";
 import { creditTick } from "./credit";
 import { endBoundTtt } from "./tournament";
@@ -124,7 +124,7 @@ export async function acceptOver(env: Env, e: any, eid: string, b: any, now: num
 }
 
 // ------------------------------------------------------------------------------------------------ deletion
-/** Deletes every participant's name, number, seat, invite record, card link and working copy of the report, and crypto-shreds the participants' personal part of the audit log (unless the owner set a legal hold). The winners record, the prize hand-over record, the organizer's details and the engagement itself stay. */
+/** Deletes every participant's name, number, seat, invite record, card link and working copy of the report, and crypto-shreds the participants' personal part of the audit log (unless the owner set a legal hold). The winners record (seat numbers), the match results (player codes, no names), the organizer's details and the engagement itself stay. */
 export async function erasePersonal(env: Env, eid: string, now: number, by: string): Promise<void> {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM claim WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM settled WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rvote WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM rcand WHERE eid=?").bind(eid),
@@ -151,7 +151,7 @@ export async function purgeTestEngagement(env: Env, id: string, now = Date.now()
 async function deleteEngagementRows(env: Env, id: string): Promise<void> {
   await keepLegalParty(env.DB, id, Date.now()); // the law keeps payments, invoices, the organizer's invoice details and who paid, for ever: copy them out before the game's own rows go
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_m WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_t WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id),
+    env.DB.prepare("DELETE FROM winner WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_m WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_t WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_b WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM ttt_z WHERE eid=?").bind(id), /* the agreed board results and the pause times go with the rest at day 365 */ env.DB.prepare("DELETE FROM prize WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM life WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM cbl_request WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM data_request WHERE eid=?").bind(id),
     env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`control/${id}.json`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`rptsalt/${id}`), env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`contact/${id}`), env.DB.prepare("DELETE FROM kv WHERE k IN (?,?,?,?,?)").bind(`pub/${id}`, `lockmail/${id}`, `remind/${id}`, `ann/${id}`, `paidby/${id}`),
     env.DB.prepare("DELETE FROM organizer_key WHERE eid=? AND kind='cohost'").bind(id), env.DB.prepare("DELETE FROM shred WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM eng_key WHERE eid=?").bind(id), env.DB.prepare("DELETE FROM audit_pii WHERE eid=?").bind(id), // erasePersonal above wrote a fresh shred marker
     env.DB.prepare("DELETE FROM engagement WHERE id=?").bind(id),
@@ -223,11 +223,11 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   `Your game ${eid} has ended. Your complete report is ready: when the tournament started and ended, the format and the move clock, how many people took part, every prize and who won it, the invite tree, all statistics, and the name and mobile number of every participant.`, ``,
   `Open it here (the PDF is built on your own computer or phone, so this link is all we send):`,
   link, ``,
-  `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully. Winners confirm the name and mobile number their prize goes to on their own phone; the report shows what they confirmed, whether they changed anything, and whether you have handed the prize over, so open it again after you have ticked "Prize given" in your console.`, ``,
+  `The link works until ${istFull(reportLinkUntil(d.endMs))}; the participants' details are permanently deleted at ${istFull(d.personalDeleteAtMs)}, as promised. Please open it and save the PDF before then: it is the only copy of this data once ours is deleted. You can share the link with your co-host; anyone who has it can read the report, so share it carefully.`, ``,
   `What happens to the data:`,
   `- By ${istFull(d.personalDeleteAtMs)} (within 24 hours of the game ending) we permanently delete every participant's name, mobile number, seat, join record and invite record from our systems.`,
-  `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the winners record (which prize, which round, what time, which seat, and the name and mobile number each winner confirmed so the prize can be handed over, with whether it was given).`,
-  `- Everything about this game is permanently deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). The only things kept after that are the payment and invoice records, the organizer's details on the invoice (name, e-mail, mobile) and who paid, because invoices and payment records have to be kept for tax and accounting.`,
+  `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the results (the final places as seat numbers and the match results by player code, without names or mobile numbers).`,
+  `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,
   `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can we.`, ``,
   `You can ask us to delete everything sooner: press Erase in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
@@ -362,7 +362,7 @@ export async function unplayedPass(env: LifeEnv, now: number): Promise<number> {
 export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checked: number; reportSteps: number; reportsDone: number; purged: number }> {
   const out = { checked: 0, reportSteps: 0, reportsDone: 0, purged: 0 };
   // paid (or cancelled) games that still hold personal data: guests, people on a list, waiting requests. A game nobody paid for is the "did not start" pass below.
-  const rows = (await env.DB.prepare("SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id)) ORDER BY e.start_round LIMIT 25").all<any>()).results ?? [];
+  const rows = (await env.DB.prepare("SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id) OR EXISTS (SELECT 1 FROM ttt_p x WHERE x.eid=e.id)) ORDER BY e.start_round LIMIT 25").all<any>()).results ?? [];
   for (const e of rows) {
     out.checked++;
     try {
@@ -411,8 +411,15 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
   } catch { /* tried again at the next tick */ }
   // a paid game that was played with nobody in it (no guests, no people list, nobody waiting) has no personal data to erase, but it still gets its end record, so the 365-day clock has a start
   try {
-    const bare = (await env.DB.prepare("SELECT e.* FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.eid IS NULL AND e.pack IS NOT 0 AND e.cancelled_ms IS NULL AND NOT EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) AND NOT EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) AND NOT EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id) ORDER BY e.start_round LIMIT 25").all<any>()).results ?? [];
+    const bare = (await env.DB.prepare("SELECT e.* FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.eid IS NULL AND e.pack IS NOT 0 AND e.cancelled_ms IS NULL AND NOT EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) AND NOT EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) AND NOT EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id) AND NOT EXISTS (SELECT 1 FROM ttt_p x WHERE x.eid=e.id) ORDER BY e.start_round LIMIT 25").all<any>()).results ?? [];
     for (const e of bare) { const end = await endBoundMs(env, e); if (now >= end) await env.DB.prepare("INSERT OR IGNORE INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?,'schedule',?,'no-guests')").bind(e.id, end, now).run(); }
+  } catch { /* tried again at the next tick */ }
+  // the mail log (recipient address and subject of mail sent) keeps nothing older than 3 days: forgotten every hour from THIS clock, not only when an organizer happens to visit; unsent mail gets one more try a day
+  try {
+    const h = new Date(now).toISOString().slice(0, 13), lastH = await env.DB.prepare("SELECT v FROM kv WHERE k='outbox_sweep_hour'").first<{ v: string }>();
+    if (lastH?.v !== h) { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('outbox_sweep_hour',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(h).run(); (out as any).outboxDropped = await purgeOutbox(env.DB, now); }
+    const d = h.slice(0, 10), lastD = await env.DB.prepare("SELECT v FROM kv WHERE k='outbox_retry_day'").first<{ v: string }>();
+    if (lastD?.v !== d) { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('outbox_retry_day',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(d).run(); (out as any).outboxRetried = (await retryOutbox(env as any, now)).retried; }
   } catch { /* tried again at the next tick */ }
   // public-page visit records older than 365 days: rolled into anonymous per-day totals, then deleted (once a day, a few days of catch-up at a time)
   try {

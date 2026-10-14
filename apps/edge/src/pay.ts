@@ -126,6 +126,13 @@ async function resendSend(env: PayEnv, to: string, subject: string, text: string
     return r.ok;
   } catch { return false; }
 }
+/** How long the mail log (the address a mail went to and its subject) is kept. docs/RETENTION.md and the privacy documents say 3 days. */
+export const OUTBOX_KEEP_MS = 3 * 86_400_000;
+/** Forgets every mail-log row older than OUTBOX_KEEP_MS. Cheap, so the scheduled tick does it every hour (it used to wait for an organizer's first request of a day). */
+export async function purgeOutbox(db: D1, now: number): Promise<number> {
+  const old = await db.prepare("DELETE FROM outbox WHERE at_ms<?").bind(now - OUTBOX_KEEP_MS).run();
+  return old.meta?.changes ?? 0;
+}
 /** Daily job: tries unsent mail once more (only mail with a body worth retrying), and forgets anything older than 3 days. */
 export async function retryOutbox(env: PayEnv, now: number): Promise<{ retried: number; dropped: number }> {
   const db = env.DB; let retried = 0;
@@ -133,8 +140,7 @@ export async function retryOutbox(env: PayEnv, now: number): Promise<{ retried: 
     const rows = (await db.prepare("SELECT id, to_addr, subject, body FROM outbox WHERE sent=0 AND body<>'' AND at_ms>?").bind(now - 3 * 86_400_000).all<any>()).results ?? [];
     for (const r of rows) if (await resendSend(env, r.to_addr, r.subject, r.body)) { await db.prepare("UPDATE outbox SET sent=1, body='' WHERE id=?").bind(r.id).run(); retried++; }
   }
-  const old = await db.prepare("DELETE FROM outbox WHERE at_ms<?").bind(now - 3 * 86_400_000).run();
-  return { retried, dropped: old.meta?.changes ?? 0 };
+  return { retried, dropped: await purgeOutbox(db, now) };
 }
 
 /** The public "Payment Testing" page (Rs 1 / US$ 1, product rule 2026-10-10): a REAL payment that buys nothing. It never touches packs, credit, commission or the real invoice series; the receipt is numbered PAYTEST-<year>-<n> and the row is flagged is_test so it stays out of the owner's reports. */

@@ -4,7 +4,7 @@ import { withDevice } from "./device";
 import { purgeOld, type Env } from "../src/worker";
 import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
-import { analyzeChain, classify, maskedAggregate, redact, vendorOfModel, vendorOfUa, loadRows, GENESIS } from "../src/audit";
+import { analyzeChain, classify, maskedAggregate, redact, truncateIp, vendorOfModel, vendorOfUa, loadRows, GENESIS } from "../src/audit";
 import { makeD1 } from "./d1-sqlite";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
@@ -56,7 +56,7 @@ describe("what is recorded, and sealed", () => {
   test("passwords, one-time codes, card data and keys never reach the log, even sealed", async () => {
     await call("POST", "/api/auth/verify", { email: "boss@acme.com", code: "424242" }, { "cf-connecting-ip": IP });
     expect(redact({ code: "1", otp: "2", password: "3", cardNumber: "4", apiKey: "5", ok: "fine", nested: { token: "x", n: 1 } })).toEqual({ code: "[redacted]", otp: "[redacted]", password: "[redacted]", cardNumber: "[redacted]", apiKey: "[redacted]", ok: "fine", nested: { token: "[redacted]", n: 1 } });
-    const sys = (await j(await call("GET", "/api/owner/audit/sys", undefined, PLAT))).rows;
+    const sys = (await j(await call("GET", "/api/owner/audit/anon", undefined, PLAT))).rows; // a try by a stranger is an anonymous visitor's row
     expect(sys.some((x: any) => x.event === "login_failed")).toBe(true);
     expect(JSON.stringify(sys)).not.toContain("424242"); expect(JSON.stringify(sys)).toContain("[redacted]");
   });
@@ -221,10 +221,42 @@ describe("deletion at 365 days", () => {
     await purgeOld(env as any, LATER);
     expect(rows("EVT1").length).toBe(0); expect(raw.prepare("SELECT 1 FROM audit_cert WHERE eid='EVT1'").get()).toBeTruthy();
   });
-  test("rows that belong to no live engagement (sign-in attempts) are swept after 365 days", async () => {
+  test("rows that belong to no live engagement (sign-in attempts) are swept after 365 days at the latest (an anonymous visitor's after 90)", async () => {
     await call("POST", "/api/auth/verify", { email: "x@y.com", code: "000000" }, { "cf-connecting-ip": IP });
-    expect((raw.prepare("SELECT COUNT(*) AS c FROM audit_log WHERE chain='sys'").get() as any).c).toBe(1);
+    expect((raw.prepare("SELECT COUNT(*) AS c FROM audit_log WHERE chain='anon'").get() as any).c).toBe(1);
     await purgeOld(env as any, T + 366 * 86_400_000);
-    expect((raw.prepare("SELECT COUNT(*) AS c FROM audit_log WHERE chain='sys'").get() as any).c).toBe(0);
+    expect((raw.prepare("SELECT COUNT(*) AS c FROM audit_log WHERE chain='anon'").get() as any).c).toBe(0);
+  });
+});
+
+describe("anonymous visitors: the first part of the network address only, and 90 days", () => {
+  const anon = () => (raw.prepare("SELECT COUNT(*) AS c FROM audit_log WHERE chain='anon'").get() as any).c as number;
+  test("truncateIp keeps the first 3 numbers of an IPv4 address (a /24) and the first 3 groups of an IPv6 address (a /48); anything else is dropped, never kept whole", () => {
+    expect(truncateIp("203.0.113.77")).toBe("203.0.113.0"); expect(truncateIp("10.0.0.255")).toBe("10.0.0.0");
+    expect(truncateIp("2001:db8:1234:5678:9abc:def0:1111:2222")).toBe("2001:db8:1234::"); expect(truncateIp("2001:0db8:0000:0001::1")).toBe("2001:db8:0::");
+    expect(truncateIp("::1")).toBe("0:0:0::"); expect(truncateIp("::ffff:198.51.100.9")).toBe("198.51.100.0");
+    for (const bad of ["", "not an ip", "999.1.1.1", "1.2.3", "2001:db8::1::2", "12345::1", "1.2.3.4.5"]) expect([bad, truncateIp(bad)]).toEqual([bad, ""]);
+  });
+  test("a stranger's refused try is stored in the anonymous chain with the address cut to a /24 (and /48); the browser is kept; the full address is nowhere", async () => {
+    await call("POST", "/api/auth/verify", { email: "x@y.com", code: "000000" }, { "cf-connecting-ip": IP, "user-agent": UA });
+    await call("POST", "/api/auth/verify", { email: "x@y.com", code: "000000" }, { "cf-connecting-ip": "2001:db8:1234:5678::1", "user-agent": UA });
+    const out = (await j(await call("GET", "/api/owner/audit/anon", undefined, PLAT))).rows;
+    expect(out.map((r: any) => r.details.ip)).toEqual(["203.0.113.0", "2001:db8:1234::"]); expect(out[0].details.ua).toBe(UA);
+    expect(JSON.stringify(out)).not.toContain("203.0.113.77"); expect(JSON.stringify(out)).not.toContain("5678");
+    expect((await j(await call("GET", "/api/owner/audit/anon/verify", undefined, PLAT))).ok).toBe(true); // the chain still verifies
+  });
+  test("an organizer's own rows keep the whole address (they are not anonymous)", async () => {
+    await withEngagement();
+    const e = (await j(await call("GET", "/api/owner/audit/EVT1", undefined, PLAT))).rows[1]; expect(e.details.ip).toBe(IP);
+  });
+  test("anonymous rows go after 90 days, from the front of their chain (the chain still verifies)", async () => {
+    await call("POST", "/api/auth/verify", { email: "x@y.com", code: "000000" }, { "cf-connecting-ip": IP }, T);
+    await call("POST", "/api/auth/verify", { email: "x@y.com", code: "000000" }, { "cf-connecting-ip": IP }, T + 60 * 86_400_000);
+    expect(anon()).toBe(2);
+    await purgeOld(env as any, T + 89 * 86_400_000); expect(anon()).toBe(2);
+    await purgeOld(env as any, T + 91 * 86_400_000); expect(anon()).toBe(1); // only the one older than 90 days
+    expect((await j(await call("GET", "/api/owner/audit/anon/verify", undefined, PLAT, T + 91 * 86_400_000))).ok).toBe(true);
+    await purgeOld(env as any, T + 151 * 86_400_000); expect(anon()).toBe(0);
+    const left = await j(await call("GET", "/api/owner/audit/anon/verify", undefined, PLAT, T + 151 * 86_400_000)); expect(left.rows).toBe(0);
   });
 });

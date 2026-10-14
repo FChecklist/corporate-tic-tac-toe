@@ -21,6 +21,9 @@ const call = (method: string, path: string, body?: unknown, key?: string, now = 
 const j = async (r: Response) => (await r.json()) as any;
 const mailsTo = (to: string) => raw.prepare("SELECT subject, body FROM outbox WHERE to_addr=? ORDER BY id").all(to) as { subject: string; body: string }[];
 const mailsLike = (to: string, re: RegExp) => mailsTo(to).filter((m) => re.test(m.subject));
+const ever = new Map<number, { id: number; to_addr: string; subject: string; body: string }>();
+/** Like mailsLike, but also counts mails the 3-day mail-log clean-up of the tick has since forgotten (each one is seen at least once: the test looks after every step). */
+const mailsEver = (to: string, re: RegExp) => { for (const m of raw.prepare("SELECT id, to_addr, subject, body FROM outbox WHERE to_addr=?").all(to) as any[]) ever.set(m.id, m); return [...ever.values()].filter((m) => m.to_addr === to && re.test(m.subject)).sort((a, b) => a.id - b.id); };
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw; orders = []; payments = {}; razorpayCalls = 0; refundCalls = 0;
@@ -363,16 +366,17 @@ describe("lapse, expiry and the e-mails", () => {
     expect((await j(await call("GET", "/api/z/GAME-Y/info", undefined, t.master, exp))).credit).toBe(0);
   });
   test("the five mails go to the Organizer and the Host only, once each: cancel, 30 days before, 3 days before, on use, on lapse", async () => {
+    ever.clear(); // the tick forgets mail-log rows older than 3 days, so this test remembers every mail it has seen
     const t = await setup();
     const to = ["boss@acme.com", "priya@acme.com"];
-    for (const a of to) expect(mailsLike(a, /^Game cancelled/)).toHaveLength(1);
-    await creditTick(env, exp - 31 * DAY); for (const a of to) expect(mailsLike(a, /lapses on/)).toHaveLength(0);
-    await creditTick(env, exp - 29 * DAY); for (const a of to) { expect(mailsLike(a, /lapses on 1 Oct 2027/)).toHaveLength(1); expect(mailsLike(a, /lapses on/)[0]!.body).toContain("in 30 days"); }
-    await creditTick(env, exp - 28 * DAY); await lifecycleTick(env as any, exp - 20 * DAY); for (const a of to) expect(mailsLike(a, /lapses on/)).toHaveLength(1); // not again
-    await creditTick(env, exp - 2 * DAY); for (const a of to) { expect(mailsLike(a, /lapses on/)).toHaveLength(2); expect(mailsLike(a, /lapses on/)[1]!.body).toContain("in 3 days"); }
-    await creditTick(env, exp - DAY); for (const a of to) expect(mailsLike(a, /lapses on/)).toHaveLength(2);
+    for (const a of to) expect(mailsEver(a, /^Game cancelled/)).toHaveLength(1);
+    await creditTick(env, exp - 31 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(0);
+    await creditTick(env, exp - 29 * DAY); for (const a of to) { expect(mailsEver(a, /lapses on 1 Oct 2027/)).toHaveLength(1); expect(mailsEver(a, /lapses on/)[0]!.body).toContain("in 30 days"); }
+    await creditTick(env, exp - 28 * DAY); await lifecycleTick(env as any, exp - 20 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(1); // not again
+    await creditTick(env, exp - 2 * DAY); for (const a of to) { expect(mailsEver(a, /lapses on/)).toHaveLength(2); expect(mailsEver(a, /lapses on/)[1]!.body).toContain("in 3 days"); }
+    await creditTick(env, exp - DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(2);
     await lifecycleTick(env as any, exp + 1000); await lifecycleTick(env as any, exp + 2000);
-    for (const a of to) { const m = mailsLike(a, /lapsed/); expect(m).toHaveLength(1); expect(m[0]!.body).toContain(`Rs ${paidOf(300).toLocaleString("en-IN")}`); expect(m[0]!.body).toContain("Credit that lapsed"); }
+    for (const a of to) { const m = mailsEver(a, /lapsed/); expect(m).toHaveLength(1); expect(m[0]!.body).toContain(`Rs ${paidOf(300).toLocaleString("en-IN")}`); expect(m[0]!.body).toContain("Credit that lapsed"); }
     expect(raw.prepare("SELECT to_addr FROM outbox WHERE subject LIKE '%credit%' OR subject LIKE '%lapse%'").all().every((r: any) => to.includes(r.to_addr))).toBe(true);
     expect(mailsTo("payer@acme.com").filter((m) => /credit|lapse/i.test(m.subject))).toHaveLength(0);
   });

@@ -10,10 +10,12 @@
 //   A6  Data requests    GET /api/owner/data-requests?status=open|done|all   POST /api/owner/data-requests {id, action: "close"}   (the table data_request, rights.ts)
 //   A7  Errors           every 5xx the Worker answers is counted in a 10-minute bucket (kv 'err/...'); GET /api/status/health (public) says {ok, errors_last_hour};
 //                        GET /api/owner/errors shows the last 24 hours by hour. The scheduler's uptime check fails (GitHub mails the owner) above a threshold.
+//   A7b 24-hour alarm   the same health read says {ok: false, overdue_purge, overdue_hours} when a tournament is past its 23-hour deletion and its players' data is still stored.
 //   E12 Mail events      POST /api/mail/events  the mail service's webhook (Svix-style signature, secret RESEND_WEBHOOK_SECRET; with no secret set the address answers 404 and accepts nothing)
 //                        -> table mail_bounce; GET /api/owner/mail-events shows bounced / complained / delivered, newest first.
 // A recipient is kept as a one-way hash plus a masked form (j***@example.com) so the owner can recognise it; nothing else about the person. Rows are deleted after 90 days.
 import { logAccess } from "./audit";
+import { GENESIS, PURGE_AFTER_MS } from "./lifecycle";
 import type { D1, Env } from "./worker";
 
 export const GAME_NAME = "Corporate Tic Tac Toe";
@@ -83,6 +85,25 @@ export async function countError(db: D1, now: number): Promise<void> {
     m.set(k, n + 1); if (m.size > 20) for (const old of [...m.keys()].slice(0, m.size - 20)) m.delete(old);
     await db.prepare("INSERT INTO kv(k,v) VALUES(?,'1') ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+1").bind(k).run();
   } catch { /* best effort */ }
+}
+/** The promise to players is "within 24 hours"; the job deletes at 23 (PURGE_AFTER_MS). The alarm rises when a tournament is this much later than that and its players' data is still there (the 5-minute tick normally clears a tournament within minutes). */
+export const OVERDUE_GRACE_MS = 30 * 60_000;
+/** The latest a tournament's end is taken to be after its scheduled start (tournament.ts MAX_MS: a tournament that has not finished 6 hours after its scheduled start is closed for the deletion clock); used for a tournament the tick has not looked at yet. */
+const LONGEST_GAME_MS = 6 * 3_600_000;
+/** Tables that hold a player's data until the 23-hour deletion (ttt_p holds the names shown on the bracket, in the clear). */
+const HOLDS_PLAYERS = (col: string) => ["participant", "person", "waiting", "ttt_p"].map((t) => `EXISTS (SELECT 1 FROM ${t} x WHERE x.eid=${col})`).join(" OR ");
+/**
+ * The 24-hour promise watched from outside: how many tournaments are past 23 hours after their end (plus a short grace) and still hold their players' data, and how long the oldest has waited.
+ * Two sources: tournaments the tick already knows (a `life` row that is not purged) and tournaments it has not looked at at all (a scheduled start long ago, players still stored), so a dead clock is seen too.
+ * A tournament under an owner's legal hold is left out: its data is kept on purpose.
+ */
+export async function overduePurge(db: D1, now: number): Promise<{ count: number; oldestHours: number | null }> {
+  const lateBy = PURGE_AFTER_MS + OVERDUE_GRACE_MS;
+  const known = (await db.prepare(`SELECT l.eid AS eid, l.end_ms AS end_ms FROM life l WHERE l.purged_ms IS NULL AND l.end_ms + ? < ? AND NOT EXISTS (SELECT 1 FROM legal_hold h WHERE h.eid=l.eid) AND (${HOLDS_PLAYERS("l.eid")}) LIMIT 200`).bind(lateBy, now).all<{ eid: string; end_ms: number }>()).results ?? [];
+  const startMs = `((${GENESIS} + (e.start_round - 1) * 3) * 1000)`; // lifecycle.ts roundMs()
+  const unseen = (await db.prepare(`SELECT e.id AS eid, ${startMs} + ? AS end_ms FROM engagement e WHERE NOT EXISTS (SELECT 1 FROM life l WHERE l.eid=e.id) AND ${startMs} + ? + ? < ? AND NOT EXISTS (SELECT 1 FROM legal_hold h WHERE h.eid=e.id) AND (${HOLDS_PLAYERS("e.id")}) LIMIT 200`).bind(LONGEST_GAME_MS, LONGEST_GAME_MS, lateBy, now).all<{ eid: string; end_ms: number }>()).results ?? [];
+  const ends = [...known, ...unseen].map((r) => r.end_ms);
+  return { count: ends.length, oldestHours: ends.length ? Math.round(((now - Math.min(...ends) - PURGE_AFTER_MS) / 3_600_000) * 10) / 10 : null };
 }
 /** 5xx answers in the last 60 minutes (the current 10-minute bucket and the five before it). */
 export async function errorsLastHour(db: D1, now: number): Promise<number> {
@@ -178,9 +199,11 @@ export async function adminRoute(req: Request, env: AdminEnv, now: number, owner
   const url = new URL(req.url), p = url.pathname;
   if (p === "/api/status/health") {
     if (req.method !== "GET" && req.method !== "HEAD") return jsonRes({ error: "Not found" }, 404);
-    let dbOk = true, errors = 0;
+    let dbOk = true, errors = 0, overdue = { count: 0, oldestHours: null as number | null };
     try { errors = await errorsLastHour(env.DB, now); } catch { dbOk = false; }
-    return jsonRes({ ok: dbOk, errors_last_hour: errors, threshold: ERROR_ALERT_THRESHOLD, maintenance: await siteIsOff(env.DB, now), at: new Date(now).toISOString() });
+    try { overdue = await overduePurge(env.DB, now); } catch { dbOk = false; }
+    // ok turns false when a tournament is past its 23-hour deletion and its players' data is still stored: the scheduler's uptime check fails on it (the 24-hour promise has an alarm)
+    return jsonRes({ ok: dbOk && overdue.count === 0, errors_last_hour: errors, threshold: ERROR_ALERT_THRESHOLD, overdue_purge: overdue.count, overdue_hours: overdue.oldestHours, maintenance: await siteIsOff(env.DB, now), at: new Date(now).toISOString() });
   }
   if (p === "/api/mail/events") return mailEventsWebhook(req, env, now, spend);
   const m = p.match(/^\/api\/owner\/(site|organizer|data-requests|mail-events|errors)$/);
