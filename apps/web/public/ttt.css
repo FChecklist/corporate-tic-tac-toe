@@ -49,6 +49,7 @@
 .tcen{text-align:center}
 .tcheck{display:flex!important;gap:8px;align-items:flex-start;margin:10px 0;font-size:14px;color:var(--ink)!important}
 .tcheck input{width:22px!important;min-height:22px!important;margin-top:2px}
+.tcheck label{flex:1;min-height:44px;cursor:pointer} /* a one-line box ("I am 18 or older.") still gets a 44 px tap target */
 .trank{list-style:none;counter-reset:r;margin:0;padding:0}
 .trank li{counter-increment:r;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid #E3EEFF;font-size:16px}
 .trank li:first-child{border-top:0}

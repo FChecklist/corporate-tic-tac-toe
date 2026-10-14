@@ -66,8 +66,13 @@ export async function startSim(o: SimOpts = {}) {
 
   const json = (o: unknown, status = 200) => new Response(JSON.stringify(o, null, 1), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
   const clockInfo = () => ({ now: now(), iso: new Date(now()).toISOString(), offsetMs: clock.offset, frozen: clock.frozen !== null });
+  // The Worker forgets mail-log rows older than 3 days (its tick, data audit fix 8). A real inbox keeps what it received, so the sim's mail sink remembers every row it has
+  // seen: it looks at the outbox before every tick and on every read (a sent mail keeps its first body; the Worker blanks it after sending).
+  const seen = new Map<number, any>();
+  const capture = () => { for (const r of raw.query("SELECT id, to_addr, subject, body, at_ms, sent FROM outbox").all() as any[]) { const o = seen.get(r.id); seen.set(r.id, o && o.body && !r.body ? { ...r, body: o.body } : r); } };
   const mails = (q: URLSearchParams) => {
-    const rows = (raw.query("SELECT id, to_addr, subject, body, at_ms, sent FROM outbox ORDER BY id").all() as any[]).map((r) => ({ id: "o" + r.id, to: r.to_addr as string, subject: r.subject as string, text: r.body as string, at: r.at_ms as number, sent: !!r.sent, attachments: [] as string[] }));
+    capture();
+    const rows = ([...seen.values()].sort((a, b) => a.id - b.id) as any[]).map((r) => ({ id: "o" + r.id, to: r.to_addr as string, subject: r.subject as string, text: r.body as string, at: r.at_ms as number, sent: !!r.sent, attachments: [] as string[] }));
     sentReports.forEach((r, i) => rows.push({ id: "r" + i, to: r.to, subject: r.subject, text: r.text, at: 0, sent: true, attachments: r.attachments.map((a) => a.filename) }));
     const to = q.get("to")?.toLowerCase(), sub = q.get("subject")?.toLowerCase(), since = Number(q.get("since") ?? 0);
     return rows.filter((m) => (!to || m.to.toLowerCase() === to) && (!sub || m.subject.toLowerCase().includes(sub)) && (!since || m.at >= since));
@@ -76,7 +81,7 @@ export async function startSim(o: SimOpts = {}) {
   const mailPage = (list: ReturnType<typeof mails>) => new Response(`<!doctype html><meta charset=utf-8><title>Sim mail</title><style>body{font:14px system-ui;margin:20px}article{border:1px solid #ccc;border-radius:8px;margin:10px 0;padding:10px}pre{white-space:pre-wrap}</style><h1>Captured e-mail (${list.length})</h1><p>Nothing here was really sent. <a href="/__sim/mail.json">json</a></p>${list.slice().reverse().map((m) => `<article><b>${esc(m.subject)}</b><br>to <code>${esc(m.to)}</code> at ${new Date(m.at).toISOString()}${m.attachments.length ? " attachments: " + esc(m.attachments.join(", ")) : ""}<pre>${esc(m.text)}</pre></article>`).join("")}`, { headers: { "content-type": "text/html; charset=utf-8" } });
 
   const callWorker = (req: Request, t = now()) => handle(req, env as any, t, (p) => { p.catch(() => {}); });
-  const tickOnce = async (t: number) => { const r = await callWorker(new Request("http://x/api/lifecycle/tick", { method: "POST", headers: { "x-cron-key": SIM_KEYS.cron, "content-type": "application/json" }, body: "{}" }), t); return { status: r.status, body: await r.json().catch(() => ({})) }; };
+  const tickOnce = async (t: number) => { capture(); const r = await callWorker(new Request("http://x/api/lifecycle/tick", { method: "POST", headers: { "x-cron-key": SIM_KEYS.cron, "content-type": "application/json" }, body: "{}" }), t); return { status: r.status, body: await r.json().catch(() => ({})) }; };
   const bump = (d: number) => { if (clock.frozen !== null) clock.frozen += d; else clock.offset += d; };
 
   const server = Bun.serve({
@@ -102,9 +107,9 @@ export async function startSim(o: SimOpts = {}) {
           else for (let done = 0; done < total; done += step) { bump(Math.min(step, total - done)); last = await tickOnce(now()); n++; }
           return json({ ticks: n, last, ...clockInfo() });
         }
-        if (p === "/__sim/mail.json") { if (req.method === "DELETE") { raw.run("DELETE FROM outbox"); sentReports.length = 0; return json({ ok: true }); } return json(mails(u.searchParams)); }
+        if (p === "/__sim/mail.json") { if (req.method === "DELETE") { raw.run("DELETE FROM outbox"); seen.clear(); sentReports.length = 0; return json({ ok: true }); } return json(mails(u.searchParams)); }
         if (p === "/__sim/mail") return mailPage(mails(u.searchParams));
-        if (p === "/__sim/reset") { const s = open(b.mode); return json({ ok: true, schemaAdded: s.applied, ...clockInfo() }); }
+        if (p === "/__sim/reset") { seen.clear(); const s = open(b.mode); return json({ ok: true, schemaAdded: s.applied, ...clockInfo() }); }
         if (p === "/__sim/mode") { if (b.mode !== "TEST" && b.mode !== "LIVE") return json({ error: "mode" }, 400); const r = await callWorker(new Request("http://x/api/owner/mode", { method: "POST", headers: { "x-organizer": SIM_KEYS.platform, "content-type": "application/json" }, body: JSON.stringify({ mode: b.mode, reason: "sim" }) })); return json({ status: r.status, ...(await r.json().catch(() => ({}))) }, r.status); }
         if (p === "/__sim/sql") { const q = String(b.sql ?? ""); if (!/^\s*select\b/i.test(q) || /;\s*\S/.test(q)) return json({ error: "SELECT only" }, 400); return json({ rows: raw.query(q).all(...((b.params ?? []) as any[])) }); }
         if (p === "/__sim/usage") return json({ usage: raw.query("SELECT * FROM usage ORDER BY day").all() });

@@ -130,7 +130,7 @@ export default [
       t.check("pay page: no pay button for a cancelled game", !(await o.page.$("#paygo")) || /cancel/i.test(await t.text(o.page)), (await t.text(o.page)).slice(0, 160));
       const p = await t.open({ device: "mobile" }); await p.page.goto(pl); await p.page.waitForTimeout(1800);
       t.check("pay link: no pay button, a calm message", !(await p.page.$("#paygo")) && (await t.text(p.page)).length > 30, (await t.text(p.page)).slice(0, 160));
-      const c = await t.open({ device: "mobile" }); await c.page.goto(cohostUrl(g.id, co)); await passK5Gate(c.page); await c.page.waitForTimeout(2500); await t.shot(c.page, "cancelled-cohost");
+      const c = await t.open({ device: "mobile" }); await c.page.goto(cohostUrl(g.id, co)); await passK5Gate(c.page, { required: false }); await c.page.waitForTimeout(2500); await t.shot(c.page, "cancelled-cohost"); // a cancelled game shows a read-only notice and makes no K5-gated call, so the role box is not asked here (S03-10 / S03-11 prove the box)
       t.check("Co-host view: readable cancelled state (key keeps working only to read)", /cancel/i.test(await t.text(c.page)), (await t.text(c.page)).slice(0, 200));
       const info = (await org.info(g.id)).body;
       t.check("API info says cancelled", JSON.stringify(info).toLowerCase().includes("cancel"), JSON.stringify(info).slice(0, 160));
