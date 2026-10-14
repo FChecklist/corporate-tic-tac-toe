@@ -215,5 +215,56 @@ export default [
     },
     resetAfter: true,
   },
+  {
+    id: "S07-09", name: "End the tournament from the console: step 9 opens the tournament page, End asks first (No keeps it running), Yes ends it for everybody; phones, big screen and console say it ended, nobody is champion, the deletion clock starts",
+    async run(t) {
+      const org = await t.org("o"); const g = await tGame(t, org);
+      const ps = await phones(t, g, ["Yara", "Zeno"]);
+      const c = await openConsole(t, org, g.id, { device: "laptop", label: "console" });
+      await openStep(c.page, 9); await c.page.waitForSelector("#runt", { timeout: 8000 });
+      await c.page.click("#runt"); await c.page.waitForSelector(".zhead", { timeout: 15000 });
+      t.check("the console's step 9 opens the tournament page", /\/host\.html\?e=/.test(c.page.url()), c.page.url());
+      const h = c; h.page.on("dialog", (d) => d.accept().catch(() => {})); // "Start now?" is answered Yes, as a person would
+      await startTournament(h, { moveSecs: 30 });
+      await Promise.all(ps.map((p) => p.page.waitForSelector(".tboard", { timeout: 25000 })));
+      const big = await t.open({ device: "laptop", label: "big" }); await big.page.goto(`${H.SIM}/big.html?e=${g.id}`); await big.page.waitForTimeout(2500);
+      t.check("the tournament page offers End the tournament while it runs", !!(await h.page.$("#end")), (await t.text(h.page)).slice(0, 200));
+      // first a person changes their mind: the question is asked and "Cancel" keeps the tournament running
+      let asked = "";
+      h.page.removeAllListeners("dialog"); h.page.once("dialog", (d) => { asked = d.message(); d.dismiss().catch(() => {}); });
+      await h.page.click("#end"); await h.page.waitForTimeout(1500);
+      t.check("End asks before doing anything, in plain words", /End the tournament for everybody now\?/.test(asked) && /cannot be undone/.test(asked), asked);
+      const still = await sql1("SELECT state FROM ttt_t WHERE eid=?", [g.id]);
+      t.check("Cancel on that question keeps the tournament running (server state)", still.state === "running", JSON.stringify(still));
+      // now for real
+      h.page.once("dialog", (d) => d.accept().catch(() => {}));
+      const t0 = Date.now();
+      await h.page.click("#end");
+      await h.page.waitForFunction(() => /Ended/i.test(document.body.innerText), null, { timeout: 15000 }).catch(() => {});
+      const ht = await t.text(h.page); await t.shot(h.page, "end-host");
+      t.check("the tournament page says Ended, names no champion and no longer offers Pause or End", /Ended/i.test(ht) && !/Champion:/i.test(ht) && !(await h.page.$("#end")) && !(await h.page.$("#pause")), ht.slice(0, 200));
+      const tt = await sql1("SELECT state, champion, ranking, ended_ms, pause_at FROM ttt_t WHERE eid=?", [g.id]);
+      t.check("server: the tournament is done, with no champion and no ranking, and an end time", tt.state === "done" && !tt.champion && !tt.ranking && tt.ended_ms > 0 && !tt.pause_at, JSON.stringify(tt));
+      const life = await sql1("SELECT end_ms, end_src, purged_ms FROM life WHERE eid=?", [g.id]);
+      t.check("server: the 24-hour deletion clock started at the end (not yet purged)", !!life.end_ms && !life.purged_ms, JSON.stringify(life));
+      const win = await sql1("SELECT COUNT(*) c FROM winner WHERE eid=?", [g.id]);
+      t.check("server: nobody is in the winners record", win.c === 0, JSON.stringify(win));
+      await t.until(async () => (await Promise.all(ps.map((p) => guestText(p.page)))).every((x) => /The organizer ended the tournament/i.test(x)), { timeout: 25000, what: "both phones say it ended" }).catch(() => {});
+      const pt = await Promise.all(ps.map((p) => guestText(p.page)));
+      t.check("both phones say 'The organizer ended the tournament. Thank you for playing.' and show no board and no champion", pt.every((x) => /The organizer ended the tournament\. Thank you for playing\./i.test(x) && !/You are the champion/i.test(x)) && (await Promise.all(ps.map((p) => p.page.$(".tboard")))).every((b) => !b), pt.map((x) => x.slice(0, 160)).join(" || "));
+      t.note(`phones showed the end ${Math.round((Date.now() - t0) / 100) / 10} s after the press`);
+      await ps[0].page.waitForTimeout(500); await t.shot(ps[0].page, "end-phone-a"); await t.shot(ps[1].page, "end-phone-b");
+      const taps = await Promise.all(ps.map((p) => p.page.$$eval(".tsq:not([disabled])", (e) => e.length).catch(() => 0)));
+      t.check("no phone can tap a square any more", taps.every((n) => n === 0), JSON.stringify(taps));
+      await t.until(async () => /The organizer ended the tournament/.test(await t.text(big.page)), { timeout: 20000, what: "big screen says ended" }).catch(() => {});
+      const bt = await t.text(big.page); await t.shot(big.page, "end-big");
+      t.check("the big screen says Ended and that the organizer ended the tournament, and shows no champion and not Finished", /The organizer ended the tournament/i.test(bt) && !/Champion/i.test(bt) && !/Finished/i.test(bt), bt.slice(0, 200));
+      const c2 = await openConsole(t, org, g.id, { device: "laptop", label: "console-after" }); await openStep(c2.page, 9); await c2.page.waitForTimeout(1500);
+      const st = await c2.page.innerText("#tstate").catch(() => "");
+      t.check("the console's step 9 says Ended (not Finished) and lists no results", st.trim() === "Ended" && !(await c2.page.$("#rankList")), st);
+      const again = await H.call("POST", `/api/z/${g.id}/ttt/end`, {}, { "x-organizer": org.token });
+      t.check("pressing End again changes nothing (the server answers 'already ended')", again.ok && again.body.again === true, JSON.stringify(again.body));
+    },
+  },
 ];
 void openConsole; void openStep; void nextPhone;

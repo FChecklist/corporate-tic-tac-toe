@@ -198,7 +198,8 @@ export default [
       t.check("the API's own Co-host link (no game id) opens the game", !!(await dead.page.$(".zc-sech")), (await t.text(dead.page)).slice(0, 220));
       await t.shot(dead.page, "cohost-api-link-deadend");
       const x = await t.open({ device: "mobile" });
-      await x.page.goto(cohostUrl(g.id, c)); await passK5Gate(x.page); await x.page.waitForSelector(".zc-sech", { timeout: 15000 }); await x.page.waitForTimeout(800);
+      await x.page.goto(cohostUrl(g.id, c)); const again = await passK5Gate(x.page, { required: false }); await x.page.waitForSelector(".zc-sech", { timeout: 15000 }); await x.page.waitForTimeout(800);
+      t.check("K5: the same Co-host key is not asked again on a second page (the acceptance is stored by the server, per key)", !again.shown);
       const txt = await t.text(x.page);
       const heads = await x.page.$$eval(".zc-sech", (els) => els.map((e) => e.innerText.replace(/\s+/g, " ").slice(0, 40)));
       t.check("exactly three numbered steps (Today's game, Invite people, Payment)", heads.filter((h) => /^\d /.test(h)).length === 3, heads.join(" | "));

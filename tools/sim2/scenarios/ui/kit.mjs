@@ -110,13 +110,27 @@ export async function askCodeUi(page, email) {
   await page.goto(H.SIM + "/#login"); await page.fill("#lMail", email);
   await tickIfAny(CUR, page, { scope: ".tb", btn: "#lgGo", what: "Sign-in" }); await page.click("#lgGo"); await page.waitForSelector("#lCode");
 }
-/** A Host or Co-host who opened the console for the first time on this device meets ONE box (K5) before anything else: ticks it and carries on. No-op when the console opens straight away. */
-export async function passK5Gate(page, { timeout = 15000 } = {}) {
-  await page.waitForSelector(".zc-sech, #k5gate, #mk, #finishsetup", { timeout: Math.min(timeout, 9000) }).catch(() => {});
-  if (await page.$("#k5gate")) {
-    await tickTerms(CUR, page, { scope: "#k5gate", btn: "#k5go", what: "Role box (K5)" });
-    await page.click("#k5go"); await page.waitForSelector(".zc-sech, #mk, .zc-block:not(#k5gate)", { timeout }); await page.waitForTimeout(600);
+/**
+ * A Co-host whose key has not yet accepted the role meets ONE box (K5, #k5gate) before anything else: this ticks it, presses Accept and checks with the server that the
+ * acceptance is really recorded (a K5-gated read answers 403 consent-required before and works after). With `required` (the default) a missing box is a FAILURE, not a
+ * silent pass: a fresh Co-host key must always meet it. Pass `{ required: false }` only where the same key has already accepted (a second page of the same Co-host).
+ * Returns { shown, accepted }.
+ */
+export async function passK5Gate(page, { timeout = 15000, required = true } = {}) {
+  const shown = await page.waitForSelector("#k5gate", { state: "visible", timeout: required ? Math.min(timeout, 12000) : 4000 }).then(() => true).catch(() => false);
+  if (!shown) {
+    if (required) { if (CUR) CUR.check("K5: the Co-host acceptance box is shown before anything else", false, (await page.innerText("body").catch(() => "")).slice(0, 200)); throw new Error("K5: the Co-host acceptance box (#k5gate) did not appear"); }
+    return { shown: false, accepted: false };
   }
+  const key = await page.evaluate(() => sessionStorage.getItem("cbz-org")).catch(() => null);
+  const gated = async () => (key ? (await H.call("GET", "/api/notices", undefined, { "x-organizer": key })).status : 0);
+  const before = await gated();
+  await tickTerms(CUR, page, { scope: "#k5gate", btn: "#k5go", what: "Role box (K5)" });
+  await page.click("#k5go"); await page.waitForSelector(".zc-sech, #mk, .zc-block:not(#k5gate)", { timeout }); await page.waitForTimeout(600);
+  const after = await gated(), gone = !(await page.$("#k5gate"));
+  const accepted = before === 403 && after !== 403 && gone;
+  if (CUR) CUR.check("K5: the Co-host ticks the box and presses Accept; the server refused before (403) and accepts the key after; the box is gone", accepted, `before ${before}, after ${after}, box gone ${gone}`);
+  return { shown: true, accepted };
 }
 /** The API way of the same K5 acceptance for a Co-host key (what the one-time box does when ticked). */
 export const acceptRole = (key) => H.call("POST", "/api/org/role/accept", {}, { "x-organizer": key });

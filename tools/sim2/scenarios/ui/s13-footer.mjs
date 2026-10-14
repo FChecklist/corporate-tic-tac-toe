@@ -14,6 +14,7 @@ export default [
       for (const path of PAGES) {
         await x.page.goto(H.SIM + path, { waitUntil: "domcontentloaded" });
         await x.page.waitForSelector("footer.uf", { timeout: 8000 }).catch(() => {});
+        if (path === "/privacy.html") await t.shot(x.page, "privacy-top"); // the stand-alone notice as a phone shows it first
         const info = await x.page.evaluate(() => {
           const f = document.querySelectorAll("footer.uf"), all = document.querySelectorAll("footer");
           const lum = (c) => { const m = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/.exec(c); if (!m) return null; if (m[4] !== undefined && Number(m[4]) === 0) return null; const [r, g, b] = [m[1], m[2], m[3]].map((v) => { const s = Number(v) / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
