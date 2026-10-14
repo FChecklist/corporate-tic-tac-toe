@@ -88,12 +88,14 @@
       '<form id="rt-form"><fieldset><legend>What do you want?</legend>' +
       '<label><input type="radio" name="rt-kind" value="access" checked> Show me what you hold about me</label>' +
       '<label><input type="radio" name="rt-kind" value="correction"> Correct my details</label>' +
-      '<label><input type="radio" name="rt-kind" value="erasure"> Delete me from this game now</label></fieldset>' +
-      '<div id="rt-notebox" hidden><label for="rt-note" style="display:block;padding:0">What should be corrected?</label><textarea id="rt-note" maxlength="300"></textarea></div>' +
+      '<label><input type="radio" name="rt-kind" value="erasure"> Delete me from this game now</label>' +
+      '<label><input type="radio" name="rt-kind" value="nomination"> Name another person who can use these rights for me</label></fieldset>' +
+      '<div id="rt-notebox" hidden><label for="rt-note" id="rt-notelabel" style="display:block;padding:0">What should be corrected?</label><textarea id="rt-note" maxlength="300"></textarea></div>' +
+      '<p id="rt-nom" hidden>To name the person, write to <a href="mailto:rajatsiroffice@gmail.com">rajatsiroffice@gmail.com</a> with their name and how to reach them. Press Send so that we and the organizer know you did.</p>' +
       '<p id="rt-warn" hidden><b>Deleting removes your name and your place now. You cannot undo this.</b></p>' +
       '<p class="rt-err" id="rt-err" role="alert"></p><div class="rt-row"><button class="rt-b" id="rt-send" type="submit">Send</button><button class="rt-b alt" id="rt-cancel" type="button">Close</button></div></form><div id="rt-result" aria-live="polite"></div>');
     const form = d.querySelector("#rt-form"); let chosen = "access"; const kindOf = () => chosen;
-    const sync = () => { const k = kindOf(); d.querySelector("#rt-notebox").hidden = k !== "correction"; d.querySelector("#rt-warn").hidden = k !== "erasure"; d.querySelector("#rt-send").textContent = k === "erasure" ? "Delete me now" : "Send"; };
+    const sync = () => { const k = kindOf(); d.querySelector("#rt-notebox").hidden = k !== "correction"; d.querySelector("#rt-warn").hidden = k !== "erasure"; d.querySelector("#rt-nom").hidden = k !== "nomination"; d.querySelector("#rt-send").textContent = k === "erasure" ? "Delete me now" : "Send"; };
     form.addEventListener("change", (ev) => { if (ev.target && ev.target.name === "rt-kind") chosen = ev.target.value; sync(); }); sync();
     d.querySelector("#rt-cancel").onclick = close;
     form.onsubmit = async (ev) => {

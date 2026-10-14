@@ -139,6 +139,16 @@ describe("U6 / D7: what do you hold about me, correct it, delete me", () => {
     await ask("RQ-6", a, dev(1), "access"); await ask("RQ-6", b, dev(2), "correction", { note: "fix it" });
     const mine = await j(await ask("RQ-6", a, dev(1), "status")); expect(mine.requests.length).toBe(1); expect(mine.requests[0].kind).toBe("access"); expect(mine.promise).toBe("within 7 days");
   });
+  test("nomination (DPDP Act s14): it is a request in the owner's queue and goes to the organizer and the owner; the player is told the e-mail route; nothing is deleted", async () => {
+    await game("RQ-N"); const a = await joinAs("RQ-N", 1, "Maya Lopez");
+    const r = await ask("RQ-N", a, dev(1), "nomination", { note: "my sister" }); expect(r.status).toBe(200);
+    const b = await j(r); expect(b.kind).toBe("nomination"); expect(b.status).toBe("open"); expect(b.erased).toBeUndefined(); expect(b.message).toContain("rajatsiroffice@gmail.com"); expect(b.message).toContain("within 7 days");
+    expect(count("SELECT COUNT(*) c FROM seat WHERE pid=?", a)).toBe(1); // nothing is deleted
+    expect(raw.query("SELECT kind, status, note, due_ms FROM data_request").get()).toEqual({ kind: "nomination", status: "open", note: "my sister", due_ms: T + 7 * 86_400_000 });
+    const m = mails(); expect(m.some((x) => x.to_addr === orgMail && /nominat|section 14/i.test(x.body) && x.body.includes("rajatsiroffice@gmail.com"))).toBe(true);
+    expect(m.some((x) => x.to_addr === OWNER_NOTIFY_EMAIL && /section 14/.test(x.body))).toBe(true);
+    const q = await j(await call("GET", "/api/owner/data-requests?status=open", undefined, { "x-organizer": "plat" })); expect(q.requests.map((x: any) => x.kind)).toEqual(["nomination"]); // the owner's queue
+  });
   test("an unknown kind is refused, and a player cannot send more than the limit", async () => {
     await game("RQ-7"); const a = await joinAs("RQ-7", 1);
     expect((await ask("RQ-7", a, dev(1), "sell-my-data")).status).toBe(400);

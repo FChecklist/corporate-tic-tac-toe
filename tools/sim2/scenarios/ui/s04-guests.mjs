@@ -230,7 +230,7 @@ export default [
       await x.page.goto(`${H.SIM}/z?e=${g.id}`); await x.page.waitForSelector(".tb input[data-box]");
       const txt = await guestText(x.page);
       t.check("the join page says playing is free, no money is staked and only a name is asked", /free/i.test(txt) && /No money is staked/i.test(txt) && /name only/i.test(txt), txt.slice(0, 300));
-      t.check("it links to the Privacy Policy and the Terms", !!(await x.page.$('a[href*="legal.html#privacy"]')) && !!(await x.page.$('a[href="/terms.html"]')));
+      t.check("it links to the Privacy Policy and the Terms", !!(await x.page.$('a[href="/privacy.html"]')) && !!(await x.page.$('a[href="/terms.html"]')));
       t.check("no field for a phone number or an e-mail", !(await x.page.$('input[type=tel], input[type=email], #ph, #em')));
       t.check("the page names no other game (no cards, numbers, tickets)", !/\bticket|\bcard\b|bingo|tambola|housie/i.test(txt), txt.slice(0, 300));
       const wrote = await H.sql("SELECT COUNT(*) c FROM participant WHERE eid=?", [g.id]); t.check("nothing is stored before the person joins", wrote[0].c === 0);

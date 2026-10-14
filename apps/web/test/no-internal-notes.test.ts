@@ -1,11 +1,12 @@
 // Nothing that is deployed (or that belongs to the Terms boxes) may carry an internal note: who asked for something, or any review or approval status.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
+setDefaultTimeout(30_000); // it reads every deployed file; on a busy laptop that takes more than bun's 5 seconds
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\s+pending|pending\s+(legal|review|approval)|awaiting\s+(legal|counsel|lawyer|approval|review)|\blawyer\b|\badvocate\b|owner'?s?\s+(told|instruction|order|directive|decision)|\bTODO\b|\bFIXME\b|under review|not yet (reviewed|approved)|Shobha/i;
 const LEGAL_ONLY = /draft/i; // on the legal pages only: the bare word is fine elsewhere (a draft game)
-const LEGAL_PAGES = ["terms.html", "legal.html", "refund-policy.html", "about.html", "contact.html", "pricing.html", "dpa.html", "subprocessors.html", "partner-terms.html"];
+const LEGAL_PAGES = ["terms.html", "legal.html", "refund-policy.html", "about.html", "contact.html", "pricing.html", "dpa.html", "subprocessors.html", "privacy.html", "partner-terms.html"];
 const ROOT = new URL("../../../", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const SKIP_DIR = new Set(["node_modules", ".git", "fonts", "img", ".wrangler"]);
 const TEXT = /\.(html|js|css|txt|xml|json|webmanifest|md|toml|py|mjs|ts|sql)$|^_headers$|^_routes\.json$/;

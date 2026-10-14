@@ -1,9 +1,9 @@
 # Docs: Corporate Tic Tac Toe
 
-Written for a non-technical owner. Short plain sentences. Everything is local; nothing is deployed.
+Written for a non-technical owner. Short plain sentences. The site is live on Cloudflare Pages (in TEST mode until real payments are switched on); every change is tested locally first, and what is live is recorded in `DEPLOYS.md`.
 
 ## The game
-- `RULES.md`: the rules, R01 to R32, one sentence each, each with a test.
+- `RULES.md`: the rules, R01 to R37, one sentence each, each with a test.
 - `GAME.md`: where the game lives in the code, and which page is which.
 - `PROTOTYPE_NOTES.md`: the earlier three-board prototype (kept for reference, not used).
 

@@ -56,7 +56,7 @@ describe("the player page offers the player's rights", () => {
     const { d, calls } = await openRights();
     (d.getElementById("rt-hold") as any).click(); await tick(40);
     expect(text(d)).toMatch(/within 7 days/);
-    expect([...d.querySelectorAll('input[name="rt-kind"]')].map((i: any) => i.value)).toEqual(["access", "correction", "erasure"]);
+    expect([...d.querySelectorAll('input[name="rt-kind"]')].map((i: any) => i.value)).toEqual(["access", "correction", "erasure", "nomination"]);
     (d.getElementById("rt-send") as any).click(); await tick(40);
     const sent = calls.filter((c) => c.body.kind !== "status");
     expect(sent).toEqual([{ url: "/api/z/GAME-1/datareq", body: { pid: PID, device: DEVICE, kind: "access", note: "" } }]);
@@ -70,6 +70,18 @@ describe("the player page offers the player's rights", () => {
     (d.getElementById("rt-send") as any).click(); await tick(40);
     expect(calls.filter((c) => c.body.kind === "erasure").length).toBe(1);
     expect(text(d)).toMatch(/deleted just now/i); expect(w.localStorage.getItem("ttt:GAME-1:pid")).toBeNull();
+  });
+  test("Name another person (DPDP Act s14): choosing it shows the e-mail route; sending asks for 'nomination' with the player's own ids and nothing is deleted", async () => {
+    const { d, calls, w } = await openRights();
+    (d.getElementById("rt-hold") as any).click(); await tick(40);
+    expect((d.getElementById("rt-nom") as any).hidden).toBe(true);
+    (d.querySelector('input[value="nomination"]') as any).click(); await tick();
+    expect((d.getElementById("rt-nom") as any).hidden).toBe(false); expect(text(d)).toContain("rajatsiroffice@gmail.com"); expect(d.querySelector('#rt-nom a')!.getAttribute("href")).toBe("mailto:rajatsiroffice@gmail.com");
+    expect(d.getElementById("rt-send")!.textContent).toBe("Send"); expect((d.getElementById("rt-warn") as any).hidden).toBe(true);
+    (d.getElementById("rt-send") as any).click(); await tick(40);
+    const sent = calls.filter((c) => c.body.kind !== "status");
+    expect(sent.length).toBe(1); expect(sent[0]!.body).toMatchObject({ pid: PID, device: DEVICE, kind: "nomination" });
+    expect(w.localStorage.getItem("ttt:GAME-1:pid")).toBe(PID); // nothing is deleted
   });
   test("z.html loads rights.js after the game's own script, and the build ships it", () => {
     const html = pub("z.html"); const own = html.indexOf("ttt.js"), rt = html.indexOf("/rights.js");

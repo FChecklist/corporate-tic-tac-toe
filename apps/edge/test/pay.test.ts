@@ -437,7 +437,7 @@ describe("invoice carries Razorpay's own record (owner list 2026-10-10)", () => 
     const v = await call("POST", "/api/payments/verify", { paymentId: r.paymentId, razorpay_order_id: r.razorpay.orderId, razorpay_payment_id: "pay_U1", razorpay_signature: hmac("sek", `${r.razorpay.orderId}|pay_U1`) });
     const j = (await v.json()) as any; expect(j.ok).toBe(true);
     const html = await (await call("GET", j.invoiceUrl)).text();
-    for (const x of ["Paid on (IST)", "15:30:00 IST", "Razorpay: UPI", "UPI ID as", "@okicici", "111122223333", "pay_U1", r.razorpay.orderId, "Asha Rao", "+919876543210", "Terms and conditions", "kept for invoice, tax and accounting purposes"]) expect(html).toContain(x);
+    for (const x of ["Paid on (IST)", "15:30:00 IST", "Razorpay: UPI", "UPI ID as", "@okicici", "111122223333", "pay_U1", r.razorpay.orderId, "Asha Rao", "+919876543210", "Terms and conditions", "We keep billing data for audit and tax reasons."]) expect(html).toContain(x);
     expect(html).not.toContain("asha.rao@okicici");
   });
 });

@@ -40,7 +40,7 @@ const REFUSED = { error: "Please tick the box to continue.", code: "consent-requ
 describe("test 5: the wording is the contract's wording, from one place", () => {
   test("consent-text.json holds the version and the exact boxes; the version is the one constant in brand.ts", () => {
     expect((TEXT as any).version).toBe(TERMS_VERSION); expect(CONSENT_VERSION).toBe(TERMS_VERSION);
-    const strip = (o: any) => { const x = JSON.parse(JSON.stringify(o)); delete x.version; if (x.K4) delete x.K4.A; return x; }; // since 2026-10-14 the join box A and the version are set per game (data map, gate D2)
+    const strip = (o: any) => { const x = JSON.parse(JSON.stringify(o)); delete x.version; if (x.K4) { delete x.K4.A; delete x.K4.B; } return x; }; // since 2026-10-14 the join box A, and since 2026-10-15 the age box B (adults only: no parent's-device alternative), are set per game (data map, gate D2)
     if (existsSync(JSON_FILE)) expect(strip(JSON.parse(readFileSync(JSON_FILE, "utf8")))).toEqual(strip(TEXT));
     expect(boxesOf("K1").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K4").map((b) => b[0])).toEqual(["A", "B"]); expect(boxesOf("K2").map((b) => b[0])).toEqual(["A"]);
   });
@@ -108,6 +108,18 @@ describe("tests 1-4 at every point", () => {
     const ok = await call("POST", "/api/z/CON-3/join", { ...body, consent: tick("K4") }, {}, T + 7); expect(ok.status).toBe(200); const pid = (await j(ok)).pid;
     const r = rows("K4"); expect(r.length).toBe(1);
     expect(r[0]).toMatchObject({ subject: pid, kind: "K4", ref: "CON-3", version: CONSENT_VERSION, boxes: "A,B", at_ms: T + 7, text_hash: sha(wordingOf("K4")) });
+  });
+  test("K4 adults only: box B says only that the person is 18 or older (no parent's-device alternative); box A says what is kept; neither is ticked for the person; a join with only A is refused; the exact wording is hashed with the row", async () => {
+    const [a, b] = boxesOf("K4").map((x) => x[1]); expect(b).toBe("I am 18 or older.");
+    expect(wordingOf("K4")).not.toMatch(/parent|guardian|device with/i);
+    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "results are kept for 365 days, without names", "We keep billing data for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
+    expect(a).not.toMatch(/forever|for ever|permanent/i);
+    await published("CON-A18"); const body = { name: "Maya Lopez", device: dev(1) };
+    expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["A"] } })).status).toBe(400); // the age box is required by the server
+    expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["B"] } })).status).toBe(400);
+    expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: "2026-10-14", boxes: ["A", "B"] } })).status).toBe(400); // the old version no longer counts
+    expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: tick("K4") }, {}, T + 9)).status).toBe(200);
+    expect(rows("K4")[0]).toMatchObject({ boxes: "A,B", version: CONSENT_VERSION, text_hash: sha(wordingOf("K4")) });
   });
   test("K4: the notice says who invited me is recorded; 24 hours after the game that row, the seat and the invitation record are gone, the organizer's rows stay", async () => {
     const h = await published("CON-4"); expect(boxesOf("K4")[0]![1]).toContain("who invited me is recorded until then");

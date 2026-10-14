@@ -7,7 +7,7 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const link = (text) => esc(text)
     .replace(/Terms &amp; Conditions|Terms/, (m) => `<a href="/terms.html" target="_blank" rel="noopener">${m}</a>`)
-    .replace(/Privacy Policy/, (m) => `<a href="/legal.html#privacy" target="_blank" rel="noopener">${m}</a>`)
+    .replace(/Privacy Policy/, (m) => `<a href="/privacy.html" target="_blank" rel="noopener">${m}</a>`)
     .replace(/Refund Policy/, (m) => `<a href="/refund-policy.html" target="_blank" rel="noopener">${m}</a>`);
   async function mount(el, kind, opts) {
     opts = opts || {};

@@ -29,7 +29,7 @@
     }
     const bd = info && info.brand && typeof info.brand === "object" ? info.brand : null, bLogo = bd && typeof bd.logo === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(bd.logo) ? bd.logo : ""; // the organizer's own logo and name, or ours in writing
     $app.innerHTML = `<header class="top"><span class="brand">${bLogo ? `<img class="blogo" alt="" src="${esc(bLogo)}"> ` : ""}${esc(bd && bd.name ? bd.name : "Corporate Tic Tac Toe")}</span><span class="meta">${v.state === "done" ? "Finished" : v.state === "running" ? "Live" : "Not started"}</span></header><main class="main1">${body}</main>
-      <footer class="meta">Names only. Nothing else about you is shown. <a href="/legal.html#privacy">Privacy</a>${v.commit ? ` &middot; Draw fingerprint <span class="mono">${esc(v.commit.slice(0, 12))}</span>` : ""}</footer>`;
+      <footer class="meta">Names only. Nothing else about you is shown. <a href="/privacy.html">Privacy</a>${v.commit ? ` &middot; Draw fingerprint <span class="mono">${esc(v.commit.slice(0, 12))}</span>` : ""}</footer>`;
   }
   async function tick() {
     if (info === null) { try { info = await read("GET", `/api/z/${encodeURIComponent(EID)}/info`); } catch (e) { info = false; } } // the organizer's company name and logo (public)

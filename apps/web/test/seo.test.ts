@@ -5,7 +5,7 @@ import { PACKS } from "../../../packages/shared/src/pricing";
 
 const PUB = new URL("../public/", import.meta.url), ORIGIN = "https://corporate-tic-tac-toe.pages.dev";
 const rd = (f: string) => readFileSync(new URL(f, PUB), "utf8");
-const INDEXABLE = ["index.html", "partner.html", "legal.html", "terms.html", "legal-position.html", "dpa.html", "subprocessors.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html", "refund-policy.html"];
+const INDEXABLE = ["index.html", "partner.html", "legal.html", "terms.html", "legal-position.html", "dpa.html", "subprocessors.html", "privacy.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html", "refund-policy.html"];
 const NOINDEX = ["signin.html", "pay.html", "paytest.html", "ai-link.html", "report.html", "z.html", "zc.html", "big.html", "404.html", "owner-visits.html"];
 const urlOf = (f: string) => ORIGIN + (f === "index.html" ? "/" : "/" + f);
 const meta = (h: string, re: RegExp) => (h.match(re) ?? [])[1] ?? "";
@@ -63,7 +63,7 @@ describe("each indexable page", () => {
     for (const w of ["Inter-normal-400.woff2", "Fraunces-normal-500-700.woff2"]) expect(h).toContain(`<link rel="preload" href="/fonts/${w}" as="font" type="font/woff2" crossorigin>`);
     for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); /* termsbox.js is NOT deferred: site.js draws the Terms boxes at once when the page is opened as /#login */ // theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
     expect(h).toMatch(/<script src="\/common\.js"><\/script><script src="\/google\.js"><\/script>(<script src="\/termsbox\.js"><\/script>)?<script src="\/site\.js"><\/script>\s*<\/body>/); // the page scripts sit at the very end
-    expect(h).not.toMatch(/(src|href)="https?:\/\/(?!corporate-tic-tac-toe\.pages\.dev|shobhakamalsolutions\.pages\.dev)/);
+    expect(h).not.toMatch(/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)="https?:\/\/(?!corporate-tic-tac-toe\.pages\.dev)/); // nothing is LOADED from elsewhere; the uniform footer only links to the sister sites
     expect(rd("../../../pages/build.mjs" as any).includes("max-age=31536000, immutable")).toBe(true);
   });
 });

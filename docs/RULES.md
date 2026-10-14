@@ -77,6 +77,13 @@ The product rule: in every use case the players' own phones and laptops do the c
 
 The server never looks at a board, never decides whose turn it is, never runs a clock, never builds a bracket and never ranks anybody. `apps/edge/test/server-does-no-game-work.test.ts` fails if a game rule is imported into the Worker, and lists the only things the Worker may take from the game package (the hash check of the sealed seed).
 
+## J. Adults only, anonymous logs, the deletion alarm, nomination
+- R33 Adults only. The second join box says only "I am 18 or older." It is never ticked in advance, the server refuses a join without it, and the Terms version (2026-10-15) and a hash of the wording are recorded with the row (test: `apps/edge/test/consent.test.ts`). The first join box says what stays (the results for 365 days without names, billing data) and that the notice is available in Hindi on request.
+- R34 The record of an anonymous visitor (a refused or failed request with no tournament and no organizer) keeps the first part of the network address only (IPv4 /24, IPv6 /48) and is removed after 90 days (test: `apps/edge/test/audit.test.ts`).
+- R35 `GET /api/status/health` says `ok: false` and counts `overdue_purge` when a tournament is more than 30 minutes past its 23-hour deletion and still holds players (the clear-text bracket names in `ttt_p` included), so a stopped clock is seen; the mail log is forgotten after 3 days by the same tick (test: `apps/edge/test/admin.test.ts`, A7b).
+- R36 A player can ask to name another person who may use their rights (DPDP Act section 14) from the game page; the request lands in the owner's queue and the person is named by e-mail to the Grievance Officer (tests: `apps/edge/test/rights.test.ts`, `apps/web/test/rights-pages.test.ts`).
+- R37 At the end of day 365 nothing of a tournament is left: the match record, the agreed board results (`ttt_b`) and the pause times (`ttt_z`) go with the settings and the winners record (test: `apps/edge/test/tournament.test.ts`, G18/D5).
+
 ## Known limits (stated, not hidden)
 - The server draws the secret, so the server is trusted to draw it fairly and not to look. Adding a public beacon number at the start removes even that; the code supports it (`seedOf(..., beacon)`), the organizer console does not add one yet.
 - The server is a mailbox, so it can be handed a wrong thing (a move out of turn, a wrong report). It cannot make the phones believe it: every phone replays the stored moves with the rules and ignores a move that breaks them. A wrong result needs the other player to agree, or to be away; if the other player reports something else, the board is flagged and the Organizer settles it.
