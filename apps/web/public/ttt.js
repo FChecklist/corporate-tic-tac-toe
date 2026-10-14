@@ -31,17 +31,44 @@
   const top = () => brand() + (hasBrand() ? head() : "");
   const brand = () => {
     const b = INFO && INFO.brand;
-    if (!b || (!b.name && !b.logo)) return `<div class="zbrand" data-bg="#0B5D5B" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`;
+    if (!b || (!b.name && !b.logo)) return `<div class="zbrand zdef" data-bg="#0B5D5B" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`;
     return `<div class="zbrand" data-bg="${esc(b.color)}" data-fg="${esc(b.fg || "#ffffff")}">${b.logo ? `<img class="zblogo" alt="" src="${esc(b.logo)}">` : ""}${b.name ? `<b>${esc(b.name)}</b>` : ""}</div>`;
   };
-  const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
+  const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { if (!el.classList.contains("zdef")) el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const set = (html) => { $app.innerHTML = html; paintBrand(); };
   const SQ = ["top left", "top middle", "top right", "middle left", "centre", "middle right", "bottom left", "bottom middle", "bottom right"];
+  // ---------- short, friendly movement (200 to 400 ms; none with "reduce motion"). Each animation plays once, when the thing it shows first appears: the page redraws itself every second or so, so a class is only given on that one redraw. ----------
+  const MOTION = () => { try { return !matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+  const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const winLine = (cells) => { for (const l of LINES) { const m = cells[l[0]]; if (m && m === cells[l[1]] && m === cells[l[2]]) return l; } return null; }; // which three squares made the line (drawn only, the rules live in tttgame.js)
+  const SEEN = { cells: {}, won: new Set(), turn: {}, first: true };
+  const OPEN = new Set(); // which fold-away blocks are open (kept over redraws)
+  const fold = (key, title, inner) => `<details class="tfold" data-fold="${key}"${OPEN.has(key) ? " open" : ""}><summary>${title}</summary>${inner}</details>`;
+  const bindFolds = () => document.querySelectorAll("details[data-fold]").forEach((d) => { d.ontoggle = () => { if (d.open) OPEN.add(d.dataset.fold); else OPEN.delete(d.dataset.fold); }; });
+  /** a short burst of confetti (about 1.4 s) for a won board or the title */
+  const celebrate = () => {
+    if (!MOTION()) return;
+    const cv = document.createElement("canvas"); cv.className = "tconf"; cv.setAttribute("aria-hidden", "true"); document.body.appendChild(cv);
+    const ctx = cv.getContext("2d"); if (!ctx) { cv.remove(); return; }
+    const W = (cv.width = innerWidth), H = (cv.height = innerHeight), cols = ["#D61F3A", "#1565D8", "#FFB703", "#0B8F6B", "#7B3FE4", "#FF7A1A"];
+    const ps = Array.from({ length: 90 }, () => ({ x: W / 2 + (Math.random() - .5) * W * .5, y: H * .35, vx: (Math.random() - .5) * 9, vy: -4 - Math.random() * 7, r: 4 + Math.random() * 5, c: cols[(Math.random() * cols.length) | 0], a: Math.random() * 6, va: (Math.random() - .5) * .4 }));
+    const t0 = performance.now();
+    (function f(t) { ctx.clearRect(0, 0, W, H); for (const p of ps) { p.vy += .35; p.x += p.vx; p.y += p.vy; p.a += p.va; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 1.5); ctx.restore(); } if (t - t0 < 1400 && cv.isConnected) requestAnimationFrame(f); else cv.remove(); })(t0);
+  };
+  /** a number that counts up to its new value in about 0.35 s */
+  const COUNTS = {};
+  const countUps = () => document.querySelectorAll("[data-count]").forEach((el) => {
+    const key = el.dataset.ck || el.id || "c", to = Number(el.dataset.count), from = COUNTS[key] === undefined ? to : COUNTS[key]; COUNTS[key] = to;
+    if (from === to || !MOTION()) { el.textContent = String(to); return; }
+    const t0 = performance.now(); (function f(t) { const k = Math.min(1, (t - t0) / 350); el.textContent = String(Math.round(from + (to - from) * k)); if (k < 1 && el.isConnected) requestAnimationFrame(f); })(t0);
+  });
 
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
   let tb = null, typedName = "";
   const joinView = () => {
-    set(`${top()}<div class="zcard zform"><h2>Join the tournament</h2>
+    set(`${top()}<div class="zcard zform tjoin"><h2>Join the tournament</h2>
+      <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Tick the boxes</span></li><li><b>2</b><span>Type your name</span></li><li><b>3</b><span>Press Join</span></li></ol>
+      <p class="tlead">Win your board to reach the next round. The last player standing is the champion.</p>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask your name only. Your organizer sees it and other players see it on the bracket.</p>${planned()}
       <p class="spriv"><a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
@@ -84,24 +111,37 @@
 
   // ---------- the board ----------
   const secs = (ms) => Math.max(0, Math.ceil((ms - (Date.now() + skew)) / 1000));
-  const boardHtml = (b, live) => {
+  const boardKey = (s, b) => (s.roundName || "") + "|" + b.gameNo + "|" + (s.you || "") + "|" + (s.vs || "");
+  const boardHtml = (b, live, key) => {
     const mark = (c) => (c === 1 ? "X" : c === 2 ? "O" : "");
     const mine = b.yourMark; // "X" | "O"
-    return `<div class="tboard" role="grid" aria-label="Tic tac toe board">${b.cells.map((c, i) => `<button class="tsq ${c === 1 ? "x" : c === 2 ? "o" : ""}" data-i="${i}" role="gridcell" aria-label="${SQ[i]}${c ? ", " + mark(c) : ", empty"}" ${live && c === 0 && b.yourTurn && !b.done ? "" : "disabled"}>${mark(c)}</button>`).join("")}</div><p class="zsmall tcen">You are <b>${mine || "-"}</b>. X moves first.</p>`;
+    const prev = SEEN.cells[key], wl = b.done ? winLine(b.cells) : null, fresh = !!wl && !SEEN.won.has(key + "|" + b.cells.join(""));
+    return `<div class="tboard" role="group" aria-label="Tic tac toe board">${b.cells.map((c, i) => `<button class="tsq ${c === 1 ? "x" : c === 2 ? "o" : ""}${c && prev && !prev[i] && MOTION() ? " pop" : ""}${wl && wl.includes(i) ? " win" + (fresh ? " winnew" : "") : ""}" data-i="${i}" aria-label="${SQ[i]}${c ? ", " + mark(c) : ", empty"}" ${live && c === 0 && b.yourTurn && !b.done ? "" : "disabled"}>${mark(c)}</button>`).join("")}</div><p class="zsmall tcen">You are <b>${mine || "-"}</b>. X moves first.</p>`;
   };
   const playing = (s) => {
     const b = s.board;
     if (!b) { set(`${top()}<div class="zcard"><h2>${esc(s.roundName)}</h2><p>Your board is finished. Waiting for your team.</p></div>${others(s)}`); return; }
-    const t = b.deadlineMs ? secs(b.deadlineMs) : null;
-    const status = b.done ? (b.winner === s.you ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn);
-    set(`${top()}<div class="zcard"><h2>${esc(s.roundName)}${s.team ? " &middot; " + esc(s.team) : ""}</h2>
-      <p class="tvs"><b>${esc(s.you)}</b> vs <b>${esc(s.vs || (b.a === s.you ? b.b : b.a))}</b></p>
+    const t = b.deadlineMs ? secs(b.deadlineMs) : null, key = boardKey(s, b);
+    const won = b.done && b.winner === s.you, opp = s.vs || (b.a === s.you ? b.b : b.a), mine = b.yourMark, theirs = mine === "X" ? "O" : "X";
+    const status = b.done ? (won ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn);
+    const tone = b.done ? (won ? "won" : "over") : s.paused ? "pause" : b.yourTurn ? "go" : "wait";
+    const instr = b.done ? (won ? "Well played! Keep this page open." : "This board is finished. Keep this page open.") : s.paused ? "The host paused the game. It carries on shortly." : b.yourTurn ? `Tap a square to place your ${mine}.` : `${esc(opp)} is choosing a square.`;
+    const flash = !SEEN.first && SEEN.turn[key] !== undefined && SEEN.turn[key] !== !!b.yourTurn && MOTION() ? " flash" : "";
+    const fresh = b.done && winLine(b.cells) && !SEEN.won.has(key + "|" + b.cells.join(""));
+    const turnName = b.turn;
+    set(`${top()}<div class="zcard tplay"><h2>${esc(s.roundName)}${s.team ? " &middot; " + esc(s.team) : ""}</h2>
+      <div class="tplayers" role="group" aria-label="Players"><span class="tpl ${mine === "X" ? "x" : "o"}${!b.done && turnName === s.you ? " on" : ""}"><i>${mine}</i><b>${esc(s.you)}</b> <em>(you)</em></span><span class="tvsw">vs</span><span class="tpl ${theirs === "X" ? "x" : "o"}${!b.done && turnName !== s.you ? " on" : ""}"><i>${theirs}</i><b>${esc(opp)}</b></span></div>
       ${s.flagged ? `<div class="zbanner warn" role="alert">The two reports of this board are different. The organizer will settle it.</div>` : ""}
-      <p class="tstat ${b.yourTurn ? "mine" : ""}" role="status">${status}${t !== null && !s.paused ? ` <span class="tclock" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p>
-      ${boardHtml(b, true)}
-      <p class="zsmall tcen">Game ${b.gameNo}${b.games > 1 ? " (earlier games were drawn)" : ""}. A draw is replayed with the marks swapped, up to 3 games. If the clock runs out, a square is played for you. Twice in a row loses the board.</p></div>${others(s)}
+      <div class="tbanner ${tone}${flash}"><p class="tstat ${b.yourTurn ? "mine" : ""}" role="status"><span class="tstxt">${status}</span>${t !== null && !s.paused && !b.done ? ` <span class="tclock${t <= 5 ? " low" : t <= 10 ? " mid" : ""}" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p><p class="tinstr">${instr}</p></div>
+      ${boardHtml(b, true, key)}
+      ${b.done ? "" : `<p class="tgoal">Win this board to move on.</p>`}
+      ${fold("rules", "How this board works", `<p class="zsmall">Game ${b.gameNo}${b.games > 1 ? " (earlier games were drawn)" : ""}. A draw is replayed with the marks swapped, up to 3 games. If the clock runs out, a square is played for you. Twice in a row loses the board.</p>`)}</div>${others(s)}
       <p class="zsmall tcen"><a href="/big.html?e=${encodeURIComponent(EID)}" target="_blank" rel="noopener">Watch the whole bracket</a></p>`);
     document.querySelectorAll(".tsq").forEach((el) => el.addEventListener("click", () => play(Number(el.dataset.i))));
+    bindFolds();
+    // remember what was drawn, so the next redraw knows what is new
+    SEEN.cells[key] = b.cells.slice(); SEEN.turn[key] = !!b.yourTurn; SEEN.first = false;
+    if (fresh) { SEEN.won.add(key + "|" + b.cells.join("")); if (won) celebrate(); }
   };
   const others = (s) => (s.boards && s.boards.length > 1 ? `<div class="zcard"><h2>Your team's boards</h2>${s.boards.map((x) => `<p class="zsmall">${esc(x.a)} vs ${esc(x.b)}: ${x.done ? (x.winner ? esc(x.winner) + " won" : "done") : "playing, game " + x.gameNo}</p>`).join("")}</div>` : "");
   const play = async (cell) => {
@@ -110,13 +150,14 @@
   };
   const rankHtml = (r) => (r && r.length ? `<div class="zcard"><h2>Results</h2><ol class="trank">${r.map((x) => `<li><b>${esc(x.name)}</b>${x.tie ? `<small>${esc(x.tie)}</small>` : ""}</li>`).join("")}</ol></div>` : "");
 
-  const render = (s) => {
+  const render = (s) => { try { render0(s); } finally { countUps(); } };
+  const render0 = (s) => {
     last = s; skew = (s.serverNow || Date.now()) - Date.now();
-    if (s.phase === "waiting") set(`${top()}<div class="zcard" role="status"><h2>You are in</h2><p>Waiting for the host to start the tournament. ${s.joined ? esc(s.joined) + " joined so far." : ""}</p>${planned()}<p class="zsmall">The draw is sealed before anyone joins. Its fingerprint: <span class="mono">${esc((s.commit || "").slice(0, 16))}</span>. After the start the host shows the secret, so anybody can check the draw.</p></div>`);
+    if (s.phase === "waiting") set(`${top()}<div class="zcard twait" role="status"><h2>You are in</h2><div class="tbig" aria-hidden="true"><span class="tmk x">X</span><span class="tmk o">O</span></div><p class="tlead">Waiting for the host to start the tournament.</p><p class="tjoined"><b id="tjn" data-count="${Number(s.joined) || 0}" data-ck="joined">${Number(s.joined) || 0}</b> ${Number(s.joined) === 1 ? "player has" : "players have"} joined so far</p><div class="tdo"><b>What to do:</b> nothing yet. Keep this page open. When the host starts, your board appears here.</div>${planned()}<p class="zsmall">The draw is sealed before anyone joins. Its fingerprint: <span class="mono">${esc((s.commit || "").slice(0, 16))}</span>. After the start the host shows the secret, so anybody can check the draw.</p></div>`);
     else if (s.phase === "playing") playing(s);
-    else if (s.phase === "champion") set(`${top()}<div class="zcard" role="status"><h2>You are the champion</h2><p>Well played, ${esc(s.you)}.</p></div>${rankHtml(s.ranking)}`);
-    else if (s.phase === "out") set(`${top()}<div class="zcard" role="status"><h2>${esc(s.message)}</h2><p>You went out in the ${esc(s.roundName)}.${s.place ? " Your place: " + esc(s.place) + "." : ""}</p><p><a href="/big.html?e=${encodeURIComponent(EID)}">Watch the bracket</a></p></div>${rankHtml(s.ranking)}`);
-    else if (s.phase === "next") set(`${top()}<div class="zcard" role="status"><h2>${esc(s.message)}</h2><p class="zsmall">Keep this page open. It moves on by itself.</p></div>`);
+    else if (s.phase === "champion") { set(`${top()}<div class="zcard tchamp" role="status"><h2>You are the champion</h2><div class="ttrophy" aria-hidden="true">&#127942;</div><p class="tlead">Well played, ${esc(s.you)}.</p><p class="zsmall">Every board you played was won. Thank you for taking part.</p></div>${rankHtml(s.ranking)}`); if (!SEEN.champ) { SEEN.champ = true; celebrate(); } }
+    else if (s.phase === "out") set(`${top()}<div class="zcard tout" role="status"><h2>${esc(s.message)}</h2><div class="ttrophy" aria-hidden="true">&#128079;</div><p class="tlead">You went out in the ${esc(s.roundName)}.${s.place ? " Your place: <b>" + esc(s.place) + "</b>." : ""}</p><p class="zsmall">Good game! You can still watch the bracket.</p><a class="zbtn alt" href="/big.html?e=${encodeURIComponent(EID)}">Watch the bracket</a></div>${rankHtml(s.ranking)}`);
+    else if (s.phase === "next") set(`${top()}<div class="zcard tnext" role="status"><h2>${esc(s.message)}</h2><div class="tbig" aria-hidden="true"><span class="tmk x">X</span><span class="tmk o">O</span></div><p class="zsmall">Keep this page open. Your next board appears here by itself.</p></div>`);
     else set(`${top()}<div class="zcard" role="status"><h2>${esc(s.message || "Watching")}</h2><p><a href="/big.html?e=${encodeURIComponent(EID)}">Watch the bracket</a></p></div>`);
   };
   // a person the organizer removed is told so, in words, and does not get the join form again (the seat stays in the list; the phone just stops)
@@ -140,7 +181,7 @@
     }
     timer = setTimeout(tick, last && last.phase === "playing" ? 1200 : 3000);
   };
-  setInterval(() => { const c = document.getElementById("clk"); if (c && last && last.board && last.board.deadlineMs) c.textContent = secs(last.board.deadlineMs) + "s"; }, 500);
+  setInterval(() => { const c = document.getElementById("clk"); if (c && last && last.board && last.board.deadlineMs) { const n = secs(last.board.deadlineMs); c.textContent = n + "s"; c.classList.toggle("low", n <= 5); c.classList.toggle("mid", n > 5 && n <= 10); } }, 500);
   const start = () => { if (!pid) joinView(); else tick(); };
   if (!EID) { set(`${head()}<div class="zcard"><h2>Open your game link</h2><p class="zsmall">Ask your organizer for the link to this game.</p></div>`); return; }
   api("GET", `/api/z/${EID}/info`).then((i) => { INFO = i; if (i.cancelled) { set(`${head()}<div class="zcard" role="status"><h2>This game was cancelled by the organizer</h2><p class="zsmall">There is nothing to do on this page.</p></div>`); return; } start(); }).catch((e) => { if (e.status === 404) set(`${head()}<div class="zcard" role="status"><h2>We could not find this game</h2><p class="zsmall">Please check the link, or ask your organizer to send it again.</p></div>`); else if (e.status === 403) set(`${head()}<div class="zcard" role="status"><h2>This game is not open yet</h2><p class="zsmall">Please try again later.</p></div>`); else start(); });

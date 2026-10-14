@@ -10,3 +10,6 @@
 @media (min-width:980px){.cg-line{display:inline}}
 
 /*tap-fix*/.cg-wrap{min-height:44px}.cg-bar a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px}
+
+/* on a phone the row of games scrolls sideways: a soft fade on the right shows there is more */
+@media (max-width:720px){.cg-wrap{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);scrollbar-width:none;padding-right:28px}.cg-wrap::-webkit-scrollbar{display:none}}

@@ -42,7 +42,7 @@ describe("the player page runs the game on the phone (docs/RULES.md, section I)"
       await waiter.waitFor((t) => t.includes("Your turn"), 9000);
       const moves = world.raw.query("SELECT sq, at_ms, pid FROM ttt_mv WHERE eid=?").all(id) as any[];
       expect(moves.length).toBe(1); expect(moves[0]).toMatchObject({ sq: 4, at_ms: world.now }); // the server's own clock stamp
-      expect(waiter.html()).toMatch(/class="tsq [xo]"[^>]*data-i="4"|data-i="4"[^>]*class="tsq [xo]"/);
+      expect(waiter.html()).toMatch(/class="tsq [xo][^"]*"[^>]*data-i="4"|data-i="4"[^>]*class="tsq [xo][^"]*"/);
     } finally { await a.close(); await b.close(); }
   }, 30_000);
   test("the page never sends a rule's result to the server except its own report of a finished board, and never a draw: the game page posts only squares, claims and reports", async () => {

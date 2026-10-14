@@ -357,3 +357,10 @@ html[data-theme] .chip.on{background:#fff}
 .tdots button{width:24px!important;height:24px!important;box-sizing:border-box;border:6px solid transparent!important;background-clip:content-box!important;outline:2px solid rgba(255,255,255,.55);outline-offset:-6px}
 .tdots button[aria-pressed="true"]{outline-color:#fff;box-shadow:none}
 .tb-row label{flex:1;align-self:stretch;cursor:pointer}
+
+/* the colour dots: a 44 px tap area around each small dot, so a thumb can hit them */
+.tdots,.tdots:where(*){gap:0;padding:0 4px}
+.tdots button,.tdots button:where(*){width:44px!important;height:44px!important;padding:15px!important;border:0!important;border-radius:50%;background-clip:content-box!important;box-sizing:border-box}
+.tdots button[aria-pressed="true"]{box-shadow:none;outline:2px solid #fff!important;outline-offset:-12px!important}
+.tdots button:focus-visible{outline:3px solid var(--acc);outline-offset:-6px}
+@media (max-width:960px){.tdots{top:46px!important;padding:0 4px;gap:0}.tdots button{width:44px!important;height:44px!important}}

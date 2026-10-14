@@ -13,10 +13,13 @@
     if (!c[4] && Math.random() < 0.8) return 4;
     return f[Math.floor(Math.random() * f.length)];
   };
+  const MOTION = () => { try { return !matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+  const winLine = (c) => { for (const l of LINES) { const m = c[l[0]]; if (m && m === c[l[1]] && m === c[l[2]]) return l; } return null; };
+  let prev = null, shownWin = false;
   let games = 0, you = Math.random() < 0.5 ? 1 : 2, cells, turn, over, msg = "", history = [];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const mark = (v) => (v === 1 ? "X" : v === 2 ? "O" : "");
-  function fresh() { games++; cells = Array(9).fill(0); turn = 1; over = false; msg = ""; if (turn !== you) computer(); }
+  function fresh() { prev = null; shownWin = false; games++; cells = Array(9).fill(0); turn = 1; over = false; msg = ""; if (turn !== you) computer(); }
   function computer() { if (over || turn === you) return; const i = pick(cells, turn); cells[i] = turn; settle(); }
   function settle() {
     const w = winner(cells);
@@ -29,13 +32,15 @@
     turn = turn === 1 ? 2 : 1;
   }
   function paint() {
-    $app.innerHTML = `<div class="zhead"><b>Corporate Tic Tac Toe</b></div><div class="zcard"><h2>Try it: you against the computer</h2>
-      <p class="tstat" role="status">${over === true ? esc(msg) : over === "next" ? esc(msg) : turn === you ? "Your turn. You are " + mark(you) + "." : "The computer is thinking..."}</p>
-      <div class="tboard" role="grid" aria-label="Tic tac toe board">${cells.map((c, i) => `<button class="tsq ${c === 1 ? "x" : c === 2 ? "o" : ""}" data-i="${i}" role="gridcell" aria-label="Square ${i + 1}${c ? ", " + mark(c) : ", empty"}" ${c || over || turn !== you ? "disabled" : ""}>${mark(c)}</button>`).join("")}</div>
+    const wl = over === true ? winLine(cells) : null;
+    $app.innerHTML = `<div class="zbrand zdef"><b>CORPORATE TIC TAC TOE</b></div><div class="zcard"><h2>Try it: you against the computer</h2>
+      <div class="tbanner ${over === true ? (winner(cells) === you ? "won" : "over") : over === "next" ? "wait" : turn === you ? "go" : "wait"}"><p class="tstat" role="status">${over === true ? esc(msg) : over === "next" ? esc(msg) : turn === you ? "Your turn. You are " + mark(you) + "." : "The computer is thinking..."}</p><p class="tinstr">${over ? "" : turn === you ? "Tap a square to place your " + mark(you) + "." : ""}</p></div>
+      <div class="tboard" role="group" aria-label="Tic tac toe board">${cells.map((c, i) => `<button class="tsq ${c === 1 ? "x" : c === 2 ? "o" : ""}${c && prev && !prev[i] && MOTION() ? " pop" : ""}${wl && wl.includes(i) ? " win" + (!shownWin ? " winnew" : "") : ""}" data-i="${i}" aria-label="Square ${i + 1}${c ? ", " + mark(c) : ", empty"}" ${c || over || turn !== you ? "disabled" : ""}>${mark(c)}</button>`).join("")}</div>
       <p class="zsmall tcen">Game ${games} of up to 3. X moves first.</p>
       ${over === "next" ? `<button class="zbtn" id="nx">Start game ${games + 1}</button>` : over ? `<button class="zbtn" id="again">Play again</button>` : ""}
       ${history.length ? `<ul class="zlist">${history.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
       <p class="zsmall">In a real tournament the starter, the bracket and the tie-breaks come from a sealed random seed that nobody can change, and a move clock plays for a player who is away. Nobody pays to play. <a href="/">Back to the home page</a>.</p></div>`;
+    prev = cells.slice(); shownWin = !!wl;
     document.querySelectorAll(".tsq").forEach((b) => b.addEventListener("click", () => { const i = Number(b.dataset.i); if (cells[i] || over || turn !== you) return; cells[i] = you; settle(); paint(); if (!over && turn !== you) setTimeout(() => { computer(); paint(); }, 450); }));
     const nx = document.getElementById("nx"); if (nx) nx.addEventListener("click", () => { fresh(); paint(); if (turn !== you) setTimeout(() => { computer(); paint(); }, 450); });
     const ag = document.getElementById("again"); if (ag) ag.addEventListener("click", () => { games = 0; history = []; you = Math.random() < 0.5 ? 1 : 2; fresh(); paint(); });

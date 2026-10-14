@@ -1,7 +1,7 @@
 /* Corporate Tic Tac Toe, spectator view and big screen: dark, large, readable from the back of a hall, and fine on a phone. */
-:root{--bg:#06201f;--ink:#F2FFFD;--mute:#B5D6D2;--acc:#FFC93C;--pri:#0B5D5B;--line:#2A5C59;--x:#FFC93C;--o:#7FE0D6}
+:root{--bg:#071B3D;--ink:#F4F8FF;--mute:#B9CCEE;--acc:#FFC93C;--pri:#1565D8;--line:#2D5598;--x:#FF7A8C;--o:#6CB4FF}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;min-height:100%}
+html,body{margin:0;background:linear-gradient(180deg,#071B3D 0,#0B2A63 60%,#0A3A5C 100%) fixed;color:var(--ink);font-family:Inter,system-ui,sans-serif;min-height:100%}
 a{color:var(--acc)}
 #app{min-height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:2vh;padding:2.4vh 3vw}
 .msg{text-align:center;color:var(--mute);margin-top:30vh;font-size:clamp(16px,2vw,28px)}
@@ -15,9 +15,9 @@ h2{font:600 clamp(18px,2vw,30px) Inter,sans-serif;margin:1em 0 .4em;color:var(--
 .big1 .num.champ{font-size:clamp(40px,8vw,140px)}
 .rounds{display:flex;flex-wrap:wrap;gap:.6em;margin:.5em 0}
 .rounds span{border:2px solid var(--line);border-radius:999px;padding:.25em .9em;color:var(--mute);font-size:clamp(13px,1.3vw,20px)}
-.rounds span.on{border-color:var(--acc);color:var(--ink)}
+.rounds span.on{border-color:var(--acc);color:#1A1400;background:var(--acc);font-weight:700}
 .live{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:1.2vw}
-.mt{border:1px solid var(--line);border-radius:14px;padding:12px;background:#0A2B29}
+.mt{border:2px solid var(--line);border-radius:16px;padding:12px;background:#0C2554;box-shadow:0 6px 0 rgba(0,0,0,.25)}
 .mt h3{margin:0 0 8px;font:600 clamp(14px,1.2vw,18px) Inter,sans-serif}
 .mt h3 small{display:block;color:var(--acc);font-weight:500}
 .mbs{display:grid;gap:10px}
@@ -25,7 +25,7 @@ h2{font:600 clamp(18px,2vw,30px) Inter,sans-serif;margin:1em 0 .4em;color:var(--
 .mb .who{display:flex;justify-content:space-between;gap:8px;font-size:clamp(12px,1.1vw,16px);color:var(--mute)}
 .mb .who b{color:var(--ink)}
 .mb .g{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:180px}
-.mb .g i{aspect-ratio:1;display:grid;place-items:center;border:2px solid var(--line);border-radius:8px;font:800 clamp(20px,2.4vw,34px) Inter,sans-serif;font-style:normal}
+.mb .g i{aspect-ratio:1;display:grid;place-items:center;border:2px solid var(--line);background:#102F66;border-radius:10px;font:800 clamp(20px,2.4vw,34px) Inter,sans-serif;font-style:normal}
 .mb .g i.x{color:var(--x)}.mb .g i.o{color:var(--o)}
 .mb .st{font-size:clamp(12px,1.1vw,16px);color:var(--mute)}
 .mb.done .st{color:var(--acc)}
