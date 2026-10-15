@@ -10,7 +10,7 @@ const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.ur
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
 async function openPlayerPage(search = "?e=GAME-1") {
-  const w: any = new Window({ url: "https://corporate-tic-tac-toe.pages.dev/z.html" + search, width: 390, height: 780 });
+  const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
   w.fetch = async (url: string, init: any = {}) => {

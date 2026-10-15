@@ -8,11 +8,16 @@ export const TERMS_VERSION = "2026-10-15"; // the one version of the Terms: term
 export const BRAND = {
   name: "Corporate Tic Tac Toe",
   tagline: "Live games for companies",
-  support: "rajatsiroffice@gmail.com", // the contact address the site's legal page publishes
+  tag: "Tic Tac Toe", // the product tag at the start of every subject sent to people
+  support: "hello@corporatetambola.com", // the contact address the site's legal page publishes
   legalPath: "/legal.html",
-  defaultOrigin: "https://corporate-tic-tac-toe.pages.dev",
+  defaultOrigin: "https://tictactoe.corporatetambola.com",
   wine: "#0B5D5B", gold: "#FFC93C", gold2: "#FFE08A", ivory: "#F7FBFA", line: "#D5E3E1",
 } as const;
+
+/** "[Tambola] " at the start of every subject (once). */
+export const mailTag = `[${BRAND.tag}] `;
+export const tagSubject = (s: string) => (s.startsWith(mailTag) ? s : mailTag + s);
 
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const base = (origin?: string) => (origin || BRAND.defaultOrigin).replace(/\/+$/, "");
@@ -31,7 +36,7 @@ export function headerHtml(origin?: string): string {
 /** The footer row of every HTML e-mail: name, support address, legal link. */
 export function footerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#5C6F6D;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>Questions? Write to <a href="mailto:${BRAND.support}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
+  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#5C6F6D;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>Questions? Write to <a href="mailto:${BRAND.support}?subject=${encodeURIComponent(mailTag)}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
 }
 
 /** The full HTML page around some rows. */

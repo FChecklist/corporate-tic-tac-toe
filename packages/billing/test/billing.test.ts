@@ -81,12 +81,12 @@ describe("no GST (the seller is not registered, product decision 2026-10-09)", (
     const inv = invoice(false, DEFAULT_COMPANY, false);
     const html = renderInvoiceHtml(inv), text = renderInvoiceText(inv);
     expect(html).toContain("<b>INVOICE</b>"); expect(html).not.toContain("TAX INVOICE");
-    expect(html).toContain("IT Services by Rajat Agarwal"); expect(html).toContain("rajatsiroffice@gmail.com"); expect(html).toContain("(+91) 96503 97480");
+    expect(html).toContain("IT Services by Rajat Agarwal"); expect(html).toContain("hello@corporatetambola.com"); expect(html).toContain("(+91) 96503 97480");
     expect(html).not.toMatch(/CGST|SGST|IGST|Taxable value|Place of supply|A product of/); expect(html).toContain("GST is not charged");
     expect(text).toMatch(/^INVOICE/); expect(text).not.toMatch(/CGST|SGST|IGST|Taxable value|A product of|GSTIN: 09/); expect(text).toContain("TOTAL");
   });
   test("the seller is never a company: no Shobha Kamal, no CIN, no company PAN, no GSTIN, no address", () => {
-    expect(DEFAULT_COMPANY).toMatchObject({ legalName: "IT Services by Rajat Agarwal", cin: "", pan: "", gstin: "", addressLines: [], email: "rajatsiroffice@gmail.com", phone: "(+91) 96503 97480" });
+    expect(DEFAULT_COMPANY).toMatchObject({ legalName: "IT Services by Rajat Agarwal", cin: "", pan: "", gstin: "", addressLines: [], email: "hello@corporatetambola.com", phone: "(+91) 96503 97480" });
     expect(JSON.stringify(DEFAULT_COMPANY)).not.toMatch(/shobha/i);
   });
 });

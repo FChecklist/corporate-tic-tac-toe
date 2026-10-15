@@ -1,7 +1,7 @@
 {
   "_note": "Copy to config/company.json. GST is OFF (the seller is not registered); only the seller name, e-mail and mobile are printed on a receipt. If GST is ever switched on (GST_ENABLED in packages/billing), gstin, stateCode and sacCode must be filled in as well.",
   "legalName": "IT Services by Rajat Agarwal",
-  "email": "rajatsiroffice@gmail.com",
+  "email": "hello@corporatetambola.com",
   "phone": "(+91) 96503 97480",
   "sacDescription": "Software solutions and products",
   "invoiceFooter": "This is a computer generated invoice. GST is not charged."

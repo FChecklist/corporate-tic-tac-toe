@@ -191,7 +191,7 @@ describe("the third route: any AI that searches the web", () => {
     const text = pub("trust.html").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ");
     for (const f of FACTS) expect(text).toContain(f.say);
     expect(pub("trust.html")).not.toMatch(/<script/i); // plain page: readable by any crawler or AI, no JavaScript needed
-    expect(pub("llms.txt")).toContain("https://corporate-tic-tac-toe.pages.dev/trust.html");
+    expect(pub("llms.txt")).toContain("https://tictactoe.corporatetambola.com/trust.html");
   });
   test("the facts never boast: no 'best', '100% safe', 'fully compliant', 'unhackable', 'cheat-proof' or 'certified' as a claim, and the honest limits are present", () => {
     const all = FACTS.map((f) => f.say).join(" ") + " " + llmsTxt();

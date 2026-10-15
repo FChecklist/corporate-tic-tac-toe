@@ -6,7 +6,7 @@ import { Window } from "happy-dom";
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const PUBLIC = ["index", "about", "contact", "legal", "terms", "refund-policy", "dpa", "subprocessors", "partner", "partner-terms", "organizer-guide", "pricing", "brochure", "404"];
 const PRIVATE = ["z", "zc", "big", "host", "pay", "paylink", "paytest", "report", "signin", "demo", "owner-visits", "ai-link"];
-const LINKS = ["https://corporate-games.pages.dev/?from=tic-tac-toe", "https://corporate-tambola.pages.dev/", "https://corporate-bingo.pages.dev/", "https://corporate-tic-tac-toe.pages.dev/", "https://corporate-snakes-and-ladders.pages.dev/", "https://corporate-luck-by-chance.pages.dev/"];
+const LINKS = ["https://games.corporatetambola.com/?from=tictactoe", "https://corporatetambola.com/", "https://bingo.corporatetambola.com/", "https://tictactoe.corporatetambola.com/", "https://snakes.corporatetambola.com/", "https://luck.corporatetambola.com/"];
 
 describe("the Corporate Games bar", () => {
   test("every public page loads it, no play / console / pay page does, and the build ships it", () => {
@@ -15,13 +15,13 @@ describe("the Corporate Games bar", () => {
     const b = readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8"); expect(b).toContain('"gamesbar.js"'); expect(b).toContain('"gamesbar.css"');
   });
   test("the bar has exactly the six links, Tic Tac Toe is current, the line is hidden on phones, the colours and focus are as ordered", async () => {
-    const w = new Window({ url: "https://corporate-tic-tac-toe.pages.dev/" }); const d = w.document;
+    const w = new Window({ url: "https://tictactoe.corporatetambola.com/" }); const d = w.document;
     d.body.innerHTML = "<main>page</main>"; d.head.innerHTML = "";
     new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document);
     const bar = d.querySelector(".cg-bar")!; expect(d.body.firstElementChild).toBe(bar);
     expect([...bar.querySelectorAll("a")].map((a: any) => a.href)).toEqual(LINKS);
-    expect([...bar.querySelectorAll("a")].map((a: any) => a.textContent)).toEqual(["Corporate Games", "Tambola", "Bingo", "Tic Tac Toe", "Snakes and Ladders", "Luck by Chance"]);
-    const cur = [...bar.querySelectorAll('[aria-current="true"]')]; expect(cur.length).toBe(1); expect((cur[0] as any).textContent).toBe("Tic Tac Toe");
+    expect([...bar.querySelectorAll("a")].map((a: any) => a.textContent)).toEqual(["Corporate Games", "Corporate Tambola", "Corporate Bingo", "Corporate Tic Tac Toe", "Corporate Snakes & Ladders", "Corporate Luck by Chance"]);
+    const cur = [...bar.querySelectorAll('[aria-current="true"]')]; expect(cur.length).toBe(1); expect((cur[0] as any).textContent).toBe("Corporate Tic Tac Toe");
     expect(bar.querySelector(".cg-line")!.textContent).toBe("closed group, online engagement");
     expect(d.head.querySelector('link[href="/gamesbar.css"]')).toBeTruthy();
     new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document); expect(d.querySelectorAll(".cg-bar").length).toBe(1); // loading it twice adds nothing

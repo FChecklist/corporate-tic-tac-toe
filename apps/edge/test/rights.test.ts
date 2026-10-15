@@ -97,7 +97,7 @@ describe("U6 / D7: what do you hold about me, correct it, delete me", () => {
     expect(row).toMatchObject({ eid: "RQ-1", pid: a, kind: "access", status: "open", created_ms: T, due_ms: T + 7 * 86_400_000 });
     // mail: the organizer's own address and the owner's address, each once
     const m = mails(); const toOrg = m.filter((x) => x.to_addr === orgMail && /data request/i.test(x.subject)); const toOwner = m.filter((x) => x.to_addr === OWNER_NOTIFY_EMAIL);
-    expect(OWNER_NOTIFY_EMAIL).toBe("rajatsiroffice@gmail.com");
+    expect(OWNER_NOTIFY_EMAIL).toBe("hello@corporatetambola.com");
     expect(toOrg.length).toBe(1); expect(toOwner.length).toBe(1);
     expect(toOrg[0]!.body).toContain("within 7 days"); expect(toOrg[0]!.body).toContain("Maya Lopez"); expect(toOrg[0]!.body).toContain(NOUN[0]!.toUpperCase() + NOUN.slice(1) + " number: 1");
     expect(toOwner[0]!.body).toContain("within 7 days"); expect(toOwner[0]!.body).not.toContain("Maya"); // the owner's note names no player
@@ -142,10 +142,10 @@ describe("U6 / D7: what do you hold about me, correct it, delete me", () => {
   test("nomination (DPDP Act s14): it is a request in the owner's queue and goes to the organizer and the owner; the player is told the e-mail route; nothing is deleted", async () => {
     await game("RQ-N"); const a = await joinAs("RQ-N", 1, "Maya Lopez");
     const r = await ask("RQ-N", a, dev(1), "nomination", { note: "my sister" }); expect(r.status).toBe(200);
-    const b = await j(r); expect(b.kind).toBe("nomination"); expect(b.status).toBe("open"); expect(b.erased).toBeUndefined(); expect(b.message).toContain("rajatsiroffice@gmail.com"); expect(b.message).toContain("within 7 days");
+    const b = await j(r); expect(b.kind).toBe("nomination"); expect(b.status).toBe("open"); expect(b.erased).toBeUndefined(); expect(b.message).toContain("hello@corporatetambola.com"); expect(b.message).toContain("within 7 days");
     expect(count("SELECT COUNT(*) c FROM seat WHERE pid=?", a)).toBe(1); // nothing is deleted
     expect(raw.query("SELECT kind, status, note, due_ms FROM data_request").get()).toEqual({ kind: "nomination", status: "open", note: "my sister", due_ms: T + 7 * 86_400_000 });
-    const m = mails(); expect(m.some((x) => x.to_addr === orgMail && /nominat|section 14/i.test(x.body) && x.body.includes("rajatsiroffice@gmail.com"))).toBe(true);
+    const m = mails(); expect(m.some((x) => x.to_addr === orgMail && /nominat|section 14/i.test(x.body) && x.body.includes("hello@corporatetambola.com"))).toBe(true);
     expect(m.some((x) => x.to_addr === OWNER_NOTIFY_EMAIL && /section 14/.test(x.body))).toBe(true);
     const q = await j(await call("GET", "/api/owner/data-requests?status=open", undefined, { "x-organizer": "plat" })); expect(q.requests.map((x: any) => x.kind)).toEqual(["nomination"]); // the owner's queue
   });

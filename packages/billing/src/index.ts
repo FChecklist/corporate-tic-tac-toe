@@ -34,7 +34,7 @@ export interface Company {
   bank: { name: string; accountNumber: string; ifsc: string }; invoiceFooter: string;
 }
 export const DEFAULT_COMPANY: Company = {
-  legalName: "IT Services by Rajat Agarwal", cin: "", pan: "", gstin: "", stateCode: "", stateName: "", addressLines: [], email: "rajatsiroffice@gmail.com", phone: "(+91) 96503 97480",
+  legalName: "IT Services by Rajat Agarwal", cin: "", pan: "", gstin: "", stateCode: "", stateName: "", addressLines: [], email: "hello@corporatetambola.com", phone: "(+91) 96503 97480",
   sacCode: "", sacDescription: "Software solutions and products", bank: { name: "", accountNumber: "", ifsc: "" }, invoiceFooter: "This is a computer generated invoice. GST is not charged.",
 };
 /** Which required details are still missing (a real tax invoice needs these). */

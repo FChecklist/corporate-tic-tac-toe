@@ -8,7 +8,7 @@ const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.ur
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms));
 
 async function hostPage(view: () => Record<string, unknown>, sure = true) {
-  const w: any = new Window({ url: "https://corporate-tic-tac-toe.pages.dev/host.html?e=GAME-1", width: 900, height: 800 });
+  const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/host.html?e=GAME-1", width: 900, height: 800 });
   const sent: { url: string; method: string; headers: any }[] = [];
   const asked: string[] = [];
   w.fetch = async (url: string, init: any = {}) => {

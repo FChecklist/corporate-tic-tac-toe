@@ -13,4 +13,4 @@ Disallow: /big.html
 Disallow: /preview.html
 Disallow: /demo.html
 
-Sitemap: https://corporate-tic-tac-toe.pages.dev/sitemap.xml
+Sitemap: https://tictactoe.corporatetambola.com/sitemap.xml

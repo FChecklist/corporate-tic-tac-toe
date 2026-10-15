@@ -358,7 +358,7 @@ describe("removing people", () => {
     expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.cohost)).status).toBe(404);
     expect((await call("POST", `/api/z/PPL-1/people/${own.id}/remove`, {}, t.cohost)).status).toBe(200);
     expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.host)).status).toBe(200);
-    expect(rowsOf("SELECT subject FROM outbox WHERE subject LIKE 'A Host removed%'")).toHaveLength(1);
+    expect(rowsOf("SELECT subject FROM outbox WHERE subject LIKE '%A Host removed%'")).toHaveLength(1);
     expect(rowsOf("SELECT removed_by FROM person WHERE id=?", theirs.id)[0].removed_by).toMatch(/^h:/);
   });
   test("during the game only the Organizer and Host can remove; the seat STAYS in the public seat list, the phone stops, the prize is marked not given", async () => {

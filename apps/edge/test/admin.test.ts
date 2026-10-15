@@ -207,7 +207,7 @@ describe("E12: the mail bounce log", () => {
     const body = typeof payload === "string" ? payload : JSON.stringify(payload), ts = opts.ts ?? Math.floor(at / 1000);
     return call("POST", "/api/mail/events", body, { "svix-id": id, "svix-timestamp": String(ts), "svix-signature": opts.sig ?? sign(id, ts, body, opts.secret) }, at, { ...env, RESEND_WEBHOOK_SECRET: SECRET });
   };
-  const bounced = { type: "email.bounced", created_at: "2026-10-14T10:00:00Z", data: { email_id: "e1", from: "Corporate Tic Tac Toe <bingo@veridian-aios.com>", to: ["Maya.Lopez@Acme.com"], subject: "Corporate Tic Tac Toe: your sign-in code", bounce: { type: "Permanent", subType: "General", message: "550 5.1.1 maya.lopez@acme.com does not exist" } } };
+  const bounced = { type: "email.bounced", created_at: "2026-10-14T10:00:00Z", data: { email_id: "e1", from: "Corporate Tic Tac Toe <hello@corporatetambola.com>", to: ["Maya.Lopez@Acme.com"], subject: "Corporate Tic Tac Toe: your sign-in code", bounce: { type: "Permanent", subType: "General", message: "550 5.1.1 maya.lopez@acme.com does not exist" } } };
   test("with no secret set the address answers 404 and accepts nothing", async () => {
     const r = await call("POST", "/api/mail/events", JSON.stringify(bounced), { "svix-id": "m", "svix-timestamp": String(Math.floor(T / 1000)), "svix-signature": "v1,x" }); expect(r.status).toBe(404);
     expect(one("SELECT COUNT(*) c FROM mail_bounce").c).toBe(0);

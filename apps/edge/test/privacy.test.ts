@@ -291,7 +291,7 @@ describe("asking for deletion", () => {
     // a forged sender is not enough: the first mail only sends a code to the REGISTERED address; nothing is deleted yet
     const first = await j(await inbound({ from: "The Boss <Boss@Acme.com>", subject: "Re: your report", text: "Please DELETE all the data of PRV-MAIL now." }));
     expect(first.action).toBe("confirm-sent"); expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(2);
-    const ask = raw.query("SELECT to_addr, subject, body FROM outbox WHERE subject LIKE 'Confirm the deletion%' ORDER BY id DESC LIMIT 1").get() as any;
+    const ask = raw.query("SELECT to_addr, subject, body FROM outbox WHERE subject LIKE '%Confirm the deletion%' ORDER BY id DESC LIMIT 1").get() as any;
     expect(ask.to_addr).toBe("boss@acme.com"); const code = ask.body.match(/\b\d{6}\b/)[0];
     expect((await j(await inbound({ from: "Boss@acme.com", subject: "Re: Confirm", text: "delete PRV-MAIL code 000000" }))).action).not.toBe("deleted"); // a wrong code does nothing
     expect((await j(await inbound({ from: "stranger@evil.com", subject: "delete", text: "delete PRV-MAIL " + code }))).action).toBe("no-match"); // another sender, even with the code
@@ -299,14 +299,14 @@ describe("asking for deletion", () => {
     expect((await j(await inbound({ from: "Boss@acme.com", subject: "Re: Confirm", text: "delete PRV-MAIL " + code }, "in-secret"))).action).toBe("deleted");
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0);
     expect((await j(await inbound({ from: "Boss@acme.com", subject: "again", text: "delete PRV-MAIL " + code }))).action).not.toBe("deleted"); // the code works once
-    const confirmation = raw.query("SELECT subject, body FROM outbox WHERE subject LIKE 'Deleted:%' ORDER BY id DESC LIMIT 1").get() as any;
+    const confirmation = raw.query("SELECT subject, body FROM outbox WHERE subject LIKE '%Deleted:%' ORDER BY id DESC LIMIT 1").get() as any;
     expect(confirmation.subject).toMatch(/Deleted: participant data of PRV-MAIL/); expect(confirmation.body).toMatch(/365 days/);
   });
   test("a deletion code expires after 30 minutes, and a second request within 5 minutes does not send a second code", async () => {
     (env as any).INBOUND_SECRET = "in-secret"; await create("PRV-MAIL2"); await setContact("PRV-MAIL2", "boss@acme.com"); await joinAs(1, "Asha", "PRV-MAIL2");
     const inb = (text: string, at = T) => call("POST", "/api/inbound-email", { from: "boss@acme.com", subject: "delete", text }, { "x-inbound-secret": "in-secret" }, at);
     expect((await j(await inb("delete PRV-MAIL2"))).action).toBe("confirm-sent"); await inb("delete PRV-MAIL2", T + 60_000);
-    const mails = raw.query("SELECT body FROM outbox WHERE subject LIKE 'Confirm the deletion%'").all() as any[]; expect(mails.length).toBe(1);
+    const mails = raw.query("SELECT body FROM outbox WHERE subject LIKE '%Confirm the deletion%'").all() as any[]; expect(mails.length).toBe(1);
     const code = mails[0].body.match(/\b\d{6}\b/)[0];
     expect((await j(await inb("delete PRV-MAIL2 " + code, T + 31 * 60_000))).action).not.toBe("deleted");
     expect((raw.query("SELECT COUNT(*) c FROM participant WHERE eid='PRV-MAIL2'").get() as any).c).toBe(1);

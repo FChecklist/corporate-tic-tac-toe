@@ -76,7 +76,7 @@ describe("the player page offers the player's rights", () => {
     (d.getElementById("rt-hold") as any).click(); await tick(40);
     expect((d.getElementById("rt-nom") as any).hidden).toBe(true);
     (d.querySelector('input[value="nomination"]') as any).click(); await tick();
-    expect((d.getElementById("rt-nom") as any).hidden).toBe(false); expect(text(d)).toContain("rajatsiroffice@gmail.com"); expect(d.querySelector('#rt-nom a')!.getAttribute("href")).toBe("mailto:rajatsiroffice@gmail.com");
+    expect((d.getElementById("rt-nom") as any).hidden).toBe(false); expect(text(d)).toContain("hello@corporatetambola.com"); expect(d.querySelector('#rt-nom a')!.getAttribute("href")).toBe("mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20");
     expect(d.getElementById("rt-send")!.textContent).toBe("Send"); expect((d.getElementById("rt-warn") as any).hidden).toBe(true);
     (d.getElementById("rt-send") as any).click(); await tick(40);
     const sent = calls.filter((c) => c.body.kind !== "status");

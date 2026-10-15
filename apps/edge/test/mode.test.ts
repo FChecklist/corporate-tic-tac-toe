@@ -119,7 +119,7 @@ describe("e-mail in TEST mode goes only to the owner's allow-list", () => {
   test("the report mail follows the same rule (handled, not sent) and so does the daily retry of old mail", async () => {
     await toTest();
     expect(await sendReportMail(env, "boss@acme.com", "Report", "hello", [])).toBe(true); expect(sentReports.length).toBe(0);
-    expect(await sendReportMail(env, OWNER, "Report", "hello", [])).toBe(true); expect(sentReports.length).toBe(1); expect(sentReports[0]!.subject).toBe("[TEST] Report");
+    expect(await sendReportMail(env, OWNER, "Report", "hello", [])).toBe(true); expect(sentReports.length).toBe(1); expect(sentReports[0]!.subject).toBe("[TEST] [Tic Tac Toe] "+"Report");
     expect(q("SELECT outcome FROM mail_event ORDER BY id").map((r) => r.outcome)).toEqual(["suppressed_test_mode", "sent_test_allowlist"]);
     // a real mail queued before the switch is not sent now
     raw.run("INSERT INTO outbox(to_addr,subject,body,at_ms,sent) VALUES('real@person.com','Hi','body',?,0)", [T]);

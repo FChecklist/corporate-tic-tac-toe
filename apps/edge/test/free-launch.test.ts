@@ -110,7 +110,7 @@ describe("build first, pay to publish", () => {
     await call("POST", "/api/z/REM-1/publish", ok, h);
     const { housekeeping } = await import("../src/worker");
     await housekeeping(env as Env, T + 86_400_000); await housekeeping(env as Env, T + 2 * 86_400_000); // the next day: 6 hours to go; the day after: already started
-    const n = (raw.prepare("SELECT COUNT(*) AS c FROM outbox WHERE to_addr='boss@acme.com' AND subject LIKE 'Payment pending for your game%'").get() as any).c;
+    const n = (raw.prepare("SELECT COUNT(*) AS c FROM outbox WHERE to_addr='boss@acme.com' AND subject LIKE '%Payment pending for your game%'").get() as any).c;
     expect(n).toBe(1);
   });
   test("after a pack is bought, publishing counts as paid at once", async () => {

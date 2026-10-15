@@ -98,17 +98,17 @@ describe("cancel: a paid game becomes credit, never a refund", () => {
     const a = await j(await cancelIt(t.master, "GAME-1")); const b = await j(await cancelIt(t.host, "GAME-1")); const c = await j(await cancelIt(t.master, "GAME-1"));
     expect(b.already).toBe(true); expect(c.credit).toEqual(a.credit);
     expect(raw.prepare("SELECT COUNT(*) AS c FROM credit").get()).toEqual({ c: 1 });
-    expect(mailsLike("boss@acme.com", /^Game cancelled/)).toHaveLength(1); expect(mailsLike("priya@acme.com", /^Game cancelled/)).toHaveLength(1);
+    expect(mailsLike("boss@acme.com", /^\[Tic Tac Toe\] Game cancelled/)).toHaveLength(1); expect(mailsLike("priya@acme.com", /^\[Tic Tac Toe\] Game cancelled/)).toHaveLength(1);
     const both = await Promise.all([cancelIt(t.master, "GAME-1"), cancelIt(t.host, "GAME-1")]); for (const r of both) expect(r.status).toBe(200);
     expect(raw.prepare("SELECT COUNT(*) AS c FROM credit").get()).toEqual({ c: 1 });
   });
   test("the credit mail goes to the Organizer and the Host only and says the exact words of the rule", async () => {
     const t = await team(); await paidWithMoney(t.master, "GAME-1"); await cancelIt(t.host, "GAME-1");
     for (const to of ["boss@acme.com", "priya@acme.com"]) {
-      const m = mailsLike(to, /^Game cancelled/)[0]!;
+      const m = mailsLike(to, /^\[Tic Tac Toe\] Game cancelled/)[0]!;
       expect(m.body).toContain("stays as credit until 1 Oct 2027"); expect(m.body).toContain("We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.");
     }
-    expect(mailsLike("payer@acme.com", /^Game cancelled/)).toHaveLength(0);
+    expect(mailsLike("payer@acme.com", /^\[Tic Tac Toe\] Game cancelled/)).toHaveLength(0);
   });
 });
 
@@ -369,7 +369,7 @@ describe("lapse, expiry and the e-mails", () => {
     ever.clear(); // the tick forgets mail-log rows older than 3 days, so this test remembers every mail it has seen
     const t = await setup();
     const to = ["boss@acme.com", "priya@acme.com"];
-    for (const a of to) expect(mailsEver(a, /^Game cancelled/)).toHaveLength(1);
+    for (const a of to) expect(mailsEver(a, /^\[Tic Tac Toe\] Game cancelled/)).toHaveLength(1);
     await creditTick(env, exp - 31 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(0);
     await creditTick(env, exp - 29 * DAY); for (const a of to) { expect(mailsEver(a, /lapses on 1 Oct 2027/)).toHaveLength(1); expect(mailsEver(a, /lapses on/)[0]!.body).toContain("in 30 days"); }
     await creditTick(env, exp - 28 * DAY); await lifecycleTick(env as any, exp - 20 * DAY); for (const a of to) expect(mailsEver(a, /lapses on/)).toHaveLength(1); // not again

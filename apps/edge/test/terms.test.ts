@@ -14,7 +14,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const rd = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-const noFooter = (f: string) => rd(f).replace(/<footer class="uf"[\s\S]*?<\/footer>/, ""); // the uniform footer links the sister games on purpose
+const noFooter = (f: string) => rd(f).replace(/<footer class="uf"[\s\S]*?<\/footer>/, "").replace(/corporatetambola\.com/g, ""); // the uniform footer links the sister games on purpose
 const rows = () => raw.prepare("SELECT org, version, via, at_ms FROM organizer_terms ORDER BY at_ms, via").all() as { org: string; version: string; via: string; at_ms: number }[];
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
 const LINKS = ["/terms.html", "/dpa.html", "/organizer-guide.html", "/privacy.html"]; // the uniform footer (games-ops/footer/ufooter.py) links these documents

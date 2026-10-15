@@ -56,7 +56,7 @@ else:
     open(keyfile, "w").write("".join(f"{k}={v}\n" for k, v in kv.items())); print("platform key written to config/platform-key.txt (git-ignored)")
 toml = open(os.path.join(HERE, "wrangler.toml"), encoding="utf-8").read()
 company = re.search(r"^COMPANY_JSON = '(.*)'\s*$", toml, re.M).group(1)
-plain = {"DAILY_WRITE_BUDGET": "80000", "PUBLIC_ORIGIN": "https://" + sub, "MAIL_FROM": "Corporate Tic Tac Toe <tictactoe@veridian-aios.com>", "COMPANY_JSON": company}
+plain = {"DAILY_WRITE_BUDGET": "80000", "PUBLIC_ORIGIN": "https://" + sub, "MAIL_FROM": "Corporate Tic Tac Toe <hello@corporatetambola.com>", "COMPANY_JSON": company}
 cfg = {"compatibility_date": "2026-09-01", "compatibility_flags": ["nodejs_compat"], "d1_databases": {"DB": {"id": dbid}},
        "env_vars": {**{k: {"type": "plain_text", "value": v} for k, v in plain.items()}, **{k: {"type": "secret_text", "value": v} for k, v in kv.items()}}}
 s, j = api("PATCH", f"/accounts/{ACC}/pages/projects/{PROJECT}", {"deployment_configs": {"production": cfg, "preview": cfg}})

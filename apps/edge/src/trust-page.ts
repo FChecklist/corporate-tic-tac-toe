@@ -2,7 +2,7 @@
 // AI that searches the web all read the same words. tools/make-trust.ts writes the two files; a test regenerates them and fails if they differ, so they cannot drift.
 import { FACTS } from "./ai-facts";
 
-const ORIGIN = "https://corporate-tic-tac-toe.pages.dev";
+const ORIGIN = "https://tictactoe.corporatetambola.com";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const TRUST_UPDATED = "2026-10-07";
 const TITLE = "Safety, privacy and how it works: 10 facts | Corporate Tic Tac Toe";
@@ -28,7 +28,7 @@ ${facts}
 </ol>
 <div class="note"><b>Honest limits.</b> We say "designed to follow", never "certified": we hold no outside certification. We say cheating is "very hard", never "impossible". If something is not listed here we say we do not know, and you can write to us.</div>
 <p>More detail: <a href="/legal.html#privacy">Rules and privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/dpa.html">Data processing</a> &middot; <a href="/subprocessors.html">Sub-processors</a> &middot; <a href="/organizer-guide.html">Organizer guide</a> &middot; <a href="/demo.html">Try the free demo</a></p>
-<footer>Questions or requests: our Grievance Officer, <a href="mailto:rajatsiroffice@gmail.com">rajatsiroffice@gmail.com</a>. We reply within 30 days.</footer>
+<footer>Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</footer>
 </main></body></html>
 `;
 }

@@ -16,10 +16,10 @@ crons = ["17 3 * * *"]   # daily 03:17 UTC: deletes engagements older than 365 d
 
 [vars]
 DAILY_WRITE_BUDGET = "80000"
-MAIL_FROM = "Corporate Tic Tac Toe <tictactoe@veridian-aios.com>"   # own sender: set when the Resend domain exists
+MAIL_FROM = "Corporate Tic Tac Toe <hello@corporatetambola.com>"   # own sender: set when the Resend domain exists
 # MAIL_REPLY_TO = "the address organizers should reply to"
-# PUBLIC_ORIGIN = "https://YOUR-DOMAIN"
-COMPANY_JSON = '{"email":"rajatsiroffice@gmail.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
+# PUBLIC_ORIGIN = "https://tictactoe.corporatetambola.com"
+COMPANY_JSON = '{"email":"hello@corporatetambola.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
 
 # Route the API on the same domain as the Pages site so phones never make a cross-origin call (set when the domain is bought):
 # routes = [{ pattern = "YOUR-DOMAIN/api/*", zone_name = "YOUR-DOMAIN" }]

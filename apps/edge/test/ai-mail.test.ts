@@ -73,7 +73,7 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
   test("sign-up sends exactly one mail, the dedicated one; the console shows the same paste", async () => {
     const o = await organizer();
     const sent = outbox();
-    expect(sent.length).toBe(1); expect(sent[0]!.to_addr).toBe("boss@acme.com"); expect(sent[0]!.subject).toBe(AI_SUBJECT);
+    expect(sent.length).toBe(1); expect(sent[0]!.to_addr).toBe("boss@acme.com"); expect(sent[0]!.subject).toBe("[Tic Tac Toe] " + AI_SUBJECT);
     expect(sent[0]!.body.startsWith(AI_WARNING)).toBe(true); expect(sent[0]!.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
     expect(sent[0]!.body).not.toContain(o.ai); expect(sent[0]!.body).not.toContain(o.msg); // the lasting key stays in the console; the mail has its own 24-hour key
     const mk = mailedKey(sent[0]!.body); expect(mk).not.toBe(o.ai); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
@@ -87,13 +87,13 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
     await housekeeping(env as Env, T + 86_400_000); // payment reminder
     await call("GET", "/api/z/MAIL-1/info", undefined, {}, T + 40 * 3_600_000); // start passed unpaid: the "could not begin" mail
     const sent = outbox(); const subjects = sent.map((m) => m.subject);
-    expect(subjects.some((s) => /published/i.test(s))).toBe(true); expect(subjects.some((s) => /^Payment pending for your game/.test(s))).toBe(true); expect(subjects.some((s) => /could not begin/i.test(s))).toBe(true);
+    expect(subjects.some((s) => /published/i.test(s))).toBe(true); expect(subjects.some((s) => /^\[Tic Tac Toe\] Payment pending for your game/.test(s))).toBe(true); expect(subjects.some((s) => /could not begin/i.test(s))).toBe(true);
     for (const m of sent) {
-      if (DEDICATED.has(m.subject)) { expect(m.body).toMatch(LEAK); continue; }
+      if (DEDICATED.has(m.subject.replace("[Tic Tac Toe] ", ""))) { expect(m.body).toMatch(LEAK); continue; }
       expect(m.body + "\n" + m.subject).not.toMatch(LEAK); // forwardable
     }
-    expect(sent.filter((m) => m.subject === AI_SUBJECT).length).toBe(2); // sign-up and replace
-    expect(sent.filter((m) => m.subject === HOST_SUBJECT).length).toBe(1);
+    expect(sent.filter((m) => m.subject === "[Tic Tac Toe] " + AI_SUBJECT).length).toBe(2); // sign-up and replace
+    expect(sent.filter((m) => m.subject === "[Tic Tac Toe] " + HOST_SUBJECT).length).toBe(1);
     const pub = sent.find((m) => /published/i.test(m.subject))!;
     expect(pub.body).toContain("/z.html?e=MAIL-1"); expect(pub.body).toContain("/pay.html?e=MAIL-1");
     expect(pub.body).not.toMatch(/AI work link|Option 1|\/ai\//);
@@ -120,7 +120,7 @@ describe("Replace my AI link", () => {
     expect((await call("GET", `/ai/${o.ai}`)).status).toBe(404); expect((await call("GET", `/ai/${o.ai}/whoami`)).status).toBe(404);
     expect((await call("GET", "/api/whoami", undefined, { "x-organizer": o.ai })).status).toBe(403);
     expect((await call("GET", `/ai/${x.aiKey}`)).status).toBe(200); expect(await j(await call("GET", `/ai/${x.aiKey}/whoami`))).toEqual({ kind: "ai" });
-    const last = outbox().at(-1)!; expect(last.subject).toBe(AI_SUBJECT); expect(last.body).toMatch(/NEW personal AI work link/i);
+    const last = outbox().at(-1)!; expect(last.subject).toBe("[Tic Tac Toe] " + AI_SUBJECT); expect(last.body).toMatch(/NEW personal AI work link/i);
     expect(last.body).not.toContain(x.aiKey); expect(last.body).not.toContain(o.ai); // the mail carries its own 24-hour key, not the lasting one
     const mk = mailedKey(last.body); expect(mk).not.toBe(x.aiKey); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
     const rows = raw.prepare("SELECT method, path, status FROM ai_audit WHERE path='/api/org/ai/replace'").all() as any[];
@@ -149,7 +149,7 @@ describe("Replace my AI link", () => {
   test("a co-host key made later is e-mailed to the organizer in its own mail", async () => {
     const o = await organizer();
     const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.mailed).toBe(true);
-    const m = outbox().at(-1)!; expect(m.subject).toBe(HOST_SUBJECT); expect(m.to_addr).toBe("boss@acme.com"); expect(m.body).not.toContain(hk.hostKey); expect(m.body).toContain("boss@acme.com"); expect(m.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
+    const m = outbox().at(-1)!; expect(m.subject).toBe("[Tic Tac Toe] " + HOST_SUBJECT); expect(m.to_addr).toBe("boss@acme.com"); expect(m.body).not.toContain(hk.hostKey); expect(m.body).toContain("boss@acme.com"); expect(m.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
     const ck = m.body.match(/cbh_[0-9a-f]{48}/)![0]; expect(ck).not.toBe(hk.hostKey); expect((await call("GET", `/ai/${ck}`)).status).toBe(200); expect((await call("GET", `/ai/${hk.hostKey}`)).status).toBe(200);
   });
 });
@@ -181,7 +181,7 @@ describe("sending", () => {
     globalThis.fetch = (async (_u: any, init: any) => { calls.push(JSON.parse(init.body)); return new Response("{}", { status: ok ? 200 : 500 }); }) as any;
     env.RESEND_API_KEY = "re_test";
     await organizer();
-    expect(calls.length).toBe(1); expect(calls[0].subject).toBe(AI_SUBJECT); expect(calls[0].html).toContain("<h1"); expect(calls[0].text).toContain(AI_WARNING); expect(calls[0].html).toContain(AI_WARNING);
+    expect(calls.length).toBe(1); expect(calls[0].subject).toBe("[Tic Tac Toe] " + AI_SUBJECT); expect(calls[0].html).toContain("<h1"); expect(calls[0].text).toContain(AI_WARNING); expect(calls[0].html).toContain(AI_WARNING);
     ok = false;
     const mk = await j(await call("POST", "/api/start", { email: "second@acme.com" }, { "cf-connecting-ip": "2.2.2.2" }));
     expect(mk.aiKey).toMatch(/^cba_/);

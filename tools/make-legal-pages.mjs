@@ -10,7 +10,7 @@ const nl = tpl.includes("\r\n") ? "\r\n" : "\n";
 const head = tpl.slice(0, tpl.indexOf('<main class="legal">'));
 const foot = tpl.slice(tpl.indexOf("</main>"));
 // Search-engine and sharing tags, one set per page (unique description, canonical, Open Graph, Twitter card). Written idempotently: old copies are removed first, so the template's own tags never leak into the other pages.
-const SITE = "https://corporate-tic-tac-toe.pages.dev";
+const SITE = "https://tictactoe.corporatetambola.com";
 const META = {
   "legal.html": ["Rules, privacy and disclaimer", "The rules of a Corporate Tic Tac Toe game, how guest names are erased within 24 hours, and the disclaimer. Plain English."],
   "terms.html": ["Terms", "The short, plain-English terms for organizers who run a Corporate Tic Tac Toe game for their company or team."],
@@ -80,7 +80,7 @@ const PAGES = {
     ]],
     ["changes", "Changes and contact", [
       "We may update these terms. The version date is at the top.",
-      "Questions: <a href=\"mailto:rajatsiroffice@gmail.com\">rajatsiroffice@gmail.com</a>.",
+      "Questions: <a href=\"mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20\">hello@corporatetambola.com</a>.",
     ]],
   ] },
   "dpa.html": { title: "Data processing terms", h1: "Data processing terms", lead: "For organizers. One page.", sections: [

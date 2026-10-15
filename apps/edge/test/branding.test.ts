@@ -84,7 +84,7 @@ describe("mail that is not built by mails.ts gets the same brand when it is sent
     const rows = raw.prepare("SELECT subject, body FROM outbox").all() as { subject: string; body: string }[];
     expect(rows.length).toBeGreaterThanOrEqual(8);
     for (const r of rows) { expect([r.subject, hasFooter(r.body)]).toEqual([r.subject, true]); expect(r.body + r.subject).not.toMatch(/CORPORATE TIC TAC TOE|Corporate Tic Tac Toe Bingo/); }
-    expect(rows.some((r) => /Someone new used/.test(r.subject))).toBe(true); expect(rows.some((r) => /could not begin/.test(r.subject))).toBe(true); expect(rows.some((r) => /^Payment pending for your game/.test(r.subject))).toBe(true);
+    expect(rows.some((r) => /Someone new used/.test(r.subject))).toBe(true); expect(rows.some((r) => /could not begin/.test(r.subject))).toBe(true); expect(rows.some((r) => /^\[Tic Tac Toe\] Payment pending for your game/.test(r.subject))).toBe(true);
   });
   test("pay.ts and nothing else talks to the mail service, and both senders add the brand", () => {
     const pay = read("apps/edge/src/pay.ts");

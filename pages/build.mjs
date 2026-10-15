@@ -29,5 +29,5 @@ rules += "/version.json\n  Cache-Control: no-store\n";
 rules += "/*.js\n  Cache-Control: no-cache\n/img/*\n  Cache-Control: public, max-age=604800\n/*.css\n  Cache-Control: no-cache\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n";
 writeFileSync(join(OUT, "_headers"), rules);
 writeFileSync(join(OUT, "version.json"), JSON.stringify(versionStamp({ root: join(import.meta.dir, ".."), game: JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8")).name })) + "\n"); // what is live (P12): served at /version.json
-writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/api/*", "/ai/*", "/j/*"], exclude: [] }));
+writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/*.txt", "/*.xml", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));
 console.log("pages/public ready");

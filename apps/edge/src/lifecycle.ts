@@ -242,7 +242,7 @@ async function reportKey(env: LifeEnv, eid: string): Promise<string> {
   return Array.from(new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(salt ? `${eid}|${salt}` : eid))), (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
 }
 export async function reportLink(env: LifeEnv, eid: string): Promise<string> {
-  return `${((env as any).PUBLIC_ORIGIN ?? "https://corporate-tic-tac-toe.pages.dev").replace(/\/$/, "")}/report.html?e=${encodeURIComponent(eid)}&k=${await reportKey(env, eid)}`;
+  return `${((env as any).PUBLIC_ORIGIN ?? "https://tictactoe.corporatetambola.com").replace(/\/$/, "")}/report.html?e=${encodeURIComponent(eid)}&k=${await reportKey(env, eid)}`;
 }
 /** What the report page asks for: `base` (everything except the people) and `people` (250 at a time). Valid only with the engagement's key, and only while the personal data still exists. */
 export async function reportApi(env: LifeEnv, eid: string, url: URL, now = Date.now()): Promise<Response> {

@@ -91,7 +91,7 @@
       '<label><input type="radio" name="rt-kind" value="erasure"> Delete me from this game now</label>' +
       '<label><input type="radio" name="rt-kind" value="nomination"> Name another person who can use these rights for me</label></fieldset>' +
       '<div id="rt-notebox" hidden><label for="rt-note" id="rt-notelabel" style="display:block;padding:0">What should be corrected?</label><textarea id="rt-note" maxlength="300"></textarea></div>' +
-      '<p id="rt-nom" hidden>To name the person, write to <a href="mailto:rajatsiroffice@gmail.com">rajatsiroffice@gmail.com</a> with their name and how to reach them. Press Send so that we and the organizer know you did.</p>' +
+      '<p id="rt-nom" hidden>To name the person, write to <a href="mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20">hello@corporatetambola.com</a> with their name and how to reach them. Press Send so that we and the organizer know you did.</p>' +
       '<p id="rt-warn" hidden><b>Deleting removes your name and your place now. You cannot undo this.</b></p>' +
       '<p class="rt-err" id="rt-err" role="alert"></p><div class="rt-row"><button class="rt-b" id="rt-send" type="submit">Send</button><button class="rt-b alt" id="rt-cancel" type="button">Close</button></div></form><div id="rt-result" aria-live="polite"></div>');
     const form = d.querySelector("#rt-form"); let chosen = "access"; const kindOf = () => chosen;

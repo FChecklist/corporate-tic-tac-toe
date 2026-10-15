@@ -243,7 +243,7 @@ describe("invoices", () => {
     const r = await (await buy()).json() as any; const f = await (await complete(r.paymentId, r.razorpay.orderId)).json() as any;
     const html = await (await call("GET", f.invoiceUrl)).text();
     expect(html).not.toContain("DRAFT"); expect(html).toContain("<b>INVOICE</b>"); expect(html).not.toContain("TAX INVOICE");
-    expect(html).toContain("IT Services by Rajat Agarwal"); expect(html).toContain("rajatsiroffice@gmail.com"); expect(html).toContain("4,699.00");
+    expect(html).toContain("IT Services by Rajat Agarwal"); expect(html).toContain("hello@corporatetambola.com"); expect(html).toContain("4,699.00");
     expect(html).not.toMatch(/CGST|SGST|IGST|Taxable value|Place of supply|GSTIN|SHOBHA/i);
     expect(f.tax).toBe(0); expect(f.total).toBe(4699);
   });

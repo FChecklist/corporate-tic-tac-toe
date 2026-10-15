@@ -7,7 +7,7 @@
 // Needs the `nodejs_compat` flag (billing uses node:crypto HMAC). Test mode (env.TEST_MODE = "1", never in production) fulfils without Razorpay.
 import { consentRequired, recordConsent } from "./consent";
 import { recordFunnelForOrg } from "./visits";
-import { plainToHtml, withFooter } from "./brand";
+import { plainToHtml, tagSubject, withFooter } from "./brand";
 import {
   BRANDS, DEFAULT_COMPANY, companyGaps, createOrder, fetchPayment, capturePayment, paymentInfo, financialYear, formatInvoiceNumber, renderInvoiceHtml, renderInvoiceText, splitGst, toMinor,
   verifyPaymentSignature, verifyWebhookSignature, type Company, type CreatedOrder, type InvoiceData, type RazorpayConfig,
@@ -93,6 +93,7 @@ const KEYRE = /cb[kah]_[0-9a-f]{48}/g;
 export async function sendMail(env: PayEnv, db: D1, to: string, subject: string, text: string, now: number, opts: { html?: string; secret?: boolean; owner?: boolean } = {}): Promise<boolean> {
   // `secret` = the mail carries a personal AI work link: if it cannot be sent, no body is kept at all (nothing to retry later; the organizer can replace the link and get a fresh mail).
   // TEST mode (mode.ts): only the owner's allow-list is ever e-mailed; everyone else is dropped and logged. Not sent = false, and no body is kept.
+  subject = tagSubject(subject); // the game tag starts every subject
   if ((await getMode(env)) === "TEST") { if (!opts.owner && !(await mailGate(env, to, subject, now))) return false; subject = "[TEST] " + subject; } // `owner` = a note to the owner of the platform (owner-mail.ts): always allowed
   const html = opts.html ?? plainToHtml(subject, text, env.PUBLIC_ORIGIN); // every mail carries the brand header and footer, whoever built it
   text = withFooter(text, env.PUBLIC_ORIGIN);
@@ -106,13 +107,14 @@ export const sentReports: { to: string; subject: string; text: string; attachmen
 const toB64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
 /** E-mails the engagement report. The attachment is passed straight to the mail service and is never stored or logged here. Returns false when it could not be sent (the caller tries again). */
 export async function sendReportMail(env: PayEnv, to: string, subject: string, text: string, attachments: { filename: string; content: Uint8Array }[]): Promise<boolean> {
+  subject = tagSubject(subject);
   if ((await getMode(env)) === "TEST") { if (!(await mailGate(env, to, subject, Date.now()))) return true; subject = "[TEST] " + subject; } // dropped on purpose and logged: counts as handled so the report steps carry on
   const html = plainToHtml(subject, text, env.PUBLIC_ORIGIN); text = withFooter(text, env.PUBLIC_ORIGIN);
   if (!env.RESEND_API_KEY) { sentReports.push({ to, subject, text, attachments }); return true; }
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-      body: JSON.stringify({ from: env.MAIL_FROM ?? "Corporate Tic Tac Toe <noreply@corporate-tic-tac-toe.example>", to: [to], subject, text, html, attachments: attachments.map((a) => ({ filename: a.filename, content: toB64(a.content) })), ...(env.MAIL_REPLY_TO ? { reply_to: env.MAIL_REPLY_TO } : {}), headers: { "Auto-Submitted": "auto-generated" } }),
+      body: JSON.stringify({ from: env.MAIL_FROM ?? "Corporate Tic Tac Toe <noreply@corporate-tic-tac-toe.example>", to: [to], subject, text, html, attachments: attachments.map((a) => ({ filename: a.filename, content: toB64(a.content) })), reply_to: env.MAIL_REPLY_TO || "hello@corporatetambola.com", headers: { "Auto-Submitted": "auto-generated" } }),
     });
     return r.ok;
   } catch { return false; }
@@ -121,7 +123,7 @@ async function resendSend(env: PayEnv, to: string, subject: string, text: string
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-      body: JSON.stringify({ from: env.MAIL_FROM ?? "Corporate Tic Tac Toe <noreply@corporate-tic-tac-toe.example>", to: [to], subject, text, ...(html ? { html } : {}), ...(env.MAIL_REPLY_TO ? { reply_to: env.MAIL_REPLY_TO } : {}), headers: { "Auto-Submitted": "auto-generated" } }),
+      body: JSON.stringify({ from: env.MAIL_FROM ?? "Corporate Tic Tac Toe <noreply@corporate-tic-tac-toe.example>", to: [to], subject, text, ...(html ? { html } : {}), reply_to: env.MAIL_REPLY_TO || "hello@corporatetambola.com", headers: { "Auto-Submitted": "auto-generated" } }),
     });
     return r.ok;
   } catch { return false; }

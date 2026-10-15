@@ -43,7 +43,7 @@ describe("the e-mailed link lasts 24 hours", () => {
     const o = await organizer(); const first = mailedKey(outbox()[0]!.body);
     const r = await call("POST", "/api/org/ai/fresh", {}, o.h, T + H); const x = await j(r);
     expect(r.status).toBe(200); expect(x.mailed).toBe(true); expect(x.expiresMs).toBe(T + H + 24 * H); expect(x.aiMessage).toBeUndefined();
-    const m = outbox().at(-1)!; expect(m.subject).toBe(AI_SUBJECT); expect(m.body).toMatch(/fresh personal AI work link/i); const fresh = mailedKey(m.body);
+    const m = outbox().at(-1)!; expect(m.subject).toBe("[Tic Tac Toe] " + AI_SUBJECT); expect(m.body).toMatch(/fresh personal AI work link/i); const fresh = mailedKey(m.body);
     expect(fresh).not.toBe(first); expect(fresh).not.toBe(o.ai);
     for (const k of [fresh, first, o.ai]) expect((await call("GET", `/ai/${k}`, undefined, {}, T + 4 * H)).status).toBe(200);
     expect((await call("GET", `/ai/${first}`, undefined, {}, T + 24 * H + 30 * 60_000)).status).toBe(404); expect((await call("GET", `/ai/${fresh}`, undefined, {}, T + 24 * H + 30 * 60_000)).status).toBe(200); // each key has its own 24 hours

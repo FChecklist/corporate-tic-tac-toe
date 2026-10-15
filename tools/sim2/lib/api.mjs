@@ -40,7 +40,7 @@ export async function call(method, path, body, headers = {}, { base = SIM, ip } 
 const must = (r, what) => { if (!r.ok) throw new Error(`${what}: HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`); return r.body; };
 
 // ---- the e-mail sink (never real mail) ----
-export const OWNER_MAIL = "rajatsiroffice@gmail.com";
+export const OWNER_MAIL = "hello@corporatetambola.com";
 export const mailbox = {
   // the owner of the platform gets a short note on every paid order and on every player data request (apps/edge/src/owner-mail.ts): those are not mail to the team or to a guest, so list() leaves them out
   // unless the caller asks for the owner's address (to: OWNER_MAIL) or passes owner: true
