@@ -97,7 +97,7 @@ describe("U6 / D7: what do you hold about me, correct it, delete me", () => {
     expect(row).toMatchObject({ eid: "RQ-1", pid: a, kind: "access", status: "open", created_ms: T, due_ms: T + 7 * 86_400_000 });
     // mail: the organizer's own address and the owner's address, each once
     const m = mails(); const toOrg = m.filter((x) => x.to_addr === orgMail && /data request/i.test(x.subject)); const toOwner = m.filter((x) => x.to_addr === OWNER_NOTIFY_EMAIL);
-    expect(OWNER_NOTIFY_EMAIL).toBe("raajat.agarwal@gmail.com");
+    expect(OWNER_NOTIFY_EMAIL).toBe("rajatsiroffice@gmail.com");
     expect(toOrg.length).toBe(1); expect(toOwner.length).toBe(1);
     expect(toOrg[0]!.body).toContain("within 7 days"); expect(toOrg[0]!.body).toContain("Maya Lopez"); expect(toOrg[0]!.body).toContain(NOUN[0]!.toUpperCase() + NOUN.slice(1) + " number: 1");
     expect(toOwner[0]!.body).toContain("within 7 days"); expect(toOwner[0]!.body).not.toContain("Maya"); // the owner's note names no player

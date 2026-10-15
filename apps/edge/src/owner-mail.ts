@@ -3,7 +3,7 @@
 // The address is one constant here; a deployment can override it with OWNER_NOTIFY_EMAIL. This file imports nothing from pay.ts, so there is no import cycle.
 import type { D1 } from "./worker";
 
-export const OWNER_NOTIFY_EMAIL = "raajat.agarwal@gmail.com";
+export const OWNER_NOTIFY_EMAIL = "rajatsiroffice@gmail.com";
 export const ownerAddress = (env: object): string => { const v = (env as { OWNER_NOTIFY_EMAIL?: string }).OWNER_NOTIFY_EMAIL; return v && v.includes("@") ? v.trim() : OWNER_NOTIFY_EMAIL; };
 
 export interface PaidOrder { gameLabel: string; paymentId: string; txnId: string; planLabel: string; amountText: string; organizerName: string; organizerEmail: string; eid?: string | null; test?: boolean }
