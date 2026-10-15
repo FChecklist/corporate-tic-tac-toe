@@ -12,8 +12,7 @@ database_id = "6f1d9846-7716-4209-8cad-85ed83dc8f1f"   # create the D1 database 
 
 [vars]
 DAILY_WRITE_BUDGET = "80000"
-PUBLIC_ORIGIN = "https://tictactoe.corporatetambola.com"
 PAY_HOP_URL = "https://itservices-rajat-agarwal.pages.dev/payframe/"   # Option 1: the Razorpay window runs on the website registered with Razorpay
-MAIL_FROM = "Corporate Tic Tac Toe <hello@corporatetambola.com>"
+# PUBLIC_ORIGIN, MAIL_FROM and OWNER_NOTIFY_EMAIL are Pages variables set in Cloudflare (a name cannot be in both places); the code defaults carry the same values.
 OWNER_EMAIL = "hello@corporatetambola.com"
 COMPANY_JSON = '{"email":"hello@corporatetambola.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
