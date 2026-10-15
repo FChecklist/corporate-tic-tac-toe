@@ -24,7 +24,7 @@ export function makePages(dir: string) {
   const routes = existsSync(join(root, "_routes.json")) ? JSON.parse(readFileSync(join(root, "_routes.json"), "utf8")) : { include: ["/api/*", "/ai/*", "/j/*"], exclude: [] };
   const inc = (routes.include as string[]).map(globRe), exc = (routes.exclude as string[]).map(globRe);
   /** true when Cloudflare would run a Function (the Worker) for this path */
-  const isFunction = (p: string) => inc.some((r) => r.test(p)) && !exc.some((r) => r.test(p));
+  const isFunction = (p: string) => /^\/(api|ai|j)(\/|$)/.test(p) && inc.some((r) => r.test(p)) && !exc.some((r) => r.test(p)); // pages only pass through the redirect middleware (ctx.next() serves the file), so only the API-like paths reach the Worker
   const headersFor = (p: string): Record<string, string> => {
     const h: Record<string, string> = {};
     for (const r of rules) if (r.pattern.test(p)) for (const [k, v] of r.headers) h[k] = h[k] ? h[k] + ", " + v : v; // Pages joins repeated headers
