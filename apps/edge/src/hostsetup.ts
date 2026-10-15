@@ -132,7 +132,7 @@ export async function hostSetupRoute(c: HostCtx): Promise<Response | null> {
       db.prepare("INSERT INTO login_code(email_hash,code_hash,expires_ms,attempts,win_start,sent,link_hash) VALUES(?,?,?,0,?,1,NULL) ON CONFLICT(email_hash) DO UPDATE SET code_hash=excluded.code_hash, expires_ms=excluded.expires_ms, attempts=0, win_start=?, sent=?, link_hash=NULL").bind(eh, await sha("code|" + eh + "|" + code), now + 600_000, fresh ? now : lc!.win_start, fresh ? now : lc!.win_start, fresh ? 1 : lc!.sent + 1),
       db.prepare("INSERT INTO host_state(host_id,org,pend_hash,pend_sealed,link_exp_ms) VALUES(?,?,?,?,?) ON CONFLICT(host_id) DO UPDATE SET pend_hash=excluded.pend_hash, pend_sealed=excluded.pend_sealed").bind(c.hid, c.org, eh, await sealText(env as any, email), now + HOST_LINK_TTL_MS),
     ]);
-    await c.sendMail(email, "Your Corporate Tic Tac Toe code", `Your 6-digit code is ${code}.\n\nType it on the page where you are finishing your Host setup. It works for 10 minutes.\n\nDid not ask for this? Ignore this e-mail.`);
+    await c.sendMail(email, "Your Corporate Tic Tac Toe code", `Your 6-digit code is ${code}.\n\nType it on the page where you are finishing your Host setup. It works for 10 minutes.\n\nIf you did not ask for this, ignore this e-mail.`);
     return c.json({ ok: true, ...(c.test ? { devCode: code } : {}) });
   }
   if (p === "/api/host/setup/email/verify") {

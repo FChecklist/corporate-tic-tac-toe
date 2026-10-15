@@ -67,7 +67,7 @@ describe("checkout", () => {
     const r = await (await buy()).json() as any;
     expect(r.mode).toBe("razorpay");
     expect(r.razorpay.amount).toBe(469900); // 500 participants = Rs 4,699 (no GST)
-    expect(r.razorpay.name).toBe("Corporate Tic Tac Toe"); expect(r.razorpay.description).toBe("(close group tic tac toe software) | owned and made by IT Services by Rajat Agarwal"); // the Razorpay window shows the product as the title and the seller under it
+    expect(r.razorpay.name).toBe("Corporate Tic Tac Toe"); expect(r.razorpay.description).toBe("(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal"); // the Razorpay window shows the product as the title and the seller under it
     expect(rz.orders).toHaveLength(1);
     expect(raw.query("SELECT status FROM payment").get()).toEqual({ status: "created" });
   });
@@ -403,7 +403,7 @@ describe("paying to publish a draft", () => {
     await call("POST", "/api/z", { id: "PAYD-1", startRound: FAR_START, callSeconds: 9, cap: 300 }, { "x-organizer": key });
     expect((await call("POST", "/api/z/PAYD-1/join", { phone: "9876543210" })).status).toBe(403); // a draft: closed to participants
     const c = await (await pay(key, "PAYD-1", { pack: 100000 })).json() as any; // the client's pack is ignored: the draft decides
-    expect(c.mode).toBe("razorpay"); expect(rz.orders[0].amount).toBe(1 * rz.orders[0].amount); expect(c.razorpay.notes.participants).toBe("500"); expect(c.razorpay.description).toBe("(close group tic tac toe software) | owned and made by IT Services by Rajat Agarwal");
+    expect(c.mode).toBe("razorpay"); expect(rz.orders[0].amount).toBe(1 * rz.orders[0].amount); expect(c.razorpay.notes.participants).toBe("500"); expect(c.razorpay.description).toBe("(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal");
     const v = await (await complete(c.paymentId, c.razorpay.orderId)).json() as any;
     expect(v.published).toBe(true); expect(v.eid).toBe("PAYD-1"); expect(v.organizerKey).toBeNull(); // no new organizer: it is theirs
     expect(raw.query("SELECT pack FROM engagement WHERE id='PAYD-1'").get()).toEqual({ pack: 500 });

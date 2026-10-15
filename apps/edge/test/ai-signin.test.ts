@@ -30,7 +30,7 @@ describe("the sign-in e-mail", () => {
     await account(); const r = await ask();
     const m = outbox().find((x) => x.subject === SIGNIN_SUBJECT)!;
     expect(m.to_addr).toBe("boss@acme.com"); expect(SIGNIN_SUBJECT).toBe("Sign in to Corporate Tic Tac Toe - choose how you want to continue");
-    for (const t of ["YOU ARE ALMOST IN", "Choose one way to sign in.", "OPTION 1 - LET YOUR AI DO THE WORK", "Sign in and get my AI work link", "Your AI asks a few questions and sets it all up. You keep payment and publishing.", "OPTION 2 - WORK ON YOUR OWN", "Open my console", "OPTION 3 - SIGN-IN PAGE ALREADY OPEN?", `Type this 6-digit code there: ${r.devCode}`, "It works for 10 minutes.", "Did not ask for this? Ignore it. Do not forward it: it opens your account."]) expect(m.body).toContain(t);
+    for (const t of ["YOU ARE ALMOST IN", "Choose one way to sign in.", "OPTION 1 - LET YOUR AI DO THE WORK", "Sign in and get my AI work link", "Your AI asks a few questions and sets it all up. You keep payment and publishing.", "OPTION 2 - WORK ON YOUR OWN", "Open my console", "OPTION 3 - SIGN-IN PAGE ALREADY OPEN?", `Type this 6-digit code there: ${r.devCode}`, "It works for 10 minutes.", "If you did not ask for this, ignore it. Do not forward it: it opens your account."]) expect(m.body).toContain(t);
     expect(m.body + m.subject).not.toMatch(LEAK); expect(m.body).not.toMatch(/Corporate Tic Tac Toe account\. I am the owner/);
     expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=ai`); expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=console`);
     const b = signInMail(ORIGIN, "123456", "ab".repeat(24));

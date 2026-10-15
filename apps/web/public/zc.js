@@ -453,7 +453,7 @@
       const r = await call("GET", `/api/z/${eid}/people`), all = (r.people || []).slice();
       while (all.length < (Number(r.total) || 0)) { const more = await call("GET", `/api/z/${eid}/people?offset=${all.length}`); if (!(more.people || []).length) break; all.push(...more.people); } // a long list arrives in pages
       P.list = all; P.limit = role() === "cohost" ? Number(r.limit) || 100 : 0; P.used = typeof r.used === "number" ? r.used : null; P.common = r.commonLink || ""; P.canExport = !!r.canExport; P.err = "";
-    } catch (e) { P.list = null; P.err = e.status === 404 || e.status === 405 ? "My people is not switched on yet. Please try again a little later." : friendly(e); }
+    } catch (e) { P.list = null; P.err = e.status === 404 || e.status === 405 ? "My people list is not switched on yet. Please try again a little later." : friendly(e); }
     try { const w = await call("GET", `/api/z/${eid}/waiting`); P.waiting = w.waiting || []; P.approved = w.approved || []; } catch { P.waiting = null; }
   }
   /** The caller's own play seat (POST /people/me), made only when they ask for it. */

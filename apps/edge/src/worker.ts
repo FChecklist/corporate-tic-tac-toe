@@ -703,7 +703,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
 
 Type it on the sign-in page. It works for 10 minutes.
 
-Did not ask for this? Ignore this e-mail.`, now, { secret: true });
+If you did not ask for this, ignore this e-mail.`, now, { secret: true });
         if (test) devCode = code;
       } else {
       const sm = signInMail((env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, code, linkToken); // no AI key or paste here: the buttons lead to the signed-in page

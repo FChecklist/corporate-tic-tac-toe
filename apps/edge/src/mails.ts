@@ -116,7 +116,7 @@ export function signInMail(origin: string, code: string, token: string): BuiltMa
   const aiUrl = `${origin}/signin.html?t=${token}&go=ai`, consoleUrl = `${origin}/signin.html?t=${token}&go=console`;
   const intro = "Choose one way to sign in.";
   const o1 = "Your AI asks a few questions and sets it all up. You keep payment and publishing.";
-  const foot = "Did not ask for this? Ignore it. Do not forward it: it opens your account.";
+  const foot = "If you did not ask for this, ignore it. Do not forward it: it opens your account.";
   const text = [
     "YOU ARE ALMOST IN", "", intro, "",
     "OPTION 1 - LET YOUR AI DO THE WORK", o1, `Sign in and get my AI work link: ${aiUrl}`, "",

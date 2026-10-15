@@ -22,7 +22,7 @@ describe("the Corporate Games bar", () => {
     expect([...bar.querySelectorAll("a")].map((a: any) => a.href)).toEqual(LINKS);
     expect([...bar.querySelectorAll("a")].map((a: any) => a.textContent)).toEqual(["Corporate Games", "Tambola", "Bingo", "Tic Tac Toe", "Snakes and Ladders", "Luck by Chance"]);
     const cur = [...bar.querySelectorAll('[aria-current="true"]')]; expect(cur.length).toBe(1); expect((cur[0] as any).textContent).toBe("Tic Tac Toe");
-    expect(bar.querySelector(".cg-line")!.textContent).toBe("close group, online engagement");
+    expect(bar.querySelector(".cg-line")!.textContent).toBe("closed group, online engagement");
     expect(d.head.querySelector('link[href="/gamesbar.css"]')).toBeTruthy();
     new Function("window", "document", "with (window) {" + pub("gamesbar.js") + "}").call(w, w, w.document); expect(d.querySelectorAll(".cg-bar").length).toBe(1); // loading it twice adds nothing
     const css = pub("gamesbar.css"); expect(css).toContain("#14213D"); expect(css).toContain("14px"); expect(css).toContain("overflow-x:auto"); expect(css).toContain(":focus-visible"); expect(css).toContain("border-radius:999px");
