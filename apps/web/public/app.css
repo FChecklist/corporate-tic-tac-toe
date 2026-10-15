@@ -364,3 +364,9 @@ html[data-theme] .chip.on{background:#fff}
 .tdots button[aria-pressed="true"]{box-shadow:none;outline:2px solid #fff!important;outline-offset:-12px!important}
 .tdots button:focus-visible{outline:3px solid var(--acc);outline-offset:-6px}
 @media (max-width:960px){.tdots{top:46px!important;padding:0 4px;gap:0}.tdots button{width:44px!important;height:44px!important}}
+
+/* Logo: the mark is a ready-made rounded tile, so the old coloured chip behind it is gone. */
+.mark{background:none}
+.mark img{width:100%;height:100%;display:block;border-radius:27%}
+.ptop .mark{width:24px;height:24px;flex-basis:24px}
+.cfbar img.ic{border-radius:27%}

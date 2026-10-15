@@ -210,3 +210,7 @@ body{background:linear-gradient(180deg,#DDEEFF 0,#E8F1FF 34%,#FFF3D1 72%,#E3F7EC
 .zgoalline{font-size:15px}
 
 .zbrand.zdef{color:#fff}
+
+/* Logo: a tiny mark before the name in the default brand strip; same line height, nothing moves. */
+.zbrand.zdef b::before{content:"";display:inline-block;width:18px;height:18px;margin-right:8px;vertical-align:-4px;border-radius:5px;background:url(/icon-192.png) center/cover}
+.zbrand.zdef b{white-space:nowrap}

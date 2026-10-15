@@ -7,9 +7,9 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "ttt-game-v3"; // bump when the game files change shape, so every phone saves a matching set
+const CACHE = "ttt-game-v4"; // bump when the game files change shape, so every phone saves a matching set
 const FILES = ["/offline.html", "/offline.js", "/z.html", "/zc.html", "/big.html", "/host.html", "/ttt.js", "/rights.js", "/tttgame.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png",
+  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/pwa.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.

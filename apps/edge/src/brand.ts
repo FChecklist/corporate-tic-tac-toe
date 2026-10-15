@@ -26,7 +26,7 @@ export const withFooter = (text: string, origin?: string) => (hasFooter(text) ? 
 /** The header row of every HTML e-mail: the logo mark and the wordmark. `data-brand` lets tests find it. */
 export function headerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:10px;"><img src="${o}/icon-192.png" width="34" height="34" alt="" style="display:block;border-radius:8px;background:${BRAND.gold};"></td><td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:700;color:${BRAND.gold2};letter-spacing:.01em;">${BRAND.name}<span style="color:${BRAND.gold};">.</span></td></tr></table></td></tr>`;
+  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:10px;"><img src="${o}/icon-192.png" width="34" height="34" alt="" style="display:block;border-radius:9px;"></td><td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:700;color:${BRAND.gold2};letter-spacing:.01em;">${BRAND.name}<span style="color:${BRAND.gold};">.</span></td></tr></table></td></tr>`;
 }
 /** The footer row of every HTML e-mail: name, support address, legal link. */
 export function footerHtml(origin?: string): string {
