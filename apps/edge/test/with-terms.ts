@@ -10,7 +10,7 @@ function groupFor(method: string, path: string, body: any): Kind | null {
   if (method !== "POST") return null;
   if (path === "/api/start" || path === "/api/auth/email") return "K2";
   if (path === "/api/auth/google") return body?.intent === "host" ? "K5" : "K2";
-  if (path === "/api/checkout" || path === "/api/payments/test" || /^\/api\/paylink\/[0-9a-f]{48}\/checkout$/.test(path)) return "K3";
+  if (path === "/api/checkout" || path === "/api/payments/paytest" || path === "/api/payments/test" || /^\/api\/paylink\/[0-9a-f]{48}\/checkout$/.test(path)) return "K3";
   if (path === "/api/host/setup/email") return "K5";
   if (path === "/api/org/role/accept") return "K5";
   if (/^\/api\/z\/[A-Za-z0-9_-]{4,40}\/publish$/.test(path)) return "K1";

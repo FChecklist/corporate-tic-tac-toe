@@ -99,6 +99,22 @@ describe("tests 1-4 at every point", () => {
     const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 3, text_hash: sha(wordingOf("K3")) });
     expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
   });
+  test("K3 before the Rs 1 payment test: refused without the tick (no order, no row); with it the order is made and the row names the test payment", async () => {
+    const pt = { email: "boss@acme.com", name: "Asha Rao", country: "IN" };
+    const no = await call("POST", "/api/payments/paytest", pt); expect(no.status).toBe(400); expect(await j(no)).toMatchObject({ ...REFUSED, kind: "K3" });
+    const half = await call("POST", "/api/payments/paytest", { ...pt, consent: { v: CONSENT_VERSION, boxes: [] } }); expect(half.status).toBe(400);
+    const old = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3", "1999-01-01") }); expect(old.status).toBe(400);
+    expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 0 }); expect(rows("K3").length).toBe(0);
+    const ok = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3") }, {}, T + 5); expect(ok.status).toBe(200);
+    const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: sha(wordingOf("K3")) });
+    expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
+  });
+  test("the payment test page draws the K3 box, unticked, with its button disabled until ticked, and sends the tick", () => {
+    const web = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
+    expect(web("paytest.html")).toContain('<script src="/termsbox.js"></script>');
+    const js = web("paytest.js");
+    expect(js).toContain('TermsBox.mount(slot, "K3"'); expect(js).toMatch(/id="go" disabled aria-disabled="true"/); expect(js).toMatch(/{ consent, org:/);
+  });
   async function published(id: string) { const h = await organizer(); await game(h, id); await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210", consent: tick("K1") }, h); raw.run("UPDATE engagement SET pack=100 WHERE id=?", [id]); return h; }
   test("K4 joining: no seat and no name stored without both boxes; with both the person joins and the row is tied to their seat", async () => {
     await published("CON-3"); const body = { name: "Maya Lopez", device: dev(1) };

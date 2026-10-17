@@ -22,12 +22,24 @@
         <label for="org">Company name <span class="zsmall" style="display:inline">(optional)</span></label><input id="org" autocomplete="organization" value="${esc(S.org || "")}" placeholder="Company name">
         <label for="tax">GST / Tax number <span class="zsmall" style="display:inline">(optional)</span></label><input id="tax" autocomplete="off" maxlength="30" value="${esc(S.tax || "")}" placeholder="GST / Tax number" style="text-transform:uppercase">
         <label for="cty">Your country</label><select id="cty">${TB.countryOpts(S.country)}</select>
+        <div id="tbSlot" class="tbslot"></div>
         ${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open.</div>` : ""}
-        <button class="zbtn" id="go" ${S.busy ? "disabled" : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
+        <button class="zbtn" id="go" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
         <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Your name, e-mail and payment details are kept for invoice purposes. No refunds are given for test payments.</p></div>`;
   }
   const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
-  const draw = () => { $app.innerHTML = view(); bind(); TB.payer.mark($app); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };
+  // The K3 consent box (termsbox.js, the same as pay.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws, so the tick is kept in S.k3 and put back.
+  let TBK = null;
+  function mountK3() {
+    TBK = null; const slot = document.getElementById("tbSlot"); if (!slot || !window.TermsBox) return;
+    const sync = () => { const g = document.getElementById("go"); if (g) { const off = !(TBK && TBK.ok()) || !!S.busy; g.disabled = off; g.setAttribute("aria-disabled", off ? "true" : "false"); } };
+    window.TermsBox.mount(slot, "K3", { base: "" }).then((t) => {
+      if (!slot.isConnected) return; TBK = t; const saved = S.k3 || [];
+      slot.querySelectorAll("input[data-box]").forEach((c) => { if (saved.includes(c.dataset.box)) c.checked = true; c.addEventListener("change", () => { S.k3 = t.terms().boxes; sync(); }); });
+      sync();
+    }).catch(() => {});
+  }
+  const draw = () => { $app.innerHTML = view(); bind(); mountK3(); TB.payer.mark($app); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };
   async function waitForConfirm(paymentId) {
     const t0 = Date.now();
     while (Date.now() - t0 < 300000) {
@@ -42,6 +54,7 @@
     if ($("again")) $("again").onclick = () => { S.done = null; S.err = ""; draw(); };
     if ($("go")) $("go").onclick = async () => {
       keep(); S.err = "";
+      const consent = TBK && TBK.ok() ? TBK.terms() : null; if (!consent) { S.err = "Please tick the box to continue."; return draw(); }
       if ((S.name || "").trim().length < 2) { S.err = "Please enter your name."; return draw(); }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((S.email || "").trim())) { S.err = "Please enter a valid email."; return draw(); }
       const taxId = (S.tax || "").trim().toUpperCase();
@@ -49,7 +62,7 @@
       TB.payer.save(S);
       S.busy = true; draw();
       try {
-        const r = await TB.api("POST", "/api/payments/paytest", { org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
+        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
         let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
         if (res && res.confirming) res = await waitForConfirm(r.paymentId);
         S.done = res;

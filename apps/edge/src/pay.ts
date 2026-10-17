@@ -364,6 +364,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!rzp || (await getMode(env)) === "TEST") return json({ error: "Online payments are not switched on." }, 503);
     const b = await body(req);
     if (!b || typeof b.email !== "string" || !EMAIL.test(b.email.trim())) return json({ error: "Enter a valid e-mail address." }, 400);
+    { const mt = consentRequired(b, "K3"); if (mt) return mt; } // K3: also before the Rs 1 test payment
     const nm = typeof b.name === "string" ? b.name.trim() : ""; if (nm.length < 2) return json({ error: "Enter your name." }, 400);
     const cty = typeof b.country === "string" && /^[A-Z]{2}$/.test(b.country) ? b.country : "IN", cur = cty === "IN" ? "INR" : "USD";
     if (cur === "USD" && env.RAZORPAY_INTERNATIONAL !== "1") return json({ error: "Payments in US dollars are not switched on yet. Please try again later." }, 400);
@@ -371,6 +372,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const contact = digits.length >= 6 && digits.length <= 14 ? `+${dial}${digits}` : "";
     if (!(await spend(2))) return busy();
     const id = "pay_" + randHex(8);
+    await recordConsent(db, { subject: id, kind: "K3", ref: id, now }); // K3: stored with the test payment it was for
     let order: any;
     try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
     catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
