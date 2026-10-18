@@ -10,6 +10,7 @@ import type { D1, Env } from "./worker";
 import { sendMail, type PayEnv } from "./pay";
 import { testFlag } from "./mode";
 import { syncCommissions } from "./ledgerc";
+import { helperClosed } from "./helpdesk";
 
 export const ATTRIBUTION_DAYS = 30;
 /** The commission every partner earns on the software price (no GST is charged) of a paid, referred purchase. product decision 2026-10-03: 50%. PARTNER_COMMISSION_RATE can lower it (never above 50%). */
@@ -146,6 +147,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     const mine = k ? await db.prepare("SELECT code FROM partner WHERE key_hash=?").bind(await sha("partner|" + k)).first<{ code: string }>() : null;
     if (!mine) return json({ error: "Not allowed." }, 403);
     await db.prepare("DELETE FROM partner WHERE code=?").bind(mine.code).run();
+    await helperClosed(env, mine.code, now); // a Help Desk helper's links and keys end with the partner account (helpdesk.ts)
     return json({ ok: true, closed: true });
   }
   const me = async () => {

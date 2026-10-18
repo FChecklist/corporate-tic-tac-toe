@@ -60,3 +60,15 @@ Port it to the real console: same sections, same wording, same colours, same beh
 ## Not true yet (Tic Tac Toe)
 - `zc.js` still shows the sister product's steps 3 and 4 and their "About this step" lines (prizes such as Line, Four Corners, X and Blackout; cards; brand moments), and says "engagement" in places. The Tic Tac Toe block is "Run the tournament" (link to `host.html`) and "Open the big screen".
 - The player page does not show a brand strip logo, only the company name on the accent colour.
+
+## Help Desk (2026-10-19)
+
+A Refer & earn partner can prepare games for an Organizer who allowed it (`docs/HELPDESK_SPEC.md`, `apps/edge/src/helpdesk.ts`). It uses only the roles above:
+
+| Who | Is | Can | Cannot |
+|---|---|---|---|
+| Helper, before publish | an AI key of the Organizer's account (made when the Organizer taps Allow) | create a game, change settings and prizes, ask the Organizer to publish | publish, pay, see sign-in keys, change the e-mail, add Hosts, close the account |
+| Organizer | Organizer | allow and stop a helper, publish with one tap (an e-mailed link) | |
+| Helper, after publish | a Host marked `Help desk` | everything a Host can | use one of the Organizer's 5 Host places |
+
+The Organizer can stop a helper at any time: the helper's key and Host end at once, published games stay. A paid game the helper prepared earns the helper Refer & earn commission (same rate, repeat rule and self-referral block).

@@ -5,6 +5,7 @@ body{background:var(--rc);color:var(--ri);margin:0;font-family:var(--sans,Inter,
 .rhead{display:flex;align-items:center;justify-content:space-between;max-width:1040px;margin:0 auto;padding:14px 16px}
 .rbrand{font:700 20px var(--serif,Georgia,serif);color:var(--rn);text-decoration:none}.rbrand i{color:var(--rg);font-style:normal}
 .rhome{color:var(--rn);font-weight:600;text-decoration:none;font-size:14px}
+.rbrand,.rhome{display:inline-flex;align-items:center;min-height:40px}.rhome{padding:0 8px}
 .rhero{background:linear-gradient(165deg,#0B5D5B 0%,#0a2f70 60%,#08265a 100%);color:#fff;padding:28px 0 36px}
 .rhero .rin{display:grid;gap:22px}
 .reyebrow{display:inline-block;background:rgba(201,162,74,.18);color:#f1d98f;border:1px solid rgba(201,162,74,.5);border-radius:99px;padding:4px 12px;font:700 12px var(--sans,inherit);letter-spacing:.12em;text-transform:uppercase}

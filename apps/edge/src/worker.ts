@@ -29,6 +29,7 @@ import { acceptOver, acceptWon, endBoundMs, eraseEverything, erasePersonal, eras
 import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_CAP, MAX_DRAFTS, type PayEnv } from "./pay";
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
+import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
 import { PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
@@ -176,6 +177,8 @@ export const SCHEMA: string[] = [
   ...RIGHTS_SCHEMA,
   // the owner's desk: the mail service's bounce / complaint / delivery events (admin.ts)
   ...ADMIN_SCHEMA,
+  // Help Desk: a Refer-and-earn partner prepares games for an Organizer, who publishes with one tap (helpdesk.ts, 0027_helpdesk.sql)
+  ...HELPDESK_SCHEMA,
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
@@ -284,7 +287,7 @@ async function mailTempLink(env: Env, req: Request, org: string, kind: "ai" | "h
 }
 /** Replaces the organizer's AI work link: every AI key (lasting and 24-hour) stops at once, a new lasting key is made for the console, and a fresh 24-hour key goes out in the dedicated mail. */
 async function replaceAiLink(env: Env, req: Request, org: string, now: number): Promise<{ aiKey: string; aiMessage: string; mailed: boolean }> {
-  await env.DB.prepare("UPDATE organizer_key SET revoked=1 WHERE org=? AND kind='ai'").bind(org).run();
+  await env.DB.prepare("UPDATE organizer_key SET revoked=1 WHERE org=? AND kind='ai' AND COALESCE(created_by,'')<>'d'").bind(org).run(); // a Help Desk helper's own key (created_by 'd') is the helper's, not the organizer's link
   const key = "cba_" + randHex(24);
   await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0))").bind(await sha("key|" + key), org, "ai", now, org).run();
   await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`aikey/${org}`, await sealText(env as any, key)).run();
@@ -309,6 +312,7 @@ async function noteUse(env: Env, org: string, kind: "ai" | "host", keyId: string
     if (!row) return; // first use of this key: the baseline
     const last = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`alert/${keyId}`).first<{ v: string }>();
     if (last && now - Number(last.v) < 86_400_000) return;
+    if (await isDeskKeyId(env.DB, keyId)) return; // a Help Desk helper uses their own devices: no alert about it
     const to = await orgEmail(env, org);
     if (!to) return;
     await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`alert/${keyId}`, String(now)).run();
@@ -336,6 +340,7 @@ export async function housekeeping(env: Env, now: number): Promise<void> {
     await purgeOld(env, now);
     await retryOutbox(env as PayEnv, now);
     await remindUnpaid(env, now);
+    await helpdeskSweep(env.DB, now);
   } catch { /* try again on the next request */ }
 }
 /** Safety net while the scheduled job is not running: an organizer-side request, or a phone saying the game is over, also nudges the lifecycle (at most once a minute per Worker instance). The scheduled job is the real clock. */
@@ -388,9 +393,10 @@ async function aiLink(req: Request, env: Env, now: number, waitUntil?: (p: Promi
     if (waitUntil) waitUntil(work); else await work;
     await noteUse(env, a.org, role === "ai" ? "ai" : "host", keyId, req, now);
     const h = new Headers({ ...CORS, ...LINK_HEADERS });
-    if (url.searchParams.get("format") === "json") { h.set("content-type", "application/json; charset=utf-8"); return new Response(req.method === "HEAD" ? null : JSON.stringify(manualJson(origin, key, role, now)), { headers: h }); }
+    const helperNote = role === "ai" && (await isHelperKey(env.DB, key)) ? HELPER_MANUAL_NOTE : ""; // a Help Desk helper's key: the manual also says "you prepare, the Organizer publishes" (helpdesk.ts)
+    if (url.searchParams.get("format") === "json") { h.set("content-type", "application/json; charset=utf-8"); return new Response(req.method === "HEAD" ? null : JSON.stringify({ ...manualJson(origin, key, role, now), ...(helperNote ? { helpDesk: helperNote } : {}) }), { headers: h }); }
     h.set("content-type", "text/plain; charset=utf-8");
-    return new Response(req.method === "HEAD" ? null : manualText(origin, key, role, now), { headers: h });
+    return new Response(req.method === "HEAD" ? null : manualText(origin, key, role, now) + (helperNote ? "\n\n" + helperNote + "\n" : ""), { headers: h });
   }
   if (rest === "start" || rest === "map" || rest === "facts" || rest === "go" || rest.startsWith("go/")) { // the front door, the list of functions, the facts, and the guided step links
     if (req.method !== "GET" && req.method !== "HEAD") return linkText("These addresses are read with GET.", 405);
@@ -656,6 +662,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (a.kind === "cohost" && !(req.method === "GET" && (p === "/api/whoami" || p === "/api/notices" || /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/cohost$/.test(p))) && !/^\/api\/z\/[A-Za-z0-9_-]{4,40}\/(people|waiting)(\/|$)/.test(p) && !(req.method === "POST" && /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/paylink$/.test(p))) return deny(a); // a Co-host: the header, the invite link, payment (above) and nothing else
   const partnered = await partnerRoute(req, env as PayEnv, now, (n) => spend(env, now, n), a.plat);
   if (partnered) return partnered;
+  { // Help Desk (helpdesk.ts): a partner prepares games for an Organizer, who publishes with one tap. `summary` reads a game exactly as the AI's summary route does (no phone numbers).
+    const hd = await helpdeskRoute(req, env as PayEnv, now, (n) => spend(env, now, n), { summary: async (org, eid) => { try { const sr = await route0(new Request(new URL(req.url).origin + "/api/z/" + eid + "/summary"), env, now, { plat: false, org, kind: "ai" }); return sr.status === 200 ? await sr.json() : null; } catch { return null; } } }, { kind: a.kind, org: a.org });
+    if (hd) return hd;
+  }
 
   /* ---- sign in with an e-mailed code (no passwords): also how an organizer who lost their key gets a fresh one ---- */
   /* ---- start: a new organizer enters a work email and the console opens at once (no mail is sent). An email that already has an account is
@@ -899,7 +909,7 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     if (hEmail && !EMAIL_RE.test(hEmail)) return json({ error: "That e-mail address does not look right. Please check it." }, 400);
     const hMob = hasMob ? cleanPhone(rawMob) : null;
     if (hMob && !hMob.ok) return json({ error: "Please check the Host's mobile number. " + hMob.why }, 400);
-    const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE org=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash)").bind(a.org).first<{ c: number }>())?.c ?? 0;
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE org=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash) AND COALESCE(created_by,'')<>'d'").bind(a.org).first<{ c: number }>())?.c ?? 0; // a Help Desk Host (created_by 'd') does not use one of the 5 places
     if (n >= MAX_HOSTS) return json({ error: `You can have up to ${MAX_HOSTS} Hosts at a time. Retire one first.` }, 409);
     if (!(await spend(env, now, 4))) return BUSY();
     const key = "cbh_" + randHex(24), label = cleanLabel(hb?.label), kh = await sha("key|" + key);
@@ -942,7 +952,7 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
   if (req.method === "GET" && p === "/api/org/team") { // who is on the team (never the keys): the Organizer, their AI and a Host may look; a Co-host may not. ?e=<game> lists that game's Co-hosts. Host e-mails only for the Organizer and Hosts.
     if ((a.kind !== "master" && a.kind !== "ai" && a.kind !== "host") || !a.org) return deny(a);
     const forGame = url.searchParams.get("e");
-    const rows = (await env.DB.prepare("SELECT hash, kind, label, created_ms, email_sealed, eid, pii FROM organizer_key WHERE org=? AND revoked=0 AND expires_ms IS NULL AND kind IN ('host','cohost') AND (host_id IS NULL OR host_id=hash) ORDER BY created_ms").bind(a.org).all<{ hash: string; kind: string; label: string | null; created_ms: number; email_sealed: string | null; eid: string | null; pii: string | null }>()).results ?? [];
+    const rows = (await env.DB.prepare("SELECT hash, kind, label, created_ms, email_sealed, eid, pii, created_by FROM organizer_key WHERE org=? AND revoked=0 AND expires_ms IS NULL AND kind IN ('host','cohost') AND (host_id IS NULL OR host_id=hash) ORDER BY created_ms").bind(a.org).all<{ hash: string; kind: string; label: string | null; created_ms: number; email_sealed: string | null; eid: string | null; pii: string | null; created_by: string | null }>()).results ?? [];
     const cohosts = [];
     for (const r of rows.filter((x) => x.kind === "cohost" && (!forGame || x.eid === forGame))) {
       const who = a.kind === "ai" ? null : await openPii(env as any, r.pii); // an AI never sees a mobile number
@@ -952,7 +962,7 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     for (const r of rows.filter((x) => x.kind === "host")) {
       const hst = await hostStateRow(env.DB, r.hash), emailOk = !!hst?.verified_ms, mobileOk = !!hst?.mobile_ok || !!r.pii;
       const setup = emailOk && mobileOk ? "ready" : emailOk ? "needs-mobile" : hst && !hst.spent && now > hst.link_exp_ms ? "link-expired" : "waiting-for-host"; // what the Organizer sees next to a Host: ready, or why not (a new link can be sent for the last two)
-      hosts.push({ id: r.hash.slice(0, 10), label: r.label ?? "", createdMs: r.created_ms, setup, emailConfirmed: emailOk, hasMobile: mobileOk, ...(hst && !emailOk ? { linkExpiresMs: hst.link_exp_ms } : {}), ...(a.kind !== "ai" && r.email_sealed ? { email: await openText(env as any, r.email_sealed) } : {}) });
+      hosts.push({ id: r.hash.slice(0, 10), label: r.label ?? "", createdMs: r.created_ms, ...(r.created_by === "d" ? { helpDesk: true } : {}), setup, emailConfirmed: emailOk, hasMobile: mobileOk, ...(hst && !emailOk ? { linkExpiresMs: hst.link_exp_ms } : {}), ...(a.kind !== "ai" && r.email_sealed ? { email: await openText(env as any, r.email_sealed) } : {}) });
     }
     return json({ maxHosts: MAX_HOSTS, hosts, cohosts });
   }
@@ -1023,14 +1033,14 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     await env.DB.batch([
       env.DB.prepare("DELETE FROM kv WHERE k=? OR k=?").bind(`orgmail/${a.org}`, `aikey/${a.org}`), env.DB.prepare("DELETE FROM organizer_email WHERE org=?").bind(a.org),
       env.DB.prepare("DELETE FROM organizer_terms WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM ai_audit WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM audit_log WHERE chain=?").bind("org:" + a.org), env.DB.prepare("DELETE FROM organizer_key WHERE org=?").bind(a.org),
-      env.DB.prepare("DELETE FROM host_state WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM host_login WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM paylink WHERE org=?").bind(a.org),
+      ...helpdeskCloseStatements(env.DB, a.org), env.DB.prepare("DELETE FROM host_state WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM host_login WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM paylink WHERE org=?").bind(a.org),
     ]);
     return json({ ok: true, closed: true, engagementsDeleted: engs.length, creditForfeitedInr: forfeited });
   }
   if (req.method === "POST" && p === "/api/org/ai/revoke") {
     if (a.kind !== "master" || !a.org) return deny(a);
     if (!(await spend(env, now))) return BUSY();
-    const r = await env.DB.prepare("UPDATE organizer_key SET revoked=1 WHERE org=? AND kind='ai' AND revoked=0").bind(a.org).run();
+    const r = await env.DB.prepare("UPDATE organizer_key SET revoked=1 WHERE org=? AND kind='ai' AND revoked=0 AND COALESCE(created_by,'')<>'d'").bind(a.org).run();
     await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`aikey/${a.org}`).run();
     return json({ ok: true, revoked: r.meta?.changes ?? 0 });
   }
@@ -1176,6 +1186,7 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     const isTestEng = (await testFlag(env)) === 1 || (await orgIsTest(env, a.org)) ? 1 : 0; // made in TEST mode, or by a test account
     await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
+    if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
     return json({ ok: true, draft, openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
   }

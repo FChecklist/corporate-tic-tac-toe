@@ -33,6 +33,7 @@ const SAMPLES: Record<string, () => Mails.BuiltMail> = {
   aiLinkMail: () => Mails.aiLinkMail(ORIGIN, "cba_" + "a".repeat(48), "start", T + 86_400_000),
   coHostLinkMail: () => Mails.coHostLinkMail(ORIGIN, "cbh_" + "b".repeat(48), "boss@acme.com", T + 86_400_000),
   hostLinkMail: () => Mails.hostLinkMail(ORIGIN, "cbh_" + "e".repeat(48), "Priya"),
+  helpDeskPublishedMail: () => Mails.helpDeskPublishedMail(ORIGIN, { eid: "GAME-1", hostKey: "cbh_" + "f".repeat(48), aiHostKey: "cbh_" + "d".repeat(48), expiresMs: T + 86_400_000 }),
   newUseAlertMail: () => Mails.newUseAlertMail({ when: "now", country: "IN", program: "x", kind: "AI", origin: ORIGIN }),
   signInMail: () => Mails.signInMail(ORIGIN, "123456", "c".repeat(48)),
 };

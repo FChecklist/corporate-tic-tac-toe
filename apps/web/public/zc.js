@@ -11,7 +11,7 @@
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   let secret = ss.get("cbz-org") || "";
   { const m = location.hash.match(/^#(?:host|cohost)=(cb[hc]_[0-9a-f]{48})$/); if (m) { secret = m[1]; ss.set("cbz-org", secret); history.replaceState(null, "", location.pathname + location.search); } } // a Host or Co-host link: the key leaves the address bar at once
-  { const k = q.get("k"); if (k && /^cb[hc]_[0-9a-f]{48}$/.test(k)) { secret = k; ss.set("cbz-org", secret); q.delete("k"); const rest = q.toString(); history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "")); } }
+  { const k = q.get("k"); if (k && /^cb[hca]_[0-9a-f]{48}$/.test(k)) { secret = k; ss.set("cbz-org", secret); q.delete("k"); const rest = q.toString(); history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "")); } }
   let eid = q.get("e") || "";
   const ACT = (q.get("do") || "").toLowerCase(); // a hand-over link from the AI assistant: opens the exact card; the organizer presses the button
   const QUICK = q.get("quick") === "1";
@@ -1293,7 +1293,7 @@
     if ($("pubgo")) $("pubgo").onclick = async () => {
       const terms = tbTerms("pub" + eid); if (!terms) { S.pubNote = "Please tick both boxes to continue."; return redraw(); }
       $("pubgo").disabled = true;
-      try { await call("POST", `/api/z/${eid}/publish`, { email: S.contact.email.trim(), phone: S.contact.phone, consent: terms }); ss.set("cbz-email", S.contact.email.trim()); ss.set("cbz-phone", S.contact.phone); S.pubOpen = false; S.note = "Published. Send the link in step 6 to your participants. Then pay in step 8 before the start time, or the game will not begin."; }
+      try { const pr = await call("POST", `/api/z/${eid}/publish`, { email: S.contact.email.trim(), phone: S.contact.phone, consent: terms }); ss.set("cbz-email", S.contact.email.trim()); ss.set("cbz-phone", S.contact.phone); S.pubOpen = false; S.note = pr && pr.needsOrganizer ? "Not published. Only the Organizer publishes, with one tap. If you are a Help Desk helper, ask the Organizer from the Help Desk page." : "Published. Send the link in step 6 to your participants. Then pay in step 8 before the start time, or the game will not begin."; }
       catch (e) { ss.set("cbz-email", S.contact.email.trim()); ss.set("cbz-phone", S.contact.phone); S.pubNote = e.message + (e.needPack ? " (a pack for up to " + e.needPack + " participants)" : ""); }
       refreshEng();
     };

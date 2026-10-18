@@ -20,6 +20,7 @@ import { notifyOwnerOfPaidOrder, ownerAddress } from "./owner-mail";
 import { PdfDoc, NAVY } from "./pdf";
 import { ledgerFields, logWebhook, siteOf, type HookRecord } from "./ledger";
 import { partnerCode, phoneHashFor, recordCommission, refCode } from "./partners";
+import { helperRefFor } from "./helpdesk";
 import { attemptStatusOf, centralOf, derivedEventKey, eventSeen, markEventSeen, recordAttempt, recordRefund, storePaymentDetails, txnIdOf } from "./ledgerc";
 import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
@@ -345,7 +346,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `tictactoe_pack_${pack}`, user: boundOrg ?? null, email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: `tictactoe_pack_${pack}`, variation: `tictactoe_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
       catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     }
-    const ref = refCode(b.ref); // from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
+    const ref = (await helperRefFor(db, boundEid)) ?? refCode(b.ref); // a game a Help Desk helper prepared always pays its helper (helpdesk.ts); otherwise from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
     const bph = partnerCode(b.phone); // optional, only used to spot a partner buying through their own link
     const lf = ledgerFields(siteOf(meta.origin), "game_pack", `pack_${pack}`, boundOrg ?? null);
     await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();

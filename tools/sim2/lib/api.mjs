@@ -34,7 +34,7 @@ export async function call(method, path, body, headers = {}, { base = SIM, ip } 
   const r = await fetch(base + path, { method, headers: h, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(withConsent(method, path, body)), redirect: "manual" });
   const text = await r.text(); let j; try { j = JSON.parse(text); } catch { j = { text }; }
   // This game asks the Terms boxes at more points than the first attempt knows (for example the Host's code check): a person ticks them when the answer says so, and so does the harness, once.
-  if (r.status === 400 && j && j.code === "consent-required" && method === "POST" && body && typeof body === "object" && !(retried)) return call(method, path, { ...body, consent: { v: j.version || CONSENT_VERSION, boxes: Object.keys((j.consent && j.consent.boxes ? Object.fromEntries(j.consent.boxes.map((b) => [b.id, 1])) : { A: 1, B: 1 })) } }, headers, { base, ip }, true);
+  if (r.status === 400 && j && j.code === "consent-required" && method === "POST" && body && typeof body === "object" && !(retried)) return call(method, path, { ...body, consent: { v: j.version || CONSENT_TEXT.version, boxes: Object.keys((j.consent && j.consent.boxes ? Object.fromEntries(j.consent.boxes.map((b) => [b.id, 1])) : { A: 1, B: 1 })) } }, headers, { base, ip }, true);
   return { status: r.status, body: j, ok: r.ok };
 }
 const must = (r, what) => { if (!r.ok) throw new Error(`${what}: HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`); return r.body; };

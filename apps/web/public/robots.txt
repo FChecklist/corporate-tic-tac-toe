@@ -6,6 +6,8 @@ Disallow: /pay.html
 Disallow: /paytest.html
 Disallow: /signin.html
 Disallow: /ai-link.html
+Disallow: /helpdesk-accept.html
+Disallow: /helpdesk-approve.html
 Disallow: /report.html
 Disallow: /z.html
 Disallow: /zc.html
