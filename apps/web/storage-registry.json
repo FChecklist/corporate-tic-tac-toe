@@ -120,6 +120,14 @@
         "cbv_sid",
         "cbv_sent"
       ]
+    },
+    {
+      "id": "error-queue",
+      "store": "localStorage",
+      "say": "On any page: if something goes wrong while the phone is offline, a short error report waits here until the phone is online, is then sent and removed. It holds no names, numbers or typed text.",
+      "keys": [
+        "ctz-bbq"
+      ]
     }
   ],
   "cookies": [

@@ -46,3 +46,7 @@ The shared Worker still has the tables `claim`, `rvote`, `rcand`, `overvote` and
 - Partner commission records are kept as accounting records.
 - Whether the one-year log rule in DPDP Rule 6(1)(e) reaches players' security-log rows, which are destroyed at 23 hours.
 - Whether the short player notice must name that security log. Today it says what is kept and for how long in the box and on the Privacy page.
+
+## Error reports (added 2026-10-20)
+
+Error reports hold no names, phone numbers, e-mail addresses, typed text, keys, tokens or visitor addresses (cleaned on the device and again on the server; `apps/web/test/blackbox.test.ts`). They are kept until the error is fixed, then 90 days after it was last seen; up to four full reports per error are kept for 90 days. A report waiting on a phone while it is offline is the only thing stored on the device (key `ctz-bbq`), removed as soon as it is sent.
