@@ -21,14 +21,25 @@
   const HOUSES = ZG && Array.isArray(ZG.PRIZE_HOUSES) && ZG.PRIZE_HOUSES.length ? ZG.PRIZE_HOUSES : OLD_HOUSES;
   const NAMES = Object.fromEntries(HOUSES.map((h) => [h.id, h.label]));
   const call = async (method, path, body) => {
-    const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": secret }, body: body === undefined ? undefined : JSON.stringify(body) });
+    let r;
+    try { r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": secret }, body: body === undefined ? undefined : JSON.stringify(body) }); }
+    catch (e) { const err = Object.assign(new Error("We could not reach the service. Please check your internet and try again."), { status: 0 }); guided(err, method, path, body); throw err; }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) {
       if (r.status === 403 && j.code === "consent-required" && !S.k5need) { S.k5need = true; setTimeout(redraw, 0); } // 403 + consent-required is the K5 role gate (a Co-host or Host who has not yet ticked the box): the console shows that box first
-      throw Object.assign(new Error(j.error || "http " + r.status), { code: j.code, group: j.group, status: r.status, needPack: j.needPack, payments: j.payments });
+      { const err = Object.assign(new Error(j.error || "http " + r.status), { code: j.code, group: j.group, status: r.status, needPack: j.needPack, payments: j.payments }); guided(err, method, path, body); throw err; }
     }
     return j;
   };
+  const STEP_NAMES = ["Date and time", "Number of participants", "Set Prizes", "Set Brand Moments", "Make hosts and co-hosts", "Invite and share links", "Check and publish", "Pay", "Game day", "After the game"];
+  /** the guide (guide.js): a failed action explains itself, says what to do, and takes the person to the exact step and box; "Done?" brings them back here */
+  function guided(err, method, path, body) {
+    if (!window.CTG) return; const where = path.split("?")[0].replace(/\/[A-Za-z0-9_-]{6,}(?=\/|$)/g, "/..."); CTG.wrap(err, { what: method + " " + where });
+    if (method === "GET" || err.status === 401) return;
+    err.guided = true;
+    const open = S.open || 0;
+    CTG.watch(err, { retry: () => call(method, path, body), back: open ? { step: open, label: STEP_NAMES[open - 1] || "where you were" } : null }); // the screen's own message is upgraded in place by guide.js; if the screen shows nothing, the guide does
+  }
   // ---- consent boxes (termsbox.js, product rule 2026-10-13): wording comes from the server, a box is never pre-ticked, the button stays disabled until every box is ticked, the ticks travel as consent: {version,boxes}.
   // The console redraws often, so a slot is only a placeholder in the HTML (tbSlot); mountTerms() draws the boxes after each redraw and puts the ticks back from TK.
   const TK = {}; // key -> { ok, consent: terms }
@@ -367,7 +378,7 @@
   }
 
   // ---------- step 5: your team ----------
-  const friendly = (e) => (e && e.status === 404 ? "This is not switched on yet. Please try again a little later." : e && e.status === 403 ? "You are not allowed to do that." : (e && e.message) || "Something went wrong. Please try again.");
+  const friendly = (e) => (e && e.status === 404 ? "This is not switched on yet. Please try again a little later." : e && e.status === 403 && !(e.message && !/^(forbidden|not allowed\.?)$/i.test(e.message)) ? "Please sign in again with the e-mail address you used." : (e && e.message) || "Something went wrong. Please try again.");
   function roleCards(only) {
     const li = (ok, t) => `<li class="${ok ? "zc-yes" : "zc-no"}"><span aria-hidden="true">${ok ? "&#10003;" : "&#10007;"}</span> <span class="zc-sr">${ok ? "Can: " : "Cannot: "}</span>${t}</li>`;
     const card = (c, name, items) => `<div class="zc-role" style="background:var(--bg-tint-${c});color:var(--text-tint-${c})"><b>${name}</b><ul>${items.join("")}</ul></div>`;
@@ -609,7 +620,7 @@
     let h = `<span class="zc-lbl">Check your game</span>` + readBack();
     if (S.draft) {
       h += `<div class="zc-block"><h3>Publish (free)</h3>${small("Set it up first (by hand or with your AI). Participants cannot see or join a draft. Publishing is free: you confirm your details, get your link and send it to everyone. You pay before the start time, and it begins the moment you have.")}`
-        + (S.pubOpen ? `${lbl("pubEmail", "Your e-mail (for the invoice)")}<input id="pubEmail" class="zc-in" type="email" value="${S.shield ? "" : esc(S.contact.email)}" autocomplete="email">${lbl("pubPhone", "Your mobile number")}<input id="pubPhone" class="zc-in" type="tel" value="${S.shield ? "" : esc(S.contact.phone)}" autocomplete="tel" placeholder="415 555 0132">${tbSlot("pub" + eid, "K1", "pubgo")}<div class="zc-foot"><button class="zc-btn" type="button" id="pubgo" ${tbDis("pub" + eid)}>Confirm and publish</button> <button class="zc-btn zc-btn-alt" type="button" id="pubcancel">Back</button></div>`
+        + (S.pubOpen ? `${lbl("pubEmail", "Your e-mail (for the invoice)")}<input id="pubEmail" data-need="1" class="zc-in" type="email" value="${S.shield ? "" : esc(S.contact.email)}" autocomplete="email">${lbl("pubPhone", "Your mobile number")}<input id="pubPhone" data-need="1" class="zc-in" type="tel" value="${S.shield ? "" : esc(S.contact.phone)}" autocomplete="tel" placeholder="415 555 0132">${tbSlot("pub" + eid, "K1", "pubgo")}<div class="zc-foot"><button class="zc-btn" type="button" id="pubgo" ${tbDis("pub" + eid)}>Confirm and publish</button> <button class="zc-btn zc-btn-alt" type="button" id="pubcancel">Back</button></div>`
           : `<div class="zc-foot"><button class="zc-btn" type="button" id="publishopen">Publish my game, free</button></div>`)
         + (S.pubNote ? `<p class="zc-small"><b>${esc(S.pubNote)}</b></p>` : "") + `</div>`;
     } else {
@@ -1143,6 +1154,8 @@
   }
   const go = (id) => { const e = document.getElementById(id); if (e && e.scrollIntoView) { try { e.scrollIntoView({ behavior: "smooth", block: "start" }); } catch { /* not every browser */ } } };
   function openStep(n) { S.open = n; S.sheet = false; S.toast = ""; S.note = ""; if (n === 5) refreshTeam(); redraw(); go("sec" + n); if ((n === 6 && canRun()) || (n === 2 && role() === "cohost")) loadPeople().then(redraw); }
+  window.ctzStep = () => S.open; window.ctzStepName = (n) => STEP_NAMES[n - 1]; // for the guide: which step the person is on
+  window.ctzFocus = (n, sel) => { try { openStep(n); } catch { return; } requestAnimationFrame(() => { if (sel && window.CTG) CTG.focus(sel.split(",").map((x) => "#sec" + n + " " + x.trim()).join(",") + "," + sel); }); }; // used by the guide: open step n, then the box
   function advance(n) { const nx = steps().find((s) => s[0] > n && !isDone(s[0])) || nextStep(); S.open = nx ? nx[0] : n; S.sheet = false; redraw(); go("sec" + S.open); }
 
   // ---------- saving a step ----------

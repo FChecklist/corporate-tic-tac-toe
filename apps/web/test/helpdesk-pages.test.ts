@@ -44,7 +44,7 @@ describe("Help Desk pages", () => {
     const s = await setup();
     const p = await page(s, "/helpdesk.html", "helpdesk.html", ["common.js", "helpdesk.js"], { local: { "cbz-pkey": "ctp_" + "0".repeat(40) } });
     await p.waitFor((x) => /Become a Help Desk person/.test(x));
-    expect(p.win.localStorage.getItem("cbz-pkey")).toBeNull(); expect(p.$("a[href='/partner.html#join']")).toBeTruthy();
+    expect(p.win.localStorage.getItem("cbz-pkey")).toBeNull(); expect(p.$("a[href='/partner.html#joinbox']")).toBeTruthy();
   });
   test("the invitation page: shows the promise, signs the Organizer in with the e-mail code, Allow makes the helper's key", async () => {
     const s = await setup();

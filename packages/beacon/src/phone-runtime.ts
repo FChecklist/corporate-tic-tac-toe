@@ -119,8 +119,9 @@ export class PhoneRuntime {
       const info = await this.deps.api("GET", `/api/z/${this.eid}/info`);
       this.cap = Number(info.cap) || 0; this.scheduledRound = info.startRound; this.startRound = info.startRound + GRACE_ROUNDS; this.callSeconds = info.callSeconds; this.trackClaims = info.trackClaims !== false; this.controlUrl = typeof info.controlUrl === "string" ? info.controlUrl : null; this.locked = !!info.locked; this.gated = info.locked !== undefined; this.readCfg(info);
     } catch (e: any) {
-      this.phase = e?.status === 404 ? "missing" : "boot";
-      this.error = e?.status === 404 ? "This engagement link is not valid." : "Could not reach the engagement. Check your connection.";
+      const st = e?.status; // the real reason: a wrong link, a game that is not open, or the connection / the service
+      this.phase = st === 404 || st === 403 || st === 410 ? "missing" : "boot";
+      this.error = st === 404 ? "This engagement link is not valid." : st === 403 || st === 410 ? String(e?.message || "This engagement is not open yet.") : st && st >= 500 ? "The game could not be opened just now. Please try again in a minute." : "Could not reach the engagement. Check your connection.";
       return;
     }
     const pid = this.deps.store.get(this.key("pid"));

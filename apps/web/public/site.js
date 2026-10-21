@@ -167,7 +167,7 @@
   // ---------- login ----------
   function openLogin(email) {
     TB.sheet(`${xbtn}<div class="eyebrow">Organizer login</div><h2>Sign in with your work email</h2><p class="muted small">Players never log in here. They join with your link. We email you a 6-digit code: no password.</p>
-      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Work email</label><input class="inp" id="lMail" type="email" autocomplete="email" placeholder="you@company.com" value="${esc(email || "")}"><div id="fErr"></div>
+      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Work email</label><input class="inp" id="lMail" data-need="1" type="email" autocomplete="email" placeholder="you@company.com" value="${esc(email || "")}"><div id="fErr"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block" style="margin-top:14px" type="submit" id="lgGo" disabled>Email me a code ${ic("arrow")}</button></form>
       ${termsLinks}`);

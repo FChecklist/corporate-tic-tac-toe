@@ -14,7 +14,7 @@
   };
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const day = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  const S = { note: "", err: "", me: null, fresh: null };
+  const S = { note: "", err: "", me: null, fresh: null , f: { ph: "", em: "", nm: "", ok: false }};
 
   function shareBlock(code, link) {
     const text = "Corporate Tic Tac Toe makes your company engagement unforgettable. Take a look: " + link;
@@ -23,13 +23,15 @@
       <button class="zbtn s" id="copy">Copy my link</button> <button class="zbtn s alt" id="nshare" style="display:none">Share&hellip;</button>
       <a class="zbtn s alt" style="display:inline-flex;align-items:center;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text)}">Share on WhatsApp</a>`;
   }
+  /** what was typed on the sign-up form: kept when a mistake redraws it, so the person never has to type it all again */
+  const rememberForm = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const ok = document.getElementById("ok"); S.f = { ph: g("ph") ?? S.f.ph, em: g("em") ?? S.f.em, nm: g("nm") ?? S.f.nm, ok: ok ? ok.checked : S.f.ok }; };
   function enrollView() {
     const fromCard = q.get("from") === "card";
     return `<div class="zcard zform"><h2>${fromCard ? "Start earning: get your link" : "Get your link in 20 seconds"}</h2>
-        <label for="ph">Your mobile number</label><input id="ph" inputmode="tel" autocomplete="tel" placeholder="98765 43210">
-        <label for="em">Your e-mail (we send you a code)</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
-        <label for="nm">Your name (optional)</label><input id="nm" autocomplete="name" maxlength="60">
-        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--ink);font-size:14px"><input type="checkbox" id="ok" style="width:auto;min-height:0;margin-top:3px"> <span>I would like to join Refer &amp; earn with this mobile number.</span></label>
+        <label for="ph">Your mobile number</label><input id="ph" inputmode="tel" autocomplete="tel" placeholder="98765 43210" value="${esc(S.f.ph)}">
+        <label for="em">Your e-mail (we send you a code)</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="${esc(S.f.em)}">
+        <label for="nm">Your name (optional)</label><input id="nm" autocomplete="name" maxlength="60" value="${esc(S.f.nm)}">
+        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--ink);font-size:14px"><input type="checkbox" id="ok" style="width:auto;min-height:0;margin-top:3px"${S.f.ok ? " checked" : ""}> <span>I would like to join Refer &amp; earn with this mobile number.</span></label>
         ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
         <button class="zbtn" id="join">Get my link and start earning</button>
         <p class="zsmall">Already joined? <a href="#" id="signin">Sign in with your partner key</a></p></div>`;
@@ -68,7 +70,7 @@
     if ($("nshare") && navigator.share) { $("nshare").style.display = ""; $("nshare").onclick = () => navigator.share({ title: "Corporate Tic Tac Toe", text: "Corporate Tic Tac Toe makes your company engagement unforgettable. Take a look:", url: document.getElementById("mylink").textContent }).catch(() => {}); }
     if ($("copy")) $("copy").onclick = () => { try { navigator.clipboard.writeText(document.getElementById("mylink").textContent); $("copy").textContent = "Copied"; } catch {} };
     if ($("join")) $("join").onclick = async () => {
-      S.err = "";
+      S.err = ""; rememberForm();
       if (!$("ok") || !$("ok").checked) { S.err = "Please tick the box to join."; return draw(enrollView()); }
       $("join").disabled = true;
       try {

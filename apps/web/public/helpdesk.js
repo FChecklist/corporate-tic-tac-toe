@@ -19,7 +19,7 @@
 
   const signInView = () => `<div class="zcard zform"><h2>Become a Help Desk person</h2>
     <p class="zsmall" style="margin-top:0">Help Desk is a switch on your Refer &amp; earn account.</p>
-    <p><a class="zbtn" style="display:inline-flex;align-items:center;text-decoration:none" href="/partner.html#join">Join Refer &amp; earn first</a></p>
+    <p><a class="zbtn" style="display:inline-flex;align-items:center;text-decoration:none" href="/partner.html#joinbox">Join Refer &amp; earn first</a></p>
     <label for="pk">Already joined? Your partner key</label><input id="pk" type="password" autocomplete="off" placeholder="cbp_…">
     ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
     <button class="zbtn" id="go">Continue</button></div>`;

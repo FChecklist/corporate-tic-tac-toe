@@ -34,10 +34,10 @@
     if (tok) headers.authorization = "Bearer " + tok;
     let res;
     try { res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch (e) { const err = new Error("Cannot reach the server. Check your internet and try again."); err.status = 0; throw err; }
+    catch (e) { const err = new Error("We could not reach the service. Please check your internet and try again."); err.status = 0; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
     let data = null;
     try { data = await res.json(); } catch {}
-    if (!res.ok) { const err = new Error((data && data.error) || "Something went wrong. Please try again."); err.status = res.status; throw err; }
+    if (!res.ok) { const err = new Error((data && data.error) || "Something went wrong. Please try again."); err.status = res.status; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
     return data;
   };
 

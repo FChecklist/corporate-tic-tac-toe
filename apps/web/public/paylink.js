@@ -6,13 +6,13 @@
   if (token) { try { sessionStorage.setItem("cbz-pl", token); } catch {} } else { try { token = sessionStorage.getItem("cbz-pl") || ""; } catch {} } // a refresh of this tab still works
   if (!/^[0-9a-f]{48}$/.test(token)) token = ""; // anything else is not one of our links (and never goes into an address)
   try { history.replaceState(null, "", location.pathname); } catch {} // the secret leaves the address bar at once
-  const S = { info: null, err: "", busy: false, done: null, gone: false, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })(), pcode: "91", country: "IN", more: true };
+  const S = { k3: {}, info: null, err: "", busy: false, done: null, gone: false, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })(), pcode: "91", country: "IN", more: true };
   const call = async (method, path, body) => {
     let r;
     try { r = await fetch(path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) }); }
-    catch { throw Object.assign(new Error("Cannot reach the server. Check your internet and try again."), { status: 0 }); }
+    catch { const err = Object.assign(new Error("We could not reach the service. Please check your internet and try again."), { status: 0 }); if (window.CTG) { CTG.wrap(err, { what: method + " " + path.split("?")[0] }); if (method !== "GET") { err.guided = true; CTG.watch(err, { retry: () => call(method, path, body) }); } } throw err; }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, body: j });
+    if (!r.ok) { const err = Object.assign(new Error(j.error || "Something went wrong. Please try again."), { status: r.status, body: j }); if (window.CTG) { CTG.wrap(err, { what: method + " " + path.split("?")[0].replace(/\/[0-9a-f]{16,}/gi, "/...") }); if (method !== "GET") { err.guided = true; CTG.watch(err, { retry: () => call(method, path, body) }); } } throw err; }
     return j;
   };
   const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Payment</b></div>${TB.payBrand ? TB.payBrand() : ""}`;
@@ -42,8 +42,8 @@
         <p class="zsmall">You are paying for this one game only. Players never pay.</p></div>
       ${TB.proformaBox ? TB.proformaBox() : ""}
       <div class="zcard zform"><h2>Details</h2>
-        <label for="nm">Name</label><input id="nm" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
-        <label for="em">E-mail (the invoice comes here)</label><input id="em" type="email" autocomplete="email" value="${esc(S.email)}" placeholder="Email">
+        <label for="nm">Name</label><input id="nm" data-need="1" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
+        <label for="em">E-mail (the invoice comes here)</label><input id="em" data-need="1" type="email" autocomplete="email" value="${esc(S.email)}" placeholder="Email">
         ${S.more ? `<label for="ph">Mobile <span class="zsmall" style="display:inline">(optional)</span></label>
         <div style="display:flex;gap:8px"><select id="pcode" aria-label="Country code" style="flex:0 0 112px">${TB.COUNTRIES.map(([c, n, d]) => `<option value="${d}" ${String(d) === String(S.pcode) ? "selected" : ""}>${c} +${d}</option>`).join("")}</select><input id="ph" type="tel" autocomplete="tel-national" value="${esc(S.phone)}" placeholder="Mobile number" style="flex:1;min-width:0"></div>
         <label for="org">Company name <span class="zsmall" style="display:inline">(optional)</span></label><input id="org" autocomplete="organization" value="${esc(S.org)}" placeholder="Company name">

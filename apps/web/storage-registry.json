@@ -128,6 +128,14 @@
       "keys": [
         "ctz-bbq"
       ]
+    },
+    {
+      "id": "guide-return",
+      "store": "sessionStorage",
+      "say": "On any page, in this tab only: when we send you to fix something, a note of where you were working, so one tap brings you back. It is removed when you come back or close the tab.",
+      "keys": [
+        "ctz-return"
+      ]
     }
   ],
   "cookies": [
