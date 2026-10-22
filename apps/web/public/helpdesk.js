@@ -24,7 +24,7 @@
     ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
     <button class="zbtn" id="go">Continue</button></div>`;
   const joinView = () => `<div class="zcard zform"><h2>Turn on Help Desk</h2>
-    <label for="em">The e-mail you joined Refer &amp; earn with</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+    <label for="em">The e-mail you joined Refer &amp; earn with</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="your e-mail">
     ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
     <button class="zbtn" id="on">Turn on Help Desk</button>
     <p class="zsmall"><a href="#" class="hdl" id="out">Sign out</a></p></div>`;
@@ -41,7 +41,7 @@
     return `<p class="zsmall" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px"><b>Corporate Tic Tac Toe · Help Desk</b><a href="#" class="hdl" id="out">Sign out</a></p>
       ${S.note ? `<div class="zbanner ok" role="status">${esc(S.note)}</div>` : ""}${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
       <div class="zcard zform"><h2>Add an Organizer</h2><p class="zsmall" style="margin-top:0">We e-mail them a short note. Nothing is published or paid without their OK.</p>
-        <label for="oe">Their e-mail</label><input id="oe" type="email" inputmode="email" autocomplete="off" placeholder="organizer@company.com">
+        <label for="oe">Their e-mail</label><input id="oe" type="email" inputmode="email" autocomplete="off" placeholder="the organizer's e-mail">
         <label for="on">Their name (optional)</label><input id="on" maxlength="60" autocomplete="off">
         <button class="zbtn" id="inv">Send the invitation</button></div>
       ${m.clients.length ? m.clients.map(clientCard).join("") : `<div class="zcard"><p class="zsmall" style="margin:0">No clients yet. Add an Organizer above.</p></div>`}

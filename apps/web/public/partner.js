@@ -29,7 +29,7 @@
     const fromCard = q.get("from") === "card";
     return `<div class="zcard zform"><h2>${fromCard ? "Start earning: get your link" : "Get your link in 20 seconds"}</h2>
         <label for="ph">Your mobile number</label><input id="ph" inputmode="tel" autocomplete="tel" placeholder="98765 43210" value="${esc(S.f.ph)}">
-        <label for="em">Your e-mail (we send you a code)</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="${esc(S.f.em)}">
+        <label for="em">Your e-mail (we send you a code)</label><input id="em" type="email" inputmode="email" autocomplete="email" placeholder="your e-mail" value="${esc(S.f.em)}">
         <label for="nm">Your name (optional)</label><input id="nm" autocomplete="name" maxlength="60" value="${esc(S.f.nm)}">
         <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--ink);font-size:14px"><input type="checkbox" id="ok" style="width:auto;min-height:0;margin-top:3px"${S.f.ok ? " checked" : ""}> <span>I would like to join Refer &amp; earn with this mobile number.</span></label>
         ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}

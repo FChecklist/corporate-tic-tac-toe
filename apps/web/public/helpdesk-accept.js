@@ -28,7 +28,7 @@
       ${state.codeStep && !state.newAcct ? `<label for="cd">6-digit code sent to ${esc(state.email)}</label><input id="cd" inputmode="numeric" autocomplete="one-time-code" maxlength="8"><button class="zbtn" id="go">Sign in</button>
         <p class="zsmall"><a href="#" class="hdl" id="mk">No account yet? Make one</a></p>`
         : state.newAcct ? `<label for="em">Your work e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}"><div class="tbslot" id="hdtb"></div><button class="zbtn" id="go" disabled>Make my account</button>`
-        : `<label for="em">Your work e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}" placeholder="you@company.com"><div class="tbslot" id="hdtb"></div><button class="zbtn" id="go" disabled>E-mail me a code</button>
+        : `<label for="em">Your work e-mail</label><input id="em" type="email" autocomplete="email" value="${esc(state.email)}" placeholder="your e-mail"><div class="tbslot" id="hdtb"></div><button class="zbtn" id="go" disabled>E-mail me a code</button>
         <p class="zsmall"><a href="#" class="hdl" id="mk">No account yet? Make one</a></p>`}
       <p class="zsmall"><a href="#" class="hdl" id="stop">I do not want this</a></p></div>`);
     const go = document.getElementById("go");
