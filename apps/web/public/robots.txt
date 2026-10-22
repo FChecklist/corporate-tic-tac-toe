@@ -15,4 +15,41 @@ Disallow: /big.html
 Disallow: /preview.html
 Disallow: /demo.html
 
+# The product's code and app pages are not for AI training or AI copying (see /terms, Protection of the product).
+User-agent: *
+Disallow: /*.js$
+Disallow: /*.css$
+
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: OAI-SearchBot
+User-agent: ClaudeBot
+User-agent: Claude-Web
+User-agent: anthropic-ai
+User-agent: Google-Extended
+User-agent: CCBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Bytespider
+User-agent: Amazonbot
+User-agent: Applebot-Extended
+User-agent: meta-externalagent
+User-agent: cohere-ai
+User-agent: Diffbot
+User-agent: omgili
+User-agent: YouBot
+User-agent: DuckAssistBot
+User-agent: MistralAI-User
+Disallow: /
+Allow: /trust.html
+Allow: /llms.txt
+Allow: /legal.html
+Allow: /terms.html
+Allow: /privacy.html
+Allow: /pricing.html
+Allow: /about.html
+Allow: /contact.html
+Allow: /organizer-guide.html
+Allow: /$
+
 Sitemap: https://tictactoe.corporatetambola.com/sitemap.xml

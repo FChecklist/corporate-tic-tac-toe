@@ -35,7 +35,7 @@
 .zc-muted{color:var(--zc-mut)}
 .zc-num{flex:none;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
 .zc-num-dark{background:var(--zc-ink)}
-.zc-st{flex:none;font-size:16px;color:var(--zc-mut)}.zc-st.ok{color:var(--zc-ok)}
+.zc-st{flex:none;font-size:16px;color:var(--zc-mut)}.zc-st.ok{color:var(--zc-ok)}.zc-st.pend{opacity:.75}.zc-caret{flex:none;font-size:11px;color:var(--zc-mut);margin-left:2px}
 .zc-card{border:1px solid var(--zc-line);border-radius:14px;margin:0 0 10px;overflow:hidden;background:#fff}
 .zc-card.open{border-width:2px}
 .zc-sech{display:flex;gap:10px;align-items:center;width:100%;padding:11px 12px;border:0;text-align:left;cursor:pointer;font-size:14px;min-height:52px}
