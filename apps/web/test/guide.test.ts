@@ -95,7 +95,7 @@ describe("showing it: pop-up, in place, take me there, back to where you were", 
   test("a mistake in what was typed is shown in place, and Take me there brings the box into view, outlines it and focuses it", async () => {
     const p = await page("signin.html", "/signin.html"); const d = p.win.document;
     d.body.insertAdjacentHTML("beforeend", '<div id="host"><input id="hemail" type="email"></div>');
-    const g = p.win.CTG.show({ status: 400, message: "Please enter a valid work email." }, { host: d.getElementById("host") });
+    const g = p.win.CTG.show({ status: 400, message: "Please enter a valid e-mail address." }, { host: d.getElementById("host") });
     expect(g.kind).toBe("field");
     expect(d.querySelector("#host .ctg-inline")).toBeTruthy();
     expect(d.getElementById("ctg-dialog")).toBeNull(); // no pop-up for a typing slip

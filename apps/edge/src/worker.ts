@@ -681,10 +681,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (req.method === "POST" && p === "/api/start") {
     const b = await body(req);
     const email = typeof b?.email === "string" ? b.email.trim().toLowerCase() : "";
-    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid work email." }, 400);
-    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: the Terms box must be ticked, on the server as well as on the page
+    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
     const eh = await sha("email|" + email);
-    if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ ok: true, exists: true });
+    if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ ok: true, exists: true }); // one door: an existing account is sent a code (the page then asks /api/auth/email)
+    if (await hostForEmail(env.DB, eh)) return json({ ok: true, exists: true }); // a Host who confirmed this address signs in with a code too: the sign-in door must not offer them a new Organizer account
+    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: a new account needs the Terms box ticked, on the server as well as on the page
     const made = await createOrganizer(env, req, email, now, "start");
     if ("error" in made) return made.status === 503 ? BUSY() : json({ error: made.error }, made.status);
     await recordConsent(env.DB, { subject: made.org, kind: "K2", ref: "start", now });
@@ -693,12 +694,14 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (req.method === "POST" && p === "/api/auth/email") {
     const b = await body(req);
     const email = typeof b?.email === "string" ? b.email.trim().toLowerCase() : "";
-    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid work email." }, 400);
-    { const mt = consentRequired(b, "K2"); if (mt) return mt; } // K2: ticking the Terms box is part of signing in
+    if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
     const eh = await sha("email|" + email);
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
+    // K2: an account that already accepted the CURRENT Terms signs in with no box; anyone else (a Host, a new Terms version) must tick it, and that tick is recorded
+    const ticked = consentRequired(b, "K2") === null;
+    if (!(acct && (await hasConsented(env.DB, acct.org, "K2")))) { const mt = consentRequired(b, "K2"); if (mt) return mt; }
     const hostAcct = acct ? null : await hostForEmail(env.DB, eh);
-    if (acct) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now }); // a Host who confirmed this address signs in the same way (no Organizer account for it)
+    if (acct && ticked) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now }); // a Host who confirmed this address signs in the same way (no Organizer account for it)
     const test = (env as PayEnv).TEST_MODE === "1";
     let devCode: string | undefined, devToken: string | undefined;
     if (acct || hostAcct) { // an unknown address gets the same answer, so nobody can find out who has an account

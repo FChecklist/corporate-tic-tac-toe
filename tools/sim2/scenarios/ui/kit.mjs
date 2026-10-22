@@ -105,10 +105,15 @@ export async function tickIfAny(t, page, opts) {
 export async function tickCode(page) {
   if (await page.locator(".tb input[data-box]:not(:checked)").count()) await tickIfAny(CUR, page, { scope: ".tb", btn: "#cdGo", what: "Sign-in code" });
 }
-/** The home-page sign-in sheet as a person: e-mail, the Terms box (K2), "Email me a code". Waits for the code box. */
+/** The home-page sign-in sheet as a person: e-mail, Continue. An account that already accepted the Terms goes straight to the code boxes; if the Terms box (K2) appears instead, it is ticked and Continue pressed again. Waits for the code boxes. */
 export async function askCodeUi(page, email) {
-  await page.goto(H.SIM + "/#login"); await page.fill("#lMail", email);
-  await tickIfAny(CUR, page, { scope: ".tb", btn: "#lgGo", what: "Sign-in" }); await page.click("#lgGo"); await page.waitForSelector("#lCode");
+  await page.goto(H.SIM + "/#login"); await page.fill("#lMail", email); await page.click("#lgGo");
+  const seen = await Promise.race([
+    page.waitForSelector("#lCode", { state: "attached", timeout: 10000 }).then(() => "code").catch(() => null),
+    page.waitForSelector("#k2slot input[data-box]", { timeout: 10000 }).then(() => "box").catch(() => null),
+  ]);
+  if (seen === "box") { await tickTerms(CUR, page, { scope: "#k2slot", btn: "#lgGo", what: "Sign-in" }); await page.click("#lgGo"); }
+  await page.waitForSelector("#lCode", { state: "attached" });
 }
 /**
  * A Co-host whose key has not yet accepted the role meets ONE box (K5, #k5gate) before anything else: this ticks it, presses Accept and checks with the server that the

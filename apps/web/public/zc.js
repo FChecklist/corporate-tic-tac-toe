@@ -933,9 +933,18 @@
   const waitLinkView0 = () => frame(`<div class="zc-body"><div class="zc-main"><div class="zc-block"><p style="margin:0">Open the link your ${role() === "cohost" ? "Organizer or Host" : "Organizer"} sent you. It opens the game directly.</p></div>${S.note ? `<div class="zc-toast" role="status">${esc(S.note)}</div>` : ""}</div></div>`, false);
   const partnerView = () => frame(`<div class="zc-body"><div class="zc-main"><div class="zc-block"><h3>Your partner area</h3><p>Your partner screens are on their own page.</p><a class="zc-btn zc-btn-s" href="/partner.html">Open my partner area</a></div></div></div>`, false);
   function loginView(msg) {
-    return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main"><div class="zc-block"><h3>Sign in</h3>
-      <label class="zc-lbl" for="sec">Your sign-in key</label><input id="sec" class="zc-in" type="password" autocomplete="off" value="${esc(secret)}">
-      ${msg ? `<div class="zc-toast" role="status">${esc(msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn" id="in" type="button">Continue</button></div></div><div class="zc-block"><h3>Coming back?</h3>${googleBlock(true)}${small("Or sign in with your work e-mail: we send you a 6-digit code, no password.")}<a class="zc-chip" href="/#login" id="goLogin">Sign in with an e-mail code</a></div></div></div>`;
+    return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main">
+      <div class="zc-eyebrow">Organizer console</div>
+      <h2>Sign in to your console</h2>
+      <p class="zc-lead">Enter your e-mail. New here? Your organizer account is created at once. Coming back? We send you a 6-digit code. No password needed.</p>
+      <label class="zc-lbl" for="lem">Your e-mail</label><input id="lem" class="zc-in" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail">
+      <div class="zc-foot"><button class="zc-btn" id="goLogin" type="button">Continue</button></div>
+      ${S.gcid ? `<div class="zc-or">or</div>${googleBlock(true)}` : ""}
+      <p class="zc-small zc-muted zc-lead2">Sign in with an e-mail code: nothing to remember. Players never sign in; they join with your link.</p>
+      <details class="zc-keybox"${msg ? " open" : ""}><summary>Have a sign-in key? Hosts and Co-hosts: your link already carries it.</summary>
+      <label class="zc-lbl" for="sec">Your sign-in key</label><input id="sec" class="zc-in" type="password" autocomplete="off" value="${esc(secret)}" placeholder="Paste the key from your link">
+      ${msg ? `<div class="zc-toast" role="status">${esc(msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn zc-btn-alt" id="in" type="button">Continue with the key</button></div></details>
+    </div></div>`;
   }
   /** A Co-host (or Host) who has not yet ticked the K5 box: the console shows only that box and a Continue button; once it is posted the console opens as usual. */
   const k5View = () => `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main"><div class="zc-block" id="k5gate"><h3>One more step</h3>${small("Please read and tick the box. You only do this once.")}${tbSlot("k5", "K5", "k5go")}${S.k5msg ? `<div class="zc-toast" role="status">${esc(S.k5msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn" id="k5go" type="button" ${tbDis("k5")}>Continue</button></div></div></div></div>`;
@@ -1270,7 +1279,8 @@
     const all = (sel, fn) => $app.querySelectorAll(sel).forEach(fn);
     const noteAndDraw = (t) => { S.note = t; redraw(); };
     if ($("shield")) $("shield").onchange = () => { S.shield = $("shield").checked; ss.set("cbz-shield", S.shield ? "1" : "0"); S.nameCache = null; lastHtml = ""; if (!eid) return redraw(); if (role() === "cohost") return redraw(); refreshEng(); };
-    if ($("goLogin")) $("goLogin").onclick = () => { try { sessionStorage.setItem("cbz-next", location.pathname + location.search); } catch {} };
+    if ($("goLogin")) $("goLogin").onclick = () => { const em = ($("lem") && $("lem").value || "").trim(); try { sessionStorage.setItem("cbz-next", location.pathname + location.search); if (em) sessionStorage.setItem("cbz-login-email", em); } catch {} location.href = "/#login"; }; // the website's login box does the rest (new account or 6-digit code) and brings the person back here
+    if ($("lem")) $("lem").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); $("goLogin").click(); } };
     if ($("in")) $("in").onclick = () => { secret = $("sec").value.trim(); ss.set("cbz-org", secret); S.loginMsg = ""; bootstrap(); };
     if ($("back")) $("back").onclick = () => { eid = ""; S.cfg = null; S.info = null; S.f = null; S.fFor = ""; S.openInit = ""; S.note = ""; S.sum = null; history.replaceState(null, "", location.pathname + (BASE ? "?api=" + encodeURIComponent(BASE) : "")); refreshHome(); };
     if ($("mk")) $("mk").onclick = async () => { $("mk").disabled = true; try { await startNew(); } catch (e) { noteAndDraw(friendly(e)); } };

@@ -37,7 +37,7 @@
     catch (e) { const err = new Error("We could not reach the service. Please check your internet and try again."); err.status = 0; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
     let data = null;
     try { data = await res.json(); } catch {}
-    if (!res.ok) { const err = new Error((data && data.error) || "Something went wrong. Please try again."); err.status = res.status; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
+    if (!res.ok) { const err = new Error((data && data.error) || "Something went wrong. Please try again."); err.status = res.status; err.code = data && data.code; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }
     return data;
   };
 

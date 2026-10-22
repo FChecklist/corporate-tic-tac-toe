@@ -51,7 +51,7 @@
   const focusFirst = (id) => setTimeout(() => { const el = $(id); if (el) el.focus(); }, 60);
   // "Continue with Google": shown above the e-mail way only when the server has a Google client id (google.js); the e-mail code stays the other way
   const gBox = `<div id="gWrap" class="gwrap" hidden></div><p id="gOr" class="gor" hidden>or</p>`;
-  const mountGoogle = (intent) => { const w = $("gWrap"); if (!w || !TB.google) return; TB.google.mount(w, { intent, getTerms: () => termsNow() || null, onDone: TB.google.finish, onError: (m) => { const f = $("fErr"); if (f) f.innerHTML = err(m); } }).then((shown) => { const o = $("gOr"); if (o && shown) o.hidden = false; }).catch(() => {}); };
+  const mountGoogle = (intent, needBox) => { const w = $("gWrap"); if (!w || !TB.google) return; TB.google.mount(w, { intent, getTerms: () => { const t = termsNow(); if (!t && needBox) needBox(); return t || null; }, onDone: TB.google.finish, onError: (m) => { const f = $("fErr"); if (f) f.innerHTML = err(m); } }).then((shown) => { const o = $("gOr"); if (o && shown) o.hidden = false; }).catch(() => {}); };
   // Consent boxes (termsbox.js): the wording comes from the server, a box is never pre-ticked, the button stays disabled until every box is ticked, the ticks travel as consent: {version,boxes}.
   let TBX = null; // the boxes of the pop-up that is open now (K2 on the sign-in pop-ups, K3 on the checkout)
   const mountTerms = (group, slotId, btnId) => { TBX = null; const slot = $(slotId); if (!slot || !window.TermsBox) return; window.TermsBox.mount(slot, group, { base: "", onChange: (ok) => { const b = $(btnId); if (b) b.disabled = !ok; } }).then((t) => { TBX = t; }).catch(() => {}); };
@@ -83,7 +83,7 @@
       <div class="sum" id="ordSum"></div>
       <form id="coForm" novalidate>
         <label class="lb" for="oName">Organization name</label><input class="inp" id="oName" autocomplete="organization" placeholder="e.g. Acme Industries">
-        <label class="lb" for="oMail">Your work email (invoice and login)</label><input class="inp" id="oMail" type="email" autocomplete="email" placeholder="your e-mail">
+        <label class="lb" for="oMail">Your e-mail (invoice and login)</label><input class="inp" id="oMail" type="email" autocomplete="email" placeholder="your e-mail">
         <label class="lb" for="oPh">Your mobile number (optional)</label><input class="inp" id="oPh" type="tel" autocomplete="tel" placeholder="98765 43210">
         <label class="lb" for="oCty">Country of your organization</label><select class="inp" id="oCty">${TB.countryOpts(def)}</select>
         <div id="taxBox"></div><div id="fErr"></div><div id="tbSlot" class="tbslot"></div>
@@ -124,7 +124,7 @@
     mountTerms("K2", "tbSlot", "frGo");
     $("frForm").addEventListener("submit", async (e) => {
       e.preventDefault(); const m = $("fMail").value.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid work email.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid e-mail address.");
       const t = termsNow(); if (!t) return setErr("Please tick the box to continue.");
       const b = $("frGo"); b.disabled = true; setErr("");
       try {
@@ -140,7 +140,7 @@
   async function pay() {
     const org = $("oName").value.trim(), email = $("oMail").value.trim().toLowerCase(), country = $("oCty").value, taxId = $("oGst").value.trim().toUpperCase();
     if (org.length < 2) return setErr("Please enter your organization name.");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErr("Please enter a valid work email.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return setErr("Please enter a valid e-mail address.");
     setErr("");
     const terms = termsNow(); if (!terms) return setErr("Please tick the box to continue.");
     const btn = $("payGo"); btn.disabled = true; const keep = btn.innerHTML; btn.textContent = "Processing…";
@@ -156,7 +156,7 @@
     const o = ORDER;
     TB.sheet(`${xbtn}<div class="res ok">${ic("check")}</div><h2 class="center">Your game is ready</h2>
       <div class="sum"><div class="kv"><span>Order</span><b class="mono">${esc(o.orderId)}</b></div><div class="kv"><span>Organization</span><b>${esc(o.org)}</b></div><div class="kv"><span>Players</span><b>Up to ${nf(o.pack)}</b></div><div class="kv t"><span>${o.mode === "test" ? "Paid (test)" : "Paid"}</span><b>${TB.money(o.total, o.currency)}</b></div>${o.invoiceNumber ? `<div class="kv"><span>Invoice</span><b class="mono"><a href="${esc(o.invoiceUrl)}" target="_blank" rel="noopener">${esc(o.invoiceNumber)}</a></b></div>` : ""}</div>
-      ${o.organizerKey ? `<div class="note info" role="note"><b>Your organizer key</b> (shown only once, and we have emailed it to you):<div class="mono" id="orgKey" style="word-break:break-all;margin:6px 0">${esc(o.organizerKey)}</div><button class="btn sm" type="button" id="cpKey">Copy key</button></div>` : `<p class="small muted center">You already have an organizer key. Sign in with your work email to continue.</p>`}
+      ${o.organizerKey ? `<div class="note info" role="note"><b>Your organizer key</b> (shown only once, and we have emailed it to you):<div class="mono" id="orgKey" style="word-break:break-all;margin:6px 0">${esc(o.organizerKey)}</div><button class="btn sm" type="button" id="cpKey">Copy key</button></div>` : `<p class="small muted center">You already have an organizer key. Sign in with your e-mail to continue.</p>`}
       <p class="small muted center">Next step: open your console to set the date, pick your prizes and share the link. We sent the details and your invoice to <b>${esc(o.email)}</b>.</p>
       <div id="fErr"></div>
       <button class="btn block" id="toLogin" type="button">Open my console ${ic("arrow")}</button>`);
@@ -165,45 +165,83 @@
   }
 
   // ---------- login ----------
+  /** Where a signed-in organizer goes next: the page the visit began on (the console, or a pay page) or the console. */
+  function nextAfterSignIn() { let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?e=[A-Za-z0-9_-]{4,40})?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {} return nx; }
   function openLogin(email) {
-    TB.sheet(`${xbtn}<div class="eyebrow">Organizer login</div><h2>Sign in with your work email</h2><p class="muted small">Players never log in here. They join with your link. We email you a 6-digit code: no password.</p>
-      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Work email</label><input class="inp" id="lMail" data-need="1" type="email" autocomplete="email" placeholder="your e-mail" value="${esc(email || "")}"><div id="fErr"></div>
-      <div id="tbSlot" class="tbslot"></div>
-      <button class="btn block" style="margin-top:14px" type="submit" id="lgGo" disabled>Email me a code ${ic("arrow")}</button></form>
+    TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Enter your e-mail. New here? Your organizer account is created at once. Coming back? We send you a 6-digit code. No password needed. Players never sign in here: they join with your link.</p>
+      ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Your e-mail</label><input class="inp big" id="lMail" data-need="1" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" value="${esc(email || "")}"><div id="k2slot"></div><div id="fErr" role="alert"></div>
+      <button class="btn block big" style="margin-top:14px" type="submit" id="lgGo">Continue ${ic("arrow")}</button></form>
       ${termsLinks}`);
-    mountTerms("K2", "tbSlot", "lgGo");
-    $("lgForm").addEventListener("submit", (e) => { e.preventDefault(); const m = $("lMail").value.trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid work email."); if (!termsNow()) return setErr("Please tick the box to continue."); askCode(m, $("lgGo")); });
-    mountGoogle("signin"); focusFirst("lMail");
+    let termsShown = false;
+    // the Terms box (K2) appears only when the server asks for it: a new address, or an account that has not yet accepted the current Terms
+    const showTerms = (intro) => {
+      termsShown = true; const k = $("k2slot"); k.innerHTML = `<p class="small muted" style="margin:12px 0 4px">${intro}</p><div id="tbSlot" class="tbslot"></div>`;
+      $("lgGo").disabled = true; mountTerms("K2", "tbSlot", "lgGo"); setErr("");
+    };
+    const NEWTXT = "<b>New here?</b> Tick the box below and we create your organizer account at once. It is free to build and publish.", TICKTXT = "Please read and tick the box to continue.";
+    $("lgForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); const m = $("lMail").value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid e-mail address.");
+      if (termsShown && !termsNow()) return setErr("Please tick the box to continue.");
+      const b = $("lgGo"); b.disabled = true; setErr("");
+      try { // one door for everyone: an address that already has an account is sent a code; a new address gets an account (after the Terms box) and goes straight in
+        const r = await TB.api("POST", "/api/start", termsShown ? { email: m, consent: termsNow() } : { email: m });
+        if (r.exists) return askCode(m, b, termsShown ? null : () => showTerms(TICKTXT));
+        try { sessionStorage.setItem("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); sessionStorage.setItem("cbz-email", m); } catch {}
+        location.href = nextAfterSignIn();
+      } catch (x) {
+        if (!termsShown && x.status === 400 && x.code === "consent-required") return showTerms(NEWTXT);
+        b.disabled = termsShown ? !(TBX && TBX.ok()) : false; setErr(x.message);
+      }
+    });
+    mountGoogle("signin", () => { if (!termsShown) showTerms(TICKTXT); }); focusFirst("lMail");
   }
-  async function askCode(email, btn) {
+  async function askCode(email, btn, onConsent) {
     if (btn) { btn.disabled = true; }
     try {
       const r = await TB.api("POST", "/api/auth/email", { email, consent: termsNow() });
       codeView(email, r.devCode);
-    } catch (e) { if (btn) btn.disabled = !!(TBX && !TBX.ok()); const f = $("fErr"); if (f) f.innerHTML = err(e.message); else TB.toast(esc(e.message)); }
+    } catch (e) {
+      if (e.code === "consent-required" && onConsent) return onConsent();
+      if (btn) btn.disabled = !!(TBX && !TBX.ok()); const f = $("fErr"); if (f) f.innerHTML = err(e.message); else TB.toast(esc(e.message));
+    }
   }
   function codeView(email, devCode) {
-    TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Check your inbox</div><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
-      <h2 id="cdTitle">Check your email</h2>
-      <p class="sheetbody">We emailed <b class="sendto">${esc(email)}</b>. Tap a button in the email, or type the 6-digit passcode here. It works for 10 minutes. Check spam too.</p>
-      ${devCode ? `<div class="note info devcode" role="note"><span>Local test mode: your passcode is <b>${esc(devCode)}</b></span><button type="button" class="btn sm" id="useCode">Use this passcode</button></div>` : ""}
-      <form id="cdForm" novalidate><label class="lb" for="lCode">6-digit passcode</label><input class="inp mono codein" id="lCode" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="••••••" aria-describedby="fErr cdHelp" autocapitalize="off" spellcheck="false"><div id="fErr" role="alert"></div>
-      <button class="btn block big" style="margin-top:14px" type="submit" id="cdGo">Sign in</button></form>
-      <button class="btn line block big" style="margin-top:8px" type="button" id="resend">Send me a new code</button>
-      <p class="sheethelp" id="cdHelp" role="status" aria-live="polite">Not there yet? Check spam, or send a new code.</p>`);
+    const boxes6 = [0, 1, 2, 3, 4, 5].map((i) => `<input class="otpb" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? "one-time-code" : "off"}" aria-label="Digit ${i + 1} of 6" autocapitalize="off" spellcheck="false">`).join("");
+    TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Step 2 of 2</div><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
+      <h2 id="cdTitle">Check your e-mail</h2>
+      <p class="sheetbody">We have sent a 6-digit code to <b class="sendto">${esc(email)}</b>. Enter it below. The code works for 10 minutes.</p>
+      ${devCode ? `<div class="note info devcode" role="note"><span>Local test mode: your code is <b>${esc(devCode)}</b></span><button type="button" class="btn sm" id="useCode">Use this code</button></div>` : ""}
+      <form id="cdForm" novalidate><label class="lb" id="otpLabel">Your 6-digit code</label>
+      <div class="otp" role="group" aria-labelledby="otpLabel">${boxes6}</div>
+      <input id="lCode" class="otphid" inputmode="numeric" autocomplete="off" maxlength="6" aria-hidden="true" tabindex="-1">
+      <div id="fErr" role="alert"></div>
+      <button class="btn block big" style="margin-top:16px" type="submit" id="cdGo">Submit</button></form>
+      <button class="btn line block big" style="margin-top:8px" type="button" id="resend">Send a new code</button>
+      <p class="sheethelp" id="cdHelp" role="status" aria-live="polite">Not received yet? Look in your spam folder, or send a new code.</p>`);
+    const boxes = Array.from(document.querySelectorAll(".otpb")), hid = $("lCode");
+    const sync = () => { hid.value = boxes.map((b) => b.value).join(""); };
+    const spread = (digits) => { const d = digits.replace(/\D/g, "").slice(0, 6); boxes.forEach((b, i) => { b.value = d[i] || ""; }); sync(); const n = Math.min(d.length, 5); boxes[n].focus(); };
+    boxes.forEach((b, i) => {
+      b.addEventListener("input", () => { const v = b.value.replace(/\D/g, ""); if (v.length > 1) return spread(boxes.slice(0, i).map((x) => x.value).join("") + v); b.value = v; sync(); if (v && i < 5) boxes[i + 1].focus(); });
+      b.addEventListener("keydown", (e) => { if (e.key === "Backspace" && !b.value && i > 0) { boxes[i - 1].value = ""; boxes[i - 1].focus(); sync(); e.preventDefault(); } else if (e.key === "ArrowLeft" && i > 0) boxes[i - 1].focus(); else if (e.key === "ArrowRight" && i < 5) boxes[i + 1].focus(); });
+      b.addEventListener("paste", (e) => { const txt = (e.clipboardData || window.clipboardData).getData("text") || ""; if (/\d{2,}/.test(txt)) { e.preventDefault(); spread(txt); } });
+      b.addEventListener("focus", () => b.select());
+    });
+    hid.addEventListener("input", () => { const d = hid.value.replace(/\D/g, "").slice(0, 6); boxes.forEach((b, i) => { b.value = d[i] || ""; }); hid.value = d; }); // a test tool or password manager may fill the hidden field: mirror it into the boxes
     const verify = async () => {
-      const code = $("lCode").value.replace(/\D/g, "");
-      if (code.length !== 6) return setErr("Enter the 6-digit passcode.");
+      const code = hid.value.replace(/\D/g, "");
+      if (code.length !== 6) return setErr("Please enter all 6 digits of the code.");
       const b = $("cdGo"); b.disabled = true; setErr("");
       try {
         const r = await TB.api("POST", "/api/auth/verify", { email, code });
-        try { sessionStorage.setItem("cbz-org", r.token); } catch {} let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?e=[A-Za-z0-9_-]{4,40})?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {} location.href = nx;
-      } catch (e) { b.disabled = false; setErr(e.message); }
+        try { sessionStorage.setItem("cbz-org", r.token); } catch {} location.href = nextAfterSignIn();
+      } catch (e) { b.disabled = false; setErr(e.message); boxes[0].focus(); }
     };
     $("cdForm").addEventListener("submit", (e) => { e.preventDefault(); verify(); });
     $("resend").addEventListener("click", async () => { await askCode(email, $("resend")); TB.toast("A new code was sent"); });
-    const u = $("useCode"); if (u) u.addEventListener("click", () => { $("lCode").value = devCode; verify(); });
-    focusFirst("lCode");
+    const u = $("useCode"); if (u) u.addEventListener("click", () => { spread(devCode); verify(); });
+    boxes[0].focus();
   }
 
   // ---------- init ----------
@@ -213,7 +251,7 @@
     tick(); setInterval(tick, 1300);
     let bb = 0; setInterval(() => { bb = (bb + 2) % 102; const e = $("bbp"); if (e) e.style.setProperty("--p", bb + "%"); }, 200);
   }
-  const hashLogin = () => { if (location.hash === "#login") openLogin(""); };
+  const hashLogin = () => { if (location.hash === "#login") { let em = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} openLogin(em); } };
   window.addEventListener("hashchange", hashLogin); hashLogin();
 })();
 

@@ -437,7 +437,7 @@ describe("Refer & Earn page", () => {
     const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "partner.js"]);
     await p.waitFor((x) => /Get your link in 20 seconds/.test(x));
     (p.$("#ph") as any).value = "+91 98765 43210"; (p.$("#em") as any).value = "partner@example.com"; (p.$("#ok") as any).checked = true; p.click("#join");
-    await p.waitFor((x) => /Check your email/.test(x));
+    await p.waitFor((x) => /Check your e-?mail/.test(x));
     const mailed = (o.world.raw.prepare("SELECT body FROM outbox WHERE to_addr='partner@example.com' ORDER BY id DESC").get() as any).body.match(/\b\d{6}\b/)[0];
     (p.$("#cd") as any).value = mailed; p.click("#cdgo");
     const t = await p.waitFor(() => !!p.win.document.getElementById("dash")?.textContent?.includes("Your link"));

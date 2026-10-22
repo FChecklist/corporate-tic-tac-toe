@@ -37,7 +37,7 @@
         <p class="zsmall">Already joined? <a href="#" id="signin">Sign in with your partner key</a></p></div>`;
   }
   function codeView() {
-    return `<div class="zcard zform"><h2>Check your email</h2><p class="zsmall" style="margin-top:0">We emailed <b>${esc(S.email)}</b>. Type the 6-digit code here. It works for 10 minutes.</p>
+    return `<div class="zcard zform"><h2>Check your e-mail</h2><p class="zsmall" style="margin-top:0">We emailed <b>${esc(S.email)}</b>. Type the 6-digit code here. It works for 10 minutes.</p>
       <label for="cd">6-digit code</label><input id="cd" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
       ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
       <button class="zbtn" id="cdgo">Get my link</button>
