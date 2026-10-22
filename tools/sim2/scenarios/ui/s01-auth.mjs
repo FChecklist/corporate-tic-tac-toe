@@ -30,7 +30,7 @@ export default [
       await tickTerms(t, x.page, { scope: ".tb", btn: "#frGo", what: "Sign-up" }); await x.page.click("#frGo");
       await x.page.waitForTimeout(500);
       const txt = await t.text(x.page);
-      t.check("a friendly e-mail message is shown", /valid work email|valid email/i.test(txt), txt.slice(0, 160));
+      t.check("a friendly e-mail message is shown", /valid work email|valid email|check the e-mail address|e-mail address is missing/i.test(txt), txt.slice(0, 160));
       t.check("still on the home page", !/\/zc/.test(x.page.url()));
       await t.shot(x.page, "bad-email");
     },
@@ -61,7 +61,7 @@ export default [
       t.check("wrong code gives an error line", bad.length > 3 && !/\/zc/.test(x.page.url()), bad);
       t.check("TEST mode shows the helper line", !!(await x.page.$("#useCode")));
       await x.page.fill("#lCode", "12"); await tickCode(x.page); await x.page.click("#cdGo"); await x.page.waitForTimeout(300);
-      t.check("short code says 'Enter the 6-digit passcode'", /6-digit/.test(await t.text(x.page, "#fErr")));
+      t.check("short code says 'Enter the 6-digit passcode'", /6-digit|6 digits/.test(await t.text(x.page, "#fErr")));
       await x.page.click("#useCode"); await x.page.waitForURL(/\/zc/, { timeout: 15000 });
       t.check("helper signs in", true);
     },

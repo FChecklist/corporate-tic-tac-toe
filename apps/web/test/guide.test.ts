@@ -133,7 +133,7 @@ describe("the right guide for the right message and the right person", () => {
   test("no catalog fragment is so short or common that it can guide an unrelated message", async () => {
     const p = await page(); const C = p.win.CTG.catalog as any[];
     // three short ones are whole, specific messages: "busy", "busy day", "choose a pack"
-    for (const e of C) for (const m of e.m) { const n = String(m).toLowerCase().replace(/\d+/g, "").replace(/\s+/g, " ").trim(); expect(n.length >= 14 || ["busy", "busy day", "choose a pack", "bad draw", "bad match", "bad move", "bad result", "no such board"].includes(n)).toBe(true); }
+    for (const e of C) for (const m of e.m) { const n = String(m).toLowerCase().replace(/\d+/g, "").replace(/\s+/g, " ").trim(); expect(n.length >= 14 || ["busy", "busy day", "choose a pack", "bad draw.", "bad match.", "bad move.", "bad result.", "no such board."].includes(n)).toBe(true); }
     for (const msg of ["You have been removed from this game by someone.", "You can have a look at the report later.", "Send a postcard to your friend.", "Check the weather before you travel.", "Your ticket is lovely."]) {
       const f = p.win.CTG.find({ status: -1, message: msg }); expect(f.matched).toBe(false);
     }

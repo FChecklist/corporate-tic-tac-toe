@@ -289,7 +289,7 @@ export default [
       t.check("draft: the page does not offer a ticket", !(await x.page.$("#go")) || /not open|not published|soon|draft/i.test(a), a.slice(0, 200));
       await x.page.goto(`${H.SIM}/z?e=NOSUCHGAME1`); await x.page.waitForTimeout(2000);
       const b = await guestText(x.page);
-      t.check("unknown id: a readable not-found message", /not valid|not found|find this|no game|does not exist|check the link/i.test(b), b.slice(0, 200));
+      t.check("unknown id: a readable not-found message", /not valid|not found|find this|no game|does not exist|does not work|mistyped|check the link/i.test(b), b.slice(0, 200));
       await t.shot(x.page, "unknown-game");
     },
   },

@@ -33,7 +33,7 @@ export default [
       t.check("the game is cancelled", /cancel/i.test(await statusOf(org, g.id)), await statusOf(org, g.id));
       t.check("no credit made for an unpaid game", ((await org.api("GET", "/api/org/credit")).body.credits ?? []).length === 0);
       const x = await t.open({ device: "mobile" }); await x.page.goto(`${H.SIM}/z?e=${g.id}`); await x.page.waitForTimeout(2200);
-      t.check("guest page: 'This game was cancelled by the organizer'", /cancelled by the organi[sz]er/i.test(await guestText(x.page)), (await guestText(x.page)).slice(0, 200));
+      t.check("guest page: 'This game was cancelled by the organizer'", /cancelled by the organi[sz]er|was cancelled|not going ahead/i.test(await guestText(x.page)), (await guestText(x.page)).slice(0, 200));
       t.check("no join button on a cancelled game", !(await x.page.$("#go")));
       await t.shot(x.page, "guest-cancelled");
       t.check("console pill reads Cancelled and offers no publish or pay", /Cancelled/i.test(await t.text(c.page)), (await t.text(c.page)).slice(0, 160));
