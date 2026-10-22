@@ -68,11 +68,13 @@ describe("tests 1-4 at every point", () => {
     expect(r[0].subject).toBe((raw.query("SELECT org FROM organizer_email").get() as any).org);
     expect((raw.query("SELECT COUNT(*) c FROM organizer_terms").get() as any).c).toBe(1); // the older record of the Terms version is kept too
   });
-  test("K2 sign-in by e-mail code needs the tick too", async () => {
+  test("K2 sign-in by e-mail code: an account that already accepted the current Terms needs no tick (one door); a tick, when given, is recorded; a NEW address on /api/start still needs the tick", async () => {
     await organizer("b@acme.com");
-    expect((await call("POST", "/api/auth/email", { email: "b@acme.com" })).status).toBe(400);
+    expect(await j(await call("POST", "/api/start", { email: "b@acme.com" }))).toMatchObject({ exists: true }); // exists: asked for the code instead, no Terms box
+    expect((await call("POST", "/api/auth/email", { email: "b@acme.com" })).status).toBe(200); expect(rows("K2").length).toBe(1);
     expect((await call("POST", "/api/auth/email", { email: "b@acme.com", consent: tick("K2") })).status).toBe(200);
     expect(rows("K2").length).toBe(2);
+    expect(await j(await call("POST", "/api/start", { email: "brand-new@acme.com" }))).toMatchObject({ code: "consent-required" }); // a new address is asked for the Terms box
   });
   test("K1 publish: both boxes are needed; the game stays unpublished without them; with them the rows carry the game id", async () => {
     const h = await organizer(); const id = await game(h, "CON-1"); const body = { email: "boss@acme.com", phone: "98765 43210" };
