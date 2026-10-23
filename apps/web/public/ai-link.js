@@ -2,7 +2,7 @@
 // their own e-mail address). A forwarded e-mail is useless to anyone else. It shows the lasting AI link, with Copy, Get a fresh 24-hour link (e-mailed) and Replace.
 (() => {
   const app = document.getElementById("app");
-  const ss = { get: (k) => { try { return sessionStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} } };
+  const ss = { get: (k) => (window.CTK ? window.CTK.get(k) || "" : (() => { try { return sessionStorage.getItem(k) || ""; } catch { return ""; } })()), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else { try { sessionStorage.setItem(k, v); } catch {} } } };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const WARN = "DO NOT FORWARD: this page shows your personal AI work link";
   let token = ss.get("cbz-org"), note = "";

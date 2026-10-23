@@ -6,6 +6,7 @@
 //     The one-tap publish approval is a link in an e-mail (7 days, single use). Opening it gives the page a master key for 30 minutes (kind 'master', created_by 'dp') which is revoked when the game is published or the link is stopped.
 //   - Every e-mail address is kept sealed. The Organizer's address is also kept as the same one-way hash the sign-in uses, so an invitation can be accepted only by the account of that address.
 //   - Every paid game the helper prepared earns the helper Refer-and-earn commission: the payment's `ref` is the helper's partner code (pay.ts), and recordCommission does the rest (same rate, same repeat rule, same self-referral block).
+import { ensurePartnerKey } from "./partners";
 import type { D1, Env } from "./worker";
 import { sendMail, type PayEnv } from "./pay";
 import { openText, sealText } from "./pii";
@@ -158,7 +159,8 @@ export async function helpdeskRoute(req: Request, env: PayEnv, now: number, spen
 
   const partner = async () => {
     const k = req.headers.get("x-partner") ?? "";
-    return k ? db.prepare("SELECT code, name, email_hash, state FROM partner WHERE key_hash=?").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; email_hash: string | null; state: string }>() : null;
+    if (k) await ensurePartnerKey(db);
+    return k ? db.prepare("SELECT code, name, email_hash, state FROM partner WHERE key_hash=?1 OR code IN (SELECT code FROM partner_key WHERE key_hash=?1)").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; email_hash: string | null; state: string }>() : null;
   };
   /** The helper: a partner who turned Help Desk on. */
   const helper = async () => {

@@ -130,7 +130,7 @@
       try {
         const r = await TB.api("POST", "/api/start", { email: m, consent: t });
         if (r.exists) { TB.toast("You already have an account, so we are emailing you a code to confirm it is you"); return askCode(m, b); }
-        try { sessionStorage.setItem("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); sessionStorage.setItem("cbz-email", m); } catch {}
+        try { CTK.set("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); CTK.set("cbz-email", m); } catch {}
         location.href = "/zc.html";
       } catch (x) { b.disabled = !(TBX && TBX.ok()); setErr(x.message); }
     });
@@ -161,14 +161,14 @@
       <div id="fErr"></div>
       <button class="btn block" id="toLogin" type="button">Open my console ${ic("arrow")}</button>`);
     const cp = $("cpKey"); if (cp) cp.addEventListener("click", () => { try { navigator.clipboard.writeText(o.organizerKey); TB.toast("Key copied"); } catch {} });
-    $("toLogin").addEventListener("click", () => { if (o.organizerKey) { try { sessionStorage.setItem("cbz-org", o.organizerKey); } catch {} location.href = "/zc.html"; } else openLogin(o.email); });
+    $("toLogin").addEventListener("click", () => { if (o.organizerKey) { try { CTK.set("cbz-org", o.organizerKey); } catch {} location.href = "/zc.html"; } else openLogin(o.email); });
   }
 
   // ---------- login ----------
   /** Where a signed-in organizer goes next: the page the visit began on (the console, or a pay page) or the console. */
   function nextAfterSignIn() { let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?e=[A-Za-z0-9_-]{4,40})?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {} return nx; }
   function openLogin(email) {
-    TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Enter your e-mail. New here? Your organizer account is created at once. Coming back? We send you a 6-digit code. No password needed. Players never sign in here: they join with your link.</p>
+    TB.sheet(`${xbtn}<div class="eyebrow">Organizer sign-in</div><h2>Sign in or create your account</h2><p class="muted small">Type your e-mail and press Continue. That is all: there is no password. New here? Your account is made at once. Coming back? We e-mail you two ways to get in; you use <b>one</b> of them. Players never sign in here: they join with your game link.</p>
       ${gBox}<form id="lgForm" novalidate><label class="lb" for="lMail">Your e-mail</label><input class="inp big" id="lMail" data-need="1" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" value="${esc(email || "")}"><div id="k2slot"></div><div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="lgGo">Continue ${ic("arrow")}</button></form>
       ${termsLinks}`);
@@ -187,7 +187,7 @@
       try { // one door for everyone: an address that already has an account is sent a code; a new address gets an account (after the Terms box) and goes straight in
         const r = await TB.api("POST", "/api/start", termsShown ? { email: m, consent: termsNow() } : { email: m });
         if (r.exists) return askCode(m, b, termsShown ? null : () => showTerms(TICKTXT));
-        try { sessionStorage.setItem("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); sessionStorage.setItem("cbz-email", m); } catch {}
+        try { CTK.set("cbz-org", r.token); sessionStorage.setItem("cbz-aimsg", r.aiMessage); CTK.set("cbz-email", m); } catch {}
         location.href = nextAfterSignIn();
       } catch (x) {
         if (!termsShown && x.status === 400 && x.code === "consent-required") return showTerms(NEWTXT);
@@ -209,16 +209,18 @@
   function codeView(email, devCode) {
     const boxes6 = [0, 1, 2, 3, 4, 5].map((i) => `<input class="otpb" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? "one-time-code" : "off"}" aria-label="Digit ${i + 1} of 6" autocapitalize="off" spellcheck="false">`).join("");
     TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Step 2 of 2</div><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
-      <h2 id="cdTitle">Check your e-mail</h2>
-      <p class="sheetbody">We have sent a 6-digit code to <b class="sendto">${esc(email)}</b>. Enter it below. The code works for 10 minutes.</p>
+      <h2 id="cdTitle">Now open your e-mail</h2>
+      <p class="sheetbody">We sent an e-mail to <b class="sendto">${esc(email)}</b>. Pick <b>ONE</b> of these two ways. You do not need both.</p>
+      <div class="optbox"><div class="optn">Option 1</div><p class="optt">Go to your e-mail and type the 6-digit number here</p><p class="opts">Open the e-mail. Find the 6 numbers. Type them in the six boxes below and press <b>Submit</b>.</p></div>
+      <div class="optbox"><div class="optn">Option 2</div><p class="optt">Go to your e-mail and tap the button</p><p class="opts">Open the e-mail and tap the button <b>Sign me in</b>. You are signed in at once. You do not type anything. (You can then close this page.)</p></div>
       ${devCode ? `<div class="note info devcode" role="note"><span>Local test mode: your code is <b>${esc(devCode)}</b></span><button type="button" class="btn sm" id="useCode">Use this code</button></div>` : ""}
-      <form id="cdForm" novalidate><label class="lb" id="otpLabel">Your 6-digit code</label>
+      <form id="cdForm" novalidate><label class="lb" id="otpLabel">Option 1: type your 6-digit code here</label>
       <div class="otp" role="group" aria-labelledby="otpLabel">${boxes6}</div>
       <input id="lCode" class="otphid" inputmode="numeric" autocomplete="off" maxlength="6" aria-hidden="true" tabindex="-1">
       <div id="fErr" role="alert"></div>
       <button class="btn block big" style="margin-top:16px" type="submit" id="cdGo">Submit</button></form>
       <button class="btn line block big" style="margin-top:8px" type="button" id="resend">Send a new code</button>
-      <p class="sheethelp" id="cdHelp" role="status" aria-live="polite">Not received yet? Look in your spam folder, or send a new code.</p>`);
+      <p class="sheethelp" id="cdHelp" role="status" aria-live="polite">The e-mail can take a minute. Not there? Look in your spam or junk folder, or press <b>Send a new code</b>. Both options work for 10 minutes.</p>`);
     const boxes = Array.from(document.querySelectorAll(".otpb")), hid = $("lCode");
     const sync = () => { hid.value = boxes.map((b) => b.value).join(""); };
     const spread = (digits) => { const d = digits.replace(/\D/g, "").slice(0, 6); boxes.forEach((b, i) => { b.value = d[i] || ""; }); sync(); const n = Math.min(d.length, 5); boxes[n].focus(); };
@@ -235,7 +237,7 @@
       const b = $("cdGo"); b.disabled = true; setErr("");
       try {
         const r = await TB.api("POST", "/api/auth/verify", { email, code });
-        try { sessionStorage.setItem("cbz-org", r.token); } catch {} location.href = nextAfterSignIn();
+        try { CTK.set("cbz-org", r.token); CTK.set("cbz-email", email); if (r.alt) CTK.set("cbz-alt", JSON.stringify(r.alt)); else CTK.remove("cbz-alt"); } catch {} location.href = nextAfterSignIn();
       } catch (e) { b.disabled = false; setErr(e.message); boxes[0].focus(); }
     };
     $("cdForm").addEventListener("submit", (e) => { e.preventDefault(); verify(); });
@@ -253,6 +255,21 @@
   }
   const hashLogin = () => { if (location.hash === "#login") { let em = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} openLogin(em); } };
   window.addEventListener("hashchange", hashLogin); hashLogin();
+  // ---------- who is signed in: the top link says it ("Organizer" or "Host") and goes to the right place ----------
+  (async () => {
+    let t = ""; try { t = CTK.get("cbz-org") || ""; } catch {}
+    const a = $("loginLink"); if (!t || !a) return;
+    try {
+      const r = await fetch("/api/whoami", { headers: { "x-organizer": t }, cache: "no-store" });
+      if (!r.ok) return;
+      const k = (await r.json()).kind, who = k === "host" ? "Host" : k === "master" ? "Organizer" : "";
+      if (!who) return;
+      let both = false; try { both = !!CTK.get("cbz-alt"); } catch {}
+      a.textContent = `Signed in as ${who}${both ? " (also " + (who === "Host" ? "Organizer" : "Host") + ")" : ""} · Open my console`;
+      a.href = "/zc.html"; a.classList.add("signedin");
+      a.addEventListener("click", (e) => e.stopImmediatePropagation(), true);
+    } catch { /* offline: the normal link stays */ }
+  })();
 })();
 
 // ---------- small sticky bar: appears after scrolling; the brand returns to the top, the button jumps to the price card ----------

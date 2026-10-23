@@ -3,7 +3,7 @@
 (function () {
   const TB = window.TB, esc = TB.esc, $app = document.getElementById("app");
   const eid = TB.qs("e") || "";
-  let secret = ""; try { secret = sessionStorage.getItem("cbz-org") || ""; } catch {}
+  let secret = ""; try { secret = CTK.get("cbz-org") || ""; } catch {}
   const ss = (k) => { try { return sessionStorage.getItem(k) || ""; } catch { return ""; } };
   const nf = (n) => Number(n).toLocaleString("en-IN");
   const S = { credited: 0, info: null, mode: "", cur: "INR", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { email: ss("cbz-email") || v.email || "", phone: ss("cbz-phone") || v.phone || "", name: ss("cbz-name") || v.name || "", org: v.org || "", tax: v.tax || "" }; })(), pcode: "91", country: "IN" }; // India and +91 unless they change them: fewest taps to pay
@@ -116,7 +116,7 @@
         let r = await call("POST", "/api/checkout", { consent: terms, eid, name: nm, org, email, country: S.country, taxId: tax, currency: S.cur, phone: S.phone, phoneCode: S.pcode, ref });
         if (r.mode === "razorpay") r = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
         else if (r.result) r = r.result; // local test mode answers with the finished order
-        try { sessionStorage.setItem("cbz-email", email); sessionStorage.setItem("cbz-name", nm); } catch {}
+        try { CTK.set("cbz-email", email); sessionStorage.setItem("cbz-name", nm); } catch {}
         if (r && r.confirming) r = await waitForConfirm(r); // Razorpay has not confirmed yet: keep asking, never mark it paid early
         S.done = r;
       } catch (e) { S.err = e.cancelled ? e.message : e.message; }

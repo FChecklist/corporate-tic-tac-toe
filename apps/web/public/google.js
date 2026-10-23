@@ -34,6 +34,7 @@
   async function mount(el, opt) {
     if (!el) return false;
     el.hidden = true; el.innerHTML = "";
+    return false; // owner, 2026-10-23: there is ONE way in, the e-mail (a 6-digit code or one tap). The Google button stays off; the server route is kept but not offered.
     const id = await config();
     if (!id) return false;
     el.hidden = false;
@@ -62,7 +63,7 @@
   }
   /** What the e-mail-code sign-in does after a good code: keep the key for this tab and go on to the console (or the page that sent the person here). */
   function finish(r) {
-    try { sessionStorage.setItem("cbz-org", r.token); } catch {}
+    try { CTK.set("cbz-org", r.token); } catch {}
     let nx = "/zc.html"; try { const n = sessionStorage.getItem("cbz-next"); if (n && /^\/(zc|pay)(\.html)?(\?e=[A-Za-z0-9_-]{4,40})?$/.test(n)) nx = n; sessionStorage.removeItem("cbz-next"); } catch {}
     location.href = nx;
   }

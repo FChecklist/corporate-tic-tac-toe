@@ -217,3 +217,7 @@ body{background:linear-gradient(180deg,#DDEEFF 0,#E8F1FF 34%,#FFF3D1 72%,#E3F7EC
 /* Help Desk pages (helpdesk.html, helpdesk-accept.html, helpdesk-approve.html): a text link is a 40 px tap target, and the small brand line at the top is the page's one main heading. */
 .hdl{display:inline-flex;align-items:center;min-height:40px;padding:0 6px;margin-left:-6px}
 .hdh{margin:0;font:inherit}
+
+/* the ticket page: anyone who plays can become an organizer */
+.mkown{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:560px;margin:18px auto 6px;padding:14px 16px;border:2px dashed #E0B872;border-radius:14px;background:#FFF8EA;color:#2B3A55;font-size:14px;line-height:1.45}
+.mkown b{font-size:15px;color:#0B3D91}.mkownbtn{display:inline-block;margin-top:4px;padding:11px 18px;border-radius:10px;background:#0B3D91;color:#fff;font-weight:700;text-decoration:none}

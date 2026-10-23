@@ -11,6 +11,7 @@ import { sendMail, type PayEnv } from "./pay";
 import { testFlag } from "./mode";
 import { syncCommissions } from "./ledgerc";
 import { helperClosed } from "./helpdesk";
+import { signInMail } from "./mails";
 
 export const ATTRIBUTION_DAYS = 30;
 /** The commission every partner earns on the software price (no GST is charged) of a paid, referred purchase. product decision 2026-10-03: 50%. PARTNER_COMMISSION_RATE can lower it (never above 50%). */
@@ -69,9 +70,17 @@ export async function recordCommission(env: PayEnv, p: { id: string; ref?: strin
   } catch { /* a ledger problem must never undo a paid purchase; the payment row still carries the ref so it can be rebuilt */ }
 }
 
+/** The table of per-device partner keys (migration 0027) is created on first use, so a deploy never has to wait for a hand-applied migration. Cheap: one statement, once per running Worker. */
+let partnerKeyReady = false;
+export async function ensurePartnerKey(db: D1): Promise<void> {
+  if (partnerKeyReady) return;
+  await db.prepare("CREATE TABLE IF NOT EXISTS partner_key (key_hash TEXT PRIMARY KEY, code TEXT NOT NULL, created_ms INTEGER NOT NULL)").run();
+  partnerKeyReady = true;
+}
 export async function partnerRoute(req: Request, env: PayEnv, now: number, spend: (n: number) => Promise<boolean>, platform: boolean): Promise<Response | null> {
   const url = new URL(req.url); const p = url.pathname; const db: D1 = env.DB;
   if (!p.startsWith("/api/partner") && !p.startsWith("/api/partners")) return null;
+  await ensurePartnerKey(db);
   const busy = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
   const origin = env.PUBLIC_ORIGIN ?? url.origin;
 
@@ -113,7 +122,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     let devCode: string | undefined;
     if (have) {
       await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`penr/${eh}`, JSON.stringify({ t: t0, n })).run();
-      await sendMail(env, db, email, "Refer & earn: you already have an account", `This e-mail address or mobile number is already enrolled in Refer & earn.\n\nSign in with your partner key: ${origin}/partner.html\n\nLost the key? Reply to this e-mail.`, now);
+      await sendMail(env, db, email, "Refer & earn: you already have an account", `This e-mail address or mobile number is already enrolled in Refer & earn.\n\nSign in with your e-mail (nothing else to remember): ${origin}/partner.html`, now);
     } else {
       const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0]! % 900000));
       await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`penr/${eh}`, JSON.stringify({ t: t0, n, c: await sha("pcode|" + eh + "|" + code), x: now + 600_000, ph, nm: name, src: b.source === "card" ? "card" : "direct", a: 0 })).run();
@@ -142,18 +151,66 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     return json({ ok: true, code: ref, partnerKey: key, link: `${origin}/?ref=${ref}` });
   }
 
+  // ---- signing in again (a new phone or laptop, or after "Sign out"): the e-mail is the only way in, with two ways to use the mail (6-digit code, or one tap) ----
+  const mintDeviceKey = async (code: string) => { const key = "ctp_" + randHex(20); await db.prepare("INSERT INTO partner_key(key_hash,code,created_ms) VALUES(?,?,?)").bind(await sha("partner|" + key), code, now).run(); return key; };
+  if (req.method === "POST" && p === "/api/partner/signin") { // the answer is the same whether or not the address is a partner's, so nobody can find out who is one
+    const b = await body(req); const email = validEmail(b?.email);
+    if (!email) return json({ error: "Please enter a valid e-mail address." }, 400);
+    if (await overLimit("psignin", 10)) return json({ error: "Too many tries from this network today. Please try again tomorrow." }, 429);
+    const eh = await sha("pemail|" + email);
+    const have = await db.prepare("SELECT code FROM partner WHERE email_hash=? AND state='active'").bind(eh).first<{ code: string }>();
+    let devCode: string | undefined, devToken: string | undefined;
+    if (have) {
+      const win = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`psig/${eh}`).first<{ v: string }>(); const prev = win ? JSON.parse(win.v) : null;
+      const recent = prev && now - prev.t < 3_600_000;
+      if (recent && prev.n >= 5) return json({ error: "Too many codes requested. Please try again in an hour." }, 429);
+      if (!(await spend(3))) return busy();
+      const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0]! % 900000)), token = randHex(24);
+      await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`psig/${eh}`, JSON.stringify({ t: recent ? prev.t : now, n: recent ? prev.n + 1 : 1, c: await sha("pcode|" + eh + "|" + code), l: await sha("plink|" + token), x: now + 600_000, a: 0 })).run();
+      await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`psiglink/${await sha("plink|" + token)}`, JSON.stringify({ eh, x: now + 600_000 })).run();
+      const sm = signInMail(origin, code, token, `${origin}/partner.html?t=${token}`);
+      await sendMail(env, db, email, "Your Refer & earn sign-in: a 6-digit code, or one tap", sm.text, now, { html: sm.html, secret: true });
+      if (env.TEST_MODE === "1") { devCode = code; devToken = token; }
+    }
+    return json({ ok: true, sent: true, ...(devCode ? { devCode, devToken } : {}) });
+  }
+  if (req.method === "POST" && (p === "/api/partner/signin/verify" || p === "/api/partner/signin/link")) {
+    const b = await body(req); const bad = () => json({ error: p.endsWith("link") ? "This sign-in link is not valid any more. Please ask for a new one." : "That code is not right or has expired. Please ask for a new one." }, 400);
+    let eh = "";
+    if (p.endsWith("link")) {
+      const t = typeof b?.token === "string" && /^[0-9a-f]{48}$/.test(b.token) ? b.token : ""; if (!t || (await overLimit("psiglink", 30))) return bad();
+      const lk = `psiglink/${await sha("plink|" + t)}`, row = await db.prepare("SELECT v FROM kv WHERE k=?").bind(lk).first<{ v: string }>(); const l = row ? JSON.parse(row.v) : null;
+      if (!l || l.x < now) return bad();
+      eh = l.eh;
+      const w = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`psig/${eh}`).first<{ v: string }>(); const cur = w ? JSON.parse(w.v) : null;
+      if (!cur || cur.l !== (await sha("plink|" + t))) return bad(); // a newer request replaced this link
+      await db.prepare("DELETE FROM kv WHERE k=?").bind(lk).run();
+    } else {
+      const email = validEmail(b?.email), code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
+      if (!email || code.length !== 6) return bad();
+      eh = await sha("pemail|" + email);
+      const w = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`psig/${eh}`).first<{ v: string }>(); const cur = w ? JSON.parse(w.v) : null;
+      if (!cur || !cur.c || cur.x < now || cur.a >= 5) return bad();
+      if (cur.c !== (await sha("pcode|" + eh + "|" + code))) { cur.a++; await db.prepare("UPDATE kv SET v=? WHERE k=?").bind(JSON.stringify(cur), `psig/${eh}`).run(); return bad(); }
+    }
+    const mine = await db.prepare("SELECT code FROM partner WHERE email_hash=? AND state='active'").bind(eh).first<{ code: string }>();
+    if (!mine || !(await spend(3))) return mine ? busy() : bad();
+    await db.prepare("DELETE FROM kv WHERE k=?").bind(`psig/${eh}`).run(); // single use: the code and the link both end here
+    return json({ ok: true, partnerKey: await mintDeviceKey(mine.code) });
+  }
+
   if (req.method === "POST" && p === "/api/partner/close") { // a partner closes their own account: the partner row (name, hashes, key) goes; commission rows stay as accounting records, without any link to a person
     const k = req.headers.get("x-partner") ?? "";
-    const mine = k ? await db.prepare("SELECT code FROM partner WHERE key_hash=?").bind(await sha("partner|" + k)).first<{ code: string }>() : null;
+    const mine = k ? await db.prepare("SELECT code FROM partner WHERE key_hash=?1 OR code IN (SELECT code FROM partner_key WHERE key_hash=?1)").bind(await sha("partner|" + k)).first<{ code: string }>() : null;
     if (!mine) return json({ error: "Not allowed." }, 403);
-    await db.prepare("DELETE FROM partner WHERE code=?").bind(mine.code).run();
+    await db.batch([db.prepare("DELETE FROM partner WHERE code=?").bind(mine.code), db.prepare("DELETE FROM partner_key WHERE code=?").bind(mine.code)]);
     await helperClosed(env, mine.code, now); // a Help Desk helper's links and keys end with the partner account (helpdesk.ts)
     return json({ ok: true, closed: true });
   }
   const me = async () => {
     const k = req.headers.get("x-partner") ?? "";
     if (!k) return null;
-    return db.prepare("SELECT code, name, state, enrolled_ms, is_test FROM partner WHERE key_hash=?").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; state: string; enrolled_ms: number; is_test: number }>();
+    return db.prepare("SELECT code, name, state, enrolled_ms, is_test FROM partner WHERE key_hash=?1 OR code IN (SELECT code FROM partner_key WHERE key_hash=?1)").bind(await sha("partner|" + k)).first<{ code: string; name: string | null; state: string; enrolled_ms: number; is_test: number }>();
   };
   if (req.method === "GET" && p === "/api/partner/me") {
     const m = await me();

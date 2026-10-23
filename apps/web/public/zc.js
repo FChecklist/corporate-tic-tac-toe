@@ -7,7 +7,7 @@
   const q = new URLSearchParams(location.search);
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} } };
+  const ss = { get: (k) => (window.CTK ? window.CTK.get(k) : (() => { try { return sessionStorage.getItem(k); } catch { return null; } })()), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else { try { sessionStorage.setItem(k, v); } catch {} } } };
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   let secret = ss.get("cbz-org") || "";
   { const m = location.hash.match(/^#(?:host|cohost)=(cb[hc]_[0-9a-f]{48})$/); if (m) { secret = m[1]; ss.set("cbz-org", secret); history.replaceState(null, "", location.pathname + location.search); } } // a Host or Co-host link: the key leaves the address bar at once
@@ -15,6 +15,7 @@
   let eid = q.get("e") || "";
   const ACT = (q.get("do") || "").toLowerCase(); // a hand-over link from the AI assistant: opens the exact card; the organizer presses the button
   const QUICK = q.get("quick") === "1";
+  const NEWGAME = q.get("new") === "1"; // the link on a participant's ticket: "Create a new game as an organizer"
   // A browser AI may open this page in a new tab, and a tab holds the key only for itself: another open tab of the same browser can hand it over (same site, same browser, never stored).
   const bc = typeof BroadcastChannel === "function" ? new BroadcastChannel("cbz-org-key") : null;
   const OLD_HOUSES = []; // the shared table (ZG.PRIZE_HOUSES) is the only source of the houses
@@ -788,8 +789,16 @@
   function rolePill() {
     const r = role();
     if (r === "partner") return /^refer/.test(S.kind) ? "Refer and Earn Partner" : /^sales/.test(S.kind) ? "Sales Partner" : "Partner";
-    if (r === "host" && S.hostN) return `Host ${S.hostN} of ${(S.team && S.team.maxHosts) || 5}`;
-    return ROLE_LABEL[r];
+    if (r === "host" && S.hostN) return `Signed in as Host ${S.hostN} of ${(S.team && S.team.maxHosts) || 5}`;
+    return `Signed in as ${ROLE_LABEL[r]}`;
+  }
+  /** A person who is both an Organizer and a Host holds two keys (the sign-in gave both): the one in use is `secret`, the other waits here. */
+  const altRole = () => { try { const a = JSON.parse(ss.get("cbz-alt") || "null"); return a && typeof a.token === "string" && (a.kind === "host" || a.kind === "organizer") ? a : null; } catch { return null; } };
+  const roleBtns = () => {
+    const a = altRole(), r = role();
+    return (a && (r === "organizer" || r === "host") ? `<button type="button" class="zc-mini zc-switch" id="switchrole" title="You are both. Switch your view.">Switch to ${a.kind === "host" ? "Host" : "Organizer"} view</button>` : "")
+      + (r === "host" && eid ? `<button type="button" class="zc-mini" id="hostall">All my games</button>` : "")
+      + (r !== "partner" && secret ? `<button type="button" class="zc-mini zc-signout" id="signout" title="Sign out of this phone or laptop">Sign out</button>` : "");
   }
   const inGame = () => !!eid && S.screen !== "quick" && (role() === "cohost" ? !!S.coh || !!S.cohErr : !!S.cfg);
   function gameLabel() {
@@ -801,7 +810,7 @@
     const g = inGame() && role() !== "partner", p = payState();
     return `<header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span><span class="zc-pill zc-pill-role" id="rolepill" title="Your role">${esc(rolePill())}</span>`
       + (g ? `<span class="zc-pill ${p.paid ? "zc-pill-paid" : "zc-pill-pend"}" id="paypill" title="Payment status">${payLabel(p)}</span>` : "")
-      + `<span class="zc-where">${esc(gameLabel())}</span>${isOrg() && eid ? `<button type="button" class="zc-mini" id="back">All games</button>` : ""}</header>`;
+      + `<span class="zc-where">${esc(gameLabel())}</span>${isOrg() && eid ? `<button type="button" class="zc-mini" id="back">All games</button>` : ""}${roleBtns()}</header>`;
   }
   function payNote() {
     if (!inGame() || role() === "partner" || payState().paid || isCancelled() || didNotStart() || S.draft) return ""; // a draft has nothing to pay yet: publishing (step 7) comes first
@@ -921,7 +930,7 @@
   }
   function engView() {
     const r = role();
-    const side = `<aside class="zc-side"><div class="zc-me"><span class="zc-num zc-num-dark">${esc(ROLE_LABEL[r].charAt(0))}</span><span><span class="zc-muted">You are</span><br><b>${esc(rolePill())}</b></span></div><div class="zc-small zc-nomargin">Your game at a glance</div>${synHtml()}<div class="zc-small">Payment: <b>${payState().paid ? "Paid" : payState().confirming ? "Confirming..." : "Pending"}</b></div></aside>`;
+    const side = `<aside class="zc-side"><div class="zc-me"><span class="zc-num zc-num-dark">${esc(ROLE_LABEL[r].charAt(0))}</span><span><span class="zc-muted">Signed in as</span><br><b>${esc(rolePill().replace(/^Signed in as /, ""))}</b></span></div><div class="zc-small zc-nomargin">Your game at a glance</div>${synHtml()}<div class="zc-small">Payment: <b>${payState().paid ? "Paid" : payState().confirming ? "Confirming..." : "Pending"}</b></div></aside>`;
     return frame(`<div class="zc-body">${side}<div class="zc-main">${mainHtml()}</div></div>`, true);
   }
   function cohostView() {
@@ -929,21 +938,25 @@
     return frame(`<div class="zc-body">${side}<div class="zc-main"><div id="zc-top"></div>${S.note ? `<div class="zc-toast" role="status">${esc(S.note)}</div>` : ""}${S.cohErr && !S.coh ? `<div class="zc-toast" role="status">${esc(S.cohErr)}</div>` : ""}<div class="zc-small zc-rolenote">${esc(ROLE_NOTE.cohost)}</div>${S.coh && S.coh.waitingFor && !didNotStart() ? `<div class="zc-toast" role="status" id="cohwaiting">Waiting for the Organizer or Host to start the game.</div>` : ""}${S.coh && didNotStart() ? `<div class="zc-alert" id="didnotstart" role="status"><h3>This game did not start.</h3><p>Guest details have been erased.</p></div>` : ""}${nextHtml()}${steps().map(secHtml).join("")}${helpHtml()}</div></div>`, true);
   }
   const loadingView = () => frame(`<div class="zc-body"><div class="zc-main"><div class="zc-toast" role="status">${esc(S.note || "Loading…")}</div>${eid && isOrg() ? "" : ""}</div></div>`, false);
-  const waitLinkView = () => { const gs = role() === "host" && S.history && S.history.engagements ? S.history.engagements : []; if (gs.length) return frame(`<div class="zc-body"><div class="zc-main"><div class="zc-block"><h3>Your games</h3>${small("Pick the game you are helping with.")}${gs.map((e) => `<div class="zc-rowl"><span>${esc(e.id)}${e.draft ? " · draft" : ""}</span><span><button type="button" class="zc-mini" data-open-game="${esc(e.id)}">Open</button> <button type="button" class="zc-mini" data-clonebtn="1" data-from="${esc(e.id)}" data-people="${e.participants > 0 && !e.erased ? 1 : 0}">Create a new game like this one</button></span></div>`).join("")}</div></div></div>`, false); return waitLinkView0(); };
+  /** "Your games": every game of this person (Organizer: the games they made; Host: the games they help with), always on the screen, newest first. */
+  const gameRow = (e) => `<div class="zc-rowl"><span><b>${esc(e.id)}</b> · ${esc(e.startsAtIST || fmtDay(e.created_ms))} · ${e.participants} ${e.participants === 1 ? "person" : "people"} · ${e.draft ? "draft" : "published"}</span><span><button type="button" class="zc-mini" data-open-game="${esc(e.id)}">Open</button> <button type="button" class="zc-mini" data-clonebtn="1" data-from="${esc(e.id)}" data-people="${e.participants > 0 && !e.erased ? 1 : 0}">Create a new game like this one</button></span></div>`;
+  const gamesBlock = (h, who) => { const gs = (h && h.engagements) || []; return `<div class="zc-block" id="yourgames"><h3>Your games${gs.length ? ` (${gs.length})` : ""}</h3>${gs.length ? small(who === "host" ? "The games you help to run as a Host. Pick one to open it." : "Every game you made. Open any of them, or start a new one.") + gs.map(gameRow).join("") : small(who === "host" ? "No game is open to you yet." : "You have no game yet. Start your first one below.")}</div>`; };
+  /** A Host who also wants to run their own games: same e-mail, Organizer account, the Terms box, and then they hold both roles. */
+  const hostNewBlock = () => { const a = altRole(); return `<div class="zc-block" id="hostnew"><h3>Start a new game as an Organizer</h3>${small("You help to run games as a Host. You can also make your own games as an Organizer, with the same e-mail. Your own games are separate from the games you host.")}${a && a.kind === "organizer" ? `<div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="hostswitchorg">Open my Organizer view</button></div>` : `${CBConsent.html("K2")}${S.becomeErr ? `<p class="zc-small zc-warnt" role="alert">${esc(S.becomeErr)}</p>` : ""}<div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="hostbecome">Create my Organizer account and start a new game</button></div>`}</div>`; };
+  const waitLinkView = () => { if (role() === "host" && S.history && S.history.engagements) return frame(`<div class="zc-body"><div class="zc-main">${gamesBlock(S.history, "host")}${hostNewBlock()}</div></div>`, false); return waitLinkView0(); };
   const waitLinkView0 = () => frame(`<div class="zc-body"><div class="zc-main"><div class="zc-block"><p style="margin:0">Open the link your ${role() === "cohost" ? "Organizer or Host" : "Organizer"} sent you. It opens the game directly.</p></div>${S.note ? `<div class="zc-toast" role="status">${esc(S.note)}</div>` : ""}</div></div>`, false);
   const partnerView = () => frame(`<div class="zc-body"><div class="zc-main"><div class="zc-block"><h3>Your partner area</h3><p>Your partner screens are on their own page.</p><a class="zc-btn zc-btn-s" href="/partner.html">Open my partner area</a></div></div></div>`, false);
   function loginView(msg) {
     return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main">
       <div class="zc-eyebrow">Organizer console</div>
-      <h2>Sign in to your console</h2>
-      <p class="zc-lead">Enter your e-mail. New here? Your organizer account is created at once. Coming back? We send you a 6-digit code. No password needed.</p>
+      <h2>${NEWGAME ? "Create a new game as an organizer" : "Sign in to your console"}</h2>
+      <p class="zc-lead">Type your e-mail and press Continue. There is no password. New here? Your account is made at once. Coming back? We e-mail you two ways to get in, and you use <b>one</b> of them.</p>
+      ${msg ? `<div class="zc-toast" role="status">${esc(msg)}</div>` : ""}
       <label class="zc-lbl" for="lem">Your e-mail</label><input id="lem" class="zc-in" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail">
       <div class="zc-foot"><button class="zc-btn" id="goLogin" type="button">Continue</button></div>
       ${S.gcid ? `<div class="zc-or">or</div>${googleBlock(true)}` : ""}
-      <p class="zc-small zc-muted zc-lead2">Sign in with an e-mail code: nothing to remember. Players never sign in; they join with your link.</p>
-      <details class="zc-keybox"${msg ? " open" : ""}><summary>Have a sign-in key? Hosts and Co-hosts: your link already carries it.</summary>
-      <label class="zc-lbl" for="sec">Your sign-in key</label><input id="sec" class="zc-in" type="password" autocomplete="off" value="${esc(secret)}" placeholder="Paste the key from your link">
-      ${msg ? `<div class="zc-toast" role="status">${esc(msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn zc-btn-alt" id="in" type="button">Continue with the key</button></div></details>
+      <p class="zc-small zc-muted zc-lead2">Nothing to remember. Players never sign in; they join with your game link.</p>
+
     </div></div>`;
   }
   /** A Co-host (or Host) who has not yet ticked the K5 box: the console shows only that box and a Continue button; once it is posted the console opens as usual. */
@@ -955,7 +968,7 @@
     const main0 = clonePanel();
     const hist = S.showHist && h ? `<div class="zc-block"><h3>History · kept ${h.retentionDays} days</h3>${h.engagements.map((e) => `<div class="zc-rowl"><span>${esc(e.id)} · ${fmtDay(e.created_ms)} · ${e.participants} people${e.draft ? " · draft" : ""}</span><span><button type="button" class="zc-mini" data-open-game="${esc(e.id)}">Open</button> <button type="button" class="zc-mini" data-reuse="${esc(e.id)}">Reuse</button> <button type="button" class="zc-mini" data-clonebtn="1" data-from="${esc(e.id)}" data-people="${e.participants > 0 && !e.erased ? 1 : 0}">Create a new game like this one</button></span></div>`).join("")}</div>` : "";
     const main = `${S.note ? `<div class="zc-toast" role="status">${esc(S.note)}</div>` : ""}${main0}<div class="zc-small zc-rolenote">${esc(ROLE_NOTE.organizer)}</div>
-      <div class="zc-block"><h3>Start a new game</h3>${small("You build it first, at no cost. You pay only when you publish. Players can join before the start time; you press Start on the tournament page when everybody is in.")}<div class="zc-chips"><button type="button" class="zc-btn zc-btn-s" id="mk">Start a new game</button><a class="zc-chip" href="/zc.html?quick=1">Quick setup form</a></div></div>${bar}${hist}${acctHtml()}`;
+      ${gamesBlock(h, "organizer")}<div class="zc-block"><h3>Start a new game</h3>${small("You build it first, at no cost. You pay only when you publish. Players can join before the start time; you press Start on the tournament page when everybody is in.")}<div class="zc-chips"><button type="button" class="zc-btn zc-btn-s" id="mk">Start a new game</button><a class="zc-chip" href="/zc.html?quick=1">Quick setup form</a></div></div>${bar}${hist}${acctHtml()}`;
     return frame(`<div class="zc-body"><div class="zc-main">${main}</div></div>`, false);
   }
   // ---------- Quick setup: the first three steps as one form, with a real date and time picker (the AI route and the browser-AI route use it) ----------
@@ -988,7 +1001,7 @@
   }
 
   // ---------- Phase 4: "Continue with Google" and the Host's Finish setup (docs/ROLES_AND_CONSOLE_SPEC_4.md, C) ----------
-  async function loadAuthConfig() { try { const r = await fetch(BASE + "/api/auth/config").then((x) => (x.ok ? x.json() : null)); S.gcid = (r && (r.google || r.clientId)) || ""; } catch { S.gcid = ""; } if (S.gcid) redraw(); }
+  async function loadAuthConfig() { return; /* e-mail is the only way in */ try { const r = await fetch(BASE + "/api/auth/config").then((x) => (x.ok ? x.json() : null)); S.gcid = (r && (r.google || r.clientId)) || ""; } catch { S.gcid = ""; } if (S.gcid) redraw(); }
   /** Draws Google's own button into #gbtn. The Google script is loaded only on a screen that shows the button. */
   function mountGoogle(intent) {
     const holder = document.getElementById("gbtn"); if (!holder || !S.gcid || holder.dataset.done === S.gcid + intent) return;
@@ -1007,18 +1020,18 @@
       S.loginMsg = ""; S.setupMsg = ""; S.setup = null; bootstrap();
     } catch (e) { S.loginMsg = e.message; S.setupMsg = e.message; redraw(); }
   }
-  const googleBlock = (withK2) => (S.gcid ? `${withK2 ? tbSlot("login", "K2", "") : ""}<div class="zc-block zc-gblock"><div id="gbtn" aria-label="Continue with Google"></div></div>` : "");
+  const googleBlock = () => ""; // one way in: the e-mail (Option 1 code, Option 2 tap). No Google button, no pasted key.
   function setupView() {
     const T = S.setup || {}, m = S.setupMsg;
     const email = T.needEmail ? `<h4>1. Your e-mail</h4>${small(T.emailMasked ? "Use the e-mail your Organizer gave us: " + esc(T.emailMasked) + "." : "Type your e-mail.")}${tbSlot("setup", "K5", "setupsend")}${googleBlock()}
-        ${S.setupSent ? `${lbl("setupcode", "The 6-digit code we sent you")}<input id="setupcode" class="zc-in" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupverify">Check the code</button></div>`
-          : `${lbl("setupemail", "Your e-mail")}<input id="setupemail" class="zc-in" type="email" autocomplete="email" placeholder="your e-mail"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupsend" ${tbDis("setup")}>Send me a code</button></div>`}`
+        ${S.setupSent ? `${lbl("setupcode", "The 6-digit code we sent you")}<input id="setupcode" class="zc-in" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" value="${esc((S.sv || {}).setupcode || "")}"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupverify">Check the code</button></div>`
+          : `${lbl("setupemail", "Your e-mail")}<input id="setupemail" class="zc-in" type="email" autocomplete="email" placeholder="your e-mail" value="${esc((S.sv || {}).setupemail || "")}"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupsend" ${tbDis("setup")}>Send me a code</button></div>`}`
       : `<p class="zc-small">Your e-mail is checked${T.emailMasked ? ": " + esc(T.emailMasked) : ""}.</p>`;
     const mobile = T.needMobile ? `<h4>${T.needEmail ? "2" : "1"}. Your mobile number</h4>${small("Typed once. We do not send a code to it.")}${lbl("setupmobile", "Your mobile number")}<input id="setupmobile" class="zc-in" inputmode="tel" autocomplete="tel" placeholder="415 555 0132"><div class="zc-foot"><button type="button" class="zc-btn zc-btn-s" id="setupmobilego">Save my number</button></div>` : "";
     return `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span><span class="zc-pill zc-pill-role">Host</span></header><div class="zc-main"><div class="zc-block" id="finishsetup"><h3>Finish setup</h3>${small("Two quick things, then your game opens. This link works once.")}${m ? `<div class="zc-toast" role="status">${esc(m)}</div>` : ""}${email}${mobile}</div></div></div>`;
   }
   async function setupStep(path, body, okSent) {
-    try { const r = await call("POST", path, body); if (r && r.token) { secret = r.token; ss.set("cbz-org", secret); } /* the e-mail is confirmed: this device gets its own key */ S.setupMsg = ""; if (okSent) S.setupSent = true; S.setup = await call("GET", "/api/host/setup"); if (S.setup && S.setup.ready !== false) { S.setup = null; S.setupSent = false; return bootstrap(); } }
+    try { const r = await call("POST", path, body); if (r && r.token) { secret = r.token; ss.set("cbz-org", secret); } /* the e-mail is confirmed: this device gets its own key */ S.setupMsg = ""; if (okSent) S.setupSent = true; if (path.indexOf("/email/verify") > 0) delete (S.sv || {}).setupcode; S.setup = await call("GET", "/api/host/setup"); if (S.setup && S.setup.ready !== false) { S.setup = null; S.setupSent = false; return bootstrap(); } }
     catch (e) { S.setupMsg = friendly(e); }
     redraw();
   }
@@ -1082,6 +1095,7 @@
   }
   async function refreshEng() {
     if (role() === "cohost") return refreshCohost();
+    if (role() === "host" && S.setup && S.setup.ready === false) return; // a Host who has not finished the first-open setup (e-mail, mobile) cannot open the game yet: never ask for it, never show "this link no longer opens the game" in the middle of the setup
     S.screen = "eng";
     try {
       S.info = await call("GET", `/api/z/${eid}/info`); S.draft = !!S.info.draft; S.unpaid = !!S.info.unpaid; S.locked = !!S.info.locked;
@@ -1282,6 +1296,17 @@
     if ($("goLogin")) $("goLogin").onclick = () => { const em = ($("lem") && $("lem").value || "").trim(); try { sessionStorage.setItem("cbz-next", location.pathname + location.search); if (em) sessionStorage.setItem("cbz-login-email", em); } catch {} location.href = "/#login"; }; // the website's login box does the rest (new account or 6-digit code) and brings the person back here
     if ($("lem")) $("lem").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); $("goLogin").click(); } };
     if ($("in")) $("in").onclick = () => { secret = $("sec").value.trim(); ss.set("cbz-org", secret); S.loginMsg = ""; bootstrap(); };
+    const leaveGame = () => { eid = ""; S.cfg = null; S.info = null; S.f = null; S.fFor = ""; S.openInit = ""; S.note = ""; S.sum = null; S.store = null; S.history = null; S.team = null; S.hostN = 0; S.becomeErr = ""; history.replaceState(null, "", location.pathname + (BASE ? "?api=" + encodeURIComponent(BASE) : "")); };
+    const takeKey = (key, mark) => { const me = { kind: isOrg() ? "organizer" : "host", token: secret }; ss.set("cbz-alt", JSON.stringify(me)); secret = key; ss.set("cbz-org", secret); S.kind = ""; leaveGame(); if (mark) S.note = mark; bootstrap(); };
+    if ($("signout")) $("signout").onclick = () => { if (window.CTK) window.CTK.signOut(); else { ss.set("cbz-org", ""); ss.set("cbz-alt", ""); } location.href = "/zc.html" + (BASE ? "?api=" + encodeURIComponent(BASE) : ""); }; // signing in again is the same two e-mail ways: nothing to remember
+    if ($("switchrole")) $("switchrole").onclick = () => { const a = altRole(); if (a) takeKey(a.token, a.kind === "host" ? "You are now in your Host view." : "You are now in your Organizer view."); };
+    if ($("hostall")) $("hostall").onclick = () => { leaveGame(); bootstrap(); };
+    if ($("hostswitchorg")) $("hostswitchorg").onclick = () => { const a = altRole(); if (a) takeKey(a.token, "You are now in your Organizer view."); };
+    if ($("hostbecome")) $("hostbecome").onclick = async () => {
+      if (!CBConsent.all($app, "K2")) { S.becomeErr = "Please tick the box to continue."; return redraw(); }
+      try { const r = await call("POST", "/api/host/become-organizer", { consent: CBConsent.payload($app, "K2") }); S.becomeErr = ""; takeKey(r.token, "Your Organizer account is ready. Start your new game below."); }
+      catch (e) { S.becomeErr = friendly(e); redraw(); }
+    };
     if ($("back")) $("back").onclick = () => { eid = ""; S.cfg = null; S.info = null; S.f = null; S.fFor = ""; S.openInit = ""; S.note = ""; S.sum = null; history.replaceState(null, "", location.pathname + (BASE ? "?api=" + encodeURIComponent(BASE) : "")); refreshHome(); };
     if ($("mk")) $("mk").onclick = async () => { $("mk").disabled = true; try { await startNew(); } catch (e) { noteAndDraw(friendly(e)); } };
     // moving around
@@ -1561,6 +1586,7 @@
     if ($("airevoke")) $("airevoke").onclick = async () => { try { await call("POST", "/api/org/ai/revoke", {}); S.aiMsg = ""; ss.set("cbz-aimsg", ""); S.note = "Your AI work link has been stopped."; } catch (e) { S.note = e.message; } redraw(); };
     if ($("qk-save")) { $("qk-save").onclick = quickSave; quickSummary(); }
     if ($("setupsend")) $("setupsend").onclick = () => { const v = $("setupemail").value.trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { S.setupMsg = "Please type your e-mail."; return redraw(); } const terms = tbTerms("setup"); if (!terms) { S.setupMsg = "Please tick the box to continue."; return redraw(); } setupStep("/api/host/setup/email", { email: v, consent: terms }, true); };
+    for (const fid of ["setupemail", "setupcode", "setupmobile"]) { const el = $(fid); if (el) el.oninput = () => { (S.sv = S.sv || {})[fid] = el.value; }; } // what a Host has typed survives any redraw of the page
     if ($("setupverify")) $("setupverify").onclick = () => { const v = $("setupcode").value.trim(); if (!/^\d{6}$/.test(v)) { S.setupMsg = "The code has 6 digits."; return redraw(); } setupStep("/api/host/setup/email/verify", { code: v }); };
     if ($("setupmobilego")) $("setupmobilego").onclick = () => { const v = $("setupmobile").value.trim(); if (!cleanPhone(v)) { S.setupMsg = "Please check your mobile number."; return redraw(); } setupStep("/api/host/setup/mobile", { mobile: v }); };
     if ($("gbtn")) mountGoogle(secret ? "host" : "signin");
@@ -1590,6 +1616,6 @@
     else if (d.key && !secret && !inited) { try { const r = await fetch(BASE + "/api/whoami", { headers: { "x-organizer": String(d.key) } }); if (r.ok && !secret && !inited) { secret = String(d.key); ss.set("cbz-org", secret); bootstrap(); } } catch { /* offline: ignore */ } }
   };
   (async () => { if (!secret && bc) { bc.postMessage({ ask: true }); await new Promise((r) => setTimeout(r, 350)); } if (!inited) bootstrap(); })();
-  setInterval(() => { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; /* never wipe what the organizer is typing */ if (!secret || document.hidden) return; if (eid) refreshEng(); else if (QUICK || S.screen === "quick") return; else if (isOrg()) refreshHome(); }, 5000);
+  setInterval(() => { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; /* never wipe what the organizer is typing */ if (!secret || document.hidden) return; if (role() === "host" && S.setup && S.setup.ready === false) return; if (eid) refreshEng(); else if (QUICK || S.screen === "quick") return; else if (isOrg()) refreshHome(); }, 5000);
   window.__zc = S;
 })();

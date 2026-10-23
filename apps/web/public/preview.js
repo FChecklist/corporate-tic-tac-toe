@@ -5,7 +5,7 @@
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
   const EID = (h.get("e") || "").trim();
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  let key = ""; try { key = sessionStorage.getItem("cbz-org") || ""; } catch (e) { key = ""; }
+  let key = ""; try { key = CTK.get("cbz-org") || ""; } catch (e) { key = ""; }
   const paint = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const strip = (b) => (!b || (!b.name && !b.logo)
     ? `<div class="zbrand" data-bg="#0B5D5B" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`

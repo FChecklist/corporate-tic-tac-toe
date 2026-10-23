@@ -4,7 +4,7 @@
   const app = document.getElementById("app");
   const q = new URLSearchParams(location.search), t = q.get("t") || "";
   try { history.replaceState(null, "", location.pathname); } catch {}
-  const ss = { get: (k) => { try { return sessionStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} } };
+  const ss = { get: (k) => (window.CTK ? window.CTK.get(k) || "" : (() => { try { return sessionStorage.getItem(k) || ""; } catch { return ""; } })()), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else { try { sessionStorage.setItem(k, v); } catch {} } } };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let token = ss.get("cbz-org"), info = null;
   const state = { email: "", codeStep: false, newAcct: false, msg: "", done: "" };

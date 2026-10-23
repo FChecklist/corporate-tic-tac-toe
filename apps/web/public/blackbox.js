@@ -121,6 +121,7 @@
     return pr.then(function (r) {
       var ms = Date.now() - t0; add("call", m + " " + p + " " + r.status + " " + ms + "ms");
       if (r.status >= 500) { try { r.clone().json().then(function (j) { report("server", "error", "server error " + r.status + " on " + m + " " + p + (j && j.code ? " (" + j.code + ")" : ""), "", { code: j && j.code, message: j && scrub(j.error, 160), ms: ms }); }, function () { report("server", "error", "server error " + r.status + " on " + m + " " + p, "", { ms: ms }); }); } catch (e) {} }
+      else if (r.status === 403 && m === "GET" && /^\/api\/z\/[^/]+\/info/.test(p)) { /* a game that is not published yet: an expected answer, the screen says so in words */ }
       else if (r.status >= 400 && r.status !== 404 && r.status !== 409) report("refused", "warn", "refused " + r.status + " on " + m + " " + p, "", { ms: ms });
       else if (ms > SLOW_MS) report("slow", "warn", "slow call (" + Math.round(ms / 1000) + " s) " + m + " " + p, "", { ms: ms });
       return r;

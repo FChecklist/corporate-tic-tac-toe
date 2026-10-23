@@ -180,6 +180,7 @@ export const SCHEMA: string[] = [
   ...ADMIN_SCHEMA,
   // Help Desk: a Refer-and-earn partner prepares games for an Organizer, who publishes with one tap (helpdesk.ts, 0027_helpdesk.sql)
   ...HELPDESK_SCHEMA,
+  `CREATE TABLE IF NOT EXISTS partner_key (key_hash TEXT PRIMARY KEY, code TEXT NOT NULL, created_ms INTEGER NOT NULL)`, // Refer & earn: one key per phone or laptop that signed in by e-mail
 ];
 
 const PATTERNS = new Set<string>([...HOUSE_ORDER, "lucky"]); // houses a phone may claim
@@ -350,6 +351,22 @@ let lastNudge = 0;
 export const missingKeys = (env: Env): string[] => (env.STRICT_KEYS === "1" ? ["DATA_KEY", "PHONE_SALT", "ORGANIZER_SECRET", "CRON_KEY", "INBOUND_SECRET"].filter((k) => !String((env as any)[k] ?? "").trim()) : []);
 const keysMissing = (env: Env) => missingKeys(env).length > 0;
 /** The front door: the owner's site switch (admin.ts) first, then the real handler; every 5xx answer is counted for the error signal (A7). */
+/** What a proven e-mail gets: an Organizer key when there is an Organizer account, a Host key when the address is a confirmed Host, and BOTH when the person is both
+ *  (one is the key in use, the other comes as `alt` so the console can switch role without another code). `roles` says which ones exist. */
+async function signInResult(env: Env, req: Request, acct: { org: string } | null, hostAcct: { host_id: string; org: string } | null, now: number, email: string | null) {
+  const roles: string[] = [];
+  let token = "", alt: { kind: "organizer" | "host"; token: string } | undefined, kind: "organizer" | "host" = "organizer", ready: boolean | undefined;
+  const hostKey = async () => { const hs = await hostStateRow(env.DB, hostAcct!.host_id); ready = !!hs?.verified_ms && !!hs?.mobile_ok; return mintDeviceKey(env, hostAcct!.host_id, newHostKey(), now); };
+  if (acct) {
+    await linkVisitor(env as VisitEnv, req, acct.org, "signin", now, email ?? undefined);
+    const t = "ctk_" + randHex(24); // a fresh organizer key; the old ones keep working until the organizer retires them
+    await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0))").bind(await sha("key|" + t), acct.org, "master", now, acct.org).run();
+    token = t; roles.push("organizer");
+    if (hostAcct) { alt = { kind: "host", token: await hostKey() }; roles.push("host"); }
+  } else if (hostAcct) { token = await hostKey(); kind = "host"; roles.push("host"); }
+  return { ok: true, token, kind, roles, ...(alt ? { alt } : {}), ...(kind === "host" ? { ready } : {}) };
+}
+
 export async function handle(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   const off = await maintenanceGate(req, env, now).catch(() => null);
   if (off) return off;
@@ -458,7 +475,7 @@ const waLinkFor = (digits: string, name: string, link: string): string => `https
 /** A brand-new organizer account for a work e-mail (used by the first-time start and by Google sign-up): the console key, the lasting AI key (shown only in the console), and the 24-hour AI-link mail. */
 async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google"): Promise<{ ok: true; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
   const eh = await sha("email|" + email);
-    const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
+    const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0 | "host-to-organizer", 16)}`;
     const used = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
     if (used >= STARTS_PER_DAY) return { error: "Too many new games from this network today. Please try again tomorrow.", status: 429 };
     if (!(await spend(env, now, 6))) return { error: "busy", status: 503 };
@@ -697,11 +714,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email)) return json({ error: "Please enter a valid e-mail address." }, 400);
     const eh = await sha("email|" + email);
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
-    // K2: an account that already accepted the CURRENT Terms signs in with no box; anyone else (a Host, a new Terms version) must tick it, and that tick is recorded
-    const ticked = consentRequired(b, "K2") === null;
-    if (!(acct && (await hasConsented(env.DB, acct.org, "K2")))) { const mt = consentRequired(b, "K2"); if (mt) return mt; }
-    const hostAcct = acct ? null : await hostForEmail(env.DB, eh);
-    if (acct && ticked) await recordConsent(env.DB, { subject: acct.org, kind: "K2", ref: "signin", now }); // a Host who confirmed this address signs in the same way (no Organizer account for it)
+    const hostAcct = await hostForEmail(env.DB, eh); // a Host who confirmed this address signs in the same way; a person who is both gets both roles
     const test = (env as PayEnv).TEST_MODE === "1";
     let devCode: string | undefined, devToken: string | undefined;
     if (acct || hostAcct) { // an unknown address gets the same answer, so nobody can find out who has an account
@@ -711,25 +724,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (!(await spend(env, now, 2))) return BUSY();
       const linkToken = randHex(24), code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0]! % 900000));
       await env.DB.prepare("INSERT INTO login_code(email_hash,code_hash,expires_ms,attempts,win_start,sent,link_hash) VALUES(?,?,?,0,?,1,?) ON CONFLICT(email_hash) DO UPDATE SET code_hash=excluded.code_hash, expires_ms=excluded.expires_ms, attempts=0, win_start=?, sent=?, link_hash=excluded.link_hash").bind(eh, await sha("code|" + eh + "|" + code), now + 600_000, fresh ? now : row!.win_start, await sha("link|" + linkToken), fresh ? now : row!.win_start, fresh ? 1 : row!.sent + 1).run();
-      if (hostAcct) { // a Host gets the code only (no AI-link options, no one-click link): the code is single use and ends in 10 minutes
-        await env.DB.prepare("UPDATE login_code SET link_hash=NULL WHERE email_hash=?").bind(eh).run();
-        await sendMail(env as PayEnv, env.DB, email, "Your Corporate Tic Tac Toe sign-in code", `Your 6-digit code is ${code}.
-
-Type it on the sign-in page. It works for 10 minutes.
-
-If you did not ask for this, ignore this e-mail.`, now, { secret: true });
-        if (test) devCode = code;
-      } else {
-      const sm = signInMail((env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, code, linkToken); // no AI key or paste here: the buttons lead to the signed-in page
+      const sm = signInMail((env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, code, linkToken); // Organizer or Host: the same two ways in, a 6-digit code or one single-use link (10 minutes)
       await sendMail(env as PayEnv, env.DB, email, sm.subject, sm.text, now, { html: sm.html, secret: true });
       if (test) { devCode = code; devToken = linkToken; }
-      }
     }
     return json({ ok: true, ...(devCode ? { devCode, devToken } : {}) });
-  }
-  if (req.method === "GET" && p === "/api/consent/text") { // the exact wording of the consent boxes, for the pages (consent.ts); the server checks the same list
-    const k = url.searchParams.get("kind") as Kind | null;
-    return json(k && KINDS.includes(k) ? textFor(k) : { version: CONSENT_VERSION, kinds: Object.fromEntries(KINDS.map((x) => [x, textFor(x).boxes])) });
   }
   if (req.method === "GET" && p === "/api/auth/config") return json({ google: googleClientId(env) }); // the public Google client id, or null: the pages show "Continue with Google" only when it is there
   if (req.method === "POST" && p === "/api/auth/google") { // "Continue with Google": proves the e-mail with Google, then does exactly what the e-mail code does (google.ts, hostsetup.ts)
@@ -792,14 +791,12 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     const row = await env.DB.prepare("SELECT email_hash, expires_ms FROM login_code WHERE link_hash=?").bind(lh).first<{ email_hash: string; expires_ms: number }>();
     if (!row || row.expires_ms < now) return bad();
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(row.email_hash).first<{ org: string }>();
-    if (!acct || !(await spend(env, now, 2))) return acct ? BUSY() : bad();
+    const hostAcct = await hostForEmail(env.DB, row.email_hash);
+    if (!acct && !hostAcct) return bad();
+    if (!(await spend(env, now, 2))) return BUSY();
     const used = await env.DB.prepare("DELETE FROM login_code WHERE link_hash=? AND expires_ms>=?").bind(lh, now).run(); // single use: the first POST wins, the code dies with it
     if ((used.meta?.changes ?? 0) !== 1) return bad();
-    await recordTerms(env, acct.org, now, "signin-link");
-    await linkVisitor(env as VisitEnv, req, acct.org, "signin", now);
-    const token = "cbk_" + randHex(24); // the same kind of session key the 6-digit code creates
-    await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0))").bind(await sha("key|" + token), acct.org, "master", now, acct.org).run();
-    return json({ ok: true, token });
+    return json(await signInResult(env, req, acct, hostAcct, now, null));
   }
   if (req.method === "POST" && p === "/api/auth/verify") {
     const b = await body(req);
@@ -812,22 +809,11 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     if (!row || row.expires_ms < now || row.attempts >= 5) return bad();
     if (row.code_hash !== (await sha("code|" + eh + "|" + code))) { await env.DB.prepare("UPDATE login_code SET attempts=attempts+1 WHERE email_hash=?").bind(eh).run(); return bad(); }
     const acct = await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string }>();
-    if (!acct) { // not an Organizer: a Host who confirmed this address gets a fresh key for this device
-      const hostAcct = await hostForEmail(env.DB, eh);
-      if (!hostAcct || !(await spend(env, now, 2))) return hostAcct ? BUSY() : bad();
-      await env.DB.prepare("DELETE FROM login_code WHERE email_hash=?").bind(eh).run();
-      const hs = await hostStateRow(env.DB, hostAcct.host_id);
-      return json({ ok: true, token: await mintDeviceKey(env, hostAcct.host_id, newHostKey(), now), kind: "host", ready: !!hs?.verified_ms && !!hs?.mobile_ok });
-    }
+    const hostAcct = await hostForEmail(env.DB, eh);
+    if (!acct && !hostAcct) return bad();
     if (!(await spend(env, now, 2))) return BUSY();
-    await recordTerms(env, acct.org, now, "signin-code");
-    await linkVisitor(env as VisitEnv, req, acct.org, "signin", now, email);
-    const token = "cbk_" + randHex(24); // a fresh organizer key; the old ones keep working until the organizer retires them
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0))").bind(await sha("key|" + token), acct.org, "master", now, acct.org),
-      env.DB.prepare("DELETE FROM login_code WHERE email_hash=?").bind(eh),
-    ]);
-    return json({ ok: true, token });
+    await env.DB.prepare("DELETE FROM login_code WHERE email_hash=?").bind(eh).run();
+    return json(await signInResult(env, req, acct, hostAcct, now, email));
   }
 
   /* ---- organizers and their keys ---- */
@@ -878,6 +864,18 @@ If you did not ask for this, ignore this e-mail.`, now, { secret: true });
     return json({ ok: true, revoked: r.meta?.changes ?? 0 });
   }
   if (req.method === "GET" && p === "/api/whoami") return a.kind ? json({ kind: a.kind, ...(a.kind === "host" && !a.viaLink ? { ready: a.hostReady === true } : {}) }) : deny(a); // the console uses this to show the right screen
+  if (req.method === "POST" && p === "/api/host/become-organizer") { // a Host who also wants to run their own games: the same e-mail gets an Organizer account (Terms box K2), and the person then holds both roles
+    if (a.kind !== "host" || a.viaLink || !a.hid || a.hostReady === false) return deny(a);
+    const row = await identityRow(env.DB, a.hid), mail = row?.email_sealed ? await openText(env as any, row.email_sealed) : null;
+    if (!mail) return json({ error: "Your e-mail is not confirmed yet. Finish your Host setup first." }, 409);
+    const email = mail.trim().toLowerCase(), eh = await sha("email|" + email);
+    if (await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(eh).first()) return json({ error: "You already have an Organizer account. Sign out and sign in again with your e-mail code to use it.", code: "has-organizer" }, 409);
+    const b = await body(req);
+    { const cm = consentMissing(b, "K2"); if (cm) return cm; }
+    const made = await createOrganizer(env, req, email, now, "host-to-organizer", true);
+    if ("error" in made) return made.status === 503 ? BUSY() : json({ error: made.error }, made.status);
+    return json({ ok: true, token: made.token, kind: "organizer", aiMessage: made.aiMessage });
+  }
   if (p.startsWith("/api/host/setup")) { // a Host finishing the first open: confirm an e-mail (code; Google is /api/auth/google) and add a mobile number (hostsetup.ts)
     if (a.kind !== "host" || a.viaLink || !a.org || !a.hid) return deny(a);
     const hr = await hostSetupRoute({

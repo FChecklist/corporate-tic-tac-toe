@@ -2,6 +2,8 @@
 // database in a local SQLite file. Run: bun run apps/edge/src/local.ts   (env: PORT, ORGANIZER_SECRET, DB_FILE)
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
+import { readdirSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { SCHEMA, handle, purgeOld, type D1, type D1Stmt } from "./worker";
 import type { PayEnv } from "./pay";
 
@@ -24,11 +26,21 @@ export function startLocal(o: { port?: number; secret?: string; dbFile?: string;
   const pe = process.env;
   { const m = (o.mode ?? pe.CB_MODE ?? "").toUpperCase(); if (m === "TEST" || m === "LIVE") raw.run("UPDATE mode SET mode=?, changed_ms=?, reason=? WHERE id=1", [m, Date.now(), "local start (CB_MODE / startLocal mode)"]); } // docs/TEST_AND_LIVE_MODE.md: run the local tools against TEST mode
   const env: PayEnv = { DB: db, TEST_MODE: pe.TEST_MODE, COMPANY_JSON: pe.COMPANY_JSON, PUBLIC_ORIGIN: pe.PUBLIC_ORIGIN, RAZORPAY_KEY_ID: pe.RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET: pe.RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET: pe.RAZORPAY_WEBHOOK_SECRET, RAZORPAY_BASE_URL: pe.RAZORPAY_BASE_URL, RESEND_API_KEY: pe.RESEND_API_KEY, MAIL_FROM: pe.MAIL_FROM, MAIL_REPLY_TO: pe.MAIL_REPLY_TO, ORGANIZER_SECRET: o.secret ?? process.env.ORGANIZER_SECRET ?? "local-organizer-secret", DAILY_WRITE_BUDGET: o.budget ?? process.env.DAILY_WRITE_BUDGET ?? "80000" };
+  // /version.json for local work: the live site's file says which commit is live; here it also carries `rev`, the newest file time under the web folder, so a saved edit changes it and open pages reload themselves (autoupdate.js)
+  let verCache: { at: number; body: string } | null = null;
+  const newest = (dir: string): number => { let m = 0; for (const e of readdirSync(dir, { withFileTypes: true })) { const f = join(dir, e.name); m = Math.max(m, e.isDirectory() ? (e.name === "node_modules" ? 0 : newest(f)) : statSync(f).mtimeMs); } return m; };
+  const versionBody = () => {
+    if (verCache && Date.now() - verCache.at < 1000) return verCache.body;
+    let commit = "local"; try { commit = execFileSync("git", ["rev-parse", "--short=12", "HEAD"], { cwd: webDir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* not in git */ }
+    const body = JSON.stringify({ commit, rev: Math.round(newest(webDir)), game: "local", note: "local test copy" });
+    verCache = { at: Date.now(), body }; return body;
+  };
   const server = Bun.serve({
     port: o.port ?? Number(process.env.PORT ?? 8788),
     async fetch(req) {
       const u = new URL(req.url);
       if (u.pathname.startsWith("/api/") || u.pathname.startsWith("/ai/")) return handle(req, env);
+      if (u.pathname === "/version.json") return new Response(versionBody(), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
       const rel = u.pathname === "/" ? "/index.html" : u.pathname;
       if (rel.includes("..")) return new Response("Not found", { status: 404 });
       const f = Bun.file(join(webDir, rel));

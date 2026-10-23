@@ -14,7 +14,7 @@
   };
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
   const day = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  const S = { note: "", err: "", me: null, fresh: null , f: { ph: "", em: "", nm: "", ok: false }};
+  const S = { linkToken: (/^[0-9a-f]{48}$/.test(q.get("t") || "") ? q.get("t") : ""), note: "", err: "", me: null, fresh: null , f: { ph: "", em: "", nm: "", ok: false }};
 
   function shareBlock(code, link) {
     const text = "Corporate Tic Tac Toe makes your company engagement unforgettable. Take a look: " + link;
@@ -34,7 +34,7 @@
         <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:var(--ink);font-size:14px"><input type="checkbox" id="ok" style="width:auto;min-height:0;margin-top:3px"${S.f.ok ? " checked" : ""}> <span>I would like to join Refer &amp; earn with this mobile number.</span></label>
         ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
         <button class="zbtn" id="join">Get my link and start earning</button>
-        <p class="zsmall">Already joined? <a href="#" id="signin">Sign in with your partner key</a></p></div>`;
+        <p class="zsmall">Already joined? <a href="#" id="signin">Sign in with your e-mail</a></p></div>`;
   }
   function codeView() {
     return `<div class="zcard zform"><h2>Check your e-mail</h2><p class="zsmall" style="margin-top:0">We emailed <b>${esc(S.email)}</b>. Type the 6-digit code here. It works for 10 minutes.</p>
@@ -43,16 +43,30 @@
       <button class="zbtn" id="cdgo">Get my link</button>
       <p class="zsmall"><a href="#" id="back">Back</a></p></div>`;
   }
+  const twoWays = `<div class="zbanner info" style="text-align:left"><b>Option 1.</b> Go to your e-mail, find the 6 numbers and type them here.<br><b>Option 2.</b> Go to your e-mail and tap the button <b>Sign me in</b>. You do not type anything.<br>Use only one. Both work for 10 minutes.</div>`;
   function signinView() {
     return `<div class="zcard zform"><h2>Sign in to see your sales</h2>
-      <label for="pk">Your partner key</label><input id="pk" type="password" autocomplete="off" placeholder="cbp_…">
+      <p class="zsmall" style="margin-top:0">Type your e-mail and press Continue. There is no password. We e-mail you two ways in; you use <b>one</b> of them.</p>
+      <label for="se">Your e-mail</label><input id="se" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" value="${esc(S.email || "")}">
       ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
-      <button class="zbtn" id="go">Show my sales</button>
-      <p class="zsmall">Lost your key? Write to us from the Contact page and we will help you after checking it is you.</p><p class="zsmall"><a href="#" id="back">Back</a></p></div>`;
+      <button class="zbtn" id="sgo">Continue</button>
+      <p class="zsmall"><a href="#" id="back">Back</a></p></div>`;
+  }
+  function signinCodeView() {
+    return `<div class="zcard zform"><h2>Now open your e-mail</h2><p class="zsmall" style="margin-top:0">We sent an e-mail to <b>${esc(S.email)}</b>. Pick <b>one</b> of these two ways.</p>${twoWays}
+      ${S.dev ? `<div class="zbanner info">Local test mode: your code is <b>${esc(S.dev)}</b> <button class="zbtn s" id="suse" type="button">Use this code</button></div>` : ""}
+      <label for="scd">Option 1: type your 6-digit code here</label><input id="scd" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+      ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}
+      <button class="zbtn" id="scdgo">Submit</button> <button class="zbtn s alt" id="sresend" type="button">Send a new code</button>
+      <p class="zsmall">Not there? Look in your spam or junk folder, or press Send a new code.</p><p class="zsmall"><a href="#" id="back2">Back</a></p></div>`;
+  }
+  function linkView() {
+    return `<div class="zhead"><b>Corporate Games · Refer &amp; earn</b></div><div class="zcard zform"><h2>Press the button to sign in</h2><p class="zsmall" style="margin-top:0">This is Option 2 from your e-mail. It works once, for 10 minutes.</p>
+      ${S.err ? `<div class="zbanner bad" role="alert">${esc(S.err)}</div>` : ""}<button class="zbtn" id="lgo">Sign me in</button><p class="zsmall">Something wrong? <a href="/partner.html">Ask for a new e-mail</a>.</p></div>`;
   }
   function dashView() {
     const m = S.me; const t = m.totals;
-    const fresh = S.fresh ? `<div class="zbanner ok">You are in. <b>Your partner key (shown only this once):</b><div class="mono" style="word-break:break-all;margin:6px 0">${esc(S.fresh)}</div>Keep it somewhere safe; you need it to see your sales.</div>` : "";
+    const fresh = S.fresh ? `<div class="zbanner ok">You are in. You stay signed in on this phone or laptop. On another device, or if you ever sign out, just sign in with your e-mail again: nothing to remember.</div>` : "";
     const rows = m.sales.length ? `<table><tr><th>Date</th><th>Pack</th><th>Status</th><th>Commission</th></tr>${m.sales.map((s) => `<tr><td>${day(s.date)}</td><td>${s.pack ? "up to " + s.pack : "-"}</td><td>${statusText(s)}</td><td>${s.amount === null ? "to be announced" : inr(s.amount)}</td></tr>`).join("")}</table>` : `<p class="zsmall" style="margin:0">No sales yet. Share your link to get started.</p>`;
     return `<div class="zhead"><b>Corporate Tic Tac Toe · Refer &amp; earn</b><button class="zsnd" id="out">Sign out</button></div>${fresh}
       ${m.state !== "active" ? `<div class="zbanner warn">Your partner account is paused. Please contact us.</div>` : ""}
@@ -86,11 +100,26 @@
     };
     if ($("signin")) $("signin").onclick = (e) => { e.preventDefault(); S.err = ""; draw(signinView()); };
     if ($("back")) $("back").onclick = (e) => { e.preventDefault(); S.err = ""; draw(enrollView()); };
-    if ($("go")) $("go").onclick = async () => { const k = $("pk").value.trim(); try { await api("GET", "/api/partner/me", undefined, k); ls.set("cbz-pkey", k); S.err = ""; S.fresh = null; await load(); } catch (e) { S.err = e.status === 403 ? "That key was not recognised." : e.message; draw(signinView()); } };
+    if ($("sgo")) $("sgo").onclick = async () => {
+      S.err = ""; S.email = $("se").value.trim(); $("sgo").disabled = true;
+      try { const r = await api("POST", "/api/partner/signin", { email: S.email }); S.dev = r.devCode || ""; draw(signinCodeView()); }
+      catch (e) { S.err = e.message; draw(signinView()); }
+    };
+    const verifyCode = async () => { S.err = ""; try { const r = await api("POST", "/api/partner/signin/verify", { email: S.email, code: $("scd").value }); ls.set("ctz-pkey", r.partnerKey); S.fresh = null; S.dev = ""; await load(); } catch (e) { S.err = e.message; draw(signinCodeView()); } };
+    if ($("scdgo")) $("scdgo").onclick = verifyCode;
+    if ($("suse")) $("suse").onclick = () => { $("scd").value = S.dev; verifyCode(); };
+    if ($("sresend")) $("sresend").onclick = async () => { try { const r = await api("POST", "/api/partner/signin", { email: S.email }); S.dev = r.devCode || ""; S.err = ""; draw(signinCodeView()); } catch (e) { S.err = e.message; draw(signinCodeView()); } };
+    if ($("back2")) $("back2").onclick = (e) => { e.preventDefault(); S.err = ""; draw(signinView()); };
+    if ($("lgo")) $("lgo").onclick = async () => {
+      $("lgo").disabled = true;
+      try { const r = await api("POST", "/api/partner/signin/link", { token: S.linkToken }); ls.set("ctz-pkey", r.partnerKey); history.replaceState(null, "", location.pathname); S.linkToken = ""; await load(); }
+      catch (e) { S.err = e.message; draw(linkView()); }
+    };
     if ($("pclose")) $("pclose").onclick = async (e) => { e.preventDefault(); if (!confirm("Close your partner account? Your details are deleted. We keep billing data for audit and tax reasons.")) return; try { await api("POST", "/api/partner/close", {}, ls.get("cbz-pkey")); } catch (er) { S.err = er.message; return; } ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };
     if ($("out")) $("out").onclick = () => { ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };
   }
   async function load() {
+    if (S.linkToken) return draw(linkView());
     const k = ls.get("cbz-pkey");
     if (!k) return draw(enrollView());
     try { S.me = await api("GET", "/api/partner/me", undefined, k); draw(dashView(), true); }

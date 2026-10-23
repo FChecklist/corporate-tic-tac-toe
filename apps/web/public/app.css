@@ -374,3 +374,9 @@ html[data-theme] .chip.on{background:#fff}
 .otp{display:flex;gap:8px;justify-content:space-between;margin-top:6px}.otp .otpb{flex:1;min-width:0;height:56px;text-align:center;font-size:24px;font-weight:700;border:1.5px solid var(--line);border-radius:12px;background:#FDFBF7;color:var(--ink);padding:0}.otp .otpb:focus{border-color:var(--pri);outline:3px solid rgba(11,93,91,.2);outline-offset:1px}
 .otphid{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;border:0;padding:0}
 @media (max-width:360px){.otp{gap:5px}.otp .otpb{height:50px;font-size:20px;border-radius:10px}}
+
+/* sign-in: the two ways in, one box each */
+.optbox{border:2px solid #E6D9B8;background:#FBF6EC;border-radius:12px;padding:10px 14px;margin:0 0 10px}
+.optbox .optn{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A5A00}
+.optbox .optt{margin:2px 0 4px;font-size:16px;font-weight:700;color:var(--ink)}
+.optbox .opts{margin:0;font-size:14px;line-height:1.5;color:var(--ink)}
