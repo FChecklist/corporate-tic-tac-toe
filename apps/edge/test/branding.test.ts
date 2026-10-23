@@ -108,7 +108,7 @@ describe("pages: one title pattern, icons, manifest, theme colour", () => {
     expect(read("pages/build.mjs")).toContain('"404.html"');
   });
   test("every page header uses the Corporate Tic Tac Toe name; the report PDF names it and carries the support address and legal link", () => {
-    for (const f of ["zc.js", "pay.js", "ai-link.js", "signin.js", "ttt.js", "partner.js"]) for (const m of read("apps/web/public", f).matchAll(/<div class="zhead"><b>([^<]*)<\/b>/g)) expect(m[1]).toMatch(/^Corporate Tic Tac Toe/);
+    for (const f of ["zc.js", "pay.js", "ai-link.js", "signin.js", "ttt.js", "partner.js"]) for (const m of read("apps/web/public", f).matchAll(/<div class="zhead"><b>([^<]*)<\/b>/g)) expect(m[1]).toMatch(/^Corporate (Tic Tac Toe|Games)/); // the Refer & earn pages are one programme for all our games
     const lay = read("apps/edge/src/report-layout.ts"); expect(lay).toContain("BRAND.support"); expect(lay).toContain("BRAND.legalPath"); expect(lay).toMatch(/pdf\.footer = `Corporate Tic Tac Toe/);
   });
 });

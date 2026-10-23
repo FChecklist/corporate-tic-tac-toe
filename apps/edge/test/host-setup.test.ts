@@ -190,8 +190,8 @@ describe("later devices: e-mail code or Google, same Host, same label", () => {
     const { master } = await organizer(); const h = await addHost(master, { email: "p@acme.com", mobile: "9876500002" });
     const d1 = await confirmByCode(h.hostKey, "p@acme.com");
     const s = await j(await call("POST", "/api/auth/email", { email: "P@acme.com" }));
-    expect(s.devToken).toBeUndefined(); // a Host gets the code only, no one-click link
-    const mail = mailsTo("p@acme.com").filter((m) => /sign-in code/i.test(m.subject)); expect(mail).toHaveLength(1); expect(mail[0]!.body).toContain(s.devCode); expect(mail[0]!.body).not.toMatch(/AI work link|cba_/);
+    expect(s.devToken).toMatch(/^[0-9a-f]{48}$/); // a Host gets the same two ways in as an Organizer: the code and one single-use link
+    const mail = mailsTo("p@acme.com").filter((m) => /sign-in/i.test(m.subject)); expect(mail).toHaveLength(1); expect(mail[0]!.body).toContain(s.devCode); expect(mail[0]!.body).toContain(`t=${s.devToken}&go=console`); expect(mail[0]!.body).not.toMatch(/AI work link|cba_/);
     const v = await j(await call("POST", "/api/auth/verify", { email: "p@acme.com", code: s.devCode }));
     expect(v).toMatchObject({ ok: true, kind: "host", ready: true }); expect(v.token).toMatch(/^cbh_/); expect(v.token).not.toBe(d1.token);
     expect((await call("GET", "/api/org/team", undefined, v.token)).status).toBe(200); expect((await call("GET", "/api/org/team", undefined, d1.token)).status).toBe(200);

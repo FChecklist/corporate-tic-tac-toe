@@ -64,7 +64,9 @@
   });
 
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null, typedName = "";
+  let tb = null, typedName = "", typedPhone = "", typedEmp = "";
+  // What the organizer asked people to give (INFO.verify): a mobile number, an employee ID or both. The default is the name alone.
+  const askWhat = () => { if (TOKEN) return { emp: false, mob: false, only: false, v: "mobile" }; /* a personal link already says who this is */ const v = INFO && (INFO.verify === "id" || INFO.verify === "both") ? INFO.verify : "mobile", only = !!(INFO && INFO.employeesOnly), ph = !!(INFO && INFO.joinPhone); return { emp: v !== "mobile", mob: v !== "mobile" || ph, only, v }; };
   const joinView = () => {
     set(`${top()}<div class="zcard zform tjoin"><h2>Join the tournament</h2>
       <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Tick the boxes</span></li><li><b>2</b><span>Type your name</span></li><li><b>3</b><span>Press Join</span></li></ol>
@@ -73,18 +75,21 @@
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your name</label><input id="nm" autocomplete="name" maxlength="40" disabled>
+      ${(() => { const a = askWhat(); return (a.emp ? `<label for="emp">Your employee ID${a.only ? "" : " (if you work here)"}</label><input id="emp" autocomplete="off" maxlength="30" value="${esc(typedEmp)}" disabled>` : "") + (a.mob ? `<label for="mob">Your mobile number${a.v === "id" && !a.only ? " (if you have no employee ID)" : ""}</label><input id="mob" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(typedPhone)}" disabled>` : "") + (a.emp ? `<p class="zsmall">${a.only ? "This game is for the employees on the organizer's list." : "People who do not work here give their mobile number."}</p>` : ""); })()}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
-    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2; go.setAttribute("aria-disabled", String(go.disabled)); };
+    const emp = document.getElementById("emp"), mob = document.getElementById("mob"), ask = askWhat();
+    const given = () => { const e = emp ? emp.value.trim() : "", m = mob ? mob.value.replace(/\D/g, "").length >= 8 : false; return ask.only ? (ask.v === "both" ? !!e && m : !!e) : ask.v === "mobile" ? (mob ? m : true) : ask.v === "id" ? !!e || m : m; };
+    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (mob) mob.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2 || !given(); go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
-    nm.addEventListener("input", sync);
+    nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (mob) mob.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
     go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; typedName = nm.value.trim();
+      go.disabled = true; joinMsg = ""; typedName = nm.value.trim(); typedEmp = emp ? emp.value.trim() : ""; typedPhone = mob ? mob.value.trim() : "";
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
@@ -101,7 +106,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: typedName, device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);

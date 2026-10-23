@@ -105,14 +105,14 @@
       try { const r = await api("POST", "/api/partner/signin", { email: S.email }); S.dev = r.devCode || ""; draw(signinCodeView()); }
       catch (e) { S.err = e.message; draw(signinView()); }
     };
-    const verifyCode = async () => { S.err = ""; try { const r = await api("POST", "/api/partner/signin/verify", { email: S.email, code: $("scd").value }); ls.set("ctz-pkey", r.partnerKey); S.fresh = null; S.dev = ""; await load(); } catch (e) { S.err = e.message; draw(signinCodeView()); } };
+    const verifyCode = async () => { S.err = ""; try { const r = await api("POST", "/api/partner/signin/verify", { email: S.email, code: $("scd").value }); ls.set("cbz-pkey", r.partnerKey); S.fresh = null; S.dev = ""; await load(); } catch (e) { S.err = e.message; draw(signinCodeView()); } };
     if ($("scdgo")) $("scdgo").onclick = verifyCode;
     if ($("suse")) $("suse").onclick = () => { $("scd").value = S.dev; verifyCode(); };
     if ($("sresend")) $("sresend").onclick = async () => { try { const r = await api("POST", "/api/partner/signin", { email: S.email }); S.dev = r.devCode || ""; S.err = ""; draw(signinCodeView()); } catch (e) { S.err = e.message; draw(signinCodeView()); } };
     if ($("back2")) $("back2").onclick = (e) => { e.preventDefault(); S.err = ""; draw(signinView()); };
     if ($("lgo")) $("lgo").onclick = async () => {
       $("lgo").disabled = true;
-      try { const r = await api("POST", "/api/partner/signin/link", { token: S.linkToken }); ls.set("ctz-pkey", r.partnerKey); history.replaceState(null, "", location.pathname); S.linkToken = ""; await load(); }
+      try { const r = await api("POST", "/api/partner/signin/link", { token: S.linkToken }); ls.set("cbz-pkey", r.partnerKey); history.replaceState(null, "", location.pathname); S.linkToken = ""; await load(); }
       catch (e) { S.err = e.message; draw(linkView()); }
     };
     if ($("pclose")) $("pclose").onclick = async (e) => { e.preventDefault(); if (!confirm("Close your partner account? Your details are deleted. We keep billing data for audit and tax reasons.")) return; try { await api("POST", "/api/partner/close", {}, ls.get("cbz-pkey")); } catch (er) { S.err = er.message; return; } ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };

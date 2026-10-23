@@ -1,4 +1,4 @@
-/* Corporate Tambola: always the newest version. Every 45 seconds (and whenever the page comes back to the front) the page asks /version.json what is live.
+/* Corporate Tic Tac Toe: always the newest version. Every 45 seconds (and whenever the page comes back to the front) the page asks /version.json what is live.
    When it has changed since this page loaded, the page clears its saved copy and reloads itself, so nobody keeps working on old code. It never reloads
    while a person is typing in a box (it waits until the box is empty or left), and never more than once for the same version, so it cannot loop. */
 (function () {

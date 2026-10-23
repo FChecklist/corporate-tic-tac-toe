@@ -193,7 +193,7 @@ describe("what a purchase lets you do", () => {
     expect(((await (await call("POST", "/api/z/TOOBIG/publish", { email: "b@acme.com", phone: "9876543210" }, K)).json()) as any).paid).toBe(false); // published, but not covered by this pack: it must still be paid for
     expect((await mk("FIRST1", 400)).status).toBe(200);
     expect(raw.query("SELECT pack FROM engagement WHERE id='FIRST1'").get()).toEqual({ pack: 500 }); // published at once: a purchased pack was waiting
-    expect((await mk("SECOND", 10)).status).toBe(200); // a second one can be built, but it is a draft until another purchase
+    expect((await mk("SECOND", 20)).status).toBe(200); // a second one can be built, but it is a draft until another purchase
     expect(raw.query("SELECT pack FROM engagement WHERE id='SECOND'").get()).toEqual({ pack: 0 });
     expect(((await (await call("POST", "/api/z/SECOND/publish", { email: "b@acme.com", phone: "9876543210" }, K)).json()) as any).paid).toBe(false);
     expect(raw.query("SELECT eid FROM entitlement").get()).toEqual({ eid: "FIRST1" });
@@ -285,7 +285,7 @@ describe("sign in by e-mailed code", () => {
     expect(t.token).not.toBe(first);
     expect((await call("GET", "/api/history", undefined, { "x-organizer": t.token })).status).toBe(200);
     expect((await call("GET", "/api/history", undefined, { "x-organizer": first })).status).toBe(200);
-    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Sign in to Corporate Tic Tac Toe%'").get() as any).c).toBe(1);
+    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Corporate Tic Tac Toe sign-in%'").get() as any).c).toBe(1);
   });
   test("an unknown address gets exactly the same answer and no mail, so nobody can learn who has an account", async () => {
     const r = await (await ask("nobody@nowhere.com")).json() as any;
@@ -297,7 +297,7 @@ describe("sign in by e-mailed code", () => {
     await account(); env.TEST_MODE = undefined; env.RAZORPAY_KEY_ID = "k"; env.RAZORPAY_KEY_SECRET = "s";
     const r = await (await ask("owner@corp.com")).json() as any;
     expect(r.devCode).toBeUndefined();
-    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Sign in to Corporate Tic Tac Toe%'").get() as any).c).toBe(1);
+    expect((raw.query("SELECT COUNT(*) c FROM outbox WHERE subject LIKE '%Corporate Tic Tac Toe sign-in%'").get() as any).c).toBe(1);
   });
   test("a wrong code is refused, five wrong guesses lock that code, and the right one then no longer works", async () => {
     await account();

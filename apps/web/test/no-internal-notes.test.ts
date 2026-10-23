@@ -8,7 +8,7 @@ const PATTERN = /COUNSEL|\[●\]|legal(ly)?\s+(review|pending|sign-?off)|review\
 const LEGAL_ONLY = /draft/i; // on the legal pages only: the bare word is fine elsewhere (a draft game)
 const LEGAL_PAGES = ["terms.html", "legal.html", "refund-policy.html", "about.html", "contact.html", "pricing.html", "dpa.html", "subprocessors.html", "privacy.html", "partner-terms.html"];
 const ROOT = new URL("../../../", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const SKIP_DIR = new Set(["node_modules", ".git", "fonts", "img", ".wrangler"]);
+const SKIP_DIR = new Set(["node_modules", ".git", "fonts", "img", ".wrangler", "vendor"]);
 const TEXT = /\.(html|js|css|txt|xml|json|webmanifest|md|toml|py|mjs|ts|sql)$|^_headers$|^_routes\.json$/;
 
 function walk(dir: string, out: string[] = []): string[] {

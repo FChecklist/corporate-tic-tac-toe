@@ -3,7 +3,7 @@
 // A copy of the database (a backup, an export, a leaked token) therefore holds only ciphertext. Every record has its own random nonce, and the
 // format is versioned ("v1.") so the key can be rotated. The same sealing is used for the temporary pieces of an engagement report.
 export interface PiiEnv { DATA_KEY?: string; ORGANIZER_SECRET?: string }
-export interface Pii { phone: string; name: string | null }
+export interface Pii { phone: string; name: string | null; /** Employee ID (only when the organizer asked for it). */ empId?: string | null }
 
 const enc = new TextEncoder(), dec = new TextDecoder();
 const b64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
@@ -38,11 +38,11 @@ export async function openText(env: PiiEnv, sealed: string | null | undefined): 
   if (p.length !== 3 || p[0] !== "v1") return null;
   try { return dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(p[1]!), additionalData: AAD }, await keyFor(env), unb64(p[2]!))); } catch { return null; }
 }
-export const sealPii = (env: PiiEnv, p: Pii) => sealText(env, JSON.stringify({ p: p.phone, n: p.name }));
+export const sealPii = (env: PiiEnv, p: Pii) => sealText(env, JSON.stringify(p.empId ? { p: p.phone, n: p.name, e: p.empId } : { p: p.phone, n: p.name }));
 export async function openPii(env: PiiEnv, sealed: string | null | undefined): Promise<Pii | null> {
   const t = await openText(env, sealed);
   if (t === null) return null;
-  try { const o = JSON.parse(t); return { phone: String(o.p ?? ""), name: o.n == null ? null : String(o.n) }; } catch { return null; }
+  try { const o = JSON.parse(t); return { phone: String(o.p ?? ""), name: o.n == null ? null : String(o.n), ...(o.e ? { empId: String(o.e) } : {}) }; } catch { return null; }
 }
 
 // ------------------------------------------------------------------------------------------------ per-engagement participant key (crypto-shredding)

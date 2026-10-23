@@ -83,6 +83,7 @@ export class PhoneRuntime {
   private logs: number[][] = [[]];
   private ticketMemo = new Map<number, Ticket[]>();
   private offsetMs: number | null = null; // utc - mono
+  private offsetSamples: number[] = []; // the last few clock answers (the largest is used)
   private syncedAtMono = -Infinity;
   private lastControlPoll = -Infinity;
   private lastResultPoll = -Infinity;
@@ -108,7 +109,12 @@ export class PhoneRuntime {
     if (this.offsetMs !== null && m - this.syncedAtMono < 60_000) return true;
     const x = await fetchRound("latest", { ...this.deps.beacon, ...(this.deps.verify ? { verify: this.deps.verify as any } : {}) }, 0);
     if (!x) return this.offsetMs !== null;
-    this.offsetMs = roundTimeMs(x.round) + (QUICKNET.periodSec * 1000) / 2 - m;
+    // One answer of "latest" can be a round or two old (a cached mirror) and then makes the clock run SLOW. A stale answer is never too new, so of the last 5 answers the NEWEST estimate
+    // (the largest) is the most accurate. An answer more than 15 s below the best one (a changed clock) starts the list again.
+    const sample = roundTimeMs(x.round) + (QUICKNET.periodSec * 1000) / 2 - m;
+    if (this.offsetSamples.length && Math.max(...this.offsetSamples) - sample > 15_000) this.offsetSamples = [];
+    this.offsetSamples.push(sample); if (this.offsetSamples.length > 5) this.offsetSamples.shift();
+    this.offsetMs = Math.max(...this.offsetSamples);
     this.syncedAtMono = m;
     return true;
   }

@@ -1,4 +1,4 @@
-/* Corporate Tambola: staying signed in. Signing in proves the e-mail once; after that this phone or laptop stays signed in (no timeout) until the person taps "Sign out".
+/* Corporate Tic Tac Toe: staying signed in. Signing in proves the e-mail once; after that this phone or laptop stays signed in (no timeout) until the person taps "Sign out".
    Only the keys named below are kept on the device (they are listed in the storage notice); everything else stays per-visit. If the browser blocks long-term storage,
    the visit-only store is used, and the person simply signs in again with their e-mail. */
 (function () {
