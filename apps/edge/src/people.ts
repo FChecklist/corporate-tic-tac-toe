@@ -47,6 +47,13 @@ export const tokenHash = async (token: string) => (await sha("pj|" + token.toLow
 /** Same formula as the Worker's join (worker.ts `phoneHash`): +91 98765 43210, 098765 43210 and 9876543210 are one person; one hash in every game. */
 export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, digits: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${digits.slice(-10)}`);
 
+/** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
+export const normEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };
+/** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
+export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
+/** What the organizer asked people to give to get in, read from the game's stored settings. */
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
+
 export type Cleaned = { ok: true; digits: string; last10: string } | { ok: false; why: string };
 /**
  * Cleans one typed or pasted mobile number: spaces, dashes, brackets, +91, a leading 0 or 00 go away. A 10-digit Indian mobile must start with 6 to 9; a number with another
@@ -154,14 +161,14 @@ async function labelsOf(c: Ctx): Promise<(id: string | null) => string> {
   return (id) => (!id ? "" : id === "o" ? "Organizer" : id.startsWith("s:") ? `Guest (seat ${id.slice(2)})` : m.get(id) ?? (id.startsWith("h:") ? "Host" : "Co-host"));
 }
 
-export interface PersonView { id: string; name: string; maskedPhone: string; status: "invited" | "joined" | "waiting" | "removed"; link: string | null; waLink: string | null; role?: string; inviter?: string; approvedBy?: string }
+export interface PersonView { id: string; name: string; maskedPhone: string; status: "invited" | "joined" | "waiting" | "removed"; empId?: string; link: string | null; waLink: string | null; role?: string; inviter?: string; approvedBy?: string }
 async function viewOf(c: Ctx, r: PersonRow, label: (id: string | null) => string, showInviter: boolean): Promise<PersonView> {
   const pii = await openPii(c.env, r.pii);
   const token = r.status === "removed" ? null : await openText(c.env, r.tok_sealed);
   const link = token ? `${c.origin}/j/${token}` : null;
   const digits = pii?.phone ?? "";
   return {
-    id: r.id, name: pii?.name ?? "", maskedPhone: digits ? maskedPhone(digits) : "", status: r.status,
+    id: r.id, name: pii?.name ?? "", maskedPhone: digits ? maskedPhone(digits) : "", status: r.status, ...(pii?.empId ? { empId: pii.empId } : {}),
     link, waLink: link && digits ? waLinkOf(digits, waMessage(pii?.name || null, c.gameName, link)) : null,
     ...(r.role ? { role: r.role } : {}), ...(showInviter ? { inviter: label(r.inviter) } : {}), ...(r.approved_by ? { approvedBy: label(r.approved_by) } : {}),
   };
@@ -271,14 +278,26 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
-  const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string }[] = [];
+  const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string }[] = [];
+  const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
+    const emp = normEmp(x?.empId ?? x?.employeeId);
+    if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
+    const phoneTyped = String(x?.phone ?? "").trim() !== "";
+    if (vf.employeesOnly && vf.mode !== "mobile" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
+    if (vf.mode === "id" && emp) { // known by ID alone: a mobile number is welcome but not needed
+      let digits = "";
+      if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = cl.digits; }
+      const ph = await empHashOf(c.env, emp);
+      if (seen.has(ph)) { duplicates++; continue; }
+      seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
+    }
     const cl = cleanPhone(x?.phone);
     if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; }
     const ph = await phoneHashOf(c.env, cl.digits);
     if (seen.has(ph)) { duplicates++; continue; }
-    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: cl.digits, ph });
+    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: cl.digits, ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}) });
   }
   const db = c.env.DB, hashes = todo.map((t) => t.ph);
   const persons = await existingBy(db, "person", c.eid, hashes, "ph, status, id");
@@ -305,13 +324,13 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   for (const t of fresh) {
     const token = newToken(), id = randHex(6); toks.set(t.ph, token); ids.set(t.ph, id);
     stmts.push(db.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,tok_hash,tok_sealed,approved_by,approved_ms,added_ms) SELECT ?,?,?,?,?,NULL,'invited',?,?,NULL,NULL,? WHERE (? IS NULL OR (SELECT COUNT(*) FROM person WHERE eid=? AND inviter=? AND status<>'removed' AND role IS NULL) < ?) AND (SELECT COUNT(*) FROM person WHERE eid=? AND status<>'removed') < ?")
-      .bind(c.eid, id, t.ph, await sealPii(c.env, { phone: t.digits, name: t.name || null }), who.id, await tokenHash(token), await sealText(c.env, token), c.now, who.limit, c.eid, who.id, who.limit ?? 0, c.eid, c.e.cap));
+      .bind(c.eid, id, t.ph, await sealPii(c.env, { phone: t.digits, name: t.name || null, empId: t.empId }), who.id, await tokenHash(token), await sealText(c.env, token), c.now, who.limit, c.eid, who.id, who.limit ?? 0, c.eid, c.e.cap));
   }
   for (const t of revive) { // an Organizer / Host puts a removed person back
     const token = newToken(); toks.set(t.ph, token); ids.set(t.ph, persons.get(t.ph).id);
     const hasSeat = seats.has(t.ph);
     stmts.push(db.prepare("UPDATE person SET status=?, inviter=?, pii=?, tok_hash=?, tok_sealed=?, approved_by=?, approved_ms=?, removed_ms=NULL, removed_by=NULL WHERE eid=? AND ph=? AND status='removed'")
-      .bind(hasSeat ? "joined" : "invited", who.id, await sealPii(c.env, { phone: t.digits, name: t.name || null }), await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.eid, t.ph));
+      .bind(hasSeat ? "joined" : "invited", who.id, await sealPii(c.env, { phone: t.digits, name: t.name || null, empId: t.empId }), await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.eid, t.ph));
     if (hasSeat) stmts.push(db.prepare("UPDATE seat SET blocked=NULL WHERE eid=? AND ph=?").bind(c.eid, t.ph));
   }
   // someone who was waiting and is now put on a list is admitted by whoever listed them
@@ -327,7 +346,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const out: PersonView[] = [];
   for (const t of done) {
     const token = toks.get(t.ph)!, link = `${c.origin}/j/${token}`;
-    out.push({ id: ids.get(t.ph)!, name: t.name, maskedPhone: maskedPhone(t.digits), status: "invited", link, waLink: waLinkOf(t.digits, waMessage(t.name || null, c.gameName, link)), ...(who.all ? { inviter: label(who.id) } : {}) });
+    out.push({ id: ids.get(t.ph)!, name: t.name, maskedPhone: t.digits ? maskedPhone(t.digits) : "", status: "invited", ...(t.empId ? { empId: t.empId } : {}), link, waLink: t.digits ? waLinkOf(t.digits, waMessage(t.name || null, c.gameName, link)) : null, ...(who.all ? { inviter: label(who.id) } : {}) });
   }
   return c.json({ added: done.length, duplicates, invalid, people: out });
 }
@@ -339,10 +358,11 @@ async function exportPeople(c: Ctx, who: Caller): Promise<Response> {
     ? c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? ORDER BY added_ms, id`).bind(c.eid)
     : c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND inviter=? ORDER BY added_ms, id`).bind(c.eid, who.id)).all<PersonRow>();
   const label = await labelsOf(c);
-  const lines = [["Name", "Mobile", "Personal link", "WhatsApp link", "Status", ...(whole ? ["Invited by"] : [])].join(",")];
+  const withId = verifyOf(c.e).mode !== "mobile"; // the Employee ID column only when the organizer asked for IDs
+  const lines = [["Name", "Mobile", ...(withId ? ["Employee ID"] : []), "Personal link", "WhatsApp link", "Status", ...(whole ? ["Invited by"] : [])].join(",")];
   for (const r of rows.results ?? []) {
     const v = await viewOf(c, r, label, true), pii = await openPii(c.env, r.pii);
-    lines.push([v.name, pii?.phone ?? "", v.link ?? "", v.waLink ?? "", r.status === "invited" ? "Invited" : r.status === "joined" ? "Joined" : "Removed", ...(whole ? [v.inviter ?? ""] : [])].map(csvCell).join(","));
+    lines.push([v.name, pii?.phone ?? "", ...(withId ? [pii?.empId ?? ""] : []), v.link ?? "", v.waLink ?? "", r.status === "invited" ? "Invited" : r.status === "joined" ? "Joined" : "Removed", ...(whole ? [v.inviter ?? ""] : [])].map(csvCell).join(","));
   }
   return new Response("﻿" + lines.join("\r\n") + "\r\n", { headers: { "content-type": "text/csv; charset=utf-8", "cache-control": "no-store", "content-disposition": `attachment; filename="people-${c.eid.replace(/[^A-Za-z0-9_-]/g, "_")}.csv"` } });
 }
@@ -569,7 +589,7 @@ export async function waitingWho(c: { env: Env; e: any; eid: string }, inviter: 
 }
 
 /** Joins a person's request to wait. Used by the Worker's `join`. Returns the existing request when the number already asked. */
-export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
+export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; empId?: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
   const db = c.env.DB;
   const have = await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>();
   if (have) return have;
@@ -577,7 +597,7 @@ export async function addWaiting(c: { env: Env; eid: string; e: any; now: number
   if (n >= WAITING_MAX) return { full: true };
   const id = randHex(6), chain = o.overlimit ? ",o," : await chainOf(db, c.eid, o.inviter);
   await db.prepare("INSERT OR IGNORE INTO waiting(eid,id,ph,pii,via,inviter,chain,overlimit,status,at_ms) VALUES(?,?,?,?,?,?,?,?,'waiting',?)")
-    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
+    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name, empId: o.empId }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
   return (await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>()) ?? { id, status: "waiting" };
 }
 

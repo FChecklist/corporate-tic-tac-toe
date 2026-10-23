@@ -18,7 +18,7 @@ const lists = (() => {
   return out;
 })();
 const always = lists.asked_from_player ?? [], sometimes = lists.asked_if_organizer_switches_on ?? [];
-const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i]];
+const FIELDS: [string, RegExp][] = [["name", /\bname\b/i], ["mobile number", /mobile number|phone number|\bphone\b/i], ["e-mail", /e-?mail/i], ["address", /\baddress\b/i], ["photo", /\bphoto\b|\bpicture\b/i], ["employee ID", /employee id/i]];
 
 describe("D1: the data map", () => {
   test("it exists, with the player notice block, and says why, where and who for every field", () => {

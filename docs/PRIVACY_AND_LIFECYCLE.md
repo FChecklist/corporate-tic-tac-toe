@@ -17,7 +17,7 @@ The full notice is the stand-alone Privacy page (`apps/web/public/privacy.html`)
 
 <!-- notice:start -->
 asked_from_player: name
-asked_if_organizer_switches_on: none
+asked_if_organizer_switches_on: mobile number, employee ID
 <!-- notice:end -->
 
 The block above is read by `apps/edge/test/data-map.test.ts`: it fails when the join notice mentions a field this list does not have, when this list has a field the notice leaves out, or when the player page asks for a field that is not listed.
@@ -43,7 +43,8 @@ The block above is read by `apps/edge/test/data-map.test.ts`: it fails when the 
 | The moves: which square, at what time, by whom (opaque player id), the clocks, who had X, the result of each game and board | The server stores every move as it is sent and stamps it with its own clock, so a phone can reload and anybody can replay the match; the server does not check a move against the rules | `ttt_mv` (moves), `ttt_r` and `ttt_b` (reports and agreed results), `ttt_f` and `ttt_x` (finish reports, notes for the Organizer), `ttt_m.data` (who plays on which board), `ttt_z` (pause times). **Player ids only, no names.** The moves, reports, finish reports and notes are deleted with the names 23 hours after the end; the agreed results, the pause times and the winners record stay | CF | Moves and reports 23 hours after the end; the rest until 00:00 IST at the end of day 365 |
 | Tournament settings and the seal: format, team size, move clock, the sealed seed and secret, number of players, start and end times, the champion's entrant id | The draw can be checked by anybody after the start | `ttt_t` (the names in it are in the ranking column above) | CF | Until the end of day 365 |
 | Winners record: the opaque seat numbers of first to fifth place | Proof of who won, with no name | `winner` (and `settled`, which is deleted at 23 h) | CF | Until the end of day 365 |
-| Mobile number | **Not asked from players.** The player page has no phone field. The Worker can still take one if the organizer's setting `join` is `phone`, but this page would then fail to join, so the setting is not used. A number appears only if an organizer puts one in a people list (2c). | `participant.pii` (sealed) if ever given | CF | 23 h after the end |
+| Mobile number | **Not asked by default.** A player gives only a name. If the organizer chooses "mobile number" or "both" for what a person must give to get in (setting `verify`, or `join` = `phone`), the join screen also has a mobile number field, and the notice says so. A number also appears when an organizer puts one in a people list (2c). | `participant.pii` (sealed) if given | CF | 23 h after the end |
+| Employee ID | **Not asked by default.** Asked only if the organizer chooses "employee ID" or "both" (setting `verify`); a person from outside gives a mobile number instead. Compared with the organizer's list, or sent to the organizer's waiting room when it is not on the list. | `participant.pii` and `person.pii` / `waiting.pii` (sealed); `person.ph` holds a salted hash of it when it is the only identity | CF | 23 h after the end |
 
 ### 2b. What a player's phone keeps (on the phone, not on our servers)
 

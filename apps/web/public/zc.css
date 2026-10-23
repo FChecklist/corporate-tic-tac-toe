@@ -165,3 +165,18 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
 .zc-or{display:flex;align-items:center;gap:10px;color:var(--zc-mut);font-size:12px;margin:14px 0 2px}.zc-or::before,.zc-or::after{content:"";flex:1;border-top:1px solid var(--zc-line)}
 .zc-keybox{margin-top:16px;border-top:1px solid var(--zc-line);padding-top:12px}.zc-keybox summary{cursor:pointer;color:var(--zc-mut);font-size:13px;line-height:1.4}
 @media (max-width:520px){.zc-login{margin:10px;border-radius:14px}.zc-login .zc-main{padding:8px 14px 18px}}
+
+/* tick boxes: a small line under each says what it is for; each section is tinted in its own colour */
+.zc-hint2{display:block;margin:3px 0 10px;font-size:12px;line-height:1.35;color:#5b5a52}
+.zc-secb{border-radius:0 0 12px 12px;padding-left:10px}
+.zc-secb .zc-chip{background:#fff}
+.zc-secb .zc-chip.on{background:#fff;box-shadow:0 0 0 2px var(--zc-accent) inset}
+.zc-secb .zc-chip::before{width:16px;height:16px}
+
+/* the console answers every tick at once: a block that appears fades in, a ticked box is clearly filled */
+@keyframes zcIn{from{opacity:.35;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.zc-secb .zc-box,.zc-secb .zc-hint2{animation:zcIn .18s ease-out}
+.zc-chip{transition:background .12s,box-shadow .12s,border-color .12s}
+.zc-secb .zc-chip.on{font-weight:700}
+.zc-secb .zc-chip.on::before{content:"\2713";color:#fff;font-size:12px;line-height:16px;text-align:center}
+@media (prefers-reduced-motion:reduce){.zc-secb .zc-box,.zc-secb .zc-hint2{animation:none}}

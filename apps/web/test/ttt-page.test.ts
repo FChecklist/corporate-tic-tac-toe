@@ -9,7 +9,7 @@ const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any)
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
-async function openPlayerPage(search = "?e=GAME-1") {
+async function openPlayerPage(search = "?e=GAME-1", info: Record<string, unknown> = {}) {
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
@@ -17,7 +17,7 @@ async function openPlayerPage(search = "?e=GAME-1") {
     const u = String(url); const body = init.body ? JSON.parse(init.body) : undefined; sent.push({ url: u, method: init.method ?? "GET", body });
     const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status });
     if (u.includes("/api/consent/text")) return ok({ version: VER, kind: "K4", boxes: Object.entries(K4).map(([id, text]) => ({ id, text })) });
-    if (u.endsWith("/info")) return ok({});
+    if (u.endsWith("/info")) return ok(info);
     if (u.endsWith("/join")) return ok({ pid: "1x000000000001" });
     if (u.includes("/ttt/setup")) return ok({ eid: "GAME-1", state: "open", joined: 1, serverNow: Date.now(), commit: "ab".repeat(32), pauses: [] });
     return ok({}, 404);
@@ -43,6 +43,21 @@ describe("the join screen (K4, U1-U3)", () => {
     const { d } = await openPlayerPage();
     expect(d.querySelector('input[type="tel"]')).toBeNull(); expect(d.getElementById("ph")).toBeNull();
     expect(d.body.textContent).toContain("who invited me is recorded until then");
+  });
+  test("when the organizer asks for an employee ID the join screen has an ID box (and a mobile number box for people from outside); the name alone is not enough, and the request carries what was typed", async () => {
+    const { d, sent } = await openPlayerPage("?e=GAME-1", { verify: "id", employeesOnly: false });
+    for (const b of [...d.querySelectorAll('input[type="checkbox"]')] as any[]) { b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); }
+    await tick();
+    const W = d.defaultView as any, put = (id: string, v: string) => { const el = d.getElementById(id) as any; el.value = v; el.dispatchEvent(new W.Event("input")); };
+    expect(d.getElementById("emp")).toBeTruthy(); expect(d.getElementById("mob")).toBeTruthy();
+    put("nm", "Maya"); await tick(); expect((d.getElementById("go") as any).disabled).toBe(true); // a name alone is not a way in
+    put("emp", "e-101"); await tick(); expect((d.getElementById("go") as any).disabled).toBe(false);
+    (d.getElementById("go") as any).click(); await tick(60);
+    const join = sent.find((s) => s.url.endsWith("/join"))!; expect(join.body).toMatchObject({ name: "Maya", empId: "e-101" }); expect(join.body.phone).toBeUndefined();
+  });
+  test("with the default (nothing asked) there is no ID box and no mobile box", async () => {
+    const { d } = await openPlayerPage("?e=GAME-1", { verify: "number" });
+    expect(d.getElementById("emp")).toBeNull(); expect(d.getElementById("mob")).toBeNull();
   });
   test("K4: one box is not enough; with both ticked and a name typed the button works, and the request carries both ticks and the version", async () => {
     const { d, sent } = await openPlayerPage();

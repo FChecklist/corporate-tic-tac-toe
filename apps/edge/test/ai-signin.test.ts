@@ -26,17 +26,18 @@ async function ask(now = T, ip = "5.5.5.5") { const r = await j(await call("POST
 const link = (t: string, ip = "6.6.6.6", now = T) => call("POST", "/api/auth/link", { token: t }, { "cf-connecting-ip": ip }, now);
 
 describe("the sign-in e-mail", () => {
-  test("subject, heading, intro, the three options, the footer, an HTML and a plain-text part; no AI key or paste text anywhere", async () => {
+  test("subject, heading, intro, exactly two options (code, button), the footer, an HTML and a plain-text part; no AI key or paste text anywhere", async () => {
     await account(); const r = await ask();
     const m = outbox().find((x) => x.subject === "[Tic Tac Toe] " + SIGNIN_SUBJECT)!;
-    expect(m.to_addr).toBe("boss@acme.com"); expect(SIGNIN_SUBJECT).toBe("Sign in to Corporate Tic Tac Toe - choose how you want to continue");
-    for (const t of ["YOU ARE ALMOST IN", "Choose one way to sign in.", "OPTION 1 - LET YOUR AI DO THE WORK", "Sign in and get my AI work link", "Your AI asks a few questions and sets it all up. You keep payment and publishing.", "OPTION 2 - WORK ON YOUR OWN", "Open my console", "OPTION 3 - SIGN-IN PAGE ALREADY OPEN?", `Type this 6-digit code there: ${r.devCode}`, "It works for 10 minutes.", "If you did not ask for this, ignore it. Do not forward it: it opens your account."]) expect(m.body).toContain(t);
+    expect(m.to_addr).toBe("boss@acme.com"); expect(SIGNIN_SUBJECT).toBe("Your Corporate Tic Tac Toe sign-in: a 6-digit code, or one tap");
+    for (const t of ["SIGN IN TO YOUR ACCOUNT", "Do ONE of these two things. You do not need both.", "OPTION 1 - TYPE THE 6-DIGIT CODE", "type these 6 numbers in the six boxes and press Submit", r.devCode, "OPTION 2 - TAP THE BUTTON", "You are signed in at once", "It works once, for 10 minutes.", "Do not forward it"]) expect(m.body).toContain(t);
+    expect(m.body).not.toContain("OPTION 3"); expect(m.body).not.toMatch(/AI work link|go=ai/);
     expect(m.body + m.subject).not.toMatch(LEAK); expect(m.body).not.toMatch(/Corporate Tic Tac Toe account\. I am the owner/);
-    expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=ai`); expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=console`);
+    expect(m.body).toContain(`${ORIGIN}/signin.html?t=${r.devToken}&go=console`);
     const b = signInMail(ORIGIN, "123456", "ab".repeat(24));
-    expect(b.html).toContain("You are almost in"); expect(b.html).toContain("Let your AI do the work"); expect(b.html).toContain("Work on your own"); expect(b.html).toContain("Sign-in page already open?"); expect(b.html).toContain("123456");
+    expect(b.html).toContain("Sign in to Corporate Tic Tac Toe"); expect(b.html).toContain("Type the 6-digit code"); expect(b.html).toContain("Tap the button"); expect(b.html).toContain("Sign me in"); expect(b.html).toContain("123456"); expect(b.html).not.toContain("OPTION 3");
     expect(b.html + b.text).not.toMatch(LEAK);
-    expect([...b.html.matchAll(/href="([^"]*)"/g)].map((x) => x[1]).filter((h) => !/^mailto:|legal.html$/.test(h!))).toEqual([`${ORIGIN}/signin.html?t=${"ab".repeat(24)}&amp;go=ai`, `${ORIGIN}/signin.html?t=${"ab".repeat(24)}&amp;go=console`]);
+    expect([...b.html.matchAll(/href="([^"]*)"/g)].map((x) => x[1]).filter((h) => !/^mailto:|legal.html$/.test(h!))).toEqual([`${ORIGIN}/signin.html?t=${"ab".repeat(24)}&amp;go=console`]);
     expect(env.DB).toBeTruthy();
     expect(JSON.stringify(raw.prepare("SELECT * FROM login_code").all())).not.toContain(r.devToken); // only a hash is kept
   });
@@ -77,10 +78,10 @@ describe("the one-click sign-in link", () => {
     expect((await call("POST", "/api/auth/link", {})).status).toBe(400);
     expect((await link(b.devToken)).status).toBe(200);
   });
-  test("destinations: the AI button goes to the AI-link page, the console button to the console; both carry the same single-use token", async () => {
+  test("destination: the one button goes to the console and carries the single-use token", async () => {
     await account(); const r = await ask();
     const m = outbox().find((x) => x.subject === "[Tic Tac Toe] " + SIGNIN_SUBJECT)!.body;
-    expect(m).toMatch(/signin\.html\?t=[0-9a-f]{48}&go=ai/); expect(m).toMatch(/signin\.html\?t=[0-9a-f]{48}&go=console/);
+    expect(m).toMatch(/signin\.html\?t=[0-9a-f]{48}&go=console/); expect(m).not.toMatch(/go=ai/);
     expect(new Set([...m.matchAll(/t=([0-9a-f]{48})&go=/g)].map((x) => x[1])).size).toBe(1); expect(m).toContain(r.devToken);
   });
   test("rate limits: at most 5 mails an hour per address (as before); at most 20 bad link tries a day per network; good tries still work from elsewhere", async () => {

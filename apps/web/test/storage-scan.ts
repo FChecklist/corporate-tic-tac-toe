@@ -10,7 +10,7 @@ export const PUB = join(import.meta.dir, "../public");
 export interface Use { file: string; store: "localStorage" | "sessionStorage"; key: string }
 export interface Cookie { file: string; name: string; maxAge: string }
 
-const CALL = /(?:\b(localStorage|sessionStorage)\s*\.\s*(?:getItem|setItem|removeItem)|\b(ls|ss|store|storage)\s*\.\s*(?:get|set|del|remove))\s*\(|(?<![\w$.])(ls|ss)\s*\(/g;
+const CALL = /(?:\b(localStorage|sessionStorage)\s*\.\s*(?:getItem|setItem|removeItem)|\b(ls|ss|store|storage|CTK)\s*\.\s*(?:get|set|del|remove))\s*\(|(?<![\w$.])(ls|ss)\s*\(/g;
 
 function argAt(src: string, from: number): string {
   let depth = 0, j = from;

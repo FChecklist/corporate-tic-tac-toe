@@ -13,7 +13,7 @@
     "build:control": "bun build packages/beacon/src/control-browser.ts --target browser --format iife --minify --outfile apps/web/public/control.js",
     "build:report": "bun build apps/edge/src/report-browser.ts --target browser --format iife --minify --outfile apps/web/public/reportgen.js",
     "build:ttt": "bun build packages/ttt/src/browser.ts --target browser --format iife --minify --outfile apps/web/public/tttgame.js",
-    "build:zgame": "bun build packages/beacon/src/zgame-browser.ts --target browser --format iife --minify --outfile apps/web/public/zgame.js",
+    "build:zgame": "bun build packages/beacon/src/zgame-browser.ts --target browser --format iife --minify-whitespace --minify-syntax --outfile apps/web/public/zgame.js",
     "zlocal": "bun run apps/edge/src/local.ts",
     "pages:build": "bun run pages/build.mjs",
     "pages:deploy": "bun run pages/build.mjs && cd pages && bunx wrangler@3 pages deploy public --project-name corporate-tic-tac-toe --branch main --commit-dirty=true",

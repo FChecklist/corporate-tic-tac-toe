@@ -77,6 +77,8 @@ async function reportToCentral(env: PayEnv, b: any): Promise<any | null> {
 }
 /** Optional switch (env FREE_LAUNCH="1"): small engagements (up to FREE_CAP participants) may be published without a purchase. Building a draft is always free. */
 export const FREE_CAP = 100, MAX_DRAFTS = 10;
+/** The Rs 0 game: a real game, with everything, for up to this many people. It publishes without a payment, is never held, and never uses up a bought pack. */
+export const FREE_GAME_CAP = 10;
 /** A game held for payment begins this many rounds (3 s each = 2 minutes) after the payment is confirmed. */
 export const LATE_PAY_LEAD_ROUNDS = 40;
 export const freeLaunch = (env: PayEnv) => env.FREE_LAUNCH === "1";
