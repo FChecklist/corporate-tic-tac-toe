@@ -8,7 +8,7 @@
     "Currency": { "type": "string", "enum": ["INR", "USD"] },
     "Eid": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,40}$" },
     "Assertion": { "type": "string", "pattern": "^v1\\.[A-Za-z0-9_-]{20,1800}\\.[A-Za-z0-9_-]{80,90}$" },
-    "Key": { "type": "string", "pattern": "^cb[kahc]_[0-9a-f]{48}$" },
+    "Key": { "type": "string", "pattern": "^c[bt][kahc]_[0-9a-f]{48}$" },
     "Act": { "type": "string", "enum": ["session", "games", "billing", "invited", "role", "handoff", "stepup", "purge"] },
     "StepAction": { "type": "string", "enum": ["pay", "upgrade", "role-add", "role-remove", "draft-delete", "cancel"] },
 
