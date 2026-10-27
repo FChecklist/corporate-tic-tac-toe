@@ -20,6 +20,7 @@ const dev = (i: number) => i.toString(16).padStart(4, "0").repeat(8);
 const tick = (k: Kind, v: string = CONSENT_VERSION) => ({ v, boxes: boxesOf(k).map(([id]) => id) });
 const rows = (kind: string) => raw.query("SELECT * FROM consent_log WHERE kind=? ORDER BY at_ms, id").all(kind) as any[];
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+async function draft(key: string, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
 const JSON_FILE = "C:/Users/Dell/AppData/Local/Temp/claude/C--ct-ct/2cf843e7-2735-4b37-9fc2-d660aa06a369/scratchpad/CONSENT_TEXT.json";
 
 beforeEach(() => {
@@ -233,14 +234,14 @@ describe("nothing is ever taken from a player", () => {
 describe("a Co-host who has not accepted the role cannot pay or use credit (found by the permissions scenario family: the payment routes ran before the K5 gate)", () => {
   test("checkout, proforma and credit are refused with consent-required until the K5 box is ticked", async () => {
     const key = await organizer("pay-co@acme.com"); const id = await draft(key, "CON-PAY");
-    const co = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500001", e: id }, key))).cohostKey as string;
-    for (const [p, b] of [["/api/checkout", { eid: id, email: "x@acme.com", consent: ticks("K3") }], ["/api/proforma", { eid: id }], ["/api/org/credit", {}], [`/api/z/${id}/pay-with-credit`, {}]] as const) {
+    const coR = await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500001", e: id }, key)); const co = { "x-organizer": coR.cohostKey as string }; expect(coR.error).toBeUndefined();
+    for (const [p, b] of [["/api/checkout", { eid: id, email: "x@acme.com", consent: tick("K3") }], ["/api/proforma", { eid: id }], ["/api/org/credit", {}], [`/api/z/${id}/pay-with-credit`, {}]] as const) {
       const r = await call("POST", p, b, co); const x = await j(r);
-      expect([p, r.status, x.code]).toEqual([p, 400, "consent-required"]);
+      expect([p, r.status, x.code, x.error]).toEqual([p, 400, "consent-required", x.error]);
       expect(x.kind).toBe("K5");
     }
-    expect((await call("POST", "/api/org/role/accept", { consent: ticks("K5") }, co)).status).toBe(200);
-    const after = await call("POST", "/api/checkout", { eid: id, email: "x@acme.com", consent: ticks("K3") }, co);
+    expect((await call("POST", "/api/org/role/accept", { consent: tick("K5") }, co)).status).toBe(200);
+    const after = await call("POST", "/api/checkout", { eid: id, email: "x@acme.com", consent: tick("K3") }, co);
     expect((await j(after)).code).not.toBe("consent-required"); // after the tick the normal payment rules apply
   });
 });

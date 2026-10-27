@@ -453,9 +453,10 @@ export async function runTick(env: Env, now: number) {
   await remindUnpaid(env, now);
   const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
   const life = await lifecycleTick(env as any, now);
+  let tttDue = 0; try { tttDue = await tttTick(env, now); } catch { /* tried again next minute */ } // clock-outs that are due in running tournaments
   const purged = await purgeOld(env, now);
   try { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('tick_last_ms',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(now)).run(); } catch { /* the stamp only spares a repeat */ }
-  return { ...life, purged, ledgerC };
+  return { ...life, purged, tttDue, ledgerC };
 }
 /** The lazy tick (go-to-market fix, docs/RETENTION.md): GitHub's scheduler runs the real tick only about every 2 hours, but the promise to players is deletion within 24 hours. So any /api request also runs the same housekeeping when the last tick is older than LAZY_TICK_MS. It never delays the answer (waitUntil), never throws, and only one run starts at a time (an in-memory flag per instance, and one row claimed in D1 across instances). */
 export const LAZY_TICK_MS = 5 * 60_000;
@@ -617,6 +618,7 @@ async function createOrganizer(env: Env, req: Request, email: string, now: numbe
       env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`aikey/${org}`, await sealText(env as any, aiKey)), // so the signed-in organizer can read their lasting link again (never mailed)
       env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(ipk, String(used + 1), String(used + 1)),
     ]);
+    if (ticked) await recordConsent(env.DB, { subject: org, kind: "K2", ref: org, now }); // K2: the Terms box was ticked to make this account
     await recordTerms(env, org, now, via);
     await linkVisitor(env as VisitEnv, req, org, "start", now, email); // ties the visitor's earlier visits to this new organizer (no-op when nothing was tracked)
     const origin0 = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, startMsg = aiMessage(origin0, aiKey); // aiKey is the lasting key, shown only in the console
@@ -817,7 +819,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (a.kind === "cohost") { // K5: a Co-host promises, once per Terms version, before doing anything (a Host does it in the first-open setup)
     const presentedK = req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
     if (presentedK) {
-      const who = "key:" + (await sha("key|" + presentedK)).slice(0, 16);
+      const who = "c:" + (await sha("key|" + presentedK)).slice(0, 16);
       if (req.method === "POST" && p === "/api/org/role/accept") {
         const b = await body(req, 512); const mt = consentRequired(b, "K5"); if (mt) return mt;
         await recordConsent(env.DB, { subject: who, kind: "K5", ref: a.eid ?? null, now });
@@ -1214,7 +1216,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     for (const k of keys) await env.DB.prepare("DELETE FROM kv WHERE k=? OR k=?").bind(`seen/${k.hash.slice(0, 10)}`, `alert/${k.hash.slice(0, 10)}`).run();
     await env.DB.batch([
       env.DB.prepare("DELETE FROM kv WHERE k=? OR k=?").bind(`orgmail/${a.org}`, `aikey/${a.org}`), env.DB.prepare("DELETE FROM organizer_email WHERE org=?").bind(a.org),
-      env.DB.prepare("DELETE FROM organizer_terms WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM ai_audit WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM audit_log WHERE chain=?").bind("org:" + a.org), env.DB.prepare("DELETE FROM organizer_key WHERE org=?").bind(a.org),
+      env.DB.prepare("DELETE FROM organizer_terms WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM consent_log WHERE subject=? AND kind IN ('K1','K2','K5','K6')").bind(a.org), env.DB.prepare("DELETE FROM ai_audit WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM audit_log WHERE chain=?").bind("org:" + a.org), env.DB.prepare("DELETE FROM organizer_key WHERE org=?").bind(a.org),
       ...helpdeskCloseStatements(env.DB, a.org), env.DB.prepare("DELETE FROM host_state WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM host_login WHERE org=?").bind(a.org), env.DB.prepare("DELETE FROM paylink WHERE org=?").bind(a.org),
     ]);
     return json({ ok: true, closed: true, engagementsDeleted: engs.length, creditForfeitedInr: forfeited });
@@ -1367,7 +1369,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     // payment is asked only when the organizer publishes it (POST /api/z/:id/publish)
     const draft = !a.plat && !ent;
     if (draft) {
-      const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM engagement WHERE org=? AND pack=0").bind(a.org).first<{ c: number }>())?.c ?? 0;
+      const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM engagement e WHERE e.org=? AND e.pack=0 AND NOT EXISTS (SELECT 1 FROM kv WHERE k='pub/' || e.id)").bind(a.org).first<{ c: number }>())?.c ?? 0;
       if (n >= MAX_DRAFTS) return json({ error: `You have ${MAX_DRAFTS} unpublished drafts. Publish one, or delete one you do not need (open Your games, then press Delete next to it). An unpublished draft is also forgotten after ${DRAFT_DAYS} days.` }, 409);
     }
     if (!(await spend(env, now, 2))) return BUSY();
@@ -1451,7 +1453,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       });
     }
   }
-  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|discard|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|leave|datareq|ttt|checkin|presence|who|override)$/);
+  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|discard|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|leave|datareq|ttt|checkin|presence|who|override)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
   if (!m) return json({ error: "Not found", hint: "Read the list of what you can do at /api/z/ai-manifest. Game routes look like /api/z/{id}/summary, /settings, /roster, /participants, /results, /publish." }, 404);
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
@@ -1586,8 +1588,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     let digits = typedDigits ?? tokPii?.phone ?? (idOnly ? "" : null);
     if (vf.mode === "both" && empNorm && !tok && !typedGiven) return json({ error: "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
     let nameOnly = false;
+    if (vf.mode !== "mobile" && !empNorm && !typedGiven && !tok) return json({ error: vf.mode === "either" ? "Enter your mobile number or your employee ID." : vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400); // the name alone is not enough when the organizer asked for IDs
     let ph = idOnly ? await empHashOf(env, empNorm) : typedPh ?? tok?.ph ?? null;
-    if (!ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && vf.mode !== "both" && cfgOf(e).join !== "phone") { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
+    if (!ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && vf.mode === "mobile" && cfgOf(e).join !== "phone") { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
       const typedName = cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
@@ -2002,7 +2005,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (roundMs(next.start_round) <= now) return json({ error: "Pick a start time in the future." }, 400);
     if (next.start_round !== e.start_round) { const last = await latestStartMs(env.DB, e, now); if (roundMs(next.start_round) > last) return json({ error: e.pack ? TOO_FAR_PAID(last) : TOO_FAR, code: "too-far", ...(e.pack ? { lastStartMs: last } : {}) }, 400); } // a draft: 30 days ahead; a paid game: any date within 365 days of the payment
     const have = await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>();
-    if (!a.plat && e.pack !== 0 && next.cap > (e.pack ?? e.cap)) return json({ error: (e.pack ?? e.cap) <= FREE_GAME_CAP ? `A game for up to ${FREE_GAME_CAP} people is Rs 0. For more people, create a new game like this one and choose a bigger size.` : `Your pack allows up to ${e.pack ?? e.cap} participants. Buy a bigger pack to raise the limit.` }, 402);
+    if (!a.plat && e.pack !== 0 && next.cap > (e.pack ?? e.cap)) return json({ error: (e.pack ?? e.cap) <= FREE_GAME_CAP ? `A game for up to ${FREE_GAME_CAP} people is Rs 0. For more people, create a new game like this one and choose a bigger size.` : `Your pack allows up to ${e.pack ?? e.cap} people. For more people, make a new game like this one.` }, 402);
     const listed = await env.DB.prepare("SELECT COUNT(*) AS c FROM person WHERE eid=? AND status<>'removed'").bind(eid).first<{ c: number }>().catch(() => null); // people on the lists who have not come in yet count too
     if (next.cap < Math.max(have?.c ?? 0, listed?.c ?? 0)) return json({ error: "The limit cannot be lower than the people already on the list." }, 409);
     if (!(await spend(env, now))) return BUSY();

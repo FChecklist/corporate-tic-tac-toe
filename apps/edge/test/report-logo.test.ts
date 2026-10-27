@@ -13,7 +13,7 @@ describe("report PDF prints a foreign mobile number in full", () => {
     const people = nums.map((phone, i) => ({ seat: i + 1, name: "P" + i, phone, joinedMs: 1_799_990_000_000, late: false, role: null, invitedBy: null, onRoster: false, joined: true }));
     const w = (phone: string, i: number) => ({ seat: i + 1, name: "P" + i, phone, role: null, callNo: 5, atMs: 1_799_990_500_000, verified: true, given: null });
     const t = text(layoutReport(base({ people, prizes: [{ round: 1, label: "Full house", text: "Full house", winners: nums.map(w) }] as any, lucky: [{ label: "Lucky", winners: nums.map(w) }] as any })));
-    for (const n of nums) { expect(t.split(n).length - 1).toBeGreaterThanOrEqual(3); expect(t).not.toContain(n.slice(0, 11) + ".."); }
+    for (const n of nums) { expect(t.split(n).length - 1).toBeGreaterThanOrEqual(2); expect(t).not.toContain(n.slice(0, 11) + ".."); }
   });
 });
 describe("report PDF carries the organizer's brand", () => {

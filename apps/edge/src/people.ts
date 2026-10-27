@@ -260,7 +260,6 @@ async function listPeople(c: Ctx, who: Caller): Promise<Response> {
 async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (!b || !Array.isArray(b.people) || b.people.length < 1) return c.json({ error: "Send at least one person: {people:[{name, phone}]}." }, 400);
   { const mt = consentRequired(b, "K6"); if (mt) return mt; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
-  await recordConsent(c.env.DB, { subject: who.id ?? "unknown", kind: "K6", ref: c.eid, now: c.now });
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;

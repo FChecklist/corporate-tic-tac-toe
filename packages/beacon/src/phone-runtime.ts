@@ -460,7 +460,7 @@ export class PhoneRuntime {
     }
     for (let i = 0; i < send.length; i += 3) {
       const part = send.slice(i, i + 3);
-      try { await this.deps.api("POST", `/api/z/${this.eid}/vote`, { pid: this.pid, results: part.map((x) => x.body) }); for (const x of part) this.voted.add(x.key); }
+      try { await this.deps.api("POST", `/api/z/${this.eid}/vote`, { pid: this.pid, device: this.device(), results: part.map((x) => x.body) }); for (const x of part) this.voted.add(x.key); }
       catch { break; /* kept: the next pass reports it again */ }
     }
   }

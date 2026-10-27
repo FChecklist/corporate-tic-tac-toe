@@ -79,7 +79,7 @@ describe("names and numbers are sealed", () => {
     expect(r.copied).toBe(2);
     const names = (await j(await call("GET", `/api/z/PRV-NEW/names?pids=${(await j(await call("GET", "/api/z/PRV-NEW/participants", undefined, org))).participants.map((p: any) => p.pid).join(",")}`, undefined, org))).names;
     expect(Object.values(names).sort()).toEqual(["Asha", "Bala"]);
-    await call("POST", "/api/z/PRV-OLD/erase", {}, org);
+    await call("POST", "/api/z/PRV-OLD/erase", {}, org, T + 8 * 3_600_000); // after its end: erasing mid-game is refused
     const gone = await call("POST", "/api/z/PRV-NEW/reuse", { from: "PRV-OLD" }, org);
     expect(gone.status).toBe(410); expect((await j(gone)).error).toMatch(/deleted within 24 hours/);
   });
@@ -260,8 +260,18 @@ describe("exact deletion dates", () => {
     expect((await call("POST", "/api/lifecycle/tick")).status).toBe(403);
     expect((await call("POST", "/api/lifecycle/tick", {}, org)).status).toBe(200);
     expect((await call("POST", "/api/z/PRV-1/erase", {})).status).toBe(403);
-    expect((await j(await call("POST", "/api/z/PRV-1/erase", {}, org))).erased).toBe(2);
+    expect((await j(await call("POST", "/api/z/PRV-1/erase", {}, org, T + 8 * 3_600_000))).erased).toBe(2); // after its end: erasing mid-game is refused
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0); expect((raw.query("SELECT COUNT(*) c FROM winner").get() as any).c).toBe(1);
+  });
+});
+
+describe("erasing while the game is being played is refused", () => {
+  test("the Erase button answers 409 'game-running' while the tournament is on, and works once it is over", async () => {
+    await create(); await joinAs(1, "Asha");
+    const mid = await call("POST", "/api/z/PRV-1/erase", {}, org, T); // two hours after the start: still being played
+    expect(mid.status).toBe(409); expect((await j(mid)).code).toBe("game-running");
+    expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(1);
+    expect((await call("POST", "/api/z/PRV-1/erase", {}, org, T + 8 * 3_600_000)).status).toBe(200);
   });
 });
 
@@ -279,7 +289,7 @@ describe("asking for deletion", () => {
     expect((await j(await call("GET", "/api/z/PRV-AI/control/request", undefined, { "x-organizer": k.token }))).requests[0].action).toBe("erase");
     const mail = raw.query("SELECT subject, body FROM outbox WHERE to_addr='boss@acme.com' ORDER BY id DESC LIMIT 1").get() as any;
     expect(mail.subject).toMatch(/asked to delete all participant data/); expect(mail.body).toMatch(/Nothing is deleted yet/);
-    expect((await call("POST", "/api/z/PRV-AI/erase", {}, { "x-organizer": k.token })).status).toBe(200); // the organizer's own confirmation
+    expect((await call("POST", "/api/z/PRV-AI/erase", {}, { "x-organizer": k.token }, T + 8 * 3_600_000)).status).toBe(200); // the organizer's own confirmation
     expect((raw.query("SELECT COUNT(*) c FROM participant WHERE eid='PRV-AI'").get() as any).c).toBe(0);
   });
   test("an e-mail to us asking for a deletion works only from the organizer's registered address and with the right secret", async () => {

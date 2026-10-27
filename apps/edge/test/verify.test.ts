@@ -53,7 +53,7 @@ describe("the settings", () => {
     const t = await setup({ verify: "id", employeesOnly: true });
     const keep = async (what: string) => { const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([what, s.verify, s.employeesOnly, s.whoCanJoin]).toEqual([what, "id", true, "list"]); };
     await keep("after setup");
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, rewards: [{ pattern: "line", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { rewards: [{ pattern: "first", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, opening: [], breaks: [], closing: [] }, t.master)).status).toBe(200); await keep("after the brand moments");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 2 }, t.master)).status).toBe(200); await keep("after the rounds");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "mobile", employeesOnly: false }, t.master)).status).toBe(200); // choosing differently still works

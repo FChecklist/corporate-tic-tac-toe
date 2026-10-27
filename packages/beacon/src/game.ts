@@ -7,7 +7,7 @@ import { ticketCompletion, ticketStillNeeds } from "./house-rules";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 import { positionOf, seatOfPid, ticketAt } from "./unique-ticket";
-import { NUMBERS, fetchRound, pickNumber, seededRand, verifyRound, type BeaconOpts, type Round } from "./index";
+import { NUMBERS, fetchRound, pickNumber, seededRand, verifyRound, type BeaconOpts, type Round, defaultMirrors } from "./index";
 
 export const ALL_PATTERNS: readonly PatternId[] = PATTERN_ORDER;
 
@@ -178,6 +178,8 @@ export function activeBreak(st: ControlState | null, start: number, stride: numb
   return null;
 }
 
+/** A mirror that gave nothing for a past round (blocked, offline, hanging) is left out of the next 100 catch-up rounds, about one whole catch-up: a blocked network is waited on once, not once per mirror per round. Counted in rounds asked for, never in time: this code never reads the device clock. */
+const BACKFILL_SKIP = 100;
 /**
  * Rounds a phone holds for an engagement. Past rounds (a late joiner) are accepted provisionally when two different mirrors
  * give byte-identical answers, then checked against the BLS signature in the background so the join never blocks for seconds.
@@ -187,12 +189,13 @@ export class RoundStore {
   readonly rounds = new Map<number, Round>();
   readonly verified = new Set<number>();
   discarded = 0;
+  readonly backfills = { asked: 0, skipUntil: new Map<string, number>() };
   constructor(readonly opts: BeaconOpts = {}, readonly verify: (x: Round) => boolean = (x) => verifyRound(x, opts.net)) {}
 
-  /** Live round: verified immediately. */
-  async fetchLive(r: number, salt = 0): Promise<boolean> {
+  /** Live round: verified immediately. `mirrors`, when given, is the list to ask in the order to ask it (instead of the default list rotated by `salt`). */
+  async fetchLive(r: number, salt = 0, mirrors?: readonly string[]): Promise<boolean> {
     if (this.verified.has(r)) return true;
-    const x = await fetchRound(r, { ...this.opts, verify: (y) => this.verify(y) }, salt);
+    const x = await fetchRound(r, { ...this.opts, ...(mirrors ? { mirrors } : {}), verify: (y) => this.verify(y) }, salt);
     if (!x) return false;
     this.rounds.set(r, x); this.verified.add(r);
     return true;
@@ -201,15 +204,21 @@ export class RoundStore {
   /** Past round: needs two mirrors to agree (their raw answers are compared), signature check deferred. */
   async fetchBackfill(r: number, salt = 0): Promise<boolean> {
     if (this.rounds.has(r)) return true;
-    const mirrors = this.opts.mirrors ?? ["https://api.drand.sh", "https://api2.drand.sh", "https://api3.drand.sh", "https://drand.cloudflare.com"];
+    const mirrors = this.opts.mirrors ?? defaultMirrors();
     const answers: Round[] = [];
+    const bf = this.backfills; bf.asked++;
+    const lately = (m: string) => (bf.skipUntil.get(m) ?? 0) > bf.asked; // gave nothing a moment ago
     for (let i = 0; i < mirrors.length && answers.length < 2; i++) {
+      const m = mirrors[(i + salt) % mirrors.length]!;
+      if (lately(m)) continue; // not waited on again for every round of a catch-up (checked at each step, so what the other rounds of this batch found counts)
       // no per-round signature check here (verify: always true); the deferred check below is what makes it safe
-      const x = await fetchRound(r, { ...this.opts, mirrors: [mirrors[(i + salt) % mirrors.length]!], verify: (y) => !!y && y.round === r && typeof y.signature === "string" && typeof y.randomness === "string" }, 0);
-      if (x) answers.push(x);
+      const x = await fetchRound(r, { ...this.opts, mirrors: [m], verify: (y) => !!y && y.round === r && typeof y.signature === "string" && typeof y.randomness === "string" }, 0);
+      if (x) { answers.push(x); bf.skipUntil.delete(m); } else bf.skipUntil.set(m, bf.asked + BACKFILL_SKIP);
     }
     if (answers.length < 2) { // not enough mirrors: fall back to the slow, fully-checked path rather than trust a single answer
-      return this.fetchLive(r, salt);
+      const late = mirrors.filter(lately), live = mirrors.filter((m) => !lately(m));
+      if (!late.length || !live.length) return this.fetchLive(r, salt);
+      return this.fetchLive(r, 0, [...live.map((_, i) => live[(i + salt) % live.length]!), ...late]); // the ones that gave nothing lately are asked last there too
     }
     if (answers[0]!.signature !== answers[1]!.signature || answers[0]!.randomness !== answers[1]!.randomness) return this.fetchLive(r, salt);
     this.rounds.set(r, answers[0]!);

@@ -123,10 +123,10 @@ describe("what the new game is", () => {
     expect((await clone(t.master, { startRound: 1.5 })).status).toBe(400);
   });
   test("the 10-draft limit applies", async () => {
-    const t = await world(); // OLD-1 is published but not paid: like every unpaid game it counts toward the 10
-    for (let i = 0; i < 9; i++) expect((await clone(t.master)).status).toBe(200);
+    const t = await world(); // OLD-1 is published but not paid: since 2026-10-27 it does NOT count toward the 10 (only never-published drafts do)
+    for (let i = 0; i < 10; i++) expect((await clone(t.master)).status).toBe(200);
     const r = await clone(t.master); expect(r.status).toBe(409); expect((await j(r)).code).toBe("draft-limit");
-    expect(count("SELECT COUNT(*) AS c FROM engagement WHERE pack=0")).toBe(10);
+    expect(count("SELECT COUNT(*) AS c FROM engagement WHERE pack=0")).toBe(11); // OLD-1 plus the ten drafts
   });
   test("it is recorded in the audit trail", async () => {
     const t = await world(); const r = await clone(t.host); expect(r.status).toBe(200);

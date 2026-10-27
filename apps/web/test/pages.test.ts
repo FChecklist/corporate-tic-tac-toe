@@ -378,7 +378,7 @@ test("'Change of phone': the organizer enters a number, and the next device that
     const p = await consolePage(o, "UI-MOVE");
     await p.waitFor((x) => /Your game|Last step/i.test(x)); openStep(p, 6); await p.waitFor((x) => /Change of phone/.test(x));
     (p.$("#ubph") as any).value = "98555 55555"; p.click("#unbind");
-    await p.waitFor((x) => /next phone they join with keeps their seat/i.test(x));
+    await p.waitFor((x) => /Done\. The next phone they join with keeps their seat/i.test(x));
     expect((await o.api("POST", "/api/z/UI-MOVE/join", { phone: "9855555555", device: "2".repeat(32) })).status).toBe(200);
     expect((await o.api("POST", "/api/z/UI-MOVE/join", { phone: "9855555555", device: "1".repeat(32) })).status).toBe(423);
   }, 60_000);
@@ -672,7 +672,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     const p = await ready(o, "UI-CHUNK", w); await myPeople(p); p.click('[data-mode="paste"]');
     (p.$("#rosterTxt") as any).value = Array.from({ length: 201 }, (_, i) => `P${i}, 9${String(100000000 + i)}`).join("\n"); p.click("#rosterGo");
     await p.waitFor((x) => /201 good/.test(x), 20000); expect(w.st.calls.filter((c: any) => c[0] === "POST" && c[1].endsWith("/people")).map((c: any) => c[2].people.length)).toEqual([200, 1]);
-    openStep(p, 5); await p.waitFor((x) => /Each Co-host can add up to/.test(x)); expect(p.$('[data-cohl="100"]')!.getAttribute("aria-pressed")).toBe("true"); p.click('[data-cohl="10"]'); await p.waitFor(() => /Saved/.test(p.text()));
+    openStep(p, 5); await p.waitFor((x) => /Each Co-host can add up to/.test(x)); expect(p.$('[data-cohl="100"]')!.getAttribute("aria-checked")).toBe("true"); p.click('[data-cohl="10"]'); await p.waitFor(() => /Saved/.test(p.text()));
     expect((await o.json(await o.api("GET", "/api/z/UI-CHUNK/summary", undefined, o.token))).coHostLimit).toBe(10);
     const ck = await cohostKey(o, "UI-CHUNK"); await o.api("POST", "/api/z/UI-CHUNK/people", { people: Array.from({ length: 9 }, (_, i) => ({ name: "C" + i, phone: "98111" + String(10000 + i) })) }, ck);
     const c = await ready(o, "UI-CHUNK", spy(), ck); openStep(c, 2); await c.waitFor((x) => /9 people are on my list \(up to 10\)/.test(x)); c.click('[data-mode="paste"]');
@@ -820,7 +820,7 @@ describe("console: About this step write-ups (spec 4, A)", () => {
     const p = await consolePage(o, "UI-ABT", o.token, {}, { afterLoad: spy().hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));
     for (let n = 1; n <= 10; n++) {
       openStep(p, n); const box = p.$(`#sec${n} .zc-about`) as any; expect([n, !!box]).toEqual([n, true]);
-      expect(box.querySelector("b").textContent).toBe("About this step"); const lines = Array.from(box.querySelectorAll("span")).map((e: any) => e.textContent as string);
+      expect(box.querySelector("b").textContent).toBe("About this step"); const lines = Array.from(box.querySelectorAll("span:not(.zc-dont)")).map((e: any) => e.textContent as string);
       expect([n, lines.length >= 1 && lines.length <= 5]).toEqual([n, true]); expect([n, box.textContent.includes(FIRST[n - 1])]).toEqual([n, true]);
       expect(p.win.document.querySelectorAll(".zc-about").length).toBe(1); expect(p.win.document.querySelectorAll("select").length).toBe(0);
       expect(!!(box.compareDocumentPosition(p.$(`#sec${n} .zc-say`)) & 2)).toBe(true); // the box comes after the talking line
@@ -862,7 +862,7 @@ describe("console phase 3: brand on the page, See what players see, payment link
     const o = await organizer(); await make(o, "UI-BRAND"); const big = "data:image/png;base64," + "A".repeat(60000);
     const w = spy({}, pictureTools(big, JPG1)); const p = await open4(o, "UI-BRAND", w);
     expect(p.win.document.querySelectorAll('#brandbox [data-ck="brand.color"]').length).toBe(8); expect(p.win.document.querySelectorAll("select").length).toBe(0);
-    setField(p, "#f-brand-name", "Acme Foods"); p.click('[data-ck="brand.color"][data-v="#1B7F5C"]'); expect(p.$('[data-ck="brand.color"][data-v="#1B7F5C"]')!.getAttribute("aria-pressed")).toBe("true");
+    setField(p, "#f-brand-name", "Acme Foods"); p.click('[data-ck="brand.color"][data-v="#1B7F5C"]'); expect(p.$('[data-ck="brand.color"][data-v="#1B7F5C"]')!.getAttribute("aria-checked")).toBe("true");
     chooseFile(p, "#brandlogo", aFile(p, "logo.png", "image/png")); await p.waitFor(() => !!p.$(".zc-logo img"));
     const shown = (p.$(".zc-logo img") as any).getAttribute("src"); expect(shown).toBe(JPG1); // the PNG was too big, the JPEG fits
     p.click('[data-save="4"]'); await p.waitFor((x) => /Saved\./.test(x));
@@ -1084,7 +1084,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     p.click("[data-clonebtn]"); await p.waitFor(() => !!p.$("#clonepanel")); expect(p.$("#clonepeople")).toBeTruthy(); expect(p.$("#clonepanel")!.textContent).toMatch(/Also bring my people list from the old game/);
     const tick = p.$("#clonepeople") as any; tick.checked = true; tick.dispatchEvent(new p.win.Event("change", { bubbles: true })); p.click("#clonego");
     await p.waitFor((x) => /This is a new game\. Nothing is paid or published yet\./.test(x)); expect(w.st.calls.find((c: any) => c[1] === "/api/z/UI-OLD1/clone")[2]).toEqual({ withPeople: true });
-    expect(p.win.location.search).toContain("e=UI-NEW1"); expect(p.$("#sec1")!.className).toMatch(/open/); expect(p.win.document.querySelectorAll('#sec1 [data-ck="day"][aria-pressed="true"]').length).toBe(0); expect(p.win.document.querySelectorAll('#sec1 [data-ck="time"][aria-pressed="true"]').length).toBe(0);
+    expect(p.win.location.search).toContain("e=UI-NEW1"); expect(p.$("#sec1")!.className).toMatch(/open/); expect(p.win.document.querySelectorAll('#sec1 [data-ck="day"][aria-checked="true"]').length).toBe(0); expect(p.win.document.querySelectorAll('#sec1 [data-ck="time"][aria-pressed="true"]').length).toBe(0);
     expect(p.$("#newgameread")!.textContent).toMatch(/date and time still to pick/); expect(p.win.document.querySelectorAll("#newgameread [data-open]").length).toBeGreaterThanOrEqual(3); // Change buttons for each part
     expect(p.$("#zcnote")!.textContent).toBe("Your new game is ready to check. Pick the date and time, then publish.");
     p.click('[data-save="1"]'); await p.waitFor((x) => /Pick the day and the time/.test(x)); // the date is never copied, it must be picked
@@ -1120,22 +1120,45 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
   });
 });
 
-describe("simpler console (owner order 2026-10-27: hide, never disable, the rarely used choices)", () => {
-  test("step 2: the 'How many rounds' choice is hidden (one game is one round), still in the page, and the rest of the step is shown", async () => {
+describe("simpler console (owner orders 2026-10-27: numbered steps, radio buttons and check boxes, a sentence under every option, a live line, hide never disable)", () => {
+  test("step 2: 'What must a person give to get in?' is hidden while the default (name only) stands, still in the page, and the rest of the step is shown", async () => {
     const o = await organizer(); await make(o, "UI-SIMP");
     const p = await consolePage(o, "UI-SIMP"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
     const hidden = p.$("#sec2 .zc-hide[data-hidden='1']"); expect(hidden).not.toBeNull();
-    expect(hidden!.textContent).toMatch(/How many rounds/); expect(p.$("#sec2")!.textContent).toMatch(/Cards for each person/);
+    expect(hidden!.textContent).toMatch(/What must a person give/); expect(p.$("#sec2")!.textContent).toMatch(/Who can join/);
     const visible = Array.from(p.win.document.querySelectorAll("#sec2 .zc-lbl")).filter((e: any) => !e.closest(".zc-hide")).map((e: any) => e.textContent).join("|");
-    expect(visible).not.toMatch(/How many rounds/);
+    expect(visible).not.toMatch(/What must a person give/);
+    expect(p.$('[data-ck="ver"][data-v="id"]')).not.toBeNull(); // hidden, never disabled: the buttons are still there and enabled
+    expect((p.$('[data-ck="ver"][data-v="id"]') as any).disabled).toBe(false);
+    p.click('[data-bool="emp"]'); expect(p.$("#sec2 .zc-hide[data-hidden='1']")).toBeNull(); // asking for staff only brings the choice into view
+  });
+  test("every choice of one is a radio button and every yes/no is a check box (no drop-down, no pressed-button), each radio group has one selected, and the main options carry a plain sentence", async () => {
+    const o = await organizer(); await make(o, "UI-RADIO");
+    const p = await consolePage(o, "UI-RADIO"); await p.waitFor((x) => /Hello/.test(x));
+    for (const n of [1, 2]) { openStep(p, n);
+      expect(p.win.document.querySelectorAll("select").length).toBe(0); expect(p.win.document.querySelectorAll("[aria-pressed]").length).toBe(0);
+      for (const g of Array.from(p.win.document.querySelectorAll(`#sec${n} [role=radiogroup]`)) as any[]) expect([n, g.getAttribute("aria-labelledby"), g.querySelectorAll('[role=radio][aria-checked=true]').length]).toEqual([n, g.getAttribute("aria-labelledby"), 1]);
+    }
+    openStep(p, 2);
+    const say = (sel: string) => (p.$(sel) as any).parentElement.querySelector(".zc-optsay")?.textContent ?? "";
+    expect(say('[data-ck="who"][data-v="list"]')).toMatch(/Only people you add/); expect(say('[data-ck="who"][data-v="anyone"]')).toMatch(/Anyone with your link/);
+    expect(say('[data-ck="ver"][data-v="id"]')).toMatch(/employee ID/); expect(say('[data-ck="cap"][data-v="10"]')).toMatch(/Free/);
+    expect((p.$('[data-bool="emp"]') as any).getAttribute("role")).toBe("checkbox"); expect(say('[data-bool="emp"]')).toMatch(/Staff only/);
+  });
+  test("a live line under the question shows the choice so far and changes the moment an option is tapped; every step says what not to do and why", async () => {
+    const o = await organizer(); await make(o, "UI-LIVE");
+    const p = await consolePage(o, "UI-LIVE"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
+    expect(p.$("#live2")!.textContent).toMatch(/Your choice: Up to \d+ people/);
+    p.click('[data-ck="who"][data-v="anyone"]'); expect(p.$("#live2")!.textContent).toMatch(/anyone with the link/);
+    p.click('[data-bool="emp"]'); expect(p.$("#live2")!.textContent).toMatch(/staff only/);
+    for (const n of [1, 2, 3]) { openStep(p, n); expect(p.$(`#about${n}`)!.textContent).toMatch(/Do not/); expect(p.$(`#about${n}`)!.textContent).toMatch(/Why:/); }
   });
   test("a demo link kept in this browser is used once the organizer is taken straight into a game (not only on the home screen)", async () => {
     const o = await organizer(); await make(o, "UI-PASS");
     const posts: any[] = [];
-    const w = spy({ "POST /api/pass": (_m, b) => { posts.push(b); return { ok: true, cap: 100 }; } });
+    const w = spy({ "POST /api/pass": (_m: any, b: any) => { posts.push(b); return { ok: true, cap: 100 }; } });
     const p = await consolePage(o, "UI-PASS", o.token, {}, { afterLoad: w.hook, url: "http://localhost/zc?e=UI-PASS&pass=0123456789abcdef0123456789abcdef" } as any);
     await p.waitFor((x) => /Hello/.test(x)); await p.waitFor(() => posts.length > 0, 8000);
     expect(posts).toEqual([{ token: "0123456789abcdef0123456789abcdef" }]);
   });
 });
-

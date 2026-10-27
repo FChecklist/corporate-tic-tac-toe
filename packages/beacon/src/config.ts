@@ -92,8 +92,8 @@ export function checkBrandLogo(v: unknown): { ok: true; bytes: number } | { ok: 
 }
 export const MAX_INVITES_PER_PERSON = 10;
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
-export type VerifyMode = "mobile" | "id" | "both";
-export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "both"];
+export type VerifyMode = "mobile" | "id" | "either" | "both";
+export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
 export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
 /**
  * Who decides the winners: the software, never a person. Every phone works out the winners from the public numbers and reports them; our store accepts a result
@@ -151,7 +151,7 @@ export const linesFor = (rewards: readonly RewardLine[], key: PatternKey) => rew
 export const breakShift = (breaks: readonly BreakCfg[], k: number): number => breaks.reduce((s, b) => s + (b.after <= k ? b.seconds / 3 : 0), 0);
 
 const cleanText = (s: unknown, max: number) => (typeof s === "string" ? s.replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "");
-const YT = /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//i;
+const YT = /^https:\/\/((www|m|music)\.)?(youtube\.com|youtu\.be)\//i; // a phone copies m.youtube.com or music.youtube.com links; any other address is still refused
 /** A media file kept on our own site (for example the demo's built-in video): a path with no folders, and only a media file type. */
 export const SITE_MEDIA = /^\/[A-Za-z0-9._-]{1,80}\.(mp4|webm|m4a|mp3)$/i;
 
@@ -208,7 +208,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       let mediaUrl: string | undefined;
       if (b?.mediaUrl !== undefined && b.mediaUrl !== "") {
         if (typeof b.mediaUrl !== "string" || b.mediaUrl.length > 300 || !(/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl) || SITE_MEDIA.test(b.mediaUrl))) return { ok: false, error: "The link must start with https:// and have no spaces." };
-        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "A YouTube break needs a YouTube link." };
+        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "That is not a YouTube video link (a youtube.com or youtu.be address). Copy it again from the YouTube Share button, or use a video file link instead." };
         mediaUrl = b.mediaUrl;
       }
       if ((kind === "file" || kind === "youtube") && !mediaUrl) return { ok: false, error: "This kind of break needs a link." };
@@ -253,7 +253,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       let mediaUrl: string | undefined;
       if (b?.mediaUrl !== undefined && b.mediaUrl !== "") {
         if (typeof b.mediaUrl !== "string" || b.mediaUrl.length > 300 || !(/^https:\/\/[^\s<>"'`]+$/i.test(b.mediaUrl) || SITE_MEDIA.test(b.mediaUrl))) return { ok: false, error: "The link must start with https:// and have no spaces." };
-        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "A YouTube moment needs a YouTube link." };
+        if (kind === "youtube" && !YT.test(b.mediaUrl)) return { ok: false, error: "That is not a YouTube video link (a youtube.com or youtu.be address). Copy it again from the YouTube Share button, or use a video file link instead." };
         mediaUrl = b.mediaUrl;
       }
       if ((kind === "file" || kind === "youtube") && !mediaUrl) return { ok: false, error: "This kind of brand moment needs a link." };
@@ -273,7 +273,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
       return { ok: false, error: `You can use ${brandMomentsFor(t)} brand moments: ${maxEdgeFor(t)} before the game, ${maxMidFor(t)} during it and ${maxEdgeFor(t)} at the end. Please switch some off.` };
   }
   if (input.verify !== undefined) {
-    if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, or both." };
+    if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, mobile number or employee ID, or both." };
     if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
   }
   if (input.employeesOnly !== undefined) {

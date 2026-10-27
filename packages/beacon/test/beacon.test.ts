@@ -65,7 +65,7 @@ describe("mirrors", () => {
     const asked: string[] = []; let aborted = 0;
     const f: Fetcher = (url, init) => { asked.push(url); if (url.includes("hang")) return new Promise((_, rej) => init?.signal?.addEventListener("abort", () => { aborted++; rej(new Error("aborted")); })); return Promise.resolve({ ok: true, status: 200, json: async () => REAL }); };
     const t0 = performance.now();
-    const x = await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://hang", "https://good", "https://never-asked"], timeoutMs: 5000, hedgeMs: 60 });
+    const x = await fetchRound(REAL.round, { fetcher: f, mirrors: ["https://hang-b", "https://good", "https://never-asked"], timeoutMs: 5000, hedgeMs: 60 });
     expect(x?.round).toBe(REAL.round);
     expect(performance.now() - t0).toBeLessThan(1000);
     expect(asked.some((u) => u.includes("never-asked"))).toBe(false);

@@ -20,7 +20,7 @@ export const ALLOWED_IMPORTS: Record<string, string[] | "*"> = {
   "packages/beacon/src/config": "*", // settings and their validation
   "packages/beacon/src/control": "*", // the published settings record
   // timeline and schedule helpers (when does a round start, which round is it now)
-  "packages/beacon/src": ["roundAt", "roundTimeMs"], // the package index
+  "packages/beacon/src": ["roundAt", "roundTimeMs", "QUICKNET"], // the package index
   "packages/beacon/src/game": ["callRoundR", "luckyRound"], // the call schedule of the other game, a timeline lookup
   "packages/beacon/src/unique-ticket": ["seatOfPid"], // seat number of a participant id
   // hashing and the seal check: commit == hash(secret). Nothing else from the game package.

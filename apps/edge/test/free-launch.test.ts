@@ -174,6 +174,13 @@ describe("build first, pay to publish", () => {
     for (let i = 1; i <= 10; i++) expect((await call("POST", "/api/z", eng("DR-" + String(i).padStart(2, "0")), h)).status).toBe(200);
     expect((await call("POST", "/api/z", eng("DR-11"), h)).status).toBe(409);
   });
+  test("games that were published but not paid for never block a new game: only never-published drafts count toward the ten (owner order 2026-10-27)", async () => {
+    const { h } = await organizer();
+    for (let i = 1; i <= 12; i++) { const id = "PU-" + String(i).padStart(2, "0"); expect((await call("POST", "/api/z", eng(id, 101), h)).status).toBe(200); expect((await call("POST", `/api/z/${id}/publish`, ok, h)).status).toBe(200); } // twelve published, each waiting for payment
+    expect((await call("POST", "/api/z", eng("PU-NEW", 101), h)).status).toBe(200); // a thirteenth game can still be made
+    for (let i = 1; i <= 9; i++) expect((await call("POST", "/api/z", eng("PD-" + i, 101), h)).status).toBe(200); // and nine more never-published drafts: ten drafts in all
+    expect((await call("POST", "/api/z", eng("PD-10", 101), h)).status).toBe(409); // the eleventh draft is refused as before
+  });
   test("the platform key still creates a published engagement at once", async () => {
     const r = await (await call("POST", "/api/z", eng("PLAT-1"), { "x-organizer": "plat" })).json() as any;
     expect(r.draft).toBe(false);

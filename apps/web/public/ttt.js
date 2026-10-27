@@ -65,6 +65,7 @@
 
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
   let tb = null, typedName = "", typedPhone = "", typedEmp = "";
+  const JOIN_RETRY_MS = (n) => (window.__joinRetryMs ? window.__joinRetryMs : (4 + Math.min(26, n * 2)) * 1000); // a test sets window.__joinRetryMs to wait less
   // What the organizer asked people to give (INFO.verify): a mobile number, an employee ID or both. The default is the name alone.
   const askWhat = () => { if (TOKEN) return { emp: false, mob: false, only: false, v: "mobile" }; /* a personal link already says who this is */ const v = INFO && (INFO.verify === "id" || INFO.verify === "both") ? INFO.verify : "mobile", only = !!(INFO && INFO.employeesOnly), ph = !!(INFO && INFO.joinPhone); return { emp: v !== "mobile", mob: v !== "mobile" || ph, only, v }; };
   const joinView = () => {
@@ -86,17 +87,24 @@
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
     nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (mob) mob.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
-    go.addEventListener("click", async () => {
-      go.disabled = true; joinMsg = ""; typedName = nm.value.trim(); typedEmp = emp ? emp.value.trim() : ""; typedPhone = mob ? mob.value.trim() : "";
+    const BUSY_TRIES = 15; let busyTries = 0, retryTimer = 0;
+    const busyView = () => set(`${top()}<div class="zcard" role="status"><h2>Many people are joining right now</h2><p>Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall">Try ${busyTries} of ${BUSY_TRIES}.</p></div>`);
+    const attempt = async () => {
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: nm.value.trim(), ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
         if (e.code === "waiting" && e.body && e.body.wid) { waitFor(e.body.wid, e.message); return; }
         if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
+        // a join that timed out or lost its connection (no answer at all) is asked again by itself like a busy answer: joining is safe to repeat, the same phone gets the same place
+        if ((e.code === "busy" || (!e.status && !e.code)) && busyTries < BUSY_TRIES) { busyTries++; busyView(); clearTimeout(retryTimer); retryTimer = setTimeout(attempt, Math.round((JOIN_RETRY_MS(busyTries)) * (0.7 + Math.random() * 0.6))); return; }
         joinMsg = e.message || "Could not join. Please try again."; joinView();
       }
+    };
+    go.addEventListener("click", () => {
+      go.disabled = true; joinMsg = ""; typedName = nm.value.trim(); typedEmp = emp ? emp.value.trim() : ""; typedPhone = mob ? mob.value.trim() : "";
+      attempt();
     });
   };
 

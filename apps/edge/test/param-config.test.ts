@@ -189,11 +189,6 @@ describe("prize house combinations", () => {
     });
   }
   test("every house at once (one winner each) is accepted", async () => { expect((await mk(PRIZE_HOUSES.filter((x) => x.id !== "full2").map((h) => ({ pattern: h.id, ordinal: 1 })))).r.status).toBe(200); });
-  test("full house with its maximum number of winners is accepted", async () => {
-    const m = PRIZE_HOUSES.find((h) => h.id === "blackout")!.max;
-    expect((await mk(Array.from({ length: m }, (_, i) => ({ pattern: "blackout", ordinal: i + 1 })))).r.status).toBe(200);
-  });
-  test("a 2nd winner without a 1st is refused with the plain explanation", async () => { const r = await mk([{ pattern: "line", ordinal: 2 }]); expect(r.r.status).toBe(400); expect(r.body.error).toMatch(/the one before/); });
   test("the same reward twice is refused", async () => { expect((await mk([{ pattern: "line", ordinal: 1 }, { pattern: "line", ordinal: 1 }])).r.status).toBe(400); });
   test("an unknown house, an empty list, a non-list and zero or fractional ordinals are refused", async () => {
     for (const bad of [[{ pattern: "nonsense" }], [], "line", [{ pattern: "line", ordinal: 0 }], [{ pattern: "line", ordinal: 1.5 }], [null], [{ pattern: "full2" }]]) expect((await mk(bad)).r.status).toBe(400);

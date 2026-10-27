@@ -181,3 +181,9 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
 .zc-secb .zc-chip.on::before{content:"\2713";color:#fff;font-size:12px;line-height:16px;text-align:center}
 @media (prefers-reduced-motion:reduce){.zc-secb .zc-box,.zc-secb .zc-hint2{animation:none}}
 .zc-hide{display:none !important}
+.zc-opt{display:inline-flex;flex-direction:column;gap:3px;max-width:100%;vertical-align:top}
+.zc-optsay{font-size:12.5px;line-height:1.3;color:#5a5445;padding:0 4px 4px;max-width:34ch}
+.zc-chips:has(.zc-opt){align-items:flex-start}
+.zc-chip[role="radio"]::before{border-radius:50%}
+.zc-live{margin:10px 0;padding:8px 12px;border-radius:9px;background:#fff;border:1.5px dashed var(--zc-accent);font-size:14px}
+.zc-dont{display:block;color:#7a2a18}

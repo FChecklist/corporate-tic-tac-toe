@@ -51,7 +51,7 @@ export async function cloneGame(env: Env, e: any, b: any, now: number, origin: s
     startRound = b.startRound;
   }
   if (org) {
-    const n = (await db.prepare("SELECT COUNT(*) AS c FROM engagement WHERE org=? AND pack=0").bind(org).first<{ c: number }>())?.c ?? 0;
+    const n = (await db.prepare("SELECT COUNT(*) AS c FROM engagement e WHERE e.org=? AND e.pack=0 AND NOT EXISTS (SELECT 1 FROM kv WHERE k='pub/' || e.id)").bind(org).first<{ c: number }>())?.c ?? 0;
     if (n >= MAX_DRAFTS) return json({ error: `You have ${MAX_DRAFTS} unpublished drafts. Publish one, or delete one you do not need (open Your games, then press Delete next to it). An unpublished draft is also forgotten after 30 days.`, code: "draft-limit" }, 409);
   }
   if (!(await spend(6))) return json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
