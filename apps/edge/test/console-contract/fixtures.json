@@ -898,5 +898,32 @@
    ]
   },
   "gameRoute": true
+ },
+ {
+  "name": "signout: a console key ends itself",
+  "route": "POST /api/console/signout",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {},
+  "expect": {
+   "status": 200,
+   "schema": "RoleDoneResponse"
+  }
+ },
+ {
+  "name": "signout: no key, nothing to end",
+  "route": "POST /api/console/signout",
+  "negative": true,
+  "body": {},
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "forbidden"
+    }
+   ]
+  }
  }
 ]

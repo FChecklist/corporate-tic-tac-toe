@@ -229,6 +229,13 @@ export async function handleConsole<Env>(ad: Adapter<Env>, req: Request, env: En
     return ok({ key, kind: row.kind, eid: row.eid, expiresMs: nowMs + HANDOFF_KEY_MS });
   }
 
+  if (req.method === "POST" && path === "/api/console/signout") { // 'Sign out': every console key made for this person in this game stops at once (the console calls it for each key it holds)
+    const a = await keyOf();
+    if (!a || !a.createdBy || !/^[cr]:/.test(a.createdBy)) return err(403, "forbidden", "Only a key made by the console can be ended here.");
+    await ad.revokeKeys(env, a.createdBy);
+    return ok({});
+  }
+
   if (req.method === "POST" && path === "/api/console/preview") {
     if (!ad.previewUrl) return err(404, "not_found", "This game does not offer the player's screen view yet.");
     if (!body || typeof body.eid !== "string" || !EID_RE.test(body.eid)) return err(400, "invalid", "The request is not complete.");
