@@ -1,0 +1,9 @@
+{
+ "note": "Copied from the console repo (packages/bridge). Do not edit here: change it there, then run tools/vendor-bridge.mjs --game <this game>.",
+ "files": {
+  "assertion.ts": "a14eb5aa765172ab9d8c3dc531b3a7ab2e6a94f833d089b9de78dfb9ccd7def5",
+  "bridge.ts": "74c07ada538f4721e3706060431c59722ddbce29c70f85767eca9c0a506edc30",
+  "d1.ts": "e3da85a6a478cecfab79793ef46161866b4412b61c3ae2b159bd0363abe09238",
+  "schema.ts": "7bff8121434f1be1657400156302988a221eea72b7aaa27ef05520254cd4e22b"
+ }
+}
