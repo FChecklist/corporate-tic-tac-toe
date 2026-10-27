@@ -52,7 +52,7 @@ export async function cloneGame(env: Env, e: any, b: any, now: number, origin: s
   }
   if (org) {
     const n = (await db.prepare("SELECT COUNT(*) AS c FROM engagement WHERE org=? AND pack=0").bind(org).first<{ c: number }>())?.c ?? 0;
-    if (n >= MAX_DRAFTS) return json({ error: `You have ${MAX_DRAFTS} unpublished drafts. Publish one, or let one lapse: an unpublished draft is forgotten after 30 days, and closing your organizer account deletes them all.`, code: "draft-limit" }, 409);
+    if (n >= MAX_DRAFTS) return json({ error: `You have ${MAX_DRAFTS} unpublished drafts. Publish one, or delete one you do not need (open Your games, then press Delete next to it). An unpublished draft is also forgotten after 30 days.`, code: "draft-limit" }, 409);
   }
   if (!(await spend(6))) return json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
   const base = String(e.id).replace(/-[A-Z2-9]{4}$/, "").slice(0, 34);

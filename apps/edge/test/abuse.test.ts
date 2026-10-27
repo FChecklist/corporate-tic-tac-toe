@@ -25,7 +25,7 @@ beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_
 
 describe("joining from one network", () => {
   test("a network may open only so many new seats a day; the answer is friendly; other networks and the same people coming back are not affected", async () => {
-    (env as any).JOIN_PER_IP_DAY = "3"; await published("ABUSE-1");
+    (env as any).JOIN_PER_IP_DAY = "3"; await published("ABUSE-1", { startRound: roundAt(T) + 3 * 28_800 }); // the game starts 3 days ahead: an unpaid game takes no new person once its lock time has come
     for (let i = 1; i <= 3; i++) expect((await join(i, "5.5.5.5")).status).toBe(200);
     const r = await join(4, "5.5.5.5"); expect(r.status).toBe(429);
     const t = await j(r); expect(t.error).toBe("It is busy right now. Please try again in a few minutes."); expect(t.code).toBe("busy");

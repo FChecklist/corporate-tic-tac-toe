@@ -209,6 +209,9 @@ describe("five brand moments for each ticket: openings, during the game, closing
     refused({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://evil.example/x" }] });
     refused({ opening: [msg({ mediaUrl: "http://acme.com/a.mp4" })] });
     expect(good({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://youtu.be/abcdefghijk" }] }).closing![0]!.mediaUrl).toContain("youtu.be");
+    for (const u of ["https://m.youtube.com/watch?v=abcdefghijk", "https://music.youtube.com/watch?v=abcdefghijk", "https://www.youtube.com/watch?v=abcdefghijk"]) expect(good({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: u }] }).closing![0]!.mediaUrl).toBe(u); // a link copied from a phone is a YouTube link
+    expect(refused({ closing: [{ kind: "youtube", title: "Thanks", mediaUrl: "https://youtube.com.evil.example/watch?v=abcdefghijk" }] })).toMatch(/not a YouTube video link/); // a look-alike address is not, and the sentence says what to do
+    expect(refused({ opening: [msg({ seconds: 40 })] })).toMatch(/steps of 3/); expect(refused({ breaks: [mid({ after: 30, seconds: 40 })] })).toMatch(/steps of 3/);
     refused({ opening: [msg({ title: "x" })] });
   });
 

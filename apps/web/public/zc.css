@@ -180,3 +180,4 @@ a.zc-chip::before,.zc-chips .zc-chip[data-mode]::before{display:none}
 .zc-secb .zc-chip.on{font-weight:700}
 .zc-secb .zc-chip.on::before{content:"\2713";color:#fff;font-size:12px;line-height:16px;text-align:center}
 @media (prefers-reduced-motion:reduce){.zc-secb .zc-box,.zc-secb .zc-hint2{animation:none}}
+.zc-hide{display:none !important}

@@ -1,7 +1,7 @@
 // Privacy and lifecycle, end to end through the real Worker code and a real SQLite: names and numbers are sealed, invitations obey the organizer's rules,
 // the winners record outlives the personal data, the report is built and e-mailed, and everything is deleted on time.
 import { beforeEach, describe, expect, test } from "bun:test";
-import { withDevice } from "./device";
+import { SEEN_DEVICES, withDevice } from "./device";
 import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
 import { purgeOld, type Env } from "../src/worker";
@@ -24,7 +24,9 @@ const tick = (now: number) => lifecycleTick(env as any, now);
 /** An engagement whose game is long over at T (it began 2 hours before). */
 const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 5000, ...over }, org);
 const setContact = (id: string, email = "boss@acme.com") => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email, phone: "9811122233" })).run();
-const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now);
+const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => { SEEN_DEVICES.add(String(i).padStart(32, "0")); return call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now); };
+/** A phone says the game is over: its own device id goes with the report (the one that fits the card is the one let through). */
+const overAs = async (pid: string, now: number) => { let r!: Response; for (const device of SEEN_DEVICES) { r = await call("POST", "/api/z/PRV-1/over", { pid, device }, {}, now); if (r.status !== 403) break; } return r; };
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
@@ -144,13 +146,13 @@ describe("the winners record", () => {
     await create(); for (let i = 1; i <= 5; i++) await joinAs(i, "P" + i);
     const pids = (raw.query("SELECT pid FROM seat ORDER BY seq").all() as any[]).map((x) => x.pid);
     const early = T - 2 * 3_600_000; // the very start of this game
-    for (const p of pids) await call("POST", "/api/z/PRV-1/over", { pid: p }, {}, early);
+    for (const p of pids) await overAs(p, early);
     expect(raw.query("SELECT COUNT(*) c FROM overvote").get()).toEqual({ c: 0 }); // too early to count
     const afterTwenty = T - 2 * 3_600_000 + 400_000;
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[0] }, {}, afterTwenty); await call("POST", "/api/z/PRV-1/over", { pid: pids[0] }, {}, afterTwenty + 1000); // the same phone twice is one vote
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[1] }, {}, afterTwenty);
+    await overAs(pids[0], afterTwenty); await overAs(pids[0], afterTwenty + 1000); // the same phone twice is one vote
+    await overAs(pids[1], afterTwenty);
     expect(raw.query("SELECT COUNT(*) c FROM life WHERE end_src='phones'").get()).toEqual({ c: 0 }); // two of five is not enough
-    await call("POST", "/api/z/PRV-1/over", { pid: pids[2] }, {}, afterTwenty + 5000);
+    await overAs(pids[2], afterTwenty + 5000);
     expect(raw.query("SELECT end_src, end_ms FROM life").get()).toEqual({ end_src: "phones", end_ms: afterTwenty + 5000 });
   });
 });

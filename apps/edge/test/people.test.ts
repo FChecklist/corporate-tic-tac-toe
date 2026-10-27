@@ -130,13 +130,16 @@ describe("who may call", () => {
   test("a level-1 guest has a list within their limit, known by ticket id; a guest invited by a guest has none; with invitations off nobody does", async () => {
     const t = await setup({ invites: { on: true, per: 2 } });
     const a = await j(await joinAs("PPL-1", 1)); const b = await j(await joinAs("PPL-1", 2, { from: 1 })); // seat 1 is level 1, seat 2 was invited by it
-    const q = (pid: string) => `?me=${pid}`;
+    const q = (pid: string, d = 1) => `?me=${pid}&device=${dev(d)}`; // the card id is public: the phone's own device id goes with it
     expect(await j(await call("GET", `/api/z/PPL-1/people${q(a.pid)}`))).toMatchObject({ limit: 2, used: 1 }); // the guest who joined through their link is on their list
     const r = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ name: "F1", phone: mob(11) }] });
     expect((await j(r)).added).toBe(1);
     const full = await call("POST", `/api/z/PPL-1/people${q(a.pid)}`, { people: [{ name: "F2", phone: mob(12) }] });
     expect(full.status).toBe(409);
-    expect((await call("GET", `/api/z/PPL-1/people${q(b.pid)}`)).status).toBe(403);
+    expect((await call("GET", `/api/z/PPL-1/people${q(b.pid, 2)}`)).status).toBe(403);
+    expect((await call("GET", `/api/z/PPL-1/people?me=${a.pid}`)).status).toBe(403); // the card id is public (the seat list shows it): alone it is not enough
+    const wrongPhone = await call("GET", `/api/z/PPL-1/people${q(a.pid, 9)}`); expect(wrongPhone.status).toBe(403); expect((await j(wrongPhone)).code).toBe("device");
+    expect((await call("GET", `/api/z/PPL-1/waiting?me=${a.pid}`)).status).toBe(403);
     expect((await call("GET", `/api/z/PPL-1/people${q("nope")}`)).status).toBe(403);
     expect((await call("GET", `/api/z/PPL-1/people/export${q(a.pid)}`)).status).toBe(403);
     await call("PATCH", "/api/z/PPL-1/settings", { guestInvites: { on: false } }, t.master);
@@ -255,6 +258,17 @@ describe("the common link and who can join", () => {
   });
 });
 
+describe("places promised to invited people", () => {
+  test("in an open game the open link cannot take the places promised to people on a list; the invited people still get theirs and the game never passes its size", async () => {
+    const t = await setup({ cap: 5 });
+    expect((await j(await add(t.master, [{ name: "A", phone: mob(1) }, { name: "B", phone: mob(2) }]))).added).toBe(2); // 2 places promised
+    for (const i of [10, 11, 12]) expect((await joinAs("PPL-1", i)).status).toBe(200); // 3 strangers fill the 3 free places
+    expect((await joinAs("PPL-1", 13)).status).toBe(409); // a 4th stranger is told the game is full: the last 2 places belong to A and B
+    expect((await joinAs("PPL-1", 1)).status).toBe(200); expect((await joinAs("PPL-1", 2)).status).toBe(200); // the promised places are kept
+    expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(5);
+    expect((await joinAs("PPL-1", 14)).status).toBe(409);
+  });
+});
 describe("the waiting room", () => {
   const wait = async (t: Awaited<ReturnType<typeof setup>>, n: number, from: number | undefined = ORG_FROM) => { for (let i = 0; i < n; i++) await joinAs("PPL-1", 40 + i, { from }); };
   test("approvers: Organizer and Host see all; a Co-host sees only requests that came through their link", async () => {
@@ -268,6 +282,14 @@ describe("the waiting room", () => {
     expect((await call("POST", `/api/z/PPL-1/waiting/${orgOnly.id}`, { decision: "admit" }, t.cohost)).status).toBe(404); // not theirs
     expect((await call("POST", `/api/z/PPL-1/waiting/${mine[0].id}`, { decision: "maybe" }, t.cohost)).status).toBe(400);
   });
+  test("the waiting room holds 500 requests: the 501st person is told it is full (429, waiting-full); someone already waiting is still told they are waiting; nobody takes a place", async () => {
+    const t = await setup({ closed: true }); for (let i = 0; i < 500; i++) await joinAs("PPL-1", 40 + i, { from: ORG_FROM }, T + Math.floor(i / 150) * 61_000); // the same network may ask 200 times a minute: spread the requests over minutes
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(500);
+    const extra = await joinAs("PPL-1", 900, { from: ORG_FROM }, T + 5 * 61_000); expect(extra.status).toBe(429); expect((await j(extra)).code).toBe("waiting-full");
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(500); // the 501st left no row
+    expect((await joinAs("PPL-1", 40, { from: ORG_FROM }, T + 6 * 61_000)).status).toBe(403); // a request already in the room is answered as before
+    expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c + rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
+  }, 120_000);
   test("admit records who approved and when; the person is then recognised and joins; decline keeps them out", async () => {
     const t = await setup({ closed: true }); await joinAs("PPL-1", 1, { from: ORG_FROM }); await joinAs("PPL-1", 2, { from: ORG_FROM });
     const ws = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.host))).waiting;
@@ -316,6 +338,29 @@ describe("the waiting room", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(2);
     expect(rowsOf("SELECT ph FROM waiting WHERE status='admitted' ORDER BY at_ms, id").length).toBe(3);
   });
+  test("a decline that lands between the admit's check and its write leaves nobody inside (one by one and approve all)", async () => {
+    const t = await setup({ closed: true }); await wait(t, 4, ORG_FROM);
+    const ws = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting;
+    const realBatch = env.DB.batch.bind(env.DB);
+    let lose = true; // the Host's decline wins just before the Organizer's admit is written: the decline is applied inside the admit's own moment
+    (env.DB as any).batch = async (stmts: any[]) => { if (lose) { lose = false; raw.prepare("UPDATE waiting SET status='declined', decided_by='h:x', decided_ms=? WHERE status='waiting' AND id=?").run(T, ws[0].id); } return realBatch(stmts); };
+    const one = await j(await call("POST", `/api/z/PPL-1/waiting/${ws[0].id}`, { decision: "admit" }, t.master));
+    expect(one).toMatchObject({ ok: true, already: "declined" });
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting w JOIN person p ON p.eid=w.eid AND p.ph=w.ph WHERE w.id=?", ws[0].id)[0].c).toBe(0);
+    lose = true; const all = ws.slice(1).map((w: any) => w.id); // approve all: the first of the rest is declined at the same moment
+    (env.DB as any).batch = async (stmts: any[]) => { if (lose) { lose = false; raw.prepare("UPDATE waiting SET status='declined', decided_by='h:x', decided_ms=? WHERE status='waiting' AND id=?").run(T, all[0]); } return realBatch(stmts); };
+    await call("POST", "/api/z/PPL-1/waiting/all", { decision: "admit" }, t.master);
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting w JOIN person p ON p.eid=w.eid AND p.ph=w.ph WHERE w.status='declined'")[0].c).toBe(0); // declined means out
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting w LEFT JOIN person p ON p.eid=w.eid AND p.ph=w.ph WHERE w.status='admitted' AND p.id IS NULL")[0].c).toBe(0); // admitted means in
+    expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(2);
+  });
+  test("a request that was declined first cannot be admitted afterwards: nobody is added and the answer says it was already declined", async () => {
+    const t = await setup({ closed: true }); await wait(t, 1, ORG_FROM);
+    const w = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting[0];
+    await call("POST", `/api/z/PPL-1/waiting/${w.id}`, { decision: "decline" }, t.host);
+    expect(await j(await call("POST", `/api/z/PPL-1/waiting/${w.id}`, { decision: "admit" }, t.master))).toMatchObject({ ok: true, already: "declined" });
+    expect(rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
+  });
   test("decline all answers every request the caller may decide, and only those", async () => {
     const t = await setup({ closed: true });
     const ch = fromCodeOf("c:" + rowsOf("SELECT substr(hash,1,7) h FROM organizer_key WHERE kind='cohost'")[0].h)!;
@@ -331,7 +376,7 @@ describe("removing people", () => {
     const t = await setup({ invites: { on: true, per: 4 } });
     const p = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
     const asha = await j(await join("PPL-1", { token: tokenOf(p.link), device: dev(1) }));
-    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ name: "Kid", phone: mob(2) }] });
+    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}&device=${dev(1)}`, { people: [{ name: "Kid", phone: mob(2) }] });
     await joinAs("PPL-1", 2);
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(2);
     const only = await j(await call("POST", `/api/z/PPL-1/people/${p.id}/remove`, {}, t.master));
@@ -348,7 +393,7 @@ describe("removing people", () => {
     const t = await setup({ invites: { on: true, per: 4 } });
     const p = (await j(await add(t.master, [{ name: "Asha", phone: mob(1) }]))).people[0];
     const asha = await j(await join("PPL-1", { token: tokenOf(p.link), device: dev(1) }));
-    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}`, { people: [{ name: "Kid", phone: mob(2) }] });
+    await call("POST", `/api/z/PPL-1/people?me=${asha.pid}&device=${dev(1)}`, { people: [{ name: "Kid", phone: mob(2) }] });
     const r = await j(await call("POST", `/api/z/PPL-1/people/${p.id}/remove`, { withTheirPeople: true }, t.master));
     expect(r.removed).toBe(2); expect(rowsOf("SELECT COUNT(*) c FROM person WHERE status<>'removed'")[0].c).toBe(0);
   });
@@ -360,6 +405,19 @@ describe("removing people", () => {
     expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.host)).status).toBe(200);
     expect(rowsOf("SELECT subject FROM outbox WHERE subject LIKE '%A Host removed%'")).toHaveLength(1);
     expect(rowsOf("SELECT removed_by FROM person WHERE id=?", theirs.id)[0].removed_by).toMatch(/^h:/);
+  });
+  test("a Co-host can put back a person they removed themselves, but not one the Organizer removed: the refusal says who can", async () => {
+    const t = await setup();
+    const mine = (await j(await add(t.cohost, [{ name: "C", phone: mob(1) }]))).people[0], theirs = (await j(await add(t.cohost, [{ name: "D", phone: mob(2) }]))).people[0];
+    expect((await call("POST", `/api/z/PPL-1/people/${mine.id}/remove`, {}, t.cohost)).status).toBe(200);
+    expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.master)).status).toBe(200);
+    const back = await j(await add(t.cohost, [{ name: "C", phone: mob(1) }]));
+    expect(back).toMatchObject({ added: 1, duplicates: 0 }); expect(back.invalid).toEqual([]);
+    expect(rowsOf("SELECT status FROM person WHERE id=?", mine.id)[0].status).toBe("invited");
+    const refused = await j(await add(t.cohost, [{ name: "D", phone: mob(2) }]));
+    expect(refused).toMatchObject({ added: 0, duplicates: 0 }); expect(refused.invalid[0].why).toMatch(/Ask the Organizer or a Host to put them back/);
+    expect(rowsOf("SELECT status FROM person WHERE id=?", theirs.id)[0].status).toBe("removed");
+    expect((await j(await add(t.master, [{ name: "D", phone: mob(2) }]))).added).toBe(1); // the Organizer can
   });
   test("during the game only the Organizer and Host can remove; the seat STAYS in the public seat list, the phone stops, the prize is marked not given", async () => {
     const t = await setup({ invites: { on: true, per: 4 } });
@@ -391,7 +449,14 @@ describe("export, privacy and cleanup", () => {
     const t = await setup(); await add(t.master, [{ name: "=HYPERLINK(1)", phone: mob(1) }, { name: "Bala", phone: mob(2) }]);
     const r = await call("GET", "/api/z/PPL-1/people/export", undefined, t.master);
     expect(r.headers.get("content-type")).toContain("text/csv"); const csv = await r.text();
-    expect(csv).toContain("Name,Mobile,Personal link,WhatsApp link,Status"); expect(csv).toContain("'=HYPERLINK(1),91" + mob(1)); expect(csv).toContain("https://bingo.test/j/"); expect(csv).toContain(",Invited");
+    expect(csv).toContain("Name,Mobile,Personal link,WhatsApp link,Status"); expect(csv).toContain("HYPERLINK(1),91" + mob(1)); expect(csv).toContain("https://bingo.test/j/"); expect(csv).toContain(",Invited");
+  });
+  test("a Co-host adding a foreign number the Organizer removed is told with ONE plus sign", async () => {
+    const t = await setup();
+    const theirs = (await j(await add(t.master, [{ name: "U", phone: "+44 7911 123456" }]))).people[0];
+    expect((await call("POST", `/api/z/PPL-1/people/${theirs.id}/remove`, {}, t.master)).status).toBe(200);
+    const refused = await j(await add(t.cohost, [{ name: "U", phone: "+44 7911 123456" }]));
+    expect(refused.added).toBe(0); expect(refused.invalid[0].raw).toContain("+447911123456"); expect(refused.invalid[0].raw).not.toContain("++");
   });
   test("deleting the guests' data (the 23-hour rule or on request) deletes people and waiting rows too", async () => {
     const t = await setup({ closed: true }); await add(t.master, [{ name: "A", phone: mob(1) }]); await joinAs("PPL-1", 5, { from: ORG_FROM });

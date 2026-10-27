@@ -144,7 +144,9 @@ export async function hostSetupRoute(c: HostCtx): Promise<Response | null> {
     if (!st?.pend_hash || st.verified_ms) return bad();
     const eh = st.pend_hash, lc = await db.prepare("SELECT code_hash, expires_ms, attempts FROM login_code WHERE email_hash=?").bind(eh).first<{ code_hash: string; expires_ms: number; attempts: number }>();
     if (!lc || lc.expires_ms < now || lc.attempts >= 5) return bad();
-    if (lc.code_hash !== (await sha("code|" + eh + "|" + code))) { await db.prepare("UPDATE login_code SET attempts=attempts+1 WHERE email_hash=?").bind(eh).run(); return bad(); }
+    const tried = await db.prepare("UPDATE login_code SET attempts=attempts+1 WHERE email_hash=? AND attempts<5").bind(eh).run(); // counted before comparing, atomically: parallel guesses cannot all slip under the cap
+    if (!(tried as any)?.meta?.changes) return bad();
+    if (lc.code_hash !== (await sha("code|" + eh + "|" + code))) return bad();
     if (!(await c.spend(3))) return c.busy();
     const use = st.pend_sealed ? await openText(env as any, st.pend_sealed) : null;
     if (!use || (await emailHashOf(use)) !== eh) return bad();

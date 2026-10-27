@@ -55,7 +55,7 @@ describe("the one-click sign-in link", () => {
     const row = raw.prepare("SELECT link_hash FROM login_code").get() as any; expect(row.link_hash).toBeTruthy();
     const ok = await link(r.devToken); const x = await j(ok);
     expect(ok.status).toBe(200); expect(x.token).toMatch(/^cbk_[0-9a-f]{48}$/);
-    expect((await call("GET", "/api/whoami", undefined, { "x-organizer": x.token })).status).toBe(200); expect(await j(await call("GET", "/api/whoami", undefined, { "x-organizer": x.token }))).toEqual({ kind: "master" });
+    expect((await call("GET", "/api/whoami", undefined, { "x-organizer": x.token })).status).toBe(200); expect(await j(await call("GET", "/api/whoami", undefined, { "x-organizer": x.token }))).toEqual({ kind: "master", email: "boss@acme.com" });
     expect((await call("GET", "/api/history", undefined, { "x-organizer": x.token })).status).toBe(200);
     const again = await link(r.devToken); expect(again.status).toBe(400);
     expect((await call("POST", "/api/auth/verify", { email: "boss@acme.com", code: r.devCode })).status).toBe(400); // the code died with the link
@@ -64,6 +64,14 @@ describe("the one-click sign-in link", () => {
     await account(); const r = await ask();
     const v = await call("POST", "/api/auth/verify", { email: "boss@acme.com", code: r.devCode }); expect(v.status).toBe(200); expect((await j(v)).token).toMatch(/^cbk_/);
     expect((await link(r.devToken)).status).toBe(400);
+  });
+  test("wrong codes sent all at once still count one by one: after 5 tries even the right code is refused", async () => {
+    await account(); const r = await ask();
+    const wrong = String((Number(r.devCode) + 1) % 1000000).padStart(6, "0");
+    const rs = await Promise.all(Array.from({ length: 12 }, () => call("POST", "/api/auth/verify", { email: "boss@acme.com", code: wrong })));
+    expect(rs.every((x) => x.status === 400)).toBe(true);
+    expect((raw.prepare("SELECT attempts FROM login_code").get() as any).attempts).toBe(5); // not 12 and not fewer: the cap holds under parallel guesses
+    expect((await call("POST", "/api/auth/verify", { email: "boss@acme.com", code: r.devCode })).status).toBe(400); // locked until a new code is asked for
   });
   test("expiry: valid at 9 min 59 s, refused at 10 min 1 s; the code shares it", async () => {
     await account(); const r = await ask();

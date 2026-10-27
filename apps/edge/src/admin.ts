@@ -87,7 +87,7 @@ export async function countError(db: D1, now: number): Promise<void> {
   } catch { /* best effort */ }
 }
 /** The promise to players is "within 24 hours"; the job deletes at 23 (PURGE_AFTER_MS). The alarm rises when a tournament is this much later than that and its players' data is still there (the 5-minute tick normally clears a tournament within minutes). */
-export const OVERDUE_GRACE_MS = 30 * 60_000;
+export const OVERDUE_GRACE_MS = 3 * 3_600_000;
 /** The latest a tournament's end is taken to be after its scheduled start (tournament.ts MAX_MS: a tournament that has not finished 6 hours after its scheduled start is closed for the deletion clock); used for a tournament the tick has not looked at yet. */
 const LONGEST_GAME_MS = 6 * 3_600_000;
 /** Tables that hold a player's data until the 23-hour deletion (ttt_p holds the names shown on the bracket, in the clear). */

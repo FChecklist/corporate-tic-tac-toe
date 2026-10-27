@@ -18,6 +18,10 @@
   const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Publish game</b><a class="zsnd" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none">Back to my game</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
   const packFor = (cap) => { const p = TB.PACKS.find((x) => x[0] >= cap); return p ? p[0] : null; };
 
+  /** calm card while a payment may be on its way: no pay form, no second payment */
+  const waitCard = () => `${head}<div class="zcard" id="paywait" role="status"><h2>We are checking your payment</h2><p class="zsmall" style="margin:0 0 10px">${S.busy ? "Please keep this page open. This can take a few minutes." : "A payment for this game is still being confirmed. If money left your account, the game starts as soon as the bank confirms. Please do not pay again."}</p>${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}<button class="zbtn" id="chkpay" type="button"${S.busy ? " disabled" : ""}>${S.busy ? "Checking…" : "Check my payment"}</button>${S.wait === "hold" && !S.busy ? `<p class="zsmall" style="margin:12px 0 0"><button type="button" class="zlink" id="payagain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer">No money was taken. Let me pay again.</button></p>` : ""}</div>`;
+  /** after a payment: the game opens by itself in a few seconds unless the person taps, types or presses Stay */
+  function goNoteHtml() { return autoStopped ? `<p class="zsmall" id="goNote" aria-live="polite" style="margin:6px 0 10px">You can open your game any time with the Open my game button.</p>` : `<p class="zsmall" id="goNote" aria-live="polite" style="margin:6px 0 10px">Opening your game page in a few seconds. <button type="button" class="zbtn s alt" id="goStay">Stay on this page</button></p>`; }
   function view() {
     if (!secret) return `${head}<div class="zcard"><h2>Please sign in first</h2><p class="zsmall" style="margin-top:0">Open your console from the home page, or sign in with your e-mail: we send you a 6-digit code.</p><a class="zbtn" href="/#login" id="goLogin" style="text-decoration:none;display:inline-block">Sign in with email</a></div>`;
     if (S.done) {
@@ -92,12 +96,14 @@
     const $ = (id) => document.getElementById(id);
     if ($("cty")) $("cty").onchange = () => { keep(); S.country = $("cty").value; S.cur = S.country === "IN" ? "INR" : "USD"; draw(); };
     if ($("goLogin")) $("goLogin").onclick = () => { try { sessionStorage.setItem("cbz-next", "/pay.html?e=" + encodeURIComponent(eid)); } catch {} };
+    if ($("chkpay")) $("chkpay").onclick = async () => { S.err = ""; S.busy = true; draw(); try { S.done = await waitForConfirm(); goAuto(eid); } catch (e) { S.err = e.message; } S.busy = false; draw(); };
+    if ($("payagain")) $("payagain").onclick = () => { S.wait = ""; S.err = ""; draw(); };
     if ($("usecredit")) $("usecredit").onclick = async () => {
       S.err = ""; S.creditErr = false; S.busy = true; draw();
       try {
         const r = await call("POST", `/api/z/${encodeURIComponent(eid)}/pay-with-credit`, {});
         S.credited = r.usedInr || 0;
-        if (r.paid) S.done = { ok: true, eid, pack: packFor(S.info.cap) || 0, paidFromCredit: true, restartedAtMs: r.restartedAtMs || null };
+        if (r.paid) { S.done = { ok: true, eid, pack: packFor(S.info.cap) || 0, paidFromCredit: true, restartedAtMs: r.restartedAtMs || null }; goAuto(eid); }
         else S.info.creditApplied = r.usedInr; // the rest is paid below, in the usual way, for the same game
       } catch (e) { S.err = e.message; S.creditErr = true; }
       S.busy = false; draw();
@@ -129,7 +135,7 @@
     if (!eid) { S.err = "No game was chosen."; return draw(); }
     try {
       const st = await fetch("/api/payments/status").then((r) => r.json()); S.mode = st.mode;
-      const h = await call("GET", `/api/z/${eid}/cohost`); // only the Organizer, a Host or a Co-host of THIS game's account passes; anyone else gets a 403 and a calm message
+      const h = await call("GET", `/api/z/${eid}/cohost`); S.wait = (h.payment && (h.payment.status || h.payment)) === "confirming" ? "load" : ""; // only the Organizer, a Host or a Co-host of THIS game's account passes; anyone else gets a 403 and a calm message
       try { S.info = await call("GET", `/api/z/${eid}/info`); }
       catch (e0) { // a Co-host may pay but cannot read the game: use the small game header they are allowed
         if (e0.status !== 403) throw e0;

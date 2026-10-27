@@ -65,6 +65,14 @@ const credits = async (key: string, now = T) => j(await call("GET", "/api/org/cr
 const paidOf = (cap: number) => ({ 100: 2399, 250: 3499, 300: 4699, 750: 5899 } as Record<number, number>)[cap]!;
 
 describe("cancel: a paid game becomes credit, never a refund", () => {
+  test("the invoice goes to the organizer; the Host of the game hears once that it is paid, without buyer details or an invoice link", async () => {
+    const t = await team(); await paidWithMoney(t.master, "GAME-1");
+    const to = (raw.prepare("SELECT to_addr, subject FROM outbox").all() as any[]).filter((r) => /invoice/i.test(r.subject)).map((r) => String(r.to_addr).toLowerCase());
+    expect(to).toContain("boss@acme.com"); expect(to).not.toContain("priya@acme.com"); // the Host gets no invoice, only the news that the game is paid
+    expect((raw.prepare("SELECT COUNT(*) c FROM outbox WHERE to_addr='priya@acme.com' AND subject LIKE '%is paid%'").get() as any).c).toBe(1);
+    const hostMail = (raw.prepare("SELECT body FROM outbox WHERE to_addr='priya@acme.com' AND subject LIKE '%paid%'").all() as any[])[0]?.body ?? ""; // a Host learns the game is paid but gets no buyer details and no invoice link
+    expect(hostMail.length).toBeGreaterThan(0); expect(hostMail).not.toMatch(/api\/invoice/); expect(hostMail).not.toMatch(/INVOICE/);
+  });
   test("cancel a paid game before the start: credit of exactly what was paid, valid to the end of day 365 in India time", async () => {
     const t = await team(); await paidWithMoney(t.master, "GAME-1");
     const r = await j(await cancelIt(t.master, "GAME-1"));

@@ -122,16 +122,16 @@ describe("participant crypto-shredding", () => {
 });
 
 describe("the 23-hour clock", () => {
-  test("constants: the link closes at 22 hours, participants' data goes at 23 (inside the promised 24)", () => {
-    expect(REPORT_LINK_MS).toBe(22 * HOUR); expect(PURGE_AFTER_MS).toBe(23 * HOUR);
+  test("constants: the link closes at 19 hours, participants' data goes at 20 (the job may run 3 hours late and still keep the promised 24)", () => {
+    expect(REPORT_LINK_MS).toBe(19 * HOUR); expect(PURGE_AFTER_MS).toBe(20 * HOUR);
   });
-  test("the tick deletes participants and shreds their audit part at 23 hours after the end, not at 22", async () => {
+  test("the tick deletes participants and shreds their audit part at 20 hours after the end, not at 19", async () => {
     await game();
     const end = await endBoundMs(env as any, engagementRow());
     await lifecycleTick(env as any, end + 5 * 60_000);
-    await lifecycleTick(env as any, end + 22 * HOUR + 59 * 60_000);
+    await lifecycleTick(env as any, end + 19 * HOUR + 59 * 60_000);
     expect(count("SELECT COUNT(*) c FROM participant")).toBe(2); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(2); expect(count("SELECT COUNT(*) c FROM shred")).toBe(0);
-    const out = await lifecycleTick(env as any, end + 23 * HOUR + 1000);
+    const out = await lifecycleTick(env as any, end + 20 * HOUR + 1000);
     expect(out.purged).toBe(1);
     expect(count("SELECT COUNT(*) c FROM participant")).toBe(0); expect(count("SELECT COUNT(*) c FROM audit_pii")).toBe(0); expect(count("SELECT COUNT(*) c FROM eng_key")).toBe(0);
     expect(raw.prepare("SELECT eid FROM shred").get()).toEqual({ eid: "EVT1" });

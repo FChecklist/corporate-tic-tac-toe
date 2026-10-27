@@ -78,6 +78,13 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
     expect(sent[0]!.body).not.toContain(o.ai); expect(sent[0]!.body).not.toContain(o.msg); // the lasting key stays in the console; the mail has its own 24-hour key
     const mk = mailedKey(sent[0]!.body); expect(mk).not.toBe(o.ai); expect((await call("GET", `/ai/${mk}`)).status).toBe(200);
   });
+  test("with AI_LINK_MAIL_AT_SIGNUP=0 (the live setting) sign-up sends no AI mail at all; the account and the sign-in e-mail (code and link) still work", async () => {
+    (env as any).AI_LINK_MAIL_AT_SIGNUP = "0";
+    const o = await organizer();
+    expect(outbox().length).toBe(0); expect((await call("GET", "/api/whoami", undefined, o.h)).status).toBe(200); // the account exists and the console key works
+    const r = await j(await call("POST", "/api/auth/email", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.2" }));
+    expect(r.ok).toBe(true); const sent = outbox(); expect(sent.length).toBe(1); expect(sent[0]!.subject).not.toBe("[Tic Tac Toe] " + AI_SUBJECT); expect(sent[0]!.body).toMatch(/\b\d{6}\b/); // one sign-in mail: the 6-digit code
+  });
   test("publish, reminder, could-not-begin and every other mail of a full unpaid lifecycle carry no AI link; only the dedicated mails do", async () => {
     const { h } = await organizer();
     await call("POST", "/api/z", { id: "MAIL-1", startRound: roundAt(T + 30 * 3_600_000), callSeconds: 6, cap: 500 }, h);

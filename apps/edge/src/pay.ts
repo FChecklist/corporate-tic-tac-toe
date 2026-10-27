@@ -23,8 +23,10 @@ import { partnerCode, phoneHashFor, recordCommission, refCode } from "./partners
 import { helperRefFor } from "./helpdesk";
 import { attemptStatusOf, centralOf, derivedEventKey, eventSeen, markEventSeen, recordAttempt, recordRefund, storePaymentDetails, txnIdOf } from "./ledgerc";
 import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
+import { isTestLogin } from "./testlogins";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
-import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs } from "./credit";
+import { consentMissing } from "./consent";
+import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs, teamEmails } from "./credit";
 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
   RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RAZORPAY_BASE_URL?: string; RAZORPAY_INTERNATIONAL?: string;
@@ -96,6 +98,7 @@ const KEYRE = /cb[kah]_[0-9a-f]{48}/g;
 export async function sendMail(env: PayEnv, db: D1, to: string, subject: string, text: string, now: number, opts: { html?: string; secret?: boolean; owner?: boolean } = {}): Promise<boolean> {
   // `secret` = the mail carries a personal AI work link: if it cannot be sent, no body is kept at all (nothing to retry later; the organizer can replace the link and get a fresh mail).
   // TEST mode (mode.ts): only the owner's allow-list is ever e-mailed; everyone else is dropped and logged. Not sent = false, and no body is kept.
+  if (isTestLogin(to)) return false; // the owner's three test addresses belong to a real outside domain: nothing is ever sent to them
   subject = tagSubject(subject); // the game tag starts every subject
   if ((await getMode(env)) === "TEST") { if (!opts.owner && !(await mailGate(env, to, subject, now))) return false; subject = "[TEST] " + subject; } // `owner` = a note to the owner of the platform (owner-mail.ts): always allowed
   const html = opts.html ?? plainToHtml(subject, text, env.PUBLIC_ORIGIN); // every mail carries the brand header and footer, whoever built it
@@ -173,7 +176,28 @@ View or print it: ${origin}/api/invoice/${token}`, now);
   return { result };
 }
 
+/** Completes a payment exactly once: the browser's verify call and the payment provider's webhook can arrive together, so the first to arrive takes the payment ('paying') and the other waits for its answer instead of making a second set of mails and invoice numbers. */
 export async function fulfil(env: PayEnv, paymentId: string, now: number, spend: (n: number) => Promise<boolean>) {
+  const db = env.DB;
+  const cur = await db.prepare("SELECT status FROM payment WHERE id=?").bind(paymentId).first<{ status: string }>();
+  if (!cur || cur.status === "paid") return fulfilInner(env, paymentId, now, spend);
+  const got = await db.prepare("UPDATE payment SET status='paying', paid_ms=? WHERE id=? AND (status NOT IN ('paid','paying') OR (status='paying' AND (paid_ms IS NULL OR paid_ms < ?)))").bind(now, paymentId, now - 120_000).run(); // a 'paying' claim is a lease of two minutes: if the call that took it died, the next one takes over
+  if (((got as any).meta?.changes ?? 0) === 0) {
+    for (let i = 0; i < 25; i++) { // the other call is finishing it: wait for its answer (up to about 5 seconds) and give the same one
+      const q = await db.prepare("SELECT status, result FROM payment WHERE id=?").bind(paymentId).first<{ status: string; result: string | null }>();
+      if (q?.status === "paid") return { result: JSON.parse(q.result ?? "{}") };
+      if (q?.status !== "paying") break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return { error: "Your payment is being finished. Please wait a moment and refresh.", status: 409 };
+  }
+  try {
+    const r: any = await fulfilInner(env, paymentId, now, spend);
+    if (r && "error" in r) await db.prepare("UPDATE payment SET status=?, paid_ms=NULL WHERE id=? AND status='paying'").bind(cur.status, paymentId).run(); // not completed: back to what it was, so a retry can finish it
+    return r;
+  } catch (e) { await db.prepare("UPDATE payment SET status=?, paid_ms=NULL WHERE id=? AND status='paying'").bind(cur.status, paymentId).run(); throw e; }
+}
+async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (n: number) => Promise<boolean>) {
   const db = env.DB;
   const p = await db.prepare("SELECT * FROM payment WHERE id=?").bind(paymentId).first<any>();
   if (!p) return { error: "Unknown payment.", status: 404 };
@@ -199,7 +223,7 @@ export async function fulfil(env: PayEnv, paymentId: string, now: number, spend:
   if (!closed) await db.prepare("INSERT OR IGNORE INTO entitlement(id,org,pack,payment_id,eid,created_ms) VALUES(?,?,?,?,NULL,?)").bind("ent_" + p.id, org, p.pack, p.id, now).run();
   let published: string | null = null, restart: number | null = null;
   if (meta.eid) { // publish the draft this payment was made for (only if it is still an unpublished draft of the same organizer)
-    const up = await db.prepare("UPDATE engagement SET pack=? WHERE id=? AND org=? AND pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(p.pack, meta.eid, org).run(); // a cancelled game is never published by a late payment
+    const up = await db.prepare("UPDATE engagement SET pack=?, cap=MIN(cap, ?) WHERE id=? AND org=? AND pack=0 AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(p.pack, p.pack, meta.eid, org).run(); /* the size can never end above what was paid for */ // a cancelled game is never published by a late payment
     if ((up.meta?.changes ?? 0) > 0) {
       await db.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(meta.eid, "ent_" + p.id).run(); published = meta.eid;
       await db.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${meta.eid}`, String(now)).run(); // paying also publishes
@@ -248,7 +272,18 @@ export async function fulfil(env: PayEnv, paymentId: string, now: number, spend:
   await sendMail(env, db, p.email, `${brand.name}: payment received, invoice ${number}`, lines.join("\n\n"), now);
   // the same invoice goes to the organizer's own e-mail when someone else paid (a Co-host or a pay link) or the organizer's e-mail differs from the payer's
   const orgMail = typeof organizer.email === "string" ? organizer.email.trim().toLowerCase() : "";
-  if (orgMail && EMAIL.test(orgMail) && orgMail !== p.email.trim().toLowerCase()) await sendMail(env, db, orgMail, `${brand.name}: invoice ${number} for your game`, `An invoice for your game${eidForInvoice ? ` ${eidForInvoice}` : ""} was issued by ${brand.name}.\n\nINVOICE\n${renderInvoiceText(data)}\n\nView or print it: ${origin}/api/invoice/${token}\nDownload the PDF: ${origin}/api/invoice/${token}.pdf`, now);
+  const teamTo = await teamEmails(env, org, eidForInvoice || meta.eid || null).catch(() => null), invSeen = new Set<string>([p.email.trim().toLowerCase()]), invTo: string[] = []; // the organizer and every Host get the invoice once; the payer already has the receipt
+  for (const t0 of [orgMail, teamTo?.organizer ?? "", ...(teamTo?.hosts ?? [])]) { const t = (t0 ?? "").trim().toLowerCase(); if (t && EMAIL.test(t) && !invSeen.has(t)) { invSeen.add(t); invTo.push(t); } }
+  const ownerSet = new Set([orgMail, (teamTo?.organizer ?? "").trim().toLowerCase()]); // the organizer gets the whole invoice; a Host only hears that the game is paid (a Host may be outside the paying company, so no buyer details and no invoice link)
+  for (const to of invTo) await sendMail(env, db, to, `${brand.name}: ${ownerSet.has(to) ? `invoice ${number} for your game` : `your game ${eidForInvoice ?? ""} is paid`}`, ownerSet.has(to)
+    ? `An invoice for your game${eidForInvoice ? ` ${eidForInvoice}` : ""} was issued by ${brand.name}.
+
+INVOICE
+${renderInvoiceText(data)}
+
+View or print it: ${origin}/api/invoice/${token}
+Download the PDF: ${origin}/api/invoice/${token}.pdf`
+    : `Good news: the game${eidForInvoice ? ` ${eidForInvoice}` : ""} you are a Host of is paid for and ready. The organizer has the invoice. Open your Host link to see the game.`, now);
   await recordCommission(env, p, tax.taxable, now); // refer & earn: a commission row for a referred, PAID purchase only
   const result = { ok: true, orderId: p.id, pack: p.pack, total: p.amount, tax: p.tax, currency: p.currency, invoiceUrl: `/api/invoice/${token}`, invoiceNumber: number, razorpayPaymentId: p.rzp_payment_id ?? null, organizerKey, newOrganizer: !!organizerKey, published: !!published, eid: published, restartedAtMs: restart ? (1692803367 + (restart - 1) * 3) * 1000 : null, ...(keptCredit ? { creditKept: true, creditId: keptCredit.id, creditExpiresMs: keptCredit.expires_ms } : {}) };
   await db.prepare("UPDATE payment SET status='paid', paid_ms=?, org=?, result=? WHERE id=?").bind(now, org, JSON.stringify(result), p.id).run();
@@ -296,7 +331,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (plm) { // the pay link binds the payment to its game; the payer needs no account and no key (and a key sent along is ignored)
       const pv = await lookupPayLink(db, plm[1]!, now);
       if (!pv) return json({ error: "Not found" }, 404);
-      if (pv.status !== "open") return json({ error: pv.status === "paid" ? "This game has already been paid for." : pv.status === "cancelled" ? "This game was cancelled by the organizer. It cannot be paid for." : pv.status === "closed" ? "This game did not start and is closed. It cannot be paid for." : pv.status === "confirming" ? "A payment for this game is being confirmed. Please wait a few minutes." : "This pay link has expired. Ask for a new one.", status: pv.status }, 409);
+      if (pv.status !== "open") return json({ error: pv.status === "paid" ? "This game has already been paid for." : pv.status === "cancelled" ? "This game was cancelled by the organizer. It cannot be paid for." : pv.status === "closed" ? "This game did not start and is closed. It cannot be paid for." : pv.status === "confirming" ? "A payment for this game is being confirmed. Please wait a few minutes." : "This pay link has run out or was replaced. Ask for the newest link.", status: pv.status }, 409);
       boundPack = packFor(pv.e.cap);
       if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
       boundOrg = pv.link.org; boundEid = pv.link.eid; paidBy = "link";
@@ -316,6 +351,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       if (eg.cancelled_ms) return json({ error: "This game was cancelled by the organizer. It cannot be paid for." }, 409);
       if (eg.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
       if (eg.pack !== 0) return json({ error: "This game is already published." }, 409);
+      if (await db.prepare("SELECT 1 AS x FROM payment WHERE eid=? AND status<>'paid' AND confirming_ms IS NOT NULL AND confirming_ms>?").bind(b.eid, now - 30 * 60_000).first()) return json({ error: "A payment for this game is being confirmed. Please wait a few minutes.", code: "confirming" }, 409); // a second order while one is being confirmed could charge twice
       if (await db.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`startpending/${b.eid}`).first()) return json({ error: "Pick the date and time of this game first.", code: "start-pending" }, 400);
       boundPack = PACKS.find((x) => x[0] >= eg.cap)?.[0] ?? null;
       if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);

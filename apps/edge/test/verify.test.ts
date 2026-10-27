@@ -49,6 +49,16 @@ describe("the settings", () => {
     s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.employeesOnly).toBe(true); expect(s.invites.on).toBe(false); expect(s.whoCanJoin).toBe("list");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "passport" }, t.master)).status).toBe(400);
   });
+  test("a later save that does not mention them (prizes, brand moments, tickets) keeps what a person must give and employees only", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true });
+    const keep = async (what: string) => { const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([what, s.verify, s.employeesOnly, s.whoCanJoin]).toEqual([what, "id", true, "list"]); };
+    await keep("after setup");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, rewards: [{ pattern: "line", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, opening: [], breaks: [], closing: [] }, t.master)).status).toBe(200); await keep("after the brand moments");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 2 }, t.master)).status).toBe(200); await keep("after the rounds");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "mobile", employeesOnly: false }, t.master)).status).toBe(200); // choosing differently still works
+    const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([s.verify, s.employeesOnly]).toEqual(["mobile", false]);
+  });
 });
 
 describe("employees only, ID alone", () => {
@@ -75,6 +85,64 @@ describe("employees only, mobile and ID", () => {
     const w = await joinAs("PPL-1", 1, { empId: "E555", device: dev(41) }); expect(w.status).toBe(403); expect((await j(w)).code).toBe("waiting");
     const m = await joinAs("PPL-1", 1, { device: dev(42) }); expect(m.status).toBe(400); expect((await j(m)).code).toBe("need-id");
     expect((await joinAs("PPL-1", 1, { empId: "e101", device: dev(43) })).status).toBe(200);
+  });
+});
+
+describe("an employee known by ID stays known by it", () => {
+  test("sending the link again with a new contact number keeps the ID (the ID still gets in; the export still shows it)", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true });
+    const r = await j(await add(t.master, [{ name: "Asha", empId: "E101", phone: mob(2) }])); const id = r.people[0].id;
+    const re = await call("POST", `/api/z/PPL-1/people/${id}/resend`, { phone: mob(7) }, t.master); expect(re.status).toBe(200);
+    expect((await joinAs("PPL-1", 5, { phone: undefined, empId: "e101" })).status).toBe(200);
+    const csv = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv).toContain("E101"); expect(csv).toContain(mob(7));
+  });
+});
+
+describe("mobile number OR employee ID", () => {
+  test("a listed person gets in with either one and is the same card both ways; unlisted people wait; an outsider in an open game gives a mobile number", async () => {
+    const t = await setup({ verify: "either", employeesOnly: true });
+    const r = await j(await add(t.master, [{ name: "Both", phone: mob(1), empId: "E101" }, { name: "IdOnly", empId: "E102" }, { name: "PhoneOnly", phone: mob(3) }, { name: "Nobody" }]));
+    expect(r.added).toBe(3); expect(r.invalid.length).toBe(1); expect(r.invalid[0].why).toMatch(/mobile number or an employee ID/);
+    const byId = await j(await joinAs("PPL-1", 21, { phone: undefined, empId: "e101", device: dev(50) })); expect(byId.pid).toBeTruthy();
+    const byPhone = await j(await joinAs("PPL-1", 1, { device: dev(50) })); expect(byPhone.pid).toBe(byId.pid); // the same person, the same card, whichever they give
+    expect((await joinAs("PPL-1", 22, { phone: undefined, empId: "E102" })).status).toBe(200); // known by ID alone
+    expect((await joinAs("PPL-1", 3, {})).status).toBe(200); // known by mobile alone
+    const wrong = await joinAs("PPL-1", 40, { phone: undefined, empId: "E999" }); expect(wrong.status).toBe(403); expect((await j(wrong)).code).toBe("waiting");
+    const stranger = await joinAs("PPL-1", 41, {}); expect(stranger.status).toBe(403); expect((await j(stranger)).code).toBe("waiting"); // employees only: an unlisted number waits
+    const none = await joinAs("PPL-1", 42, { phone: undefined }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id");
+    const csv = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv).toContain("E101"); expect(csv).toContain("E102");
+  });
+  test("the same employee ID cannot be given to two people of one list, and an ID still finds its person after the link is sent again with a new number", async () => {
+    const t = await setup({ verify: "either" });
+    const r = await j(await add(t.master, [{ name: "First", phone: mob(1), empId: "E101" }, { name: "Second", phone: mob(2), empId: "e101" }]));
+    expect(r.added).toBe(1); expect(r.duplicates).toBe(1);
+    const re = await call("POST", `/api/z/PPL-1/people/${r.people[0].id}/resend`, { phone: mob(9) }, t.master); expect(re.status).toBe(200);
+    const byId = await j(await joinAs("PPL-1", 40, { phone: undefined, empId: "E101", device: dev(60) })); expect(byId.pid).toBeTruthy();
+    const byNew = await j(await joinAs("PPL-1", 9, { device: dev(60) })); expect(byNew.pid).toBe(byId.pid); // the new number and the ID are the same person
+  });
+  test("everyone including employees: an outsider joins with a mobile number alone; settings accept the mode", async () => {
+    const t = await setup({ verify: "either" }); await add(t.master, [{ name: "Both", phone: mob(1), empId: "E101" }]);
+    expect((await joinAs("PPL-1", 5, {})).status).toBe(200);
+    expect((await joinAs("PPL-1", 6, { phone: undefined, empId: "E101" })).status).toBe(200);
+    const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.verify).toBe("either");
+  });
+});
+
+describe("junk in a list is cleaned by the server too", () => {
+  test("a name that starts like a spreadsheet formula, or holds markup or control characters, is kept tidy; the list export is safe to open", async () => {
+    const t = await setup({}); const r = await j(await add(t.master, [{ name: "=HYPERLINK(\"http://x\")", phone: mob(1) }, { name: "<script>alert(1)</script>Bob", phone: mob(2) }, { name: "Ann ​Lee", phone: mob(3) }]));
+    expect(r.added).toBe(3); const names = r.people.map((p: any) => p.name); expect(names.join("|")).not.toMatch(/[=<> ​]/);
+    const csv = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv.split(/\r?\n/).some((l) => /^"?[=@]/.test(l))).toBe(false);
+  });
+});
+
+describe("guessing employee IDs", () => {
+  test("wrong IDs wait for the organizer, who sees the ID that was typed; after 30 wrong IDs from one network in a game the door closes for ten minutes; a right ID is not counted", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
+    for (let i = 0; i < 30; i++) expect((await joinAs("PPL-1", 10 + i, { phone: undefined, empId: "X" + (900 + i) })).status).toBe(403);
+    const eleventh = await joinAs("PPL-1", 60, { phone: undefined, empId: "X999" }); expect(eleventh.status).toBe(429); expect((await j(eleventh)).code).toBe("too-many-tries");
+    const w = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting; expect(w.length).toBe(30); expect(w.map((x: any) => x.empId)).toContain("X900");
+    expect((await joinAs("PPL-1", 61, { phone: undefined, empId: "E101" })).status).toBe(200); // the real employee still gets in
   });
 });
 
@@ -124,6 +192,16 @@ describe("the owner's three test sign-ins", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(3);
     expect((await call("POST", "/api/auth/verify", { email: "demo4@xyz.in", code: "123456" })).status).toBe(400);
+  });
+  test("the test sign-ins are limited per network per day, record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+    const em = "demo2@xyz.in"; const fire = () => call("POST", "/api/auth/verify", { email: em, code: "123456" });
+    for (let i = 0; i < 30; i++) expect((await fire()).status).toBe(200);
+    const blocked = await fire(); expect(blocked.status).toBe(429);
+    expect(rowsOf("SELECT COUNT(*) c FROM consent_log WHERE kind='K2'")[0].c).toBe(0);
+    const org = rowsOf("SELECT org FROM organizer_email")[0].org;
+    expect(rowsOf("SELECT COUNT(*) c FROM organizer_key WHERE org=? AND kind='master'", org)[0].c).toBeLessThanOrEqual(6);
+    const { sendMail } = await import("../src/pay"); expect(await sendMail(env as any, (env as any).DB, em, "Your report", "text", T)).toBe(false);
+    expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
   });
 });
 

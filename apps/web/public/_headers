@@ -1,3 +1,7 @@
+# HTTPS only: once a browser has seen the site over HTTPS it never tries plain HTTP again (a year).
+/*
+  Strict-Transport-Security: max-age=31536000
+
 # Cloudflare Pages headers. The phone page and organizer page are locked down: only our own files, the public randomness beacon, and our own API.
 /z.html
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://api.drand.sh https://api2.drand.sh https://api3.drand.sh https://drand.cloudflare.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'

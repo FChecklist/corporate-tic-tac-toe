@@ -43,8 +43,8 @@ Where things are set:
 | `PARTNER_COMMISSION_RATE` | Partner commission rate | Optional Pages variable | setting |
 | `DAILY_WRITE_BUDGET` | Most database writes the Worker allows itself per day | wrangler var | setting |
 | `STRICT_KEYS` | "1" on the live site: the Worker refuses every request unless the required secrets are set | Pages variable | setting |
-| `JOIN_PER_IP_DAY` | Joins one network address may make per day (default in code) | Optional Pages variable | setting |
-| `JOIN_PER_IP_MINUTE` | Joins one network address may make per minute (default in code) | Optional Pages variable | setting |
+| `JOIN_PER_IP_DAY` | Joins one network address may make per day (default in code) | wrangler var | setting |
+| `JOIN_PER_IP_MINUTE` | Joins one network address may make per minute (default in code) | wrangler var | setting |
 | `GOOGLE_CLIENT_ID` | Google sign-in client id (public, not a secret); without it the Google button is off | Optional Pages variable | setting |
 | `CONTROL_R2` | Optional R2 bucket holding the static copy of the pause file | Optional binding | binding |
 | `CONTROL_BASE` | Optional public address of that bucket | Optional Pages variable | setting |
@@ -52,3 +52,4 @@ Where things are set:
 | `ANALYZE_AI_KEY` | Key for that endpoint | Optional Pages secret | secret |
 | `ANALYZE_AI_MODEL` | Model name for that endpoint | Optional Pages variable | setting |
 | `TARGET` | The scheduled job: the web address it calls | `apps/cron/wrangler.toml` | setting |
+| `AI_LINK_MAIL_AT_SIGNUP` | Switch for the AI work-link welcome e-mail sent when an account is made; the live site turns it off because the AI link is hidden in the console | wrangler var | setting |

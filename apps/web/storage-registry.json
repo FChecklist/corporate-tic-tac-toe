@@ -43,7 +43,8 @@
         "cbz-phone",
         "cbz-name",
         "cbz-pl",
-        "cbz-shield"
+        "cbz-shield",
+        "cbz-cap"
       ]
     },
     {
@@ -53,7 +54,8 @@
       "keys": [
         "cbz-org",
         "cbz-alt",
-        "cbz-email"
+        "cbz-email",
+        "cbz-pass"
       ]
     },
     {
@@ -61,7 +63,7 @@
       "store": "sessionStorage",
       "say": "In any browser tab, until the tab is closed: a note that the page already updated itself to the newest version.",
       "keys": [
-        "ct-auto-done"
+        "cb-auto-done"
       ]
     },
     {

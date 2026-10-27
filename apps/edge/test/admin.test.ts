@@ -267,12 +267,12 @@ describe("E12: the mail bounce log", () => {
 
 describe("A7b: the 24-hour promise has an alarm, and the tick keeps the mail log short (data audit fixes 8 and 9)", () => {
   const startMs = () => (GEN + (START - 1) * 3) * 1000;
-  const late = () => startMs() + 6 * 3_600_000 + 23 * 3_600_000 + 31 * 60_000; // 31 minutes past the 23-hour deletion of a game that was never started
+  const late = () => startMs() + 6 * 3_600_000 + 20 * 3_600_000 + 3 * 3_600_000 + 31 * 60_000; // 31 minutes past the 20-hour deletion plus the 3 hours the alarm allows of a game that was never started
   async function withPlayer(id: string) {
     await game(id); raw.prepare("UPDATE engagement SET pack=100 WHERE id=?").run(id);
     expect((await call("POST", `/api/z/${id}/join`, { name: "Maya", device: dev(1) })).status).toBe(200);
   }
-  test("a game past its 23-hour deletion that still holds a player turns the health read to ok:false (count and hours); the tick clears it; a legal hold is left out", async () => {
+  test("a game past its 20-hour deletion that still holds a player turns the health read to ok:false (count and hours); the tick clears it; a legal hold is left out", async () => {
     await withPlayer("OVD-1");
     expect(await j(await call("GET", "/api/status/health"))).toMatchObject({ ok: true, overdue_purge: 0, overdue_hours: null });
     expect(await j(await call("GET", "/api/status/health", undefined, {}, late() - 3_600_000))).toMatchObject({ ok: true, overdue_purge: 0 }); // not yet: the tick still has time

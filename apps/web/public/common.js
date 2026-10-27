@@ -130,6 +130,7 @@
   // ---- payments: Razorpay Checkout (the brand is the checkout name). The SERVER verifies the payment; the browser only reports it. ----
   // Option 1: when the server names a "hop" page (the website registered with Razorpay), the Razorpay window runs inside that page, shown in a frame over this one.
   // Razorpay then only ever sees the registered website. The frame sends back the signed result, and the SERVER still verifies it exactly as before.
+  const maybePaid = (e) => { if (e && (e.status === 0 || e.status >= 500 || /did not match the order/i.test(e.message || ""))) e.maybePaid = true; return e; }; // a failed confirmation call may follow a real payment: ask again, never invite a second one
   const payViaHop = (rz, paymentId, hop) => new Promise((resolve, reject) => {
     const origin = new URL(hop).origin; const done = (fn, v) => { window.removeEventListener("message", onMsg); wrap.remove(); fn(v); };
     const wrap = document.createElement("div"); wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-label", "Secure payment");
@@ -145,7 +146,7 @@
       else if (d.t === "failed") done(reject, new Error(String(d.message || "The payment failed. Nothing was charged.").slice(0, 300)));
       else if (d.t === "paid" && d.resp) {
         try { const v = await TB.api("POST", "/api/payments/verify", { paymentId, razorpay_order_id: d.resp.razorpay_order_id, razorpay_payment_id: d.resp.razorpay_payment_id, razorpay_signature: d.resp.razorpay_signature }); done(resolve, v); }
-        catch (e) { done(reject, e); }
+        catch (e) { done(reject, maybePaid(e)); }
       }
     };
     window.addEventListener("message", onMsg); document.body.appendChild(wrap);
@@ -181,7 +182,7 @@
           key: rz.keyId, order_id: rz.orderId, amount: rz.amount, currency: rz.currency, name: rz.name, description: rz.description, prefill: rz.prefill, notes: rz.notes, theme: rz.theme, ...(rz.config ? { config: rz.config } : {}),
           handler: async (resp) => {
             try { resolve(await TB.api("POST", "/api/payments/verify", { paymentId, razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature })); }
-            catch (e) { reject(e); }
+            catch (e) { reject(maybePaid(e)); }
           },
           modal: { ondismiss: () => reject(Object.assign(new Error("Payment was cancelled. Nothing was charged."), { cancelled: true })) },
         });

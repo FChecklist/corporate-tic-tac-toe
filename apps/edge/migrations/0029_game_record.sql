@@ -1,0 +1,2 @@
+-- The permanent record of every game's settings (owner order 2026-10-25): kept with the game ID for ever, no personal data of any player in it. Apply BEFORE deploying the code that writes it.
+CREATE TABLE IF NOT EXISTS game_record (eid TEXT PRIMARY KEY, org TEXT, created_ms INTEGER, start_round INTEGER, settings TEXT NOT NULL, outcome TEXT, first_kept_ms INTEGER NOT NULL, kept_ms INTEGER NOT NULL);

@@ -19,13 +19,14 @@
   const when = (ms) => { try { return new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }); } catch { return ""; } };
   const calm = (title, text) => `${head}<div class="zcard" role="status"><h2>${esc(title)}</h2><p class="zsmall" style="margin:0">${text}</p></div>`;
 
+  const holdCard = () => `${head}<div class="zcard" id="paywait" role="status"><h2>We are checking your payment</h2><p class="zsmall" style="margin:0 0 10px">${S.busy ? "Please keep this page open. This can take a few minutes." : "Your payment is still being confirmed. If money left your account, the game is marked paid as soon as the bank confirms. Please do not pay again."}</p>${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}<button class="zbtn" id="chkpay" type="button"${S.busy ? " disabled" : ""}>${S.busy ? "Checking…" : "Check my payment"}</button>${S.busy ? "" : `<p class="zsmall" style="margin:12px 0 0"><button type="button" class="zlink" id="payagain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer">No money was taken. Let me pay again.</button></p>`}</div>`;
   function view() {
     if (!token || S.gone) return calm("This payment link is not working", "It may be incomplete or it may have been replaced. Please ask the person who sent it for a new link.");
     if (S.done) return `${head}<div class="zcard" role="status" style="border:2px solid #2e7d4f"><h2>Payment received. Thank you.</h2>${TB.payReceipt ? TB.payReceipt(S.done) : ""}<p class="zsmall" style="margin:0">The game is paid for. You can close this page.</p>${S.done.invoiceUrl ? `${TB.invoiceBox ? TB.invoiceBox(S.done, S.email) : ""}<p class="zsmall">We also e-mailed it to you and to the organizer.</p>` : `<p class="zsmall">We e-mail the invoice to the address you gave.</p>`}</div>`;
     if (!S.info) return `${head}<p class="zmsg">${S.err ? esc(S.err) : "Loading…"}</p>`;
-    const i = S.info, st = i.status;
+    if (S.hold) return holdCard(); const i = S.info, st = i.status;
     if (st === "paid") return calm("This game is already paid for", "Nothing more is needed. You can close this page.");
-    if (st === "expired") return calm("This payment link has run out", "A payment link works for 7 days. Please ask the person who sent it to make a new one.");
+    if (st === "expired") return calm("This payment link has run out", "A payment link works for 7 days, and a newer link stops the older one. Please ask the person who sent it for the newest link.");
     if (st === "cancelled") return calm("This game was cancelled", "There is nothing to pay. Please speak to the organizer.");
     if (st === "closed") return calm("This game did not start", "This game did not start and is closed. There is nothing to pay. Please speak to the organizer.");
     if (st === "confirming" && !S.busy) return calm("Confirming a payment", "A payment for this game is being confirmed. Please wait a few minutes. If it goes through, this page will say the game is paid.");
@@ -80,6 +81,8 @@
   function bind() {
     const $ = (id) => document.getElementById(id);
     if ($("more")) $("more").onclick = () => { keep(); S.more = true; draw(); };
+    if ($("chkpay")) $("chkpay").onclick = async () => { S.err = ""; S.busy = true; draw(); try { S.done = await waitForConfirm(); } catch (e) { S.err = e.message; } S.busy = false; draw(); };
+    if ($("payagain")) $("payagain").onclick = () => { S.hold = false; S.err = ""; draw(); };
     if ($("paygo")) $("paygo").onclick = async () => {
       keep(); S.err = "";
       const nm = (S.name || "").trim(), email = (S.email || "").trim().toLowerCase(), tax = (S.tax || "").trim().toUpperCase();
@@ -100,7 +103,7 @@
         if (r && r.confirming) r = await waitForConfirm();
         S.done = r || { ok: true };
       } catch (e) {
-        if (e && e.status === 409 && e.body && e.body.status) { try { S.info = await call("GET", `/api/paylink/${token}`); S.err = ""; } catch { S.err = e.message; } } // already paid, expired or cancelled meanwhile: show that calm screen
+        if (e && e.maybePaid) { try { S.done = await waitForConfirm(); S.busy = false; return draw(); } catch (e2) { S.hold = true; e = e2; } } /* money may have left: ask until paid */ if (e && e.status === 409 && e.body && e.body.status) { try { S.info = await call("GET", `/api/paylink/${token}`); S.err = ""; } catch { S.err = e.message; } } // already paid, expired or cancelled meanwhile: show that calm screen
         else S.err = e.message;
       }
       S.busy = false; draw();

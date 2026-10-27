@@ -205,7 +205,7 @@ describe("what a purchase lets you do", () => {
     expect((await call("PATCH", "/api/z/LIM1/settings", { cap: 500 }, K)).status).toBe(200);
     const r = await call("PATCH", "/api/z/LIM1/settings", { cap: 501 }, K);
     expect(r.status).toBe(402);
-    expect(((await r.json()) as any).error).toMatch(/Buy a bigger pack/);
+    expect(((await r.json()) as any).error).toMatch(/make a new game like this one/);
   });
   test("a returning buyer (same e-mail) gets another entitlement on the same organizer, with no second key", async () => {
     const first = await purchase();

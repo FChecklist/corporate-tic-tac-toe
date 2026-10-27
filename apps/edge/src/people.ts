@@ -9,6 +9,8 @@
 // The Worker (worker.ts) owns routing, `join` and `settings`; this file owns the schema, the cleaning of numbers and the people / waiting / me routes.
 import { consentRequired, recordConsent } from "./consent";
 import { openPii, openText, sealPii, sealText } from "./pii";
+import { consentMissing } from "./consent";
+import { deviceMatches } from "./checkin";
 import type { D1, Env } from "./worker";
 
 /** 0016_people.sql: who invited whom, the personal links, the waiting room, and the flag that stops a removed person's phone without touching the public seat list. */
@@ -52,31 +54,13 @@ export const normEmp = (raw: unknown): string | null => { const s = String(raw ?
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
 
-export type Cleaned = { ok: true; digits: string; last10: string } | { ok: false; why: string };
-/**
- * Cleans one typed or pasted mobile number: spaces, dashes, brackets, +91, a leading 0 or 00 go away. A 10-digit Indian mobile must start with 6 to 9; a number with another
- * country code is accepted as it is (11 to 15 digits). The result always carries the country code (91 for India), which is what a wa.me link needs.
- */
-export function cleanPhone(raw: unknown): Cleaned {
-  const typed = String(raw ?? "").trim();
-  if (/[^\d\s+\-()./]/.test(typed)) return { ok: false, why: "A number has only digits (and + - spaces or brackets). Please check it." }; // letters, symbols or emoji are a typing mistake, not a number
-  let d = typed.replace(/\D/g, "");
-  if (!d) return { ok: false, why: "There is no number." };
-  const international = (typed.startsWith("+") || typed.startsWith("00")) && !d.replace(/^00/, "").startsWith("91"); // +65, +44 ...: kept as typed, never given an Indian 91
-  if (international) { const n = d.replace(/^00/, ""); return n.length >= 8 && n.length <= 15 ? { ok: true, digits: n, last10: n.slice(-10) } : { ok: false, why: n.length < 8 ? "That is too short for a mobile number." : "That is too long for a mobile number." }; }
-  if (d.startsWith("00")) d = d.slice(2);
-  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
-  const indian = (ten: string): Cleaned => (/^[6-9]\d{9}$/.test(ten) ? { ok: true, digits: "91" + ten, last10: ten } : { ok: false, why: "An Indian mobile number starts with 6, 7, 8 or 9." });
-  if (d.length === 10) return indian(d);
-  if (d.length === 12 && d.startsWith("91")) return indian(d.slice(2));
-  if (d.startsWith("91")) return { ok: false, why: "After +91 there must be 10 digits." };
-  if (d.length >= 11 && d.length <= 15) return { ok: true, digits: d, last10: d.slice(-10) };
-  return { ok: false, why: d.length < 10 ? "That is too short for a mobile number." : "That is too long for a mobile number." };
-}
-export const maskedPhone = (digits: string) => "******" + digits.slice(-4);
-const cleanName = (n: unknown) => (typeof n === "string" ? n.replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, 60) : "");
+export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
+export type { Cleaned } from "./phonekit";
+import { cleanPhone, maskedPhone, keptFromClean, phoneDigits } from "./phonekit";
+/** A name as kept: no control or invisible characters, no markup characters, and nothing at the front that a spreadsheet would run as a formula (= + - @). Also the server's answer to a hand-made request: the page already sends only tidy names. */
+export const cleanName = (n: unknown) => (typeof n === "string" ? Array.from(n).filter((ch) => { const c = ch.charCodeAt(0); return !(c < 32 || c === 127 || (c >= 0x200b && c <= 0x200f) || c === 0x2028 || c === 0x2029 || c === 0xfeff); }).join("").replace(/[<>`]/g, "").replace(/\s+/g, " ").replace(/^[=+\-@\s]+/, "").trim().slice(0, 60) : "");
 
 /** What a `from=` code on a common link means. */
 export type FromOwner = { kind: "org" } | { kind: "host"; hex: string } | { kind: "cohost"; hex: string } | { kind: "guest"; seq: number };
@@ -104,7 +88,7 @@ export const inviterOf = (o: FromOwner): string => (o.kind === "org" ? "o" : o.k
 export const srcOf = (inviter: string): string => (inviter.startsWith("c:") ? "co:" + inviter.slice(2) : inviter.startsWith("h:") ? "ho:" + inviter.slice(2) : "link");
 
 export const waMessage = (name: string | null, game: string, link: string) => `${name ? name + ", you" : "You"} are invited to ${game}. Open your game here: ${link}`;
-export const waLinkOf = (digits: string, text: string) => `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+export const waLinkOf = (digits: string, text: string) => `https://wa.me/${phoneDigits(digits)}?text=${encodeURIComponent(text)}`; // a kept number may start with +: wa.me wants the digits only
 
 /** Callers of the people routes. `all` = sees every list of the game (Organizer, Host). */
 export interface Caller { id: string; kind: "organizer" | "host" | "cohost" | "guest"; all: boolean; limit: number | null; label: string; seat?: number; platform?: boolean }
@@ -129,7 +113,7 @@ const PERSON_COLS = "eid, id, ph, pii, inviter, role, status, tok_hash, tok_seal
 interface PersonRow { eid: string; id: string; ph: string; pii: string; inviter: string; role: string | null; status: "invited" | "joined" | "removed"; tok_hash: string | null; tok_sealed: string | null; approved_by: string | null; approved_ms: number | null; added_ms: number; joined_ms: number | null; removed_ms: number | null; removed_by: string | null }
 
 /** Who may use the people routes, and as which list. Returns a response when they may not. A guest (level 1) is known by their card id (`me`), the same trust as the /invites route. */
-async function callerOf(c: Ctx, bodyMe?: unknown): Promise<{ who: Caller } | { res: Response }> {
+async function callerOf(c: Ctx, bodyMe?: unknown, bodyDevice?: unknown): Promise<{ who: Caller } | { res: Response }> {
   const { a, e } = c;
   if (a.kind === "ai" || c.viaLink || c.req.headers.get("x-cb-link") === "1") return { res: c.json({ error: AI_REFUSAL }, 403) };
   if (a.kind) {
@@ -146,6 +130,8 @@ async function callerOf(c: Ctx, bodyMe?: unknown): Promise<{ who: Caller } | { r
   if (!pid) return { res: c.json({ error: "Please sign in, or open your personal link first." }, 403) };
   const seat = await c.env.DB.prepare("SELECT seq, role, inv, blocked FROM seat WHERE eid=? AND pid=?").bind(c.eid, pid).first<{ seq: number; role: string | null; inv: number | null; blocked: number | null }>();
   if (!seat) return { res: c.json({ error: "Not a participant of this game." }, 403) };
+  // the card id is public (the seat list shows it): acting for a card also needs the phone's own device id, like check-in, prizes and leaving do
+  if (!(await deviceMatches(c.env, c.eid, pid, c.req.headers.get("x-cb-dev") || c.url.searchParams.get("device") || (typeof bodyDevice === "string" ? bodyDevice : "")))) return { res: c.json({ error: "Open this card on the phone you joined with to invite people.", code: "device" }, 403) };
   if (seat.blocked) return { res: c.json({ error: "You were removed from this game.", code: "removed" }, 403) };
   if (seat.role) return { res: c.json({ error: "Your team seat invites through the console, not through the game page." }, 403) };
   if (seat.inv !== null) return { res: c.json({ error: "Guests invited by a guest can play but cannot invite more people." }, 403) };
@@ -198,7 +184,7 @@ export async function chainOf(db: D1, eid: string, inviter: string): Promise<str
   return "," + ids.join(",") + ",";
 }
 
-const csvCell = (v: unknown) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const csvCell = (v: unknown) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s) && !/^\+\d{6,15}$/.test(s)) s = "'" + s; /* a plain international number (+447911123456) is not a formula: keep it exactly, so a re-upload reads the same number */ return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 
 /** Removed seats stay in the public seat list (winners must be identical on every phone) but cannot win Unlucky: their ids are kept in one small public list that phones read with the seats. */
 async function refreshBlocked(db: D1, eid: string): Promise<void> {
@@ -231,7 +217,7 @@ export async function peopleRoute(c: Ctx): Promise<Response> {
 
   let bodyObj: any = null;
   if (method === "POST" || method === "PATCH") { const ct = c.req.clone(); bodyObj = await c.body(ct, 65_536); }
-  const got = await callerOf(c, bodyObj?.me);
+  const got = await callerOf(c, bodyObj?.me, bodyObj?.device);
   if ("res" in got) return got.res;
   const who = got.who;
   if (c.e.unplayed_ms && method !== "GET") return c.json({ error: "This game did not start. Your details have been erased.", code: "did-not-start", didNotStart: true }, 409);
@@ -278,17 +264,18 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
-  const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string }[] = [];
+  const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
     const emp = normEmp(x?.empId ?? x?.employeeId);
     if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
-    if (vf.employeesOnly && vf.mode !== "mobile" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
-    if (vf.mode === "id" && emp) { // known by ID alone: a mobile number is welcome but not needed
+    if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
+    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
+    if ((vf.mode === "id" || (vf.mode === "either" && !phoneTyped)) && emp) { // known by ID alone: a mobile number is welcome but not needed
       let digits = "";
-      if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = cl.digits; }
+      if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
       if (seen.has(ph)) { duplicates++; continue; }
       seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
@@ -297,16 +284,22 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
     if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; }
     const ph = await phoneHashOf(c.env, cl.digits);
     if (seen.has(ph)) { duplicates++; continue; }
-    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: cl.digits, ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}) });
+    const idHash = vf.mode === "either" && emp ? await empHashOf(c.env, emp) : undefined; // "mobile number or employee ID": a listed person with both can come in with either, so the ID points to the mobile-number identity
+    if (idHash) { // the same employee ID on two people of one list would let the second take over the first's ID: the second is a duplicate
+      const al = await c.env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${c.eid}/${idHash}`).first<{ v: string }>();
+      if ((al && al.v !== ph && (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, al.v).first())) || seen.has("I" + idHash)) { duplicates++; continue; }
+      seen.add("I" + idHash);
+    }
+    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: keptFromClean(cl.digits), ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}), ...(idHash ? { idHash } : {}) });
   }
   const db = c.env.DB, hashes = todo.map((t) => t.ph);
-  const persons = await existingBy(db, "person", c.eid, hashes, "ph, status, id");
+  const persons = await existingBy(db, "person", c.eid, hashes, "ph, status, id, inviter, removed_by");
   const seats = await existingBy(db, "seat", c.eid, hashes, "ph, blocked");
   const waits = await existingBy(db, "waiting", c.eid, hashes, "ph, id, status");
   const fresh: typeof todo = [], revive: typeof todo = [];
   for (const t of todo) {
     const p = persons.get(t.ph);
-    if (p) { if (p.status === "removed" && who.all) revive.push(t); else duplicates++; continue; }
+    if (p) { if (p.status === "removed" && (who.all || (p.inviter === who.id && p.removed_by === who.id))) revive.push(t); /* an Organizer or Host puts anyone back; a Co-host or guest only takes back a person they removed themselves */ else if (p.status === "removed") invalid.push({ raw: `${t.name} ${t.digits ? "+" + phoneDigits(t.digits) : ""}`.trim(), why: "This person was removed. Ask the Organizer or a Host to put them back." }); else duplicates++; continue; }
     if (seats.has(t.ph)) { duplicates++; continue; } // a seat from an older flow (a loaded list): already in the game
     fresh.push(t);
   }
@@ -337,6 +330,8 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const waitingNow = todo.filter((t) => waits.has(t.ph) && waits.get(t.ph).status !== "admitted");
   for (const t of waitingNow) stmts.push(db.prepare("UPDATE waiting SET status='admitted', decided_by=?, decided_ms=? WHERE eid=? AND ph=?").bind(who.id, c.now, c.eid, t.ph));
   const res = await batched(db, stmts);
+  for (const t of todo) if (t.idHash) await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`idx/${c.eid}/${t.idHash}`, t.ph).run();
+  await recordConsent(db, { subject: who.kind === "organizer" ? (c.e.org ?? "platform") : `${c.e.org ?? "-"}/${who.id}`, kind: "K6", ref: c.eid, now: c.now });
   if (c.started && revive.length) await refreshBlocked(db, c.eid);
   // stmts are in the order fresh..., revive (+seat update)..., waiting...: map the person inserts back by position
   let i = 0; const done: typeof todo = [];
@@ -422,11 +417,13 @@ async function resendPerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
   if (b?.phone !== undefined && b.phone !== null && String(b.phone).trim() !== "") { // a new number: only for someone who has not joined yet
     const cl = cleanPhone(b.phone);
     if (!cl.ok) return c.json({ error: cl.why }, 400);
-    ph = await phoneHashOf(c.env, cl.digits);
-    if (ph !== row.ph) {
+    const idKeyed = !!pii?.empId && (await empHashOf(c.env, pii.empId)) === row.ph; // a person known by employee ID stays known by it: a new number is only a new contact number
+    ph = idKeyed ? row.ph : await phoneHashOf(c.env, cl.digits);
+    if (idKeyed) { newPii = await sealPii(c.env, { phone: keptFromClean(cl.digits), name: pii?.name ?? null, empId: pii!.empId }); pii = { phone: keptFromClean(cl.digits), name: pii?.name ?? null, empId: pii!.empId }; }
+    else if (ph !== row.ph) {
       if (hasSeat) return c.json({ error: "They have already joined with their first number. Their card can move to a new phone, but not to a new number." }, 409);
       if ((await db.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=?").bind(c.eid, ph).first()) || (await db.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND ph=?").bind(c.eid, ph).first())) return c.json({ error: "That number is already invited.", code: "duplicate" }, 409);
-      newPii = await sealPii(c.env, { phone: cl.digits, name: pii?.name ?? null }); pii = { phone: cl.digits, name: pii?.name ?? null };
+      newPii = await sealPii(c.env, { phone: keptFromClean(cl.digits), name: pii?.name ?? null, ...(pii?.empId ? { empId: pii.empId } : {}) }); pii = { phone: keptFromClean(cl.digits), name: pii?.name ?? null, ...(pii?.empId ? { empId: pii.empId } : {}) };
     }
   }
   if (!(await c.spend(2))) return c.busy();
@@ -436,6 +433,7 @@ async function resendPerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
     db.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND ph=?").bind(c.eid, row.ph), // the first phone to open the new link keeps the card
   ]);
   if ((res[0]?.meta?.changes ?? 0) === 0) return c.json({ error: "That number is already invited.", code: "duplicate" }, 409);
+  if (newPii && pii?.empId && verifyOf(c.e).mode === "either") await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`idx/${c.eid}/${await empHashOf(c.env, pii.empId)}`, ph).run(); // the employee ID keeps pointing at this person's current number
   const link = `${c.origin}/j/${token}`;
   return c.json({ ok: true, link, waLink: pii?.phone ? waLinkOf(pii.phone, waMessage(pii.name || null, c.gameName, link)) : null, unlocked: hasSeat });
 }
@@ -488,10 +486,17 @@ async function listWaiting(c: Ctx, who: Caller): Promise<Response> {
   const label = await labelsOf(c), out = [];
   for (const r of await waitingRows(c, who, 200)) {
     const p = await openPii(c.env, r.pii), first = (p?.name ?? "").trim().split(/\s+/)[0] ?? "";
-    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit } : {}) });
+    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}) } : {}) }); // the Employee ID is shown to the Organizer and the Hosts only (they decide whether this person is an employee)
   }
   return c.json({ waiting: out });
 }
+/** Puts an admitted person on a list, but only while the waiting request is still "waiting" (so a decline that won the race leaves nobody inside). */
+const admitInsert = (db: D1, eid: string, wid: string, id: string, ph: string, pii: string, inviter: string, tokHash: string, tokSealed: string, by: string, now: number) =>
+  db.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,tok_hash,tok_sealed,approved_by,approved_ms,added_ms) SELECT ?,?,?,?,?,NULL,'invited',?,?,?,?,? WHERE EXISTS (SELECT 1 FROM waiting WHERE eid=? AND id=? AND status='waiting')")
+    .bind(eid, id, ph, pii, inviter, tokHash, tokSealed, by, now, now, eid, wid);
+const admitRevive = (db: D1, eid: string, wid: string, pid: string, inviter: string, tokHash: string, tokSealed: string, by: string, now: number) =>
+  db.prepare("UPDATE person SET status='invited', inviter=?, tok_hash=?, tok_sealed=?, approved_by=?, approved_ms=?, removed_ms=NULL, removed_by=NULL WHERE eid=? AND id=? AND EXISTS (SELECT 1 FROM waiting WHERE eid=? AND id=? AND status='waiting')")
+    .bind(inviter, tokHash, tokSealed, by, now, eid, pid, eid, wid);
 async function decideWaiting(c: Ctx, who: Caller, wid: string, b: any): Promise<Response> {
   if (!/^[0-9a-f]{12}$/.test(wid)) return c.json({ error: "No such request." }, 404);
   const decision = b?.decision;
@@ -510,10 +515,13 @@ async function decideWaiting(c: Ctx, who: Caller, wid: string, b: any): Promise<
   if ((await totalCount(db, c.eid)) >= c.e.cap && !(await db.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, w.ph).first())) return c.json({ error: `This game is for ${c.e.cap} people and all places are taken.`, code: "over-cap" }, 409);
   const token = newToken();
   const existing = await db.prepare("SELECT id, status FROM person WHERE eid=? AND ph=?").bind(c.eid, w.ph).first<{ id: string; status: string }>();
-  const stmts = [db.prepare("UPDATE waiting SET status='admitted', decided_by=?, decided_ms=? WHERE eid=? AND id=? AND status='waiting'").bind(who.id, c.now, c.eid, wid)];
-  if (!existing) stmts.push(db.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,tok_hash,tok_sealed,approved_by,approved_ms,added_ms) VALUES(?,?,?,?,?,NULL,'invited',?,?,?,?,?)").bind(c.eid, randHex(6), w.ph, w.pii, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.now));
-  else if (existing.status === "removed") stmts.push(db.prepare("UPDATE person SET status='invited', inviter=?, tok_hash=?, tok_sealed=?, approved_by=?, approved_ms=?, removed_ms=NULL, removed_by=NULL WHERE eid=? AND id=?").bind(inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.eid, existing.id), db.prepare("UPDATE seat SET blocked=NULL WHERE eid=? AND ph=?").bind(c.eid, w.ph));
-  await batched(db, stmts);
+  // The person goes in only while this request is still "waiting" (checked inside the same batch, before the request is marked admitted), so a decline that lands at the same instant can never leave a declined request with the person inside.
+  const stmts: ReturnType<D1["prepare"]>[] = [];
+  if (!existing) stmts.push(admitInsert(db, c.eid, wid, randHex(6), w.ph, w.pii, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now));
+  else if (existing.status === "removed") stmts.push(admitRevive(db, c.eid, wid, existing.id, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now), db.prepare("UPDATE seat SET blocked=NULL WHERE eid=? AND ph=? AND EXISTS (SELECT 1 FROM waiting WHERE eid=? AND id=? AND status='waiting')").bind(c.eid, w.ph, c.eid, wid));
+  stmts.push(db.prepare("UPDATE waiting SET status='admitted', decided_by=?, decided_ms=? WHERE eid=? AND id=? AND status='waiting'").bind(who.id, c.now, c.eid, wid));
+  const res = await batched(db, stmts);
+  if ((res[res.length - 1]?.meta?.changes ?? 0) === 0) return c.json({ ok: true, already: (await db.prepare("SELECT status FROM waiting WHERE eid=? AND id=?").bind(c.eid, wid).first<{ status: string }>())?.status ?? "decided" }); // someone decided this request an instant earlier: nothing was added
   const label = await labelsOf(c);
   return c.json({ ok: true, admitted: true, placedUnder: label(inviter) });
 }
@@ -549,8 +557,8 @@ async function decideAll(c: Ctx, who: Caller, b: any): Promise<Response> {
       if (lim !== null && counts.get(inviter)! >= lim) { if (!who.all) { notAdmitted++; continue; } inviter = who.id; if (!counts.has(inviter)) { limits.set(inviter, null); counts.set(inviter, 0); } }
       counts.set(inviter, (counts.get(inviter) ?? 0) + 1); total++;
       const token = newToken();
-      if (!existing) stmts.push(db.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,tok_hash,tok_sealed,approved_by,approved_ms,added_ms) VALUES(?,?,?,?,?,NULL,'invited',?,?,?,?,?)").bind(c.eid, randHex(6), w.ph, w.pii, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.now));
-      else stmts.push(db.prepare("UPDATE person SET status='invited', inviter=?, tok_hash=?, tok_sealed=?, approved_by=?, approved_ms=?, removed_ms=NULL, removed_by=NULL WHERE eid=? AND id=?").bind(inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now, c.eid, existing.id), db.prepare("UPDATE seat SET blocked=NULL WHERE eid=? AND ph=?").bind(c.eid, w.ph));
+      if (!existing) stmts.push(admitInsert(db, c.eid, w.id, randHex(6), w.ph, w.pii, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now));
+      else stmts.push(admitRevive(db, c.eid, w.id, existing.id, inviter, await tokenHash(token), await sealText(c.env, token), who.id, c.now), db.prepare("UPDATE seat SET blocked=NULL WHERE eid=? AND ph=? AND EXISTS (SELECT 1 FROM waiting WHERE eid=? AND id=? AND status='waiting')").bind(c.eid, w.ph, c.eid, w.id));
     }
     stmts.push(db.prepare("UPDATE waiting SET status='admitted', decided_by=?, decided_ms=? WHERE eid=? AND id=? AND status='waiting'").bind(who.id, c.now, c.eid, w.id));
     admitted++;

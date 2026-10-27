@@ -1119,3 +1119,23 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     expect(p.$(".zc-qa")!.textContent).toBe("We do not give refunds. If you cancel a paid game before it starts, your payment stays in the Organizer's account as credit for the next game, for 365 days. Unused credit lapses at the end of day 365.");
   });
 });
+
+describe("simpler console (owner order 2026-10-27: hide, never disable, the rarely used choices)", () => {
+  test("step 2: the 'How many rounds' choice is hidden (one game is one round), still in the page, and the rest of the step is shown", async () => {
+    const o = await organizer(); await make(o, "UI-SIMP");
+    const p = await consolePage(o, "UI-SIMP"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
+    const hidden = p.$("#sec2 .zc-hide[data-hidden='1']"); expect(hidden).not.toBeNull();
+    expect(hidden!.textContent).toMatch(/How many rounds/); expect(p.$("#sec2")!.textContent).toMatch(/Cards for each person/);
+    const visible = Array.from(p.win.document.querySelectorAll("#sec2 .zc-lbl")).filter((e: any) => !e.closest(".zc-hide")).map((e: any) => e.textContent).join("|");
+    expect(visible).not.toMatch(/How many rounds/);
+  });
+  test("a demo link kept in this browser is used once the organizer is taken straight into a game (not only on the home screen)", async () => {
+    const o = await organizer(); await make(o, "UI-PASS");
+    const posts: any[] = [];
+    const w = spy({ "POST /api/pass": (_m, b) => { posts.push(b); return { ok: true, cap: 100 }; } });
+    const p = await consolePage(o, "UI-PASS", o.token, {}, { afterLoad: w.hook, url: "http://localhost/zc?e=UI-PASS&pass=0123456789abcdef0123456789abcdef" } as any);
+    await p.waitFor((x) => /Hello/.test(x)); await p.waitFor(() => posts.length > 0, 8000);
+    expect(posts).toEqual([{ token: "0123456789abcdef0123456789abcdef" }]);
+  });
+});
+

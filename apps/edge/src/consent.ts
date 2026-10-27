@@ -52,3 +52,11 @@ export async function hasConsented(db: D1, subject: string, kind: Kind): Promise
 
 /** What a page needs to draw the boxes of a point. */
 export const textFor = (kind: Kind) => ({ version: CONSENT_VERSION, kind, boxes: boxesOf(kind).map(([id, text]) => ({ id, text })) });
+
+/** Names used by the shared platform code (same as Corporate Tambola): `consentMissing` is `consentRequired`; `hasConsent` can also look at any Terms version. */
+export const consentMissing = consentRequired;
+export type ConsentKind = Kind;
+export async function hasConsent(db: D1, subject: string, kind: Kind, anyVersion = false): Promise<boolean> {
+  if (!anyVersion) return hasConsented(db, subject, kind);
+  return !!(await db.prepare("SELECT 1 AS x FROM consent_log WHERE subject=? AND kind=? LIMIT 1").bind(subject, kind).first());
+}

@@ -4,7 +4,7 @@
 (function () {
   if (window.__ctAuto) return;
   window.__ctAuto = true;
-  var EVERY = 45000, loaded = null, timer = 0;
+  var EVERY = 45000, loaded = null, timer = 0, BUILT = "__BUILT__"; /* pages/build.mjs writes "commit|builtAt|" here, so an older saved copy of this file knows it is old at its very first look */
   function sig(j) { return j ? [j.commit, j.builtAt, j.rev].join("|") : ""; }
   function get() { return fetch("/version.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(sig).catch(function () { return ""; }); }
   function typing() {
@@ -25,14 +25,16 @@
     try { if (window.__big) return (window.__big.logs && (window.__big.logs[window.__big.round] || []).length > 0) && !window.__big.dns; } catch (e) { return true; }
     return false;
   }
+  // The organizer console sets window.__ctDirty while steps 1 to 4 hold typed or tapped work that is not saved yet: the page waits (it updates after the person saves), so an update never wipes unsaved work.
+  function unsavedWork() { try { return !!(window.__ctDirty && window.__ctDirty()); } catch (e) { return false; } }
   function check() {
     get().then(function (now) {
       if (!now) return;
-      if (loaded === null) { loaded = now; return; }
-      if (now === loaded || typing() || inRunningGame()) return;
-      var done = ""; try { done = sessionStorage.getItem("ct-auto-done") || ""; } catch (e) {}
+      if (loaded === null) loaded = BUILT && BUILT.indexOf("__") !== 0 ? BUILT : now;
+      if (now === loaded || typing() || inRunningGame() || unsavedWork()) return;
+      var done = ""; try { done = sessionStorage.getItem("cb-auto-done") || ""; } catch (e) {}
       if (done === now) return;
-      try { sessionStorage.setItem("ct-auto-done", now); } catch (e) {}
+      try { sessionStorage.setItem("cb-auto-done", now); } catch (e) {}
       clear().then(function () { location.reload(); });
     });
   }
