@@ -196,3 +196,93 @@ table.price td:nth-child(3){text-align:right}
 select#pack,.pwho select#pack{min-height:48px}
 
 #topbar .tb-mark img{width:100%;height:100%;display:block;border-radius:27%}
+
+/* landing refresh 2026-10-29: the same warm, festive look as the Corporate Games home site (marigold, saffron, rose, teal, indigo on warm white),
+   laid over this game's own colours. Hero = the engagement question, two buttons, "Choose your game"; then "What you can count on".
+   Phone (< 900px) and laptop (900px and up) have different layouts. Only the landing page (body.lp) uses these rules. */
+body.lp{background:#FFFAF2}
+html[data-theme] .site.fest{background:
+  radial-gradient(460px 340px at 97% 3%,rgba(255,92,138,.34),transparent 66%),
+  radial-gradient(520px 400px at 2% 100%,rgba(255,201,60,.30),transparent 66%),
+  radial-gradient(620px 420px at 56% 114%,rgba(240,140,0,.28),transparent 62%),
+  radial-gradient(700px 500px at 0% 0%,var(--t3) 0%,transparent 60%),
+  linear-gradient(135deg,var(--t1),var(--t2) 55%,var(--t1))}
+.site.fest::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.32;
+  background-image:radial-gradient(circle,#FFC93C 0 3px,transparent 3.5px),radial-gradient(circle,#FF5C8A 0 2.5px,transparent 3px),radial-gradient(circle,#2EC4B6 0 2.5px,transparent 3px);
+  background-size:230px 190px,270px 220px,310px 250px;background-position:40px 60px,150px 130px,95px 210px}
+.lp-hero .eyebrow{display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,201,60,.5);border-radius:999px;padding:6px 13px;letter-spacing:.1em}
+.site .lp-hero h1{font-size:clamp(30px,min(3.3vw,6.4vh),50px);line-height:1.08;max-width:16em;margin:14px 0 12px}
+.site .lp-hero h1 em{margin-top:2px}
+.lp-sub{margin:0;font:500 clamp(16px,1.35vw,19px)/1.45 var(--sans);color:#EEF7F6;max-width:34em}
+.lp-cta{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0 0}
+.lp-btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 24px;border-radius:999px;border:2px solid rgba(255,255,255,.75);color:#fff;font:700 16px/1.2 var(--sans);text-decoration:none;text-align:center;transition:transform .15s ease,background-color .15s ease}
+.lp-btn:hover{background:rgba(255,255,255,.12)}
+.lp-btn.main{background:#FFC93C;border-color:#FFC93C;color:#1B1442;box-shadow:0 10px 26px -10px rgba(255,201,60,.75)}
+.lp-btn.main:hover{background:#FFD866;transform:translateY(-1px)}
+.lp-btn:focus-visible,.lp-choose a:focus-visible,.lp-contact a:focus-visible{outline:3px solid #FFC93C;outline-offset:3px}
+.lp-choose{margin:24px 0 0}
+.lp-choose p{margin:0 0 10px;font:700 12.5px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:#FFE08A}
+.lp-choose ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.lp-choose a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:4px 14px 4px 5px;border-radius:999px;background:#fff;color:#1B1442;font:600 14.5px/1.2 var(--sans);text-decoration:none;border:2px solid transparent;box-shadow:0 6px 16px -10px rgba(0,0,0,.6);transition:transform .15s ease}
+.lp-choose a:hover{transform:translateY(-2px);border-color:var(--c,#FFC93C)}
+.lp-choose a[aria-current="page"]{border-color:#FFC93C;box-shadow:0 0 0 3px rgba(255,201,60,.45)}
+.lp-choose .gb{width:34px;height:34px;flex:none;display:block}
+.g-housie{--c:#E23E57;--w:#FFE6EA}.g-bingo{--c:#2D3FE0;--w:#E6E9FF}.g-ttt{--c:#17784A;--w:#E1F5EA}.g-snakes{--c:#9C3D1E;--w:#FFEBDD}.g-luck{--c:#6A2BD9;--w:#EFE6FF}.g-all{--c:#3B1F9E;--w:#FFF0D6}
+.lp-contact{margin:18px 0 0;font-size:14.5px;color:#EEF7F6}
+.lp-contact a{color:#FFE08A;font-weight:600;display:inline-block;padding:6px 0}
+.lp-side{display:flex;flex-direction:column;gap:22px;min-width:0}
+.lp-side .eq{display:none}
+.lp-side .who ul{display:flex;flex-wrap:wrap;gap:8px}
+.lp-side .who li{font-size:13px;padding:6px 12px;border:1px solid rgba(255,201,60,.45);border-radius:999px}
+.lp-side .who li::before{display:none}.lp-side .who li.on{transform:none;background:rgba(255,201,60,.2)}
+/* laptop: question on the left, the game picture on the right; games as a row of pills */
+@media (min-width:900px){
+  .site .smain.lp{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(28px,3.4vw,56px);align-items:center}
+  .lp-side .who{text-align:center}.lp-side .who ul{justify-content:center}
+}
+/* phone: one column, big buttons, games as a 3 by 2 grid of tiles, the picture after */
+@media (max-width:899.98px){
+  .site .smain.lp{grid-template-columns:minmax(0,1fr);gap:26px}
+  .site .lp-hero h1{font-size:29px;line-height:1.12}
+  .lp-cta{flex-direction:column}.lp-btn{width:100%}
+  .lp-choose ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .lp-choose a{flex-direction:column;justify-content:flex-start;gap:6px;padding:10px 4px 9px;border-radius:16px;background:var(--w,#fff);font-size:13px;text-align:center;height:100%}
+  .lp-choose .gb{width:46px;height:46px}
+  .lp-side .vtop{display:none}
+}
+/* "What you can count on" */
+.lp-trust{background:#fff;border-bottom:1px solid #EFDDBE;padding:clamp(34px,5vw,56px) 0}
+.lp-trust .in{max-width:1120px;margin:0 auto;padding:0 16px}
+.lp-trust h2.h{font:600 clamp(24px,2.8vw,32px)/1.15 var(--serif);margin:0 0 20px;color:#1B1442}
+.lp-facts{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr;gap:14px}
+.lp-facts li{position:relative;padding:8px 0 0 52px;min-height:40px;font:700 16.5px/1.35 var(--sans);color:#1B1442}
+.lp-facts li::before{content:"";position:absolute;left:0;top:0;width:38px;height:38px;border-radius:12px;background:var(--fc,#F08C00)}
+.lp-facts li::after{content:"";position:absolute;left:12px;top:11px;width:14px;height:8px;border:solid #fff;border-width:0 0 3px 3px;transform:rotate(-45deg)}
+.lp-facts li:nth-child(6n+1){--fc:#E23E57}.lp-facts li:nth-child(6n+2){--fc:#2D3FE0}.lp-facts li:nth-child(6n+3){--fc:#0E9488}
+.lp-facts li:nth-child(6n+4){--fc:#B85C00}.lp-facts li:nth-child(6n+5){--fc:#6A2BD9}.lp-facts li:nth-child(6n+6){--fc:#17784A}
+@media (min-width:900px){.lp-facts{grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 26px}}
+/* warmer sections and rounded, colourful cards below the hero */
+.lp .sec.alt{background:#FFF4DC;border-color:#F3DDB0}
+.lp .benef article,.lp .steps li{border-radius:20px;border-top:5px solid var(--bc,#F08C00);box-shadow:0 1px 2px rgba(27,20,66,.06),0 10px 26px -14px rgba(27,20,66,.25)}
+.lp .benef article:nth-child(4n+1),.lp .steps li:nth-child(4n+1){--bc:#E23E57}.lp .benef article:nth-child(4n+2),.lp .steps li:nth-child(4n+2){--bc:#3B1F9E}
+.lp .benef article:nth-child(4n+3),.lp .steps li:nth-child(4n+3){--bc:#0E9488}.lp .benef article:nth-child(4n+4),.lp .steps li:nth-child(4n+4){--bc:#F08C00}
+.lp .benef article:nth-child(4n+1) .bi{background:#FFE6EA;color:#B0213F}.lp .benef article:nth-child(4n+2) .bi{background:#ECE8FF;color:#3B1F9E}
+.lp .benef article:nth-child(4n+3) .bi{background:#DDF5F2;color:#0B6B63}.lp .benef article:nth-child(4n+4) .bi{background:#FFF0D6;color:#9E3C00}
+.lp .faq details{border-radius:16px}
+@media (prefers-reduced-motion:reduce){.lp-btn,.lp-choose a{transition:none}.lp-btn.main:hover,.lp-choose a:hover{transform:none}}
+/* brand: the game's badge is its logo, with a small CORPORATE line above the name (owner, 2026-10-29) */
+.snav .mark .gb{width:100%;height:100%;display:block}
+.snav .word .gn{display:flex;flex-direction:column;line-height:1.05}
+.snav .word .gn i{font:700 10px/1.2 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--acc2)}
+.lp-choose .gn{display:flex;flex-direction:column;line-height:1.12}
+.lp-choose .gn i{font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#5B5480}
+@media (max-width:899.98px){.lp-choose .gn{align-items:center}}
+/* the site's own menu, the same labels on every Corporate Games site: How it works, For HR teams, Data and privacy, Contact, Sign in (+ the free game) */
+body.lp .snav .links a.lp-navcta{background:#FFC93C;border-color:#FFC93C;color:#1B1442;font-weight:700}
+body.lp .snav .links a.lp-navcta:hover{background:#FFD866}
+body.lp .snav .links a.login{display:inline-flex;background:#fff;color:#1B1442;border-color:#fff}
+@media (max-width:899.98px){body.lp .snav .links a.how:not(.lp-contactlink),body.lp .snav .links a.lp-navcta{display:none}body.lp .snav .links a.lp-contactlink{display:inline-flex}}
+/* phone: the three colour dots move to the bottom left corner so they never sit on the game name */
+@media (max-width:899.98px){body.lp .tdots{top:auto!important;bottom:16px;left:12px;transform:none}body.lp .site .snav{padding-top:12px}}
+/* the trust strip under the hero wraps onto two lines on a laptop instead of running off the screen */
+@media (min-width:900px){body.lp .strip .sin{flex-wrap:wrap;justify-content:center;gap:8px 26px}}
