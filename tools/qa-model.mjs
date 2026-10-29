@@ -608,6 +608,35 @@ function auditServer(w, id, n, label, phases, { format = "solo", teamSize = 1, a
   } else check("M6.reportData", "worker", false, "no report e-mail was produced");
 }
 
+// ================================================================================================ M7  the words
+section("M7 the words players, organizers and readers see");
+{
+  const { readdirSync } = await import("node:fs");
+  const list = (dir, re) => readdirSync(join(ROOT, dir)).filter((n) => re.test(n)).map((n) => join(dir, n));
+  const GENERATED = new Set(["tttgame.js", "control.js", "zgame.js", "reportgen.js"]);
+  const files = [...list("apps/web/public", /\.(html|js|txt|json|webmanifest)$/).filter((f) => !GENERATED.has(f.split("/").pop())), ...list("apps/edge/src", /\.(ts|json)$/), ...list("packages/ttt/src", /\.ts$/), "tools/make-legal-pages.mjs"];
+  const readable = (t, f) => (/\.(js|ts|mjs)$/.test(f) ? t.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[\s;{}(,])\/\/[^\n]*/g, "$1").replace(/\bprivate\s+(readonly\s+|async\s+|static\s+)?[A-Za-z_$]/g, " ") : t.replace(/<!--[\s\S]*?-->/g, " "));
+  const priv = []; const nonEnglish = [];
+  for (const f of files) { const t = readFileSync(join(ROOT, f), "utf8"); const r = readable(t, f); for (const m of r.matchAll(/\bprivate\b/gi)) priv.push(f + ": " + r.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\s+/g, " ")); if (/[ऀ-ॿ؀-ۿ一-鿿]/.test(t)) nonEnglish.push(f); }
+  check("M7.private", "words", priv.length === 0, `the word 'private' is nowhere a person reads it (${files.length} files)${priv.length ? " | " + priv.slice(0, 3).join("; ") : ""}`, files.length);
+  check("M7.english", "words", nonEnglish.length === 0, `English only: no Hindi, Arabic or Chinese letters in the pages and texts${nonEnglish.length ? " | " + nonEnglish.join(", ") : ""}`);
+  // payments: only IT Services by Rajat Agarwal, through Razorpay
+  const pages = list("apps/web/public", /\.html$/); let wrongSeller = [], tooMany = 0, razor = 0;
+  for (const f of pages) { const t = readFileSync(join(ROOT, f), "utf8"); if (/Payments are collected by (?!IT Services by Rajat Agarwal)/.test(t)) wrongSeller.push(f); if (/Safe online payment through Razorpay/.test(t)) razor++; if (/\b(Stripe|PayPal|PayU|Paytm|PhonePe|Cashfree|Instamojo)\b/i.test(t)) tooMany++; }
+  check("M7.payee", "words", wrongSeller.length === 0 && tooMany === 0 && razor > 8, `every page that names who takes payments says IT Services by Rajat Agarwal through Razorpay (${razor} pages carry the line; no other payment company named)`);
+  // the owner-approved late-move line, and the 11 lines of the draft message table
+  const bundle = readFileSync(join(ROOT, "apps/web/public/tttgame.js"), "utf8"), page = readFileSync(join(ROOT, "apps/web/public/ttt.js"), "utf8") + bundle;
+  const table = [
+    ["Your turn", /Your turn/], ["Waiting for", /Waiting for/], ["Move too late", /Ohooo! (\u{1F60A}|\\u\{1F60A\}|\\ud83d\\ude0a) Sorry, you moved after your turn ended\. This move cannot be made\./iu], // the bundle may write the smile as an escape
+    ["Time ran out", /Your time ran out, so a square was played for you\./], ["Second time-out", /Your time ran out twice in a row\. This board goes to your opponent\./],
+    ["Won board", /You won this board\. On to the next round\./], ["Lost board", /This board is over\. Thank you for playing\./], ["Draw", /A draw\. We play again with the marks swapped \(game \d of 3\)\./],
+    ["Paused", /Game paused by the host at/], ["Away note", /Welcome back\. You were away for/], ["Do Not Disturb", /switch on Do Not Disturb/],
+  ];
+  const missing = table.filter(([, re]) => !re.test(page)).map(([n]) => n);
+  check("M7.lateLine", "words", !missing.includes("Move too late"), "the owner-approved late-move line is in the shipped code, word for word");
+  if (missing.length) finding("F-messages", "GAP", `${missing.length} of the 11 lines in the draft message table (docs/boss/RULES_tictactoe.md section 10) are not in the shipped pages`, "apps/web/public/ttt.js, packages/ttt/src/phone.ts (screens: playing(), render0())", `Missing word for word: ${missing.join(", ")}. The rules file is a draft for the owner to read first; only the late-move line has the owner's approval.`, "OWNER DECISION: approve the table (or edit it), then add the lines. Recommendation: approve; the 'time ran out' and 'welcome back' lines matter most because a square appears that the player did not choose.");
+}
+
 // ================================================================================================ M6 / M7 are inserted here
 
 // ================================================================================================ report
