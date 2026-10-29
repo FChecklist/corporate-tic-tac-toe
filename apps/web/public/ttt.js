@@ -135,15 +135,15 @@
     const b = s.board;
     if (!b) { set(`${top()}<div class="zcard"><h2>${esc(s.roundName)}</h2><p>Your board is finished. Waiting for your team.</p></div>${others(s)}`); return; }
     const t = b.deadlineMs ? secs(b.deadlineMs) : null, key = boardKey(s, b);
-    const won = b.done && b.winner === s.you, opp = s.vs || (b.a === s.you ? b.b : b.a), mine = b.yourMark, theirs = mine === "X" ? "O" : "X";
-    const status = b.done ? (won ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn);
+    const won = b.done && (b.youWon !== undefined ? b.youWon : b.winner === s.you), opp = s.vs || (b.a === s.you ? b.b : b.a) /* TT-26: who won comes from ids (youWon), never from comparing names */, mine = b.yourMark, theirs = mine === "X" ? "O" : "X";
+    const status = b.done ? (won ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn === s.you ? b.turn + " (the other player)" : b.turn);
     const tone = b.done ? (won ? "won" : "over") : s.paused ? "pause" : b.yourTurn ? "go" : "wait";
     const instr = b.done ? (won ? "Well played! Keep this page open." : "This board is finished. Keep this page open.") : s.paused ? "The host paused the game. It carries on shortly." : b.yourTurn ? `Tap a square to place your ${mine}.` : `${esc(opp)} is choosing a square.`;
     const flash = !SEEN.first && SEEN.turn[key] !== undefined && SEEN.turn[key] !== !!b.yourTurn && MOTION() ? " flash" : "";
     const fresh = b.done && winLine(b.cells) && !SEEN.won.has(key + "|" + b.cells.join(""));
     const turnName = b.turn;
     set(`${top()}<div class="zcard tplay"><h2>${esc(s.roundName)}${s.team ? " &middot; " + esc(s.team) : ""}</h2>
-      <div class="tplayers" role="group" aria-label="Players"><span class="tpl ${mine === "X" ? "x" : "o"}${!b.done && turnName === s.you ? " on" : ""}"><i>${mine}</i><b>${esc(s.you)}</b> <em>(you)</em></span><span class="tvsw">vs</span><span class="tpl ${theirs === "X" ? "x" : "o"}${!b.done && turnName !== s.you ? " on" : ""}"><i>${theirs}</i><b>${esc(opp)}</b></span></div>
+      <div class="tplayers" role="group" aria-label="Players"><span class="tpl ${mine === "X" ? "x" : "o"}${!b.done && b.yourTurn ? " on" : ""}"><i>${mine}</i><b>${esc(s.you)}</b> <em>(you)</em></span><span class="tvsw">vs</span><span class="tpl ${theirs === "X" ? "x" : "o"}${!b.done && !b.yourTurn ? " on" : ""}"><i>${theirs}</i><b>${esc(opp)}</b></span></div>
       ${s.flagged ? `<div class="zbanner warn" role="alert">The two reports of this board are different. The organizer will settle it.</div>` : ""}
       <div class="tbanner ${tone}${flash}"><p class="tstat ${b.yourTurn ? "mine" : ""}" role="status"><span class="tstxt">${status}</span>${t !== null && !s.paused && !b.done ? ` <span class="tclock${t <= 5 ? " low" : t <= 10 ? " mid" : ""}" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p><p class="tinstr">${instr}</p></div>
       ${boardHtml(b, true, key)}

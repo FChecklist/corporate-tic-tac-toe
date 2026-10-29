@@ -96,14 +96,14 @@ export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: 
 }
 
 // ---------------------------------------------------------------------------------------------------------------- what a screen shows
-export interface BoardShown { j: number; a: string; b: string; aName: string; bName: string; cells: number[]; x: string; o: string; gameNo: number; games: number; turn: string | null; deadlineMs: number | null; done: boolean; winner: string | null; via: string | null; ply: number; lastAuto: boolean; yourMark?: "X" | "O" | null; yourTurn?: boolean }
+export interface BoardShown { j: number; a: string; b: string; aName: string; bName: string; cells: number[]; x: string; o: string; gameNo: number; games: number; turn: string | null; deadlineMs: number | null; done: boolean; winner: string | null; via: string | null; ply: number; lastAuto: boolean; yourMark?: "X" | "O" | null; yourTurn?: boolean; youWon?: boolean }
 export function boardView(b: BoardState, names: Record<string, string>, pauses: readonly [number, number | null][], paused: boolean, me?: string): BoardShown {
   const g = b.games[b.games.length - 1]!; const mover = b.done ? null : moverOf(g); const n = (id: string) => names[id] ?? "?";
   return {
     j: b.j, a: n(b.a), b: n(b.b), aName: n(b.a), bName: n(b.b), cells: [...g.cells], x: n(g.x), o: n(g.o), gameNo: g.no, games: b.games.length, turn: mover ? n(mover) : null,
     deadlineMs: b.done || paused ? null : wallOf(pauses, g.deadline), done: b.done, winner: b.winner ? n(b.winner) : null, via: b.via ?? null, ply: g.moves.length,
     lastAuto: g.moves.length ? !!g.moves[g.moves.length - 1]!.auto : false,
-    ...(me ? { yourMark: (g.x === me ? "X" : g.o === me ? "O" : null) as "X" | "O" | null, yourTurn: mover === me } : {}),
+    ...(me ? { yourMark: (g.x === me ? "X" : g.o === me ? "O" : null) as "X" | "O" | null, yourTurn: mover === me, youWon: b.done && b.winner === me } : {}), // youWon is by id: two players may share a name
   };
 }
 
