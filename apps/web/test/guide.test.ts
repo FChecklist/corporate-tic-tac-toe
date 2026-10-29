@@ -71,6 +71,18 @@ describe("what a person reads is polite, complete and free of technical words", 
   });
 });
 
+describe("what the Tic Tac Toe console can show uses this game's words (QA 2026-10-29)", () => {
+  // messages the Organizer can meet in the console of THIS game: the entry that explains each must not talk about tickets, cards, claims, Full House or numbers called
+  const OTHER_GAME = /\b(tickets?|cards?|full house|claims?|claimed|numbers? called|housie|tambola|bingo)\b/i;
+  test("the explanations for 'Tick at least one prize', the number of players, the company strip, a number already on the list and a lost connection", async () => {
+    const p = await page(); const CTG = p.win.CTG;
+    for (const msg of ["Tick at least one prize.", "Please give the number of players, for example 180.", "Add your company name for the top of the ticket.", "That number is already invited.", "Could not reach the game", "The game could not be opened just now"]) {
+      const f = CTG.find({ status: 400, message: msg }); expect([msg, f.matched]).toEqual([msg, true]);
+      const e = f.entry; expect([msg, [e.t, e.w, ...e.d].join(" | ").match(OTHER_GAME)?.[0] ?? ""]).toEqual([msg, ""]);
+    }
+  });
+});
+
 describe("showing it: pop-up, in place, take me there, back to where you were", () => {
   test("a pop-up has the title, what happened, the steps, a way forward and a way to close; Escape closes it", async () => {
     const p = await page(); const d = p.win.document;
