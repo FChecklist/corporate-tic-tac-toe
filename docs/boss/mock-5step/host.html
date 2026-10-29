@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-store"><title>Corporate Tambola - game link (Host / Co-host sign in mock)</title>
+<style>
+:root{--bg:#f6f4ff;--card:#fff;--ink:#1d1b3a;--mut:#6a6788;--line:#e4e0f5;--violet:#7a4cf0;--green:#1f9d63;--warn:#b86400}
+@media(prefers-color-scheme:dark){:root{--bg:#14122a;--card:#1e1b3d;--ink:#f1efff;--mut:#a9a5cf;--line:#37336a}}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);background:var(--card)}.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),#d4348f);display:grid;place-items:center;color:#fff;font-weight:700}
+main{max-width:520px;margin:0 auto;padding:22px 16px}h1{font-size:25px;margin:0 0 6px}p{color:var(--mut);margin:0 0 16px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:18px}label{display:block;font-weight:600;margin:12px 0 6px}
+input{width:100%;font:inherit;padding:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}input:focus,button:focus-visible{outline:3px solid #2f6df6;outline-offset:2px}
+.btn{border:0;border-radius:12px;padding:12px 22px;font:inherit;font-weight:700;cursor:pointer;background:var(--violet);color:#fff;margin-top:14px}.btn.sec{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.code{display:flex;gap:8px;margin-top:6px}.code input{text-align:center;font-size:24px;font-weight:700;padding:10px 0}
+.msg{margin-top:10px;font-size:14.5px}.warn{color:var(--warn);font-weight:600}.ok{color:var(--green);font-weight:600}.demo{background:#fff6dd;border:1px dashed #d9b44a;color:#6b5200;border-radius:10px;padding:8px 12px;font-size:14px;margin-top:12px}
+.hide{display:none}.mini{font-size:13.5px;color:var(--mut)}
+.trust{background:#e3f4ec;color:#0f4d33;padding:8px 16px;font-size:14px;text-align:center;border-bottom:1px solid rgba(31,157,99,.4)}
+</style></head><body>
+<header><div class="logo">T</div><b>Corporate Tambola</b></header>
+<div class="trust">🔒 <b>No personal details needed.</b> Only your email ID is used, to confirm that you are the Host or Co-host.</div>
+<main>
+<div id="s1"><h1>Welcome to the game</h1><p>Team engagement game on <b>Thu 29 Oct, 7 pm IST</b>. Are you the Host or a Co-host? Type your email ID to confirm.</p>
+<div class="card"><label for="em">Your email ID</label><input id="em" type="email" placeholder="host@acme.com" autocomplete="off"><button class="btn" onclick="send()">Send my 6-digit passcode</button>
+<div class="msg" id="m1"></div><div class="mini" style="margin-top:12px">Playing as a participant? <a href="#" onclick="alert('Participants type their employee ID or email ID on this same link.');return false">Continue as a participant</a></div></div>
+<div class="demo">Demo only: try <b>host@acme.com</b> (Host), <b>cohost@acme.com</b> (Co-host), or any other email ID to see the "not on the list" message.</div></div>
+<div id="s2" class="hide"><h1>Enter your passcode</h1><p>The system sent a 6-digit passcode to <b id="to"></b>. It works for 10 minutes.</p>
+<div class="card"><label for="c0">6-digit passcode</label><div class="code" id="codes"></div><button class="btn" onclick="check()">Confirm</button> <button class="btn sec" onclick="send(true)">Send a new passcode</button>
+<div class="msg" id="m2"></div><div class="demo" id="demo"></div><div class="mini" style="margin-top:10px"><a href="#" onclick="back();return false">Use a different email ID</a></div></div></div>
+</main>
+<script>
+const LIST={'host@acme.com':'host','cohost@acme.com':'cohost'};let code='',email='',tries=0;
+const $=s=>document.querySelector(s);
+const cs=$('#codes');for(let i=0;i<6;i++){const e=document.createElement('input');e.inputMode='numeric';e.maxLength=1;e.id='c'+i;e.setAttribute('aria-label','Digit '+(i+1));e.oninput=()=>{e.value=e.value.replace(/\D/g,'');if(e.value&&i<5)document.getElementById('c'+(i+1)).focus()};e.onkeydown=ev=>{if(ev.key==='Backspace'&&!e.value&&i>0)document.getElementById('c'+(i-1)).focus()};e.onpaste=ev=>{const t=(ev.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6);if(t){ev.preventDefault();[...t].forEach((d,k)=>document.getElementById('c'+k).value=d);document.getElementById('c'+Math.min(5,t.length)).focus()}};cs.appendChild(e)}
+function send(again){email=again?email:$('#em').value.trim().toLowerCase();const m=$('#m1');
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){m.className='msg warn';m.textContent='Please type a valid email ID, for example name@company.com';return}
+if(!LIST[email]){m.className='msg warn';m.textContent='This email ID is not on the Host or Co-host list. If you are a participant, please use the participant option below. If you should be a Host or Co-host, ask the organizer to add you.';return}
+code=String(Math.floor(100000+Math.random()*900000));tries=0;$('#to').textContent=email;$('#s1').classList.add('hide');$('#s2').classList.remove('hide');$('#demo').textContent='Demo only: your passcode is '+code+' (a real one arrives by email).';$('#m2').textContent=again?'A new passcode was sent.':'';$('#m2').className='msg ok';document.getElementById('c0').focus()}
+function back(){$('#s2').classList.add('hide');$('#s1').classList.remove('hide')}
+function check(){const v=[...Array(6).keys()].map(i=>document.getElementById('c'+i).value).join('');const m=$('#m2');
+if(v.length<6){m.className='msg warn';m.textContent='Please type all 6 digits.';return}
+if(v!==code){tries++;m.className='msg warn';m.textContent=tries>=5?'Too many wrong tries. Please ask for a new passcode.':'That passcode is not right. Please try again ('+(5-tries)+' tries left).';return}
+m.className='msg ok';m.textContent='Confirmed. Opening your '+(LIST[email]==='host'?'Host':'Co-host')+' page...';setTimeout(()=>location.href='index.html?role='+LIST[email]+'&email='+encodeURIComponent(email),700)}
+</script></body></html>
