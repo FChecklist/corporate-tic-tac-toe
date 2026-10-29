@@ -1,0 +1,2 @@
+﻿# Boss docs for cloud sessions (2026-10-29)
+Owner rules: close group, never the word private in player-facing text; English only; short plain customer copy; payments only by IT Services by Rajat Agarwal through Razorpay; no deploy, no merge, no secrets; push only your own new branch. Live line for this game is the commit this branch was cut from. These documents are copies from the owner's laptop folders C:\ct\test-sites\docs-games and handover.
