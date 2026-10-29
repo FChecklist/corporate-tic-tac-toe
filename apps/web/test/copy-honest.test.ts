@@ -105,3 +105,12 @@ describe("TT-14: the fairness copy names the one case where a person picks a win
     const rep = readFileSync(join(EDGE, "report-layout.ts"), "utf8"); expect(rep).not.toMatch(/can choose, change or remove a winner/); expect(rep).toMatch(EXCEPTION);
   });
 });
+
+// ---- TT-27: the waiting-room line speaks plainly ("draw" also means a tied game) ----------------------------------------------------------------------------------------
+describe("TT-27: the player's waiting room does not use 'draw' for the order of play", () => {
+  test("ttt.js says who plays whom is fixed before anyone joins", () => {
+    const js = read("ttt.js");
+    expect(js).not.toContain("The draw is sealed before anyone joins");
+    expect(js).toContain("Who plays whom is fixed before anyone joins, so nobody can change it.");
+  });
+});
