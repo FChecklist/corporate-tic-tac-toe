@@ -49,3 +49,15 @@ describe("a join that gets no answer is asked again by itself", () => {
     await tick(300); expect(p.joins()).toBe(1); expect(p.d.body.textContent).toMatch(/This game is full/);
   });
 });
+
+// TT-08 (gap plan 2026-10-29): a person who arrives after the list closed was thrown to the bracket page with no reason. The page now stops on a card that says why.
+describe("a join after the player list closed", () => {
+  test("the page stays on a plain card ('The list of players is closed') with a link to watch the bracket, and does not move the person by itself", async () => {
+    const p = await page(() => ok({ error: "The tournament has started and the list is closed. You can still watch it.", code: "closed" }, 409));
+    await tick(200);
+    const t = p.d.body.textContent as string;
+    expect(t).toMatch(/The list of players is closed/); expect(t).toMatch(/already started/);
+    const a = p.d.querySelector('a[href^="/big.html?e=GAME-1"]'); expect(a).toBeTruthy(); expect(a!.textContent).toMatch(/Watch the bracket/);
+    expect(p.d.defaultView!.location.href).toContain("/z.html"); // nobody was sent away
+  });
+});

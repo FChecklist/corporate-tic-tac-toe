@@ -96,7 +96,7 @@
         start();
       } catch (e) {
         if (e.code === "waiting" && e.body && e.body.wid) { waitFor(e.body.wid, e.message); return; }
-        if (e.code === "closed") { location.href = "/big.html?e=" + encodeURIComponent(EID); return; }
+        if (e.code === "closed") { set(`${top()}<div class="zcard" role="status"><h2>The list of players is closed</h2><p class="tlead">The tournament has already started, so new players cannot join now.</p><p class="zsmall">You can still watch the bracket.</p><a class="zbtn" href="/big.html?e=${encodeURIComponent(EID)}">Watch the bracket</a></div>`); return; } // TT-08: say why, instead of sending the person to another page without a word
         // a join that timed out or lost its connection (no answer at all) is asked again by itself like a busy answer: joining is safe to repeat, the same phone gets the same place
         if ((e.code === "busy" || (!e.status && !e.code)) && busyTries < BUSY_TRIES) { busyTries++; busyView(); clearTimeout(retryTimer); retryTimer = setTimeout(attempt, Math.round((JOIN_RETRY_MS(busyTries)) * (0.7 + Math.random() * 0.6))); return; }
         joinMsg = e.message || "Could not join. Please try again."; joinView();
