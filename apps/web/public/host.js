@@ -1,5 +1,5 @@
 /* Corporate Tic Tac Toe, run the tournament (host.html). For the Organizer or a Host: see who joined, choose the format and the move clock, start, pause, resume, and open the big screen.
-   The page holds the sign-in key only in this tab's session (it comes from the console: zc.html?e=...). Nothing here changes a draw: the host cannot pick a bracket, a starter or a winner.
+   The page reads the sign-in key from the same store as the console (keep.js, so a new tab is still signed in), or from this tab's session (it comes from the console: zc.html?e=...). Nothing here changes a draw: the host cannot pick a bracket, a starter or a winner.
    While this page is open it does the Organizer's part of the computing (tttgame.js): it computes the draw from the sealed seed and sends it to the mailbox, looks after boards where both players are away,
    and sends the final ranking. A board whose two reports differ is listed here for the Organizer to settle. */
 (function () {
@@ -8,7 +8,7 @@
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const EID = (q.get("e") || "").trim();
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const ss = { get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* blocked */ } } };
+  const ss = { get: (k) => { try { return window.CTK ? window.CTK.get(k) : sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { if (window.CTK) window.CTK.set(k, v); else sessionStorage.setItem(k, v); } catch (e) { /* blocked */ } } };
   let key = ss.get("cbz-org") || "";
   { const k = q.get("k"); if (k && /^cb[a-z]_[0-9a-f]{48}$/.test(k)) { key = k; ss.set("cbz-org", k); history.replaceState(null, "", location.pathname + "?e=" + encodeURIComponent(EID)); } }
   const S = { format: "solo", teamSize: 3, moveSecs: 20, msg: "", view: null, disputed: [] };
