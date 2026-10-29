@@ -7,7 +7,7 @@ import { handle } from "./with-terms";
 import { eraseEverything } from "../src/lifecycle";
 import { makeD1 } from "./d1-sqlite";
 import { commitOf, seedOf, verifyReveal } from "../../../packages/ttt/src/seal";
-import { LATE_MOVE_MESSAGE, TttConsole, TttPhone, planOf, replayMatch, type MatchRec, type Setup } from "../../../packages/ttt/src/phone";
+import { LATE_MOVE_MESSAGE, TttConsole, TttPhone, planOf, replayMatch, type Api, type MatchRec, type Setup } from "../../../packages/ttt/src/phone";
 import type { MatchState } from "../../../packages/ttt/src/bracket";
 import { lastGame } from "../../../packages/ttt/src/match";
 import { apiFor, playCrowd } from "../../../tools/sim2/phones";
@@ -365,8 +365,54 @@ describe("removing a player after the host pressed Start (found by the Chrome si
   });
 });
 
-describe("QA 2026-10-29: a tap after the turn ended is told so", () => {
-  const phoneFor = (id: string, p: P, clock: { t: number }) => new TttPhone({ api: apiFor(call, clock), eid: id, pid: p.pid, device: p.device, now: () => clock.t });
+describe("QA 2026-10-29: one false report must not take a board; a tap after the turn ended is told so", () => {
+  // squares a player prefers: B walks along the top row, A plays elsewhere and never makes a line, so B wins whoever has X
+  const PREFER_B = [0, 1, 2, 3, 4, 5, 6, 7, 8], PREFER_A = [3, 4, 6, 5, 7, 8, 0, 1, 2];
+  const phoneFor = (id: string, p: P, clock: { t: number }, api?: (a: Api) => Api) => { const a = apiFor(call, clock); return new TttPhone({ api: api ? api(a) : a, eid: id, pid: p.pid, device: p.device, now: () => clock.t }); };
+  const swallowResults = (a: Api): Api => async (m, path, body) => (m === "POST" && path.endsWith("/ttt/result") ? { ok: true } : a(m, path, body)); // the cheat's own page never reports
+  const play = async (ph: TttPhone, prefer: number[]) => { const v = await ph.tick(); if (v.phase === "playing" && v.board && !v.board.done && v.board.yourTurn) { const sq = prefer.find((i) => v.board.cells[i] === 0)!; await ph.play(sq); } return v; };
+  test("F-steal: a false 'I won' two seconds into a live game does not end it; the other open page objects, the board is flagged and goes on, and at the end the stored moves decide (the Organizer's page settles it)", async () => {
+    const h = await game("QA-1"); const ps = await joinAll("QA-1", 2); const { clock, con } = await begin("QA-1", h, { moveSecs: 20 });
+    clock.t = T + 2000; const a = phoneFor("QA-1", ps[0]!, clock, swallowResults), b = phoneFor("QA-1", ps[1]!, clock);
+    await a.tick(); await b.tick();
+    expect((await result("QA-1", ps[0]!, "r1m0", ps[0]!.pid, clock.t)).status).toBe(200); // the false report
+    for (let s = 3; s <= 40; s++) { clock.t = T + s * 1000; await con.tick(); if (s % 20 === 0) await play(b, PREFER_B); else if (s % 20 === 10) await play(a, PREFER_A); else { await b.tick(); await a.tick(); } } // a slow game: a player looks at the board every 10 seconds
+    expect(sql("SELECT status FROM ttt_m WHERE eid='QA-1' AND mid='r1m0'")[0].status).toBe("live"); // 38 seconds later (past the 30 a lone report needs) the board is still being played
+    expect(sql("SELECT how, flag FROM ttt_b WHERE eid='QA-1'")).toEqual([{ how: "mismatch", flag: 1 }]);
+    expect(sql("SELECT winner FROM ttt_r WHERE eid='QA-1' AND pid=?", ps[1]!.pid)[0].winner).toBe("-"); // B said: the moves do not say that
+    let v = await b.tick(); expect(v.phase === "playing" || v.phase === "champion").toBe(true);
+    for (let s = 41; s <= 400 && (sql("SELECT state FROM ttt_t WHERE eid='QA-1'")[0].state !== "done"); s++) { clock.t = T + s * 1000; await con.tick(); if (s % 20 === 0) await play(b, PREFER_B); else if (s % 20 === 10) await play(a, PREFER_A); else { await b.tick(); await a.tick(); } }
+    expect(sql("SELECT state FROM ttt_t WHERE eid='QA-1'")[0].state).toBe("done");
+    clock.t += 5000; expect((await b.tick()).phase).toBe("champion"); expect((await a.tick()).phase).toBe("out"); // the player who really won the board is the champion
+    expect(sql("SELECT winner, how FROM ttt_b WHERE eid='QA-1'")).toEqual([{ winner: ps[1]!.pid, how: "organizer" }]);
+  }, 60_000);
+  test("F-steal: a true lone report is still kept after 30 seconds when the other phone is away (the rules agree with it)", async () => {
+    const h = await game("QA-2"); const ps = await joinAll("QA-2", 2); const { clock, con } = await begin("QA-2", h, { moveSecs: 20 });
+    clock.t = T + 2000; const a = phoneFor("QA-2", ps[0]!, clock); const b = phoneFor("QA-2", ps[1]!, clock);
+    // A plays alone; B's phone is closed. B's clock runs out twice, A claims it, the rules end the board, A reports, nobody contradicts.
+    for (let s = 3; s <= 140 && (sql("SELECT state FROM ttt_t WHERE eid='QA-2'")[0].state !== "done"); s++) { clock.t = T + s * 1000; await con.tick(); await play(a, PREFER_B); }
+    expect(sql("SELECT state FROM ttt_t WHERE eid='QA-2'")[0].state).toBe("done");
+    expect(sql("SELECT how FROM ttt_b WHERE eid='QA-2'")[0].how).toMatch(/uncontested|both/); void b;
+  }, 60_000);
+  test("F-steal (the mailbox): an objection '-' is a report like any other: only a player on the board may send it, it is never kept as a result, a report may be corrected until a result is accepted and not after", async () => {
+    const h = await game("QA-3"); const ps = await joinAll("QA-3", 8); await begin("QA-3", h);
+    const { list: [x, y] } = await pairs("QA-3", ps, 2);
+    expect((await result("QA-3", y!.a, x!.mid, "-", T + 1000)).status).toBe(403); // a player of another match
+    expect((await result("QA-3", x!.a, x!.mid, "-", T + 1000)).status).toBe(200); // a lone objection ...
+    expect((await getM("QA-3", x!.mid, T + 40_000)).boards[0].result).toBeNull(); // ... is never kept as a result, however long it stands
+    expect((await result("QA-3", x!.a, x!.mid, x!.a.pid, T + 41_000)).status).toBe(200); // the player corrects the report to a real winner
+    expect(sql("SELECT winner FROM ttt_r WHERE mid=? AND pid=?", x!.mid, x!.a.pid)[0].winner).toBe(x!.a.pid);
+    const bothSay = await j(await result("QA-3", x!.b, x!.mid, x!.a.pid, T + 42_000)); expect(bothSay.agreed).toBe(true);
+    expect((await result("QA-3", x!.a, x!.mid, x!.b.pid, T + 43_000)).status).toBe(200); // once accepted, the reporter cannot flip it
+    expect(sql("SELECT winner, how, flag FROM ttt_b WHERE mid=?", x!.mid)).toEqual([{ winner: x!.a.pid, how: "both", flag: 0 }]);
+    // objection against a report: flagged, and the objector's later agreement clears the flag
+    await result("QA-3", y!.a, y!.mid, y!.a.pid, T + 1000);
+    expect((await j(await result("QA-3", y!.b, y!.mid, "-", T + 2000))).flagged).toBe(true);
+    expect((await getM("QA-3", y!.mid, T + 40_000)).boards[0].result).toMatchObject({ flag: true, winner: null }); // 38 s later the lone report is NOT kept: the other player objected
+    const healed = await j(await result("QA-3", y!.b, y!.mid, y!.a.pid, T + 50_000)); expect(healed.agreed).toBe(true);
+    expect(sql("SELECT winner, how, flag FROM ttt_b WHERE mid=?", y!.mid)).toEqual([{ winner: y!.a.pid, how: "both", flag: 0 }]);
+    expect(sql("SELECT status FROM ttt_m WHERE mid=?", y!.mid)[0].status).toBe("done");
+  });
   test("F-late: a tap after the turn ended is answered late-move with the owner-approved words; the mailbox keeps the row, every phone ignores it, the square the software played stays", async () => {
     const h = await game("QA-4"); const ps = await joinAll("QA-4", 2); const { clock } = await begin("QA-4", h, { moveSecs: 20 });
     clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-4", p, clock)); const views = await Promise.all(phones.map((x) => x.tick()));

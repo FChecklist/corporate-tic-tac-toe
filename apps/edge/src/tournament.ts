@@ -39,6 +39,7 @@ export const TTT_MOVE_SECONDS = [10, 20, 30, 60] as const;
 const MAX_MS = 6 * 3_600_000; // a tournament that has not finished this long after its scheduled start is closed for the data-deletion clock (lifecycle.ts)
 const UNCONTESTED_MS = 30_000; // a single report that nobody contradicts for this long (server clock) is kept as the result
 const PAGE = 100, LIVE_SAMPLE = 24, MAX_PLAN_MATCHES = 600;
+const OBJECTION = "-"; // a report "winner: -" says: my rules do not say this board is decided (packages/ttt/src/phone.ts, OBJECTION)
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -70,7 +71,7 @@ async function refreshMatch(env: Env, eid: string, mid: string, now: number): Pr
 }
 /** Keeps a single report that nobody has contradicted for UNCONTESTED_MS as the result of that board. Only compares stamps. */
 async function sweep(env: Env, eid: string, now: number, mid?: string): Promise<number> {
-  const rows = await env.DB.prepare(`SELECT r.mid AS mid, r.j AS j, r.winner AS winner, r.at_ms AS at_ms FROM ttt_r r WHERE r.eid=?${mid ? " AND r.mid=?" : ""} AND r.at_ms<? AND NOT EXISTS (SELECT 1 FROM ttt_b b WHERE b.eid=r.eid AND b.mid=r.mid AND b.j=r.j) GROUP BY r.mid, r.j HAVING COUNT(*)=1 LIMIT 300`)
+  const rows = await env.DB.prepare(`SELECT r.mid AS mid, r.j AS j, r.winner AS winner, r.at_ms AS at_ms FROM ttt_r r WHERE r.eid=?${mid ? " AND r.mid=?" : ""} AND NOT EXISTS (SELECT 1 FROM ttt_b b WHERE b.eid=r.eid AND b.mid=r.mid AND b.j=r.j) GROUP BY r.mid, r.j HAVING COUNT(*)=1 AND MIN(r.winner)<>'-' AND MAX(r.at_ms)<? LIMIT 300`)
     .bind(...(mid ? [eid, mid] : [eid]), now - UNCONTESTED_MS).all<{ mid: string; j: number; winner: string; at_ms: number }>();
   const touched = new Set<string>();
   for (const r of rows.results ?? []) {
@@ -245,7 +246,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const m = await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid=?").bind(eid, b.mid).first<MRow>();
     if (!m) return json({ error: "That match is not open yet.", code: "no-match" }, 404);
     const j = orgClaim ? (Number.isInteger(b.j) && b.j >= 0 && b.j < boardsOf(m).length ? b.j : -1) : boardOfPid(m, who.pid); if (j < 0) return json({ error: orgClaim ? "No such board." : "You are not in this match.", code: "not-in-match" }, orgClaim ? 404 : 403);
-    if (await env.DB.prepare("SELECT 1 AS x FROM ttt_b WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first()) return json({ error: "This board is finished.", code: "board-over" }, 409);
+    if (await env.DB.prepare("SELECT 1 AS x FROM ttt_b WHERE eid=? AND mid=? AND j=? AND flag=0").bind(eid, b.mid, j).first()) return json({ error: "This board is finished.", code: "board-over" }, 409); // a disputed board (flag 1) is not finished: it is played on until the rules decide it
     const next = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ c: number }>())?.c ?? 0;
     if (b.seq !== next) return json({ error: "The board changed. Look again.", code: "seq", next }, 409);
     try { await env.DB.prepare("INSERT INTO ttt_mv(eid,mid,j,seq,pid,sq,client_ms,at_ms) VALUES(?,?,?,?,?,?,?,?)").bind(eid, b.mid, j, b.seq, who.pid, sq, Number.isFinite(b.client_ms) ? Math.trunc(b.client_ms) : null, now).run(); }
@@ -272,21 +273,20 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const m = await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid=?").bind(eid, b.mid).first<MRow>();
     if (!m) return json({ error: "That match is not open yet.", code: "no-match" }, 404);
     const j = orgReport ? (Number.isInteger(b.j) && b.j >= 0 && b.j < boardsOf(m).length ? b.j : -1) : boardOfPid(m, who.pid); if (j < 0) return json({ error: "You are not in this match.", code: "not-in-match" }, 403);
-    const pair = boardsOf(m)[j]!; if (!pair.includes(b.winner)) return json({ error: "The winner must be one of the two players on the board.", code: "bad-winner" }, 400);
-    await env.DB.prepare("INSERT OR IGNORE INTO ttt_r(eid,mid,j,pid,winner,at_ms) VALUES(?,?,?,?,?,?)").bind(eid, b.mid, j, who.pid, b.winner, now).run();
-    const mine = await env.DB.prepare("SELECT winner FROM ttt_r WHERE eid=? AND mid=? AND j=? AND pid=?").bind(eid, b.mid, j, who.pid).first<{ winner: string }>();
-    const others = (await env.DB.prepare("SELECT pid, winner FROM ttt_r WHERE eid=? AND mid=? AND j=? AND pid<>?").bind(eid, b.mid, j, who.pid).all<{ pid: string; winner: string }>()).results ?? [];
+    const pair = boardsOf(m)[j]!; if (b.winner !== OBJECTION && !pair.includes(b.winner)) return json({ error: "The winner must be one of the two players on the board.", code: "bad-winner" }, 400);
     const have = await env.DB.prepare("SELECT winner, flag, how FROM ttt_b WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ winner: string | null; flag: number; how: string }>();
-    let disagree = mine!.winner !== b.winner || others.some((o) => o.winner !== mine!.winner);
-    if (have && have.how !== "organizer" && have.winner && have.winner !== mine!.winner) disagree = true;
-    if (disagree && !(have && have.how === "organizer")) {
+    if (have && have.how === "organizer") return json({ ok: true, agreed: true }); // settled by the Organizer: nothing a player says changes it
+    // A report can be corrected (an objection becomes the real winner) until a result is accepted; an accepted result can no longer be flipped by its reporter.
+    await env.DB.prepare(have && !have.flag ? "INSERT OR IGNORE INTO ttt_r(eid,mid,j,pid,winner,at_ms) VALUES(?,?,?,?,?,?)" : "INSERT INTO ttt_r(eid,mid,j,pid,winner,at_ms) VALUES(?,?,?,?,?,?) ON CONFLICT(eid,mid,j,pid) DO UPDATE SET winner=excluded.winner, at_ms=excluded.at_ms").bind(eid, b.mid, j, who.pid, b.winner, now).run();
+    const said = ((await env.DB.prepare("SELECT winner FROM ttt_r WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).all<{ winner: string }>()).results ?? []).map((r) => r.winner);
+    if (new Set(said).size > 1) { // two reports that differ (an objection counts): the Organizer's page settles it by the stored moves, or the Organizer does
       await env.DB.prepare("INSERT INTO ttt_b(eid,mid,j,winner,how,flag,at_ms) VALUES(?,?,?,NULL,'mismatch',1,?) ON CONFLICT(eid,mid,j) DO UPDATE SET winner=NULL, how='mismatch', flag=1, at_ms=excluded.at_ms").bind(eid, b.mid, j, now).run();
       if (!have || !have.flag) await note(env, eid, "mismatch", b.mid, who.pid, `Board ${j + 1}: the two reports do not match. Settle it in the console.`, now);
       await refreshMatch(env, eid, b.mid, now);
       return json({ ok: true, agreed: false, flagged: true });
     }
-    if (!have && others.length >= 1 && others[0]!.winner === mine!.winner) {
-      await env.DB.prepare("INSERT OR IGNORE INTO ttt_b(eid,mid,j,winner,how,flag,at_ms) VALUES(?,?,?,?,'both',0,?)").bind(eid, b.mid, j, mine!.winner, now).run();
+    if (said.length >= 2 && said[0] !== OBJECTION && (!have || have.flag)) { // two players name the same winner
+      await env.DB.prepare("INSERT INTO ttt_b(eid,mid,j,winner,how,flag,at_ms) VALUES(?,?,?,?,'both',0,?) ON CONFLICT(eid,mid,j) DO UPDATE SET winner=excluded.winner, how='both', flag=0, at_ms=excluded.at_ms").bind(eid, b.mid, j, said[0]!, now).run();
       await refreshMatch(env, eid, b.mid, now);
       return json({ ok: true, agreed: true });
     }

@@ -14,6 +14,8 @@ import { ctxOf, feedersOf, finalizeMatchP, midOf, openMatchP, parentOf, rankings
 
 /** Square number of an "opponent absent" claim in the stored event list (a move has 0 to 8). */
 export const ABSENT = -1;
+/** A report "winner: -" means: my rules do not say this board is decided, so the winner somebody named is not true. The mailbox only compares reports, so it flags the board. */
+export const OBJECTION = "-";
 /** What every phone says when the Organizer or a Host has ended the tournament. */
 export const ENDED_MESSAGE = "The organizer ended the tournament. Thank you for playing.";
 /** What a player is told when a tap came after their turn had ended (owner-approved wording, 2026-10-27). */
@@ -72,12 +74,12 @@ function force(b: BoardState, winner: string): void {
   b.done = true; b.winner = winner; b.via = b.via ?? "forfeit";
 }
 
-export interface Replayed { m: MatchState; complete: boolean; /** tournament-clock time at which the last board's result was agreed */ doneAt: number; due: boolean[] }
+export interface Replayed { m: MatchState; complete: boolean; /** tournament-clock time at which the last board's result was agreed */ doneAt: number; due: boolean[]; /** per board: somebody said a winner that the stored moves do not support (checked before any result is applied) */ unsupported: boolean[] }
 /** Opens the match at `openedAt` (tournament clock) and replays every stored event of every board with the rules. `nowEff` (optional) is used to see whether a clock-out is due that nobody has claimed yet. */
 export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: MatchRec | null, openedAt: number, pauses: readonly [number, number | null][], nowEff?: number, onMove?: (j: number, seq: number, r: MoveResult) => void): Promise<Replayed> {
   const c = ctxAt(p, startAt);
   await openMatchP(c, m, openedAt);
-  const due: boolean[] = m.boards.map(() => false);
+  const due: boolean[] = m.boards.map(() => false), unsupported: boolean[] = m.boards.map(() => false);
   let doneAt = openedAt;
   for (const br of rec?.boards ?? []) {
     const b = m.boards[br.j]; if (!b) continue;
@@ -90,11 +92,17 @@ export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: 
       const probe = structuredClone(b); await advanceBoard(c.cfg, m.mid, probe, nowEff);
       due[br.j] = probe.done !== b.done || lastGame(probe).moves.length !== lastGame(b).moves.length || probe.games.length !== b.games.length;
     }
-    if (br.result && !br.result.flag && br.result.winner) { force(b, br.result.winner); doneAt = Math.max(doneAt, effOf(pauses, br.result.ms)); }
+    // What the players said about this board, judged by the stored moves alone (before any result is applied). A report starts only after the moves that decide the board are stored,
+    // so a report the rules do not support is false. Two players who both name the same winner, or the Organizer's settlement, are applied as they are; a LONE report (kept after 30 seconds
+    // because nobody contradicted it) only if the rules agree - otherwise it would let one player take a board with one message while the other is still playing.
+    const supports = (w: string) => b.done && b.winner === w;
+    const said = [...(br.reports ?? []).map((r) => r.winner), ...(br.result && !br.result.flag && br.result.winner ? [br.result.winner] : [])].filter((w) => w !== OBJECTION);
+    unsupported[br.j] = said.some((w) => !supports(w));
+    if (br.result && !br.result.flag && br.result.winner && (br.result.how !== "uncontested" || supports(br.result.winner))) { force(b, br.result.winner); doneAt = Math.max(doneAt, effOf(pauses, br.result.ms)); }
   }
   const complete = !!rec?.complete && m.boards.every((b) => b.done);
   if (complete) { finalizeMatchP(c, m); m.doneAt = doneAt; }
-  return { m, complete, doneAt, due };
+  return { m, complete, doneAt, due, unsupported };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- what a screen shows
@@ -165,7 +173,7 @@ export class TttPhone {
       const base = structuredClone(t.matches[mid]!) as MatchState;
       if (side) { base.a = side.a; base.b = side.b; }
       let rep = this.done.get(mid) ?? null; let rec: MatchRec | null = null;
-      if (base.bye) rep = rep ?? { m: Object.assign(base, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [] };
+      if (base.bye) rep = rep ?? { m: Object.assign(base, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [], unsupported: [] };
       else if (!rep) {
         rec = await this.fetchMatch(mid);
         if (!rec.reg && base.round > 1 && !this.opened.has(mid)) { // the match is not in the mailbox yet: tell it who plays (both players do this; the mailbox keeps the first and checks the rest)
@@ -195,7 +203,7 @@ export class TttPhone {
       let sib = this.done.get(sibMid) ?? null;
       if (!sib) {
         const sb = structuredClone(t.matches[sibMid]!) as MatchState;
-        if (sb.bye) { sib = { m: Object.assign(sb, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [] }; this.done.set(sibMid, sib); }
+        if (sb.bye) { sib = { m: Object.assign(sb, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [], unsupported: [] }; this.done.set(sibMid, sib); }
         else if (sb.round === 1) { const sr = await this.fetchMatch(sibMid); sib = await replayMatch(p, startAt, sb, sr, startAt, pr); if (sib.complete) this.done.set(sibMid, sib); }
         else { sib = (await this.resolveUpper(sibMid, E)) ; }
       }
@@ -215,7 +223,7 @@ export class TttPhone {
     const rs: Replayed[] = [];
     for (const f of fs) {
       let r = this.done.get(f) ?? null;
-      if (!r) { const fb = structuredClone(p.t.matches[f]!) as MatchState; if (fb.bye) r = { m: Object.assign(fb, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [] }; else if (fb.round === 1) r = await replayMatch(p, startAt, fb, await this.fetchMatch(f), startAt, pr); else r = await this.resolveUpper(f, E); if (r?.complete) this.done.set(f, r); }
+      if (!r) { const fb = structuredClone(p.t.matches[f]!) as MatchState; if (fb.bye) r = { m: Object.assign(fb, { status: "done" as const, doneAt: startAt }), complete: true, doneAt: startAt, due: [], unsupported: [] }; else if (fb.round === 1) r = await replayMatch(p, startAt, fb, await this.fetchMatch(f), startAt, pr); else r = await this.resolveUpper(f, E); if (r?.complete) this.done.set(f, r); }
       if (!r || !r.complete) return null; rs.push(r);
     }
     base.a = rs[0]!.m.winner!; base.b = rs[1]!.m.winner!;
@@ -236,18 +244,20 @@ export class TttPhone {
         try { await this.post("move", { ...this.id(), mid: m.mid, seq: nextSeq, absent: true, client_ms: Math.round(this.serverNow()) /* the server time this phone saw when it made the claim; the mailbox keeps it beside its own stamp */ }); } catch (e: any) { if (e?.status !== 409) throw e; }
         return this.refresh(m.mid);
       }
-      // 2. my board is decided (by the rules): report the winner once
+      // 2. say what my rules say about my board: the winner once it is decided; an objection when somebody named a winner the stored moves do not support
       const key = `${m.mid}:${mine.j}`;
-      if (mine.done && mine.winner && !br.result && !this.reported.has(key) && !br.reports.some((r) => r.pid === me)) {
-        this.reported.add(key); this.counters.results++;
-        try { await this.post("result", { ...this.id(), mid: m.mid, winner: mine.winner }); } catch (e: any) { if (e?.status !== 409) throw e; }
+      const say = mine.done && mine.winner ? mine.winner : rep.unsupported[mine.j] ? OBJECTION : null;
+      const accepted = br.result && !br.result.flag ? br.result.winner : null;
+      if (say && accepted !== say && !this.reported.has(`${key}:${say}`) && !br.reports.some((r) => r.pid === me && r.winner === say)) {
+        this.reported.add(`${key}:${say}`); this.counters.results++;
+        try { await this.post("result", { ...this.id(), mid: m.mid, winner: say }); } catch (e: any) { if (e?.status !== 409) throw e; }
       }
       const g = lastGame(mine);
       this.cur = { mid: m.mid, j: mine.j, seq: nextSeq, mine: true, yourTurn: !mine.done && moverOf(g) === me, ply: g.moves.length };
     }
     const names = p.names; const bv = (b: BoardState, withMe?: string) => boardView(b, names, pr, paused, withMe);
     const A = E.get(m.a!)!, B = E.get(m.b!)!; const myEnt = A.members.includes(me) ? A : B; const oppEnt = myEnt === A ? B : A;
-    const flagged = rec?.boards.some((b) => b.result?.flag) ?? false;
+    const flagged = rec?.boards.some((b) => b.result?.flag && m.boards[b.j]?.done) ?? false; // "the organizer will settle it" only once the board is over; a disputed board that is still being played just goes on
     return {
       phase: "playing", you: names[me], round: m.round, roundName: roundWords(m.round), team: myEnt.name, vs: oppEnt.name, paused, ...(flagged ? { flagged: true } : {}),
       board: mine ? bv(mine, me) : null, boards: m.boards.map((b) => bv(b)),
@@ -350,7 +360,7 @@ export class TttConsole {
     }
     if (state !== "running") return { state };
     const out: { state: Setup["state"]; finished?: boolean; claims?: number; reports?: number; opened?: number } = { state };
-    if (!v.paused && this.n % (this.opts.watchEvery ?? 6) === 0) { const opened = await this.register(); Object.assign(out, await this.watch(), { opened }); }
+    if (!v.paused && this.n % (this.opts.watchEvery ?? 6) === 0) { const opened = await this.register(); Object.assign(out, await this.watch(), { opened }); if (v.disputed) await this.settleDisputed(); }
     const rounds: number = v.rounds ?? 0;
     if (rounds && !this.finishSent && (v.perRound ?? []).some((x: any) => x.round === rounds && x.status === "done")) {
       const { plan, setup } = await this.loaded();
@@ -416,6 +426,18 @@ export class TttConsole {
     return { claims, reports };
   }
   flags = () => this.get("flags");
+  /** Boards whose two reports differ (or that somebody objected to): when the stored moves decide the board by the rules, this page settles it that way, like a third phone. A person settles only a board the rules cannot decide. */
+  async settleDisputed(): Promise<number> {
+    const f = await this.flags(); let settled = 0;
+    for (const d of f.disputed as { mid: string; j: number }[]) {
+      const { plan, setup } = await this.loaded(); const startAt = setup.startedMs ?? 0;
+      const rec: MatchRec = await this.get(`m/${d.mid}`); if (!rec.reg || rec.reg.bye) continue;
+      const base = structuredClone(plan.t.matches[d.mid]!) as MatchState; base.a = rec.reg.a; base.b = rec.reg.b;
+      const b = (await replayMatch(plan, startAt, base, rec, rec.reg.opened ?? startAt, rec.t?.pauses ?? setup.pauses)).m.boards[d.j];
+      if (b?.done && b.winner) { try { await this.post("settle", { mid: d.mid, j: d.j, winner: b.winner }); settled++; } catch { /* somebody settled it first */ } }
+    }
+    return settled;
+  }
   /** Boards that have waited a long time for a result although the rules cannot decide them (for example this page was closed while both players were away): the Organizer can settle these by hand. */
   async waiting(ms = 300_000, max = 20): Promise<{ mid: string; j: number; a: { pid: string; name: string }; b: { pid: string; name: string } }[]> {
     const r = await this.get(`stuck?ms=${ms}`); const { plan } = await this.loaded(); const out = [];
