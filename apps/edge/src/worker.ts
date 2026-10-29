@@ -39,7 +39,7 @@ import { normEmp, empHashOf, verifyOf, keptPhone, phoneDigits, cleanName as clea
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
 import { googleClientId, verifyGoogleCredential } from "./google";
-import { MODE_SCHEMA, modeRoute, orgIsTest, testFlag } from "./mode";
+import { MODE_SCHEMA, isTestMode, modeRoute, orgIsTest, testFlag } from "./mode";
 import { purgeTestData } from "./test-data";
 import { frontDoorText, nextHint, GET_BODY_MAX, LINK_KEY, CONVERSATION, aiPaste, manualJson, manualText, type LinkRole } from "./ai-link";
 import { factsText } from "./ai-facts";
@@ -873,7 +873,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const test = (env as PayEnv).TEST_MODE === "1";
     let devCode: string | undefined, devToken: string | undefined;
     if (acct || hostAcct) await holdPassForSignIn(env, eh, b?.pass, now);
-    if (TEST_LOGINS.has(email)) return json({ ok: true }); // the owner's test addresses: nothing is sent, the code is always the same
+    if (TEST_LOGINS.has(email) && (await isTestMode(env))) return json({ ok: true }); // the owner's test addresses (TEST mode only, TT-21; in LIVE they are ordinary addresses and get no code): nothing is sent, the code is always the same
     if (acct || hostAcct) { // an unknown address gets the same answer, so nobody can find out who has an account
       const row = await env.DB.prepare("SELECT win_start, sent FROM login_code WHERE email_hash=?").bind(eh).first<{ win_start: number; sent: number }>();
       const fresh = !row || now - row.win_start > 3_600_000;
@@ -966,7 +966,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (!email || code.length !== 6) return json({ error: "Enter the 6-digit code." }, 400);
     const eh = await sha("email|" + email);
-    if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE) {
+    if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE && (await isTestMode(env))) { // TT-21: the fixed code opens an account only while the service is in TEST mode
       { // a per-network daily limit and the write budget apply, like every other public write
         const tk = `tlg/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local") + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
         const tu = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(tk).first<{ v: string }>())?.v ?? 0);

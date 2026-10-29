@@ -5,6 +5,7 @@ import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { normEmp, empHashOf } from "../src/people";
 import { makeD1 } from "./d1-sqlite";
+import { setMode } from "../src/mode";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
 const GEN = 1692803367;
@@ -183,6 +184,7 @@ describe("the list download carries the ID", () => {
 
 describe("the owner's three test sign-ins", () => {
   test("demo1/2/3@xyz.in sign in with 123456, no e-mail is sent, the same account comes back each time, and a wrong code or another address is refused", async () => {
+    await setMode(env as any, "TEST", "test sign-ins work only in TEST mode (TT-21)", T);
     for (const em of ["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]) {
       expect((await call("POST", "/api/auth/email", { email: em })).status).toBe(200);
       const a = await j(await call("POST", "/api/auth/verify", { email: em, code: "123456" })); expect(a.token).toMatch(/^cbk_/);
@@ -194,6 +196,7 @@ describe("the owner's three test sign-ins", () => {
     expect((await call("POST", "/api/auth/verify", { email: "demo4@xyz.in", code: "123456" })).status).toBe(400);
   });
   test("the test sign-ins are limited per network per day, record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+    await setMode(env as any, "TEST", "test sign-ins work only in TEST mode (TT-21)", T);
     const em = "demo2@xyz.in"; const fire = () => call("POST", "/api/auth/verify", { email: em, code: "123456" });
     for (let i = 0; i < 30; i++) expect((await fire()).status).toBe(200);
     const blocked = await fire(); expect(blocked.status).toBe(429);
@@ -202,6 +205,26 @@ describe("the owner's three test sign-ins", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_key WHERE org=? AND kind='master'", org)[0].c).toBeLessThanOrEqual(6);
     const { sendMail } = await import("../src/pay"); expect(await sendMail(env as any, (env as any).DB, em, "Your report", "text", T)).toBe(false);
     expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
+  });
+});
+
+describe("the owner's three test sign-ins are for TEST mode only (TT-21, WP-17)", () => {
+  test("in LIVE mode (the default) demo1/2/3@xyz.in with 123456 open nothing: no token, no organizer account made, and the request-a-code call gives no hint", async () => {
+    for (const em of ["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]) {
+      const r = await call("POST", "/api/auth/verify", { email: em, code: "123456" });
+      expect(r.status).toBe(400); expect((await j(r)).token).toBeUndefined();
+      expect((await call("POST", "/api/auth/email", { email: em })).status).toBe(200); // same plain answer as for any address; no code is made or mailed for these
+      expect((await call("POST", "/api/auth/verify", { email: em, code: "123456" })).status).toBe(400);
+    }
+    expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(0);
+    expect(rowsOf("SELECT COUNT(*) c FROM organizer_key")[0].c).toBe(0);
+    expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
+  });
+  test("switching the service to LIVE closes them again at once, even for an account made earlier in TEST", async () => {
+    await setMode(env as any, "TEST", "walk-through", T);
+    const a = await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" })); expect(a.token).toMatch(/^cbk_/);
+    await setMode(env as any, "LIVE", "go live", T);
+    const b = await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }); expect(b.status).toBe(400); expect((await j(b)).token).toBeUndefined();
   });
 });
 
