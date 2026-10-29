@@ -38,3 +38,12 @@ describe("the report of a tournament says what happened in a tournament", () => 
     expect(t.match(/first number|numbers called|Numbers called|Cards per person|Call speed|Lucky draw|At call|Brand breaks|Engagement|engagement|card assignment|After number/)?.[0] ?? null).toBeNull();
   });
 });
+
+describe("the report e-mail says how a tournament result was reached (QA 2026-10-29)", () => {
+  test("results come from the sealed draw and the moves that were played, not 'public numbers'; the Organizer can only settle a stuck board", () => {
+    const t = readFileSync(join(SRC, "lifecycle.ts"), "utf8");
+    expect(t.match(/public numbers/)?.[0] ?? null).toBeNull();
+    expect(t).toContain("worked out by the players' phones from the sealed draw and the moves that were played");
+    expect(t).toContain("The Organizer can only settle a board that is stuck.");
+  });
+});

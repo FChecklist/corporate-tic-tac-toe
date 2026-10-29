@@ -239,7 +239,7 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   `- For 365 days we keep only: the organizer, host and co-host details, the log of what your AI assistant did, and the results (the final places as seat numbers and the match results by player code, without names or mobile numbers).`,
   `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,
-  `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can we.`, ``,
+  `The results were worked out by the players' phones from the sealed draw and the moves that were played, and kept only when the phones agreed. You cannot choose or change a result, and neither can we. The Organizer can only settle a board that is stuck.`, ``,
   `You can ask us to delete everything sooner: press Erase in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
   `Corporate Tic Tac Toe is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): we collect only what is needed to run your game, protect it with encryption, keep it for the shortest time we can, never sell it, and honour every request to see, correct or delete data.`, ``,
   `Sent on ${istFull(d.sentAtMs)} to ${d.organizerEmail}.`,
