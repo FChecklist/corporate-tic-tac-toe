@@ -127,7 +127,7 @@ const PAGES = {
     ["data", "Your details", ["We use your mobile number to run your partner account. See the <a href=\"/legal.html#privacy\">Privacy &amp; Data Policy</a>.", "You may stop at any time."]],
   ] },
   "organizer-guide.html": { title: "Organizer guide", h1: "Organizer guide", lead: "Short notes for a safe, simple game.", sections: [
-    ["rules", "Keep it a private game", [
+    ["rules", "Keep it a close group game", [
       "Invite people you know: colleagues, families, customers, partners.",
       "Never ask for a fee, a purchase or a donation to take part.",
       "Taking part must be voluntary.",
