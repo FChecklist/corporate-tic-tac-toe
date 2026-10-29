@@ -1,14 +1,14 @@
 {
   "name": "Corporate Tic Tac Toe",
   "short_name": "Corporate Tic Tac Toe",
-  "description": "A tic tac toe tournament for companies. The whole game is saved on your phone and plays from your own device.",
+  "description": "Corporate Tic Tac Toe: online games for company events, for the people you invite. The whole game is saved on your phone and plays from your own device.",
   "id": "/z.html",
   "start_url": "/z.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#DDEEFF",
-  "theme_color": "#0B5D5B",
+  "background_color": "#FFFAF2",
+  "theme_color": "#0B3D91",
   "icons": [
     {
       "src": "/icon-192.png",

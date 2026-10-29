@@ -50,6 +50,7 @@ Allow: /pricing.html
 Allow: /about.html
 Allow: /contact.html
 Allow: /organizer-guide.html
+Allow: /how-it-works.html
 Allow: /$
 
 Sitemap: https://tictactoe.corporatetambola.com/sitemap.xml
