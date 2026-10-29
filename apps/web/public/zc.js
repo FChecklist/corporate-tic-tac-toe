@@ -401,15 +401,20 @@
   /** One line for the brand: the company name (or our own) and whether a logo is set. */
   const brandNow = () => { const b = (S.info && S.info.brand) || (S.sum && S.sum.brand) || (S.f && S.f.brand) || {}; return (b.name ? b.name : "Corporate Tic Tac Toe") + (b.logo ? ", with a logo" : ", no logo"); };
   /** The read-back of steps 1 to 4: what is saved, with a Change button for each. */
-  function readBack() {
+  function readBack(noPrizeNote) {
     const f = S.f, c = S.cfg, inf = S.info; if (!f || !c || !inf) return "";
     const name = c.name || (f.occ === "Other" ? f.oname || "Your game" : f.occ);
     const prizes = (c.rewards || []).length, wait = (c.rewards || []).filter((r) => !r.text).length;
     const blankDate = S.cloneNew === eid && S.cloneDated !== eid;
     const rows = [["Game", blankDate ? `${name}, date and time still to pick` : `${name}, ${when(inf.startMs)}`, 1], ["People", `Up to ${inf.cap} players, ${whoNow() === "anyone" ? "anyone with the link" : "only people on a list"}`, 2], ["Prizes", `${prizes} prize${prizes === 1 ? "" : "s"}${wait ? ` (${wait} to decide)` : ""}`, 3], ["Brand", brandNow(), 4]];
     return rows.map((r) => `<div class="zc-rowl"><span><span class="zc-small zc-nomargin">${r[0]}</span><br>${esc(r[1])}</span>${lockedGame() ? "" : `<button type="button" class="zc-mini" data-open="${r[2]}" aria-label="Change ${esc(r[0])}">Change</button>`}</div>`).join("")
-      + (wait ? `<p class="zc-small zc-warnt">${wait} prize${wait === 1 ? " says" : "s say"} "decide later". You can still publish.</p>` : "");
+      + (wait && !noPrizeNote ? `<p class="zc-small zc-warnt">${wait} prize${wait === 1 ? " says" : "s say"} "decide later". You can still publish.</p>` : "");
   }
+  /** Above the publish button: a prize with no text is told clearly, once, with the way back to step 3 (publishing is still allowed). */
+  const blankPrizesBox = () => {
+    const n = ((S.cfg && S.cfg.rewards) || []).filter((r) => !r.text).length;
+    return n ? `<div class="zc-box" id="blankprizes" role="status"><b class="zc-warnt">${n} prize${n === 1 ? " is" : "s are"} still empty.</b> Your report will show ${n === 1 ? "that place" : "those places"} with no prize. <button type="button" class="zc-mini" data-open="3">Add ${n === 1 ? "it" : "them"} in step 3</button> or publish as it is.</div>` : "";
+  };
 
   // ---------- step 5: your team ----------
   const friendly = (e) => (e && e.status === 404 ? "This is not switched on yet. Please try again a little later." : e && e.status === 403 && !(e.message && !/^(forbidden|not allowed\.?)$/i.test(e.message)) ? "Please sign in again with the e-mail address you used." : (e && e.message) || "Something went wrong. Please try again.");
@@ -681,9 +686,9 @@
   }
   function stepPublish() {
     if (!S.f) return small("Loading…");
-    let h = `<span class="zc-lbl">Check your game</span>` + readBack();
+    let h = `<span class="zc-lbl">Check your game</span>` + readBack(S.draft);
     if (S.draft) {
-      h += `<div class="zc-block"><h3>Publish (free)</h3>${small(isFree10() || Number(S.f.cap) <= RS0_CAP ? "A game for 10 people or fewer costs <b>Rs 0</b>. Participants cannot see or join a draft. Publishing is free, and there is nothing to pay: the game starts on time by itself." : "Set it up first (by hand or with your AI). Participants cannot see or join a draft. Publishing is free: you confirm your details, get your link and send it to everyone. You pay before the start time, and it begins the moment you have.")}`
+      h += blankPrizesBox() + `<div class="zc-block"><h3>Publish (free)</h3>${small(isFree10() || Number(S.f.cap) <= RS0_CAP ? "A game for 10 people or fewer costs <b>Rs 0</b>. Participants cannot see or join a draft. Publishing is free, and there is nothing to pay: the game starts on time by itself." : "Set it up first (by hand or with your AI). Participants cannot see or join a draft. Publishing is free: you confirm your details, get your link and send it to everyone. You pay before the start time, and it begins the moment you have.")}`
         + (S.pubOpen ? `${lbl("pubEmail", "Your e-mail (for the invoice)")}<input id="pubEmail" data-need="1" class="zc-in" type="email" value="${S.shield ? "" : esc(S.contact.email)}" autocomplete="email">${lbl("pubPhone", "Your mobile number")}<input id="pubPhone" data-need="1" class="zc-in" type="tel" value="${S.shield ? "" : esc(S.contact.phone)}" autocomplete="tel" placeholder="415 555 0132">${tbSlot("pub" + eid, "K1", "pubgo")}<div class="zc-foot"><button class="zc-btn" type="button" id="pubgo" ${tbDis("pub" + eid)}>Confirm and publish</button> <button class="zc-btn zc-btn-alt" type="button" id="pubcancel">Back</button></div>`
           : `<div class="zc-foot"><button class="zc-btn" type="button" id="publishopen">Publish my game, free</button></div>`)
         + (S.pubNote ? `<p class="zc-small"><b>${esc(S.pubNote)}</b></p>` : "") + `</div>`;

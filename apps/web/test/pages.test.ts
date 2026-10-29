@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { newWorld, openPage, roundAt, roundMs, T, type Page } from "./harness";
 import { publicKeyFromSecret } from "../../../packages/beacon/src/control";
-import { PRIZE_HOUSES } from "../../../packages/beacon/src/config";
+import { PATTERN_ORDER, PRIZE_HOUSES } from "../../../packages/beacon/src/config";
 
 const HOUR = 3_600_000;
 const START = roundAt(T) + 1200; // one hour after T
@@ -1094,6 +1094,19 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     home.click('[data-clonebtn][data-from="UI-OLD1"]'); await home.waitFor(() => !!home.$("#clonepanel")); expect(home.$("#clonepeople")).toBeTruthy();
     const h = await consolePage(o, "UI-OLD1", await hostKey(o)); await h.waitFor(() => !!h.$('.zc-dot[data-open="7"]')); openStep(h, 7); expect(h.$("[data-clonebtn]")).toBeTruthy(); // a Host has it too
     const c = await consolePage(o, "UI-OLD1", await cohostKey(o, "UI-OLD1")); await c.waitFor((x) => /Hi\. Here is the game/.test(x)); for (let n = 1; n <= 3; n++) openStep(c, n); expect(c.$("[data-clonebtn]")).toBeNull();
+  });
+
+  test("Publish step: a prize with no text gets one clear warning above the publish button, with a way back to step 3; no warning when every prize has its text", async () => {
+    const o = await organizer(); await make(o, "UI-BLANK");
+    const p = await consolePage(o, "UI-BLANK"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 7); await p.waitFor((x) => /Publish my game, free/.test(x));
+    const box = p.$("#blankprizes"); expect(box).toBeTruthy();
+    expect(box!.textContent).toMatch(/\d+ prizes? (is|are) still empty/); expect(box!.textContent).toMatch(/report will show/);
+    expect(p.text().match(/decide later/g)).toBeNull(); // one warning, not two
+    expect(p.html().indexOf("blankprizes")).toBeLessThan(p.html().indexOf("publishopen")); // it stands above the button
+    (box!.querySelector('[data-open="3"]') as any).click(); expect(p.$("#sec3")!.className).toMatch(/open/);
+    const full = await organizer(); await make(full, "UI-FULL", { rewards: PATTERN_ORDER.map((pattern) => ({ pattern, scope: "ticket", ordinal: 1, text: "Gift card" })) });
+    const q = await consolePage(full, "UI-FULL"); await q.waitFor((x) => /Hello/.test(x)); openStep(q, 7); await q.waitFor((x) => /Publish my game, free/.test(x));
+    expect(q.$("#blankprizes")).toBeNull(); expect(q.text()).not.toMatch(/still empty/);
   });
 
   test("Create a new game like this one when the old list is gone: a calm line instead of the tick box; a server refusal is shown", async () => {
