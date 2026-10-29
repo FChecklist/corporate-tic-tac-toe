@@ -413,6 +413,15 @@ describe("QA 2026-10-29: one false report must not take a board; a tap after the
     expect(sql("SELECT winner, how, flag FROM ttt_b WHERE mid=?", y!.mid)).toEqual([{ winner: y!.a.pid, how: "both", flag: 0 }]);
     expect(sql("SELECT status FROM ttt_m WHERE mid=?", y!.mid)[0].status).toBe("done");
   });
+  test("F-steal (race): the mailbox reads a match's reports BEFORE its stored moves, so a reader that sees a report always sees the moves that decide the board", async () => {
+    const h = await game("QA-6"); const ps = await joinAll("QA-6", 2); await begin("QA-6", h);
+    const seen: string[] = []; const real = env.DB.prepare.bind(env.DB); (env.DB as any).prepare = (sql: string) => { seen.push(sql); return real(sql); };
+    try { await getM("QA-6", "r1m0", T + 5000); } finally { (env.DB as any).prepare = real; }
+    const at = (needle: string) => seen.findIndex((x) => x.includes(needle));
+    const reports = at("SELECT mid, j, pid, winner FROM ttt_r"), results = at("SELECT mid, j, winner, how, flag, at_ms FROM ttt_b"), moves = at("FROM ttt_mv WHERE eid=? AND mid IN");
+    expect(reports).toBeGreaterThan(-1); expect(results).toBeGreaterThan(-1); expect(moves).toBeGreaterThan(-1);
+    expect(reports).toBeLessThan(moves); expect(results).toBeLessThan(moves); void ps;
+  });
   test("F-late: a tap after the turn ended is answered late-move with the owner-approved words; the mailbox keeps the row, every phone ignores it, the square the software played stays", async () => {
     const h = await game("QA-4"); const ps = await joinAll("QA-4", 2); const { clock } = await begin("QA-4", h, { moveSecs: 20 });
     clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-4", p, clock)); const views = await Promise.all(phones.map((x) => x.tick()));

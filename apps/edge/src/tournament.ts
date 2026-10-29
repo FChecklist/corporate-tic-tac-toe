@@ -420,9 +420,10 @@ async function matchRecs(env: Env, eid: string, mids: string[]): Promise<any[]> 
   if (!mids.length) return [];
   const ph = mids.map(() => "?").join(",");
   const ms = (await env.DB.prepare(`SELECT * FROM ttt_m WHERE eid=? AND mid IN (${ph})`).bind(eid, ...mids).all<MRow>()).results ?? [];
-  const ev = (await env.DB.prepare(`SELECT mid, j, seq, pid, sq, client_ms, at_ms FROM ttt_mv WHERE eid=? AND mid IN (${ph}) ORDER BY mid, j, seq`).bind(eid, ...mids).all<{ mid: string; j: number; seq: number; pid: string; sq: number; client_ms: number | null; at_ms: number }>()).results ?? [];
   const rp = (await env.DB.prepare(`SELECT mid, j, pid, winner FROM ttt_r WHERE eid=? AND mid IN (${ph})`).bind(eid, ...mids).all<{ mid: string; j: number; pid: string; winner: string }>()).results ?? [];
   const bs = (await env.DB.prepare(`SELECT mid, j, winner, how, flag, at_ms FROM ttt_b WHERE eid=? AND mid IN (${ph})`).bind(eid, ...mids).all<{ mid: string; j: number; winner: string | null; how: string; flag: number; at_ms: number }>()).results ?? [];
+  // the stored moves are read LAST: a report is only sent after the moves that decide the board are stored, so a reader that sees a report also sees those moves (read the other way round, a phone could see a report without its moves and wrongly object)
+  const ev = (await env.DB.prepare(`SELECT mid, j, seq, pid, sq, client_ms, at_ms FROM ttt_mv WHERE eid=? AND mid IN (${ph}) ORDER BY mid, j, seq`).bind(eid, ...mids).all<{ mid: string; j: number; seq: number; pid: string; sq: number; client_ms: number | null; at_ms: number }>()).results ?? [];
   return ms.map((m) => ({
     mid: m.mid, complete: m.status === "done", reg: { round: m.round, idx: m.idx, a: m.a, b: m.b, bye: !!m.bye, winner: m.winner, opened: m.deadline, ms: m.started_ms },
     boards: boardsOf(m).map(([a, b], j) => ({
