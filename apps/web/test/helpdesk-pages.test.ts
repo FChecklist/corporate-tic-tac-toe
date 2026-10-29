@@ -111,7 +111,6 @@ describe("Help Desk pages", () => {
     expect(hd).toMatch(/class="hdl" id="out"/);
     for (const f of ["helpdesk-accept.js", "helpdesk-approve.js"]) { const j = readFileSync(join(PUB, f), "utf8"); expect(j).toContain('<h1 class="hdh">'); expect(j).toContain('class="hdl"'); }
     expect(readFileSync(join(PUB, "z.css"), "utf8")).toMatch(/\.hdl\{[^}]*min-height:40px/);
-    expect(readFileSync(join(PUB, "partner.css"), "utf8")).toMatch(/\.rbrand,\.rhome\{[^}]*min-height:40px/);
     const ap = readFileSync(join(PUB, "helpdesk-approve.js"), "utf8"); expect(ap).toContain("r.label || r.pattern"); expect(ap).not.toContain("r.house");
     expect(readFileSync(join(PUB, "zc.js"), "utf8")).toContain("pr && pr.needsOrganizer"); // an AI key's Publish only hands the link over: the console must not say "Published."
   });

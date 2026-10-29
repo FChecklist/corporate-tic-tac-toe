@@ -79,7 +79,7 @@
     ORDER = { pack };
     const def = TB.guessCountry();
     TB.sheet(`${xbtn}<div class="eyebrow">Your order</div><h2>Up to ${nf(pack)} players</h2>
-      <ul class="facts"><li>${ic("ticket")}Every player plays on their own phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A private game for your closed group, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
+      <ul class="facts"><li>${ic("ticket")}Every player plays on their own phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A close group game for the people you invite, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
       <div class="sum" id="ordSum"></div>
       <form id="coForm" novalidate>
         <label class="lb" for="oName">Organization name</label><input class="inp" id="oName" autocomplete="organization" placeholder="e.g. Acme Industries">
@@ -113,9 +113,9 @@
   function openFree() {
     try { if (Number.isInteger(S.pack) && S.pack > 10) { sessionStorage.setItem("cbz-cap", String(S.pack)); } } catch {} // the size chosen on the website carries through the sign-in: Quick setup opens with it
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
-      <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
+      <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-ttt"/></svg></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
-      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>One against one, or teams of 3 or 5: a knockout with one champion</span></li><li><span class="bico">${ic("trophy")}</span><span>Name the top places and give your own prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group tic tac toe tournament for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>A drawn game is replayed with the marks swapped, then fate decides: always one champion</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
+      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>One against one, or teams of 3 or 5: a knockout with one champion</span></li><li><span class="bico">${ic("trophy")}</span><span>Name the top places and give your own prizes</span></li><li><span class="bico">${ic("users")}</span><span>A close group tic tac toe tournament for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>A drawn game is replayed with the marks swapped, then fate decides: always one champion</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
       ${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your email</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled>Create my game ${ic("arrow")}</button></form>
@@ -211,7 +211,7 @@
   }
   function codeView(email, devCode) {
     const boxes6 = [0, 1, 2, 3, 4, 5].map((i) => `<input class="otpb" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? "one-time-code" : "off"}" aria-label="Digit ${i + 1} of 6" autocapitalize="off" spellcheck="false">`).join("");
-    TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Step 2 of 2</div><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
+    TB.sheet(`${xbtn}<div class="sheethead"><div class="eyebrow">Step 2 of 2</div><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-ttt"/></svg></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
       <h2 id="cdTitle">Now open your e-mail</h2>
       <p class="sheetbody">We sent an e-mail to <b class="sendto">${esc(email)}</b>. Pick <b>ONE</b> of these two ways. You do not need both.</p>
       <div class="optbox"><div class="optn">Option 1</div><p class="optt">Go to your e-mail and type the 6-digit number here</p><p class="opts">Open the e-mail. Find the 6 numbers. Type them in the six boxes below and press <b>Submit</b>.</p></div>
@@ -280,7 +280,7 @@
   if (document.getElementById("topbar")) return;
   var bar = document.createElement("div");
   bar.id = "topbar"; bar.setAttribute("role", "navigation"); bar.setAttribute("aria-label", "Quick links"); bar.hidden = true;
-  bar.innerHTML = '<button type="button" class="tb-brand" id="tbTop" aria-label="Back to the top"><span class="tb-mark" aria-hidden="true"><img src="/logo-mark.svg" alt="" width="28" height="28"></span><b>Corporate Tic Tac Toe</b><span class="tb-up" aria-hidden="true">&#8593; Top</span></button>' +
+  bar.innerHTML = '<button type="button" class="tb-brand" id="tbTop" aria-label="Back to the top"><span class="tb-mark" aria-hidden="true"><svg class="ck-badge" aria-hidden="true" focusable="false"><use href="#i-ttt"/></svg></span><b>Corporate Tic Tac Toe</b><span class="tb-up" aria-hidden="true">&#8593; Top</span></button>' +
     '<a class="tb-cta" id="tbBuy" href="#pricing">Create your game</a>';
   document.body.appendChild(bar);
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches, shown = false, tick = 0;

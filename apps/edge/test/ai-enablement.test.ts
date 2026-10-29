@@ -15,6 +15,7 @@ import { FUNCTIONS } from "../src/ai-functions";
 import { AI_MANIFEST } from "../src/worker";
 import { CONVERSATION, nextHint } from "../src/ai-link";
 import { llmsTxt, trustHtml } from "../src/trust-page";
+import { build as withChrome, PAGES as CHROME_PAGES } from "../../../tools/make-site-chrome.mjs";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0); // Thu 1 Oct 2026, 15:30 India time
 const ORIGIN = "https://bingo.test";
@@ -186,11 +187,11 @@ describe("the manual teaches this game only, and every value in it is one the co
 describe("the third route: any AI that searches the web", () => {
   const pub = (f: string) => readFileSync(join(root, "apps/web/public", f), "utf8");
   test("the public Trust page and llms.txt are exactly what the facts generate, so a person, a search engine and the AI assistant read the same words", () => {
-    expect(pub("trust.html")).toBe(trustHtml()); // fails if a fact changes and tools/make-trust.ts was not run
+    expect(pub("trust.html")).toBe(withChrome("trust.html", CHROME_PAGES["trust.html"], trustHtml())); // fails if a fact changes and tools/make-trust.ts was not run
     expect(pub("llms.txt")).toBe(llmsTxt());
     const text = pub("trust.html").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ");
     for (const f of FACTS) expect(text).toContain(f.say);
-    expect(pub("trust.html")).not.toMatch(/<script/i); // plain page: readable by any crawler or AI, no JavaScript needed
+    expect(pub("trust.html")).not.toMatch(/<script(?![^>]*\bsrc=)/i); // readable by any crawler or AI with no JavaScript: no inline script; only the site's own menu and theme files are linked
     expect(pub("llms.txt")).toContain("https://tictactoe.corporatetambola.com/trust.html");
   });
   test("the facts never boast: no 'best', '100% safe', 'fully compliant', 'unhackable', 'cheat-proof' or 'certified' as a claim, and the honest limits are present", () => {

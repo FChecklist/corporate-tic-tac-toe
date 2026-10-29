@@ -7,9 +7,9 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "ttt-game-v9"; // bump when the game files change shape, so every phone saves a matching set
+const CACHE = "ttt-game-v10"; // bump when the game files change shape, so every phone saves a matching set
 const FILES = ["/offline.html", "/offline.js", "/z.html", "/blackbox.js", "/guide.js", "/zc.html", "/big.html", "/host.html", "/ttt.js", "/rights.js", "/tttgame.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/pwa.js", "/keep.js", "/autoupdate.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
+  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/tokens.css", "/components.css", "/console.css", "/console-skin.css", "/tictactoe.css", "/theme-init.js", "/console-light.js", "/brandkit.js", "/gamesbar.js", "/gamesbar.css", "/pwa.js", "/keep.js", "/autoupdate.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.
@@ -34,7 +34,7 @@ async function saveAll() {
 
 self.addEventListener("install", (e) => e.waitUntil(saveAll().then(() => self.skipWaiting(), () => self.skipWaiting())));
 self.addEventListener("activate", (e) => e.waitUntil((async () => {
-  for (const k of await caches.keys()) if (k !== CACHE && k.startsWith("cb-game-")) await caches.delete(k);
+  for (const k of await caches.keys()) if (k !== CACHE && (k.startsWith("cb-game-") || k.startsWith("ttt-game-"))) await caches.delete(k); // an older saved set is dropped when a new version is live
   await self.clients.claim();
 })()));
 self.addEventListener("message", (e) => {

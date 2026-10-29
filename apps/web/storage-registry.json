@@ -112,9 +112,10 @@
     {
       "id": "theme",
       "store": "localStorage",
-      "say": "The colour choice.",
+      "say": "The colour choice, and light or dark.",
       "keys": [
-        "cb-theme"
+        "ct-theme",
+        "cg-theme"
       ]
     },
     {

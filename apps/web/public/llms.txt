@@ -10,7 +10,7 @@ Plain, checked answers about safety, privacy, law, cost and what the software do
 - [Terms](https://tictactoe.corporatetambola.com/terms.html)
 - [Data processing](https://tictactoe.corporatetambola.com/dpa.html) and [sub-processors](https://tictactoe.corporatetambola.com/subprocessors.html)
 - [Organizer guide](https://tictactoe.corporatetambola.com/organizer-guide.html): how to set up, share, run and close a game
-- [Free demo](https://tictactoe.corporatetambola.com/demo.html): a short demo; one button, nothing to type
+- [Free demo game](https://tictactoe.corporatetambola.com/zc.html?demo=1): a real game for up to 10 people, at no cost
 - [Home, prices and how to start](https://tictactoe.corporatetambola.com/): price list by size; building and publishing are free, the organizer pays before the start
 
 ## For an AI assistant working for an organizer

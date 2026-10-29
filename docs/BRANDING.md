@@ -1,8 +1,8 @@
 # Branding: Corporate Tic Tac Toe, the same everywhere
 
-The name is spelled exactly **Corporate Tic Tac Toe**: never in capitals, never shortened to "TTT" in anything a customer reads. The tagline in `apps/edge/src/brand.ts` is "Live engagements for companies" (inherited; the owner may want "A tic tac toe tournament for your company").
+The name is spelled exactly **Corporate Tic Tac Toe**: in a header, footer, title or card the small word CORPORATE sits above the proper name, "Tic Tac Toe". Never shortened to "TTT" in anything a customer reads. The tagline is "Online games for company events". Say "close group", never the word the owner banned (it begins p-r-i and ends v-a-t-e); a test fails if it appears on a page or in a server text. All payments are taken only by IT Services by Rajat Agarwal, through Razorpay; every page, e-mail, receipt and PDF that names a payee says so.
 
-Palette (the site's, from `apps/edge/src/brand.ts` and the manifest): teal `#0B5D5B` (theme colour, headers), gold `#FFC93C` and light gold `#FFE08A`, ivory `#F7FBFA`, line `#D5E3E1`; the manifest background is `#FFFDF9`. One support address, the one the legal page publishes: `rajatsiroffice@gmail.com`; phone +91 96503 97480. One legal link: `/legal.html`.
+Look (owner order, 2026-10-29): the Corporate Games brand kit (`docs/boss/brand-kit`), copied unchanged into `apps/web/public` (`tokens.css`, `fonts.css`, `components.css`, `console.css`, `brandkit.js`, `theme-init.js`, the two fonts, the Tic Tac Toe icons, `favicon.*`, `og-card.png`) and the shared games bar (`gamesbar.js`, `gamesbar.css`); `apps/web/test/brandkit-checksum.test.ts` pins every file by SHA-256. Studio blue `#0B3D91` is the header and button colour, marigold `#FFC93C` the highlight, warm paper `#FFFAF2`; the Tic Tac Toe badge is green `#17784A`. The site's own extras are in `tictactoe.css`; the console and tournament pages only take the shell (`console-skin.css`). The header menu is exactly: How it works | Free demo game | Guide | Brochure | Refer & earn | Log in. `tools/make-site-chrome.mjs` writes the head, games bar, header and footer of every public page. One support address, the one the legal page publishes: `hello@corporatetambola.com`; phone +91 96503 97480. One legal link: `/legal.html`.
 
 ## E-mail
 
@@ -15,7 +15,7 @@ Who gets e-mail: only the Organizer and Hosts. Players give a display name only,
 ## Pages
 
 - Title pattern: `<Page> | Corporate Tic Tac Toe`. Examples: `Play | Corporate Tic Tac Toe` (`z.html`), `Big screen | ...` (`big.html`), `Run the tournament | ...` (`host.html`), `Organizer console | ...` (`zc.html`).
-- Every shipped page has a favicon, a touch icon, the manifest and the theme colour `#0B5D5B`.
+- Every shipped page has a favicon, a touch icon, the manifest and the theme colour `#0B3D91`.
 - The player page (`z.html`) is an installable web page (manifest `short_name`: Corporate Tic Tac Toe, start URL `/z.html`).
 - A branded `404.html` with a way home.
 - The organizer can add a brand strip (company name, accent colour, small logo up to 30 KB, resized in the browser and stored with the tournament settings, no outside request). The player page (`ttt.js`) shows the company name on its accent colour at the top (not the logo yet). The big screen does not show the strip; its header says "Corporate Tic Tac Toe". There is no "Powered by" line yet.

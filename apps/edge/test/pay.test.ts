@@ -99,6 +99,7 @@ describe("verify (the buyer's browser says it paid)", () => {
     expect(mail.to_addr).toBe("boss@acme.com");
     expect(mail.body).toContain(r.organizerKey);
     expect(mail.body).toContain("INVOICE");
+    expect(mail.body).toContain("All payments are taken only by IT Services by Rajat Agarwal, through Razorpay."); // the payment e-mail says who takes the payment (owner order 2026-10-29)
     const dump = JSON.stringify(raw.query("SELECT * FROM organizer_key").all());
     expect(dump.includes(r.organizerKey)).toBe(false); // only a hash is kept
   });

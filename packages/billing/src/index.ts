@@ -18,7 +18,7 @@ export interface Brand {
   line: string; // one-line description on the invoice
 }
 export const BRANDS: Record<BrandId, Brand> = {
-  corporate_tic_tac_toe: { id: "corporate_tic_tac_toe", name: "Corporate Tic Tac Toe", domain: "corporate-tic-tac-toe.example", invoicePrefix: "CB", theme: "#0B5D5B", line: "Live game software" },
+  corporate_tic_tac_toe: { id: "corporate_tic_tac_toe", name: "Corporate Tic Tac Toe", domain: "corporate-tic-tac-toe.example", invoicePrefix: "CB", theme: "#0B3D91", line: "Online games for company events" },
   dpdp: { id: "dpdp", name: "dpdp.VERIDIAN-AIOS.COM", domain: "dpdp.veridian-aios.com", invoicePrefix: "DPDP", theme: "#0E7C6E", line: "Data protection compliance software" },
   projexa: { id: "projexa", name: "projexa-ai.com", domain: "projexa-ai.com", invoicePrefix: "PXA", theme: "#1C2B3A", line: "Project management software" },
   dewberry: { id: "dewberry", name: "dewberry.in", domain: "dewberry.in", invoicePrefix: "DEW", theme: "#5B3A8C", line: "Software solutions" },
@@ -120,7 +120,7 @@ export const istStamp = (ms: number) => new Date(ms + 19_800_000).toLocaleString
 export const INVOICE_KEEP_NOTE = "We keep billing data for audit and tax reasons.";
 /** Page 2 of every invoice. Kept in step with the Terms page of the service (no refunds; cancelled paid game becomes credit). */
 export const INVOICE_TERMS: string[] = [
-  "This invoice is issued by IT Services by Rajat Agarwal for the service named on page 1. Online payments are processed by Razorpay.",
+  "This invoice is issued by IT Services by Rajat Agarwal for the service named on page 1. All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.",
   "We do not give refunds. If a paid game is cancelled before it starts, the payment stays as credit on the organizer's account and can be used for another game. Credit lapses 365 days after the payment date. No credit note is raised for credit that lapses.",
   "A payment buys one game for up to the number of participants named on the invoice. Participants never pay; rewards are given by the organizer. Unused places are not credited once the game has started.",
   "Prices are in the currency shown. Payments from India are in Indian rupees (INR); payments from outside India are in US dollars (USD). Bank, card and currency-conversion charges of the payer's own bank are the payer's own.",
@@ -130,6 +130,8 @@ export const INVOICE_TERMS: string[] = [
   "Disputes are handled first by e-mail to the seller at the address on page 1. Indian law applies and the courts of the seller's place of business have jurisdiction, unless the payer's own consumer law says otherwise.",
   "This is a computer generated invoice. It needs no signature.",
 ];
+/** The Tic Tac Toe badge of the Corporate Games brand kit, drawn in the page (a printed invoice and a PDF need no outside file). */
+const TTT_BADGE = '<svg class="bdg" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#17784A"/><path d="M24.5 9v46M39.5 9v46M9 24.5h46M9 39.5h46" stroke="#fff" stroke-width="3.4" stroke-linecap="round" fill="none"/><path d="M11 11L21 21M21 11L11 21M27 27L37 37M37 27L27 37M43 43L53 53M53 43L43 53" stroke="#FF8A7A" stroke-width="3.6" stroke-linecap="round" fill="none"/><g fill="none" stroke="#FFD43B" stroke-width="3.4"><circle cx="47" cy="16" r="5.4"/><circle cx="16" cy="47" r="5.4"/><circle cx="32" cy="47" r="5.4"/></g></svg>';
 const titleOf = (i: InvoiceData) => (i.kind === "credit_note" ? "CREDIT NOTE" : i.kind === "proforma" ? "PROFORMA INVOICE (NOT PAID)" : i.tax.mode === "none" ? "INVOICE" : "TAX INVOICE");
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 const money = (n: number, cur: string) => (cur === "INR" ? "₹" : "US$") + n.toLocaleString(cur === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -153,7 +155,8 @@ ${t.mode === "none" ? "" : `  Taxable value: ${money(t.taxable, i.currency)}\n`}
   TOTAL: ${money(t.total, i.currency)}
 ${i.paymentRef || i.pay ? `Paid via Razorpay${i.pay?.methodLabel ? ` (${i.pay.methodLabel}${i.pay.detail ? `, ${i.pay.detail}` : ""})` : ""}, payment ${i.pay?.paymentId ?? i.paymentRef}${i.pay?.orderId ? `, order ${i.pay.orderId}` : ""}` : ""}${i.organizer && (i.organizer.name || i.organizer.email || i.organizer.phone) ? `
 Organizer: ${[i.organizer.name, i.organizer.email, i.organizer.phone].filter(Boolean).join(", ")}` : ""}
-${INVOICE_KEEP_NOTE}${i.note ? `
+${i.paymentRef || i.pay ? `All payments are taken only by ${c.legalName}, through Razorpay.
+` : ""}${INVOICE_KEEP_NOTE}${i.note ? `
 ${i.note}` : ""}
 ${c.sacCode && t.mode !== "none" ? `SAC ${c.sacCode} - ${c.sacDescription}` : c.sacDescription}
 ${c.invoiceFooter}`;
@@ -178,18 +181,18 @@ export function renderInvoiceHtml(i: InvoiceData): string {
     ? `<tr><td>CGST 9%</td><td class="r">${money(t.cgst, i.currency)}</td></tr><tr><td>SGST 9%</td><td class="r">${money(t.sgst, i.currency)}</td></tr>`
     : t.mode === "inter" ? `<tr><td>IGST 18%</td><td class="r">${money(t.igst, i.currency)}</td></tr>` : `<tr><td>GST</td><td class="r">Not charged (export of services)</td></tr>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(b.name)} invoice ${esc(i.number)}</title>
-<style>body{font:15px/1.5 Inter,system-ui,sans-serif;color:#1c1a18;margin:0;background:#EEF5F4}.sheet{max-width:780px;margin:24px auto;background:#fff;padding:36px;border-radius:12px;box-shadow:0 2px 14px #0002}
-h1{font:700 26px/1.1 Georgia,serif;margin:0;color:${esc(b.theme)};letter-spacing:.02em}.sub{color:#5C6F6D;font-size:13px}.top{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:3px solid ${esc(b.theme)};padding-bottom:16px}
-.draft{background:#fff3cd;border:1px solid #e0c36a;padding:8px 12px;border-radius:8px;margin:12px 0;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:18px}td,th{padding:9px 6px;border-bottom:1px solid #D5E3E1;text-align:left}th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#5C6F6D}.r{text-align:right}tfoot td{font-weight:700;border-bottom:0}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px}.foot{margin-top:22px;font-size:12px;color:#5C6F6D}.box{border:1px solid #D5E3E1;border-radius:8px;padding:10px 12px;font-size:13px}.box b{display:block;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#5C6F6D}.kv{width:100%;margin-top:6px}.kv td{padding:3px 6px;border-bottom:1px dotted #D5E3E1;font-size:13px}.kv td:first-child{color:#5C6F6D;width:38%}.terms ol{padding-left:20px}.terms li{margin:8px 0;font-size:13px}@media print{body{background:#fff}.sheet{box-shadow:none;margin:0;border-radius:0}.terms{page-break-before:always;break-before:page}}@media(max-width:560px){.meta{grid-template-columns:1fr}}</style></head><body><div class="sheet">
-<div class="top"><div><h1>${esc(b.name)}</h1><div class="sub">${esc(b.line)}${t.mode === "none" ? "" : `<br>A product of <b>${esc(c.legalName)}</b>`}</div></div><div class="sub r" style="text-align:right"><b>${titleOf(i)}</b><br>${esc(i.number)}${i.originalNumber ? `<br>Against invoice ${esc(i.originalNumber)}` : ""}<br>Issued ${esc(istStamp(i.issuedAt))}</div></div>
+<style>body{font:15px/1.5 Inter,system-ui,sans-serif;color:#1c1a18;margin:0;background:#FFF0D6}.sheet{max-width:780px;margin:24px auto;background:#fff;padding:36px;border-radius:12px;box-shadow:0 2px 14px #0002}
+h1{font:700 26px/1.1 Georgia,serif;margin:0;color:${esc(b.theme)};letter-spacing:.02em}.sub{color:#4D4870;font-size:13px}.brand{display:flex;align-items:center;gap:14px}.bdg{flex:none;border-radius:10px}.top{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:3px solid ${esc(b.theme)};padding-bottom:16px}
+.draft{background:#fff3cd;border:1px solid #e0c36a;padding:8px 12px;border-radius:8px;margin:12px 0;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:18px}td,th{padding:9px 6px;border-bottom:1px solid #EFDDBE;text-align:left}th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#4D4870}.r{text-align:right}tfoot td{font-weight:700;border-bottom:0}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px}.foot{margin-top:22px;font-size:12px;color:#4D4870}.box{border:1px solid #EFDDBE;border-radius:8px;padding:10px 12px;font-size:13px}.box b{display:block;margin-bottom:2px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#4D4870}.kv{width:100%;margin-top:6px}.kv td{padding:3px 6px;border-bottom:1px dotted #EFDDBE;font-size:13px}.kv td:first-child{color:#4D4870;width:38%}.terms ol{padding-left:20px}.terms li{margin:8px 0;font-size:13px}@media print{body{background:#fff}.sheet{box-shadow:none;margin:0;border-radius:0}.terms{page-break-before:always;break-before:page}}@media(max-width:560px){.meta{grid-template-columns:1fr}}</style></head><body><div class="sheet">
+<div class="top"><div class="brand">${b.id === "corporate_tic_tac_toe" ? TTT_BADGE : ""}<div><h1>${esc(b.name)}</h1><div class="sub">${esc(b.line)}${t.mode === "none" ? "" : `<br>A product of <b>${esc(c.legalName)}</b>`}</div></div></div><div class="sub r" style="text-align:right"><b>${titleOf(i)}</b><br>${esc(i.number)}${i.originalNumber ? `<br>Against invoice ${esc(i.originalNumber)}` : ""}<br>Issued ${esc(istStamp(i.issuedAt))}</div></div>
 ${i.draft ? `<div class="draft">${t.mode === "none" ? "DRAFT (test payment)." : "DRAFT: the supplier's registration details are not complete yet, so this is not yet a valid tax invoice."}</div>` : ""}
 <div class="meta"><div><b>Supplier</b><br>${esc(c.legalName)}${t.mode === "none" ? `${c.email ? `<br>${esc(c.email)}` : ""}${c.phone ? `<br>${esc(c.phone)}` : ""}` : ""}<br>${c.addressLines.map(esc).join("<br>")}${c.gstin ? `<br>GSTIN: ${esc(c.gstin)}` : ""}${c.cin ? `<br>CIN: ${esc(c.cin)}` : ""}${c.pan ? `<br>PAN: ${esc(c.pan)}` : ""}</div>
 <div><b>Billed to</b><br>${esc(i.buyer.name)}${i.buyer.gstin ? `<br>GSTIN: ${esc(i.buyer.gstin)}` : ""}${i.buyer.email ? `<br>${esc(i.buyer.email)}` : ""}${i.buyer.phone ? `<br>${esc(i.buyer.phone)}` : ""}${t.mode === "none" ? "" : `<br>Place of supply: ${esc(t.placeOfSupply)}`}</div></div>
 ${renderDetailsHtml(i)}
 <table><thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Amount</th></tr></thead><tbody>${i.lines.map((l) => `<tr><td>${esc(l.description)}</td><td class="r">${l.quantity}</td><td class="r">${money(l.amount, i.currency)}</td></tr>`).join("")}</tbody>
 <tfoot>${t.mode === "none" ? "" : `<tr><td colspan="2">Taxable value</td><td class="r">${money(t.taxable, i.currency)}</td></tr>`}${t.mode === "none" ? "" : taxRows.replace(/<tr><td>/g, '<tr><td colspan="2">').replace(/<td class="r">/g, '<td class="r">')}<tr><td colspan="2">TOTAL</td><td class="r">${money(t.total, i.currency)}</td></tr></tfoot></table>
-<div class="foot">${i.pay || !i.paymentRef ? "" : `Paid online via Razorpay. Payment reference: ${esc(i.paymentRef)}.<br>`}${i.note ? `${esc(i.note)}<br>` : ""}${c.sacCode && t.mode !== "none" ? `SAC ${esc(c.sacCode)}: ` : ""}${esc(c.sacDescription)}.${c.bank.accountNumber ? `<br>Bank: ${esc(c.bank.name)}, A/c ${esc(c.bank.accountNumber)}, IFSC ${esc(c.bank.ifsc)}` : ""}<br>${esc(c.invoiceFooter)}<br><b>${esc(INVOICE_KEEP_NOTE)}</b></div></div>
+<div class="foot">${i.pay || !i.paymentRef ? "" : `Paid online through Razorpay to IT Services by Rajat Agarwal. Payment reference: ${esc(i.paymentRef)}.<br>`}${i.note ? `${esc(i.note)}<br>` : ""}${c.sacCode && t.mode !== "none" ? `SAC ${esc(c.sacCode)}: ` : ""}${esc(c.sacDescription)}.${c.bank.accountNumber ? `<br>Bank: ${esc(c.bank.name)}, A/c ${esc(c.bank.accountNumber)}, IFSC ${esc(c.bank.ifsc)}` : ""}<br>${esc(c.invoiceFooter)}<br><b>${esc(INVOICE_KEEP_NOTE)}</b></div></div>
 <div class="sheet terms"><h2>Terms and conditions</h2><div class="sub">${esc(b.name)} · ${titleOf(i)} ${esc(i.number)}</div><ol>${INVOICE_TERMS.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><div class="foot">Seller: ${esc(c.legalName)}${c.email ? ` · ${esc(c.email)}` : ""}${c.phone ? ` · ${esc(c.phone)}` : ""}</div></div></body></html>`;
 }
 
