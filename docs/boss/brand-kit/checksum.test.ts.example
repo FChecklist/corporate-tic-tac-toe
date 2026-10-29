@@ -1,0 +1,31 @@
+// The Corporate Games brand kit is ONE shared set of files: this site's copy must equal the canonical files in C:\ct\test-sites\corporate-brand-kit
+// byte for byte (SHA-256 below; python -I vendor.py prints them, and so does python -I build.py). If this fails, run vendor.py again; never edit the copy here.
+// Replace each HASH_* with the value printed for that file (and keep the list to the files this site really copies).
+import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+const sha = (f: string, text = true) => {
+  let b = readFileSync(new URL("../public/" + f, import.meta.url));
+  if (text) b = Buffer.from(b.toString("utf8").split(String.fromCharCode(13)).join("")); // line endings do not count (git may check files out with CRLF)
+  return createHash("sha256").update(b).digest("hex");
+};
+describe("the shared Corporate Games brand kit", () => {
+  test("css and js are identical to the canonical copy", () => {
+    expect(sha("tokens.css")).toBe("HASH_tokens.css");
+    expect(sha("fonts.css")).toBe("HASH_fonts.css");
+    expect(sha("components.css")).toBe("HASH_components.css");
+    expect(sha("console.css")).toBe("HASH_console.css"); // only if this site has organizer pages
+    expect(sha("brandkit.js")).toBe("HASH_brandkit.js");
+    expect(sha("theme-init.js")).toBe("HASH_theme-init.js");
+  });
+  test("the two fonts are identical", () => {
+    expect(sha("fonts/Inter-normal-400.woff2", false)).toBe("HASH_Inter");
+    expect(sha("fonts/Fraunces-normal-500-700.woff2", false)).toBe("HASH_Fraunces");
+  });
+  test("the header menu has exactly the six labels", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const nav = /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(html)![1].replace(/<span class="ck-dots"[\s\S]*?<\/span>/, "");
+    const labels = [...nav.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1].replace(/&amp;/g, "&").trim());
+    expect(labels).toEqual(["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"]);
+  });
+});

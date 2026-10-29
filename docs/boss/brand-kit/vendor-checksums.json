@@ -1,0 +1,14 @@
+{
+  "kit": "corporate-brand-kit",
+  "version": "1.0.0",
+  "files": {
+    "tokens.css": "32566fe7a4bdd8d2880459d353dadff1f7d97f23ab7228d94313ef7e80017638",
+    "fonts.css": "94ca9271029ca0e0cdb269698e334dd8dedc001f5ca2c4a5d228a6dc11306a9c",
+    "components.css": "22196acdfbda615dfa2b0bf5bc61568155f9acfa94b979af36f1c3c11b46b786",
+    "console.css": "690b28be74be67487fd478350ff99e3b2d21bbabc2163e004ff94dfbfcbf5c0b",
+    "brandkit.js": "00dabcc77138e157a432705f18cc9145bf50164421bc08d173f7424d517f802b",
+    "theme-init.js": "8ff0eb6def5cf8a95b54a2b81738a022b7a7a2b2dc76325fed78c455e45c6d7f",
+    "fonts/Inter-normal-400.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "fonts/Fraunces-normal-500-700.woff2": "7234ed860a9cc83045413c4faee63c960a8f2d1917adcf728119307d56e0d783"
+  }
+}

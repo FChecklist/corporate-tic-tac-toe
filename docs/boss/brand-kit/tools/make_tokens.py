@@ -1,0 +1,118 @@
+"""Writes tokens.css from the token tables below, so the three copies of the dark block (device dark, button dark, legacy home
+button) are always identical.  Run:  python -I tools/make_tokens.py      then:  python -I build.py
+Values are the home site (site.css, 29 Oct 2026) and Corporate Tambola 1.6.6 (app.css, landing.css) look, unchanged."""
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# things that are the same in light and dark
+COMMON = """  --serif:Fraunces,Georgia,"Times New Roman",serif; --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  /* type scale */
+  --fs-xs:12.5px; --fs-sm:15px; --fs-md:16px; --fs-base:17.5px; --fs-lead:clamp(18px,2vw,21px); --fs-h3:clamp(21px,2vw,24px); --fs-h2:clamp(29px,3.8vw,44px); --fs-h1:clamp(36px,5.6vw,64px); --fs-console:16px;
+  --lh-body:1.65; --lh-tight:1.12; --track-kicker:.12em; --track-h:-.015em;
+  /* spacing, radius, layout */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:72px; --sec:clamp(52px,7.5vw,104px);
+  --r:20px; --r-lg:28px; --r-md:14px; --r-sm:10px; --r-pill:999px;
+  --gutter:clamp(16px,4.5vw,32px); --maxw:1160px; --bar:68px; --tap:44px;
+  /* the six game colours (the colour of each ticket or board) */
+  --g-tambola:#E23E57; --g-bingo:#2D3FE0; --g-ttt:#17784A; --g-snakes:#9C3D1E; --g-luck:#6A2BD9; --g-draw:#0E9488;
+  /* the colourful bright colours that do not change with light or dark */
+  --marigold:#FFC93C; --saffron:#F08C00; --teal:#0E9488; --rose:#D6336C; --coral:#FF6B4A;"""
+
+THEMES = {  # header bar and button colour: housie's three dots, plus indigo for the home site
+    "blue": {"--bar-a": "#1553B8", "--bar-b": "#0B3D91", "--bar-deep": "#061B45"},
+    "maroon": {"--bar-a": "#7A1C33", "--bar-b": "#5A1426", "--bar-deep": "#2E0812"},
+    "emerald": {"--bar-a": "#0F6E64", "--bar-b": "#0B5D55", "--bar-deep": "#052623"},
+    "indigo": {"--bar-a": "#4A2DB8", "--bar-b": "#3B1F9E", "--bar-deep": "#2A1677"},
+}
+BAR_COMMON = "--bar-edge:#E0B872; --on-bar:#FFFFFF; --on-bar-muted:#E3ECFF; --bar-gold:#FFC93C; --bar-ink:#061B45;"
+
+LIGHT = {
+    "--bg": "#FFFAF2", "--paper": "#FFFFFF", "--tint": "#FFF0D6", "--ink": "#1B1442", "--muted": "#4D4870", "--line": "#EFDDBE",
+    "--action": "var(--bar-b)", "--on-action": "#FFFFFF", "--link": "var(--bar-b)", "--focus": "#C2255C",
+    "--accent": "#9E3C00", "--gold": "#F59F00", "--goldt": "#9E3C00",
+    "--wash-gold": "#FFF0D6", "--wash-rose": "#FFE9F0", "--wash-teal": "#E2F6F2",
+    "--hero-a": "#FFF4DC", "--hero-b": "#FFE1AD", "--blob-1": "rgba(255,92,138,.30)", "--blob-2": "rgba(46,196,182,.30)", "--blob-3": "rgba(255,201,60,.30)",
+    "--band": "var(--bar-b)", "--band-deep": "var(--bar-deep)", "--on-band": "#FFFFFF", "--band-muted": "#E3ECFF", "--band-gold": "#FFC93C",
+    "--cta-bg": "#6A1A7E", "--cta-a": "#A3124F", "--cta-b": "#3B1F9E", "--cta-on": "#FFFFFF", "--cta-btn": "#FFFFFF", "--cta-btn-on": "#2A1677",
+    "--shadow": "0 1px 2px rgba(27,20,66,.06),0 8px 24px rgba(27,20,66,.08)", "--shadow-lift": "0 2px 4px rgba(27,20,66,.08),0 16px 36px rgba(27,20,66,.14)",
+    "--hl": "rgba(255,201,60,.85)", "--disc": "#FFF0D6",
+    "--field": "#FFFFFF", "--field-line": "#8F86B5",
+    "--ok": "#14652F", "--ok-bg": "#E5F5EA", "--bad": "#A3231C", "--bad-bg": "#FCE8E8", "--warn": "#7A4A00", "--warn-bg": "#FFF4D0",
+    "--gw-tambola": "#FFE6EA", "--gw-bingo": "#E6E9FF", "--gw-ttt": "#E1F5EA", "--gw-snakes": "#FFEBDD", "--gw-luck": "#EFE6FF", "--gw-draw": "#DDF5F2",
+    # console: the ten colourful steps (tint background, text on the tint, solid circle, text on the circle)
+    "--st-blue-bg": "#E6F1FB", "--st-blue-tx": "#0C447C", "--st-blue": "#1553B8", "--st-blue-on": "#FFFFFF",
+    "--st-aqua-bg": "#DFF5EF", "--st-aqua-tx": "#075443", "--st-aqua": "#0B7A69", "--st-aqua-on": "#FFFFFF",
+    "--st-violet-bg": "#EEEDFE", "--st-violet-tx": "#3C3489", "--st-violet": "#5B4BCF", "--st-violet-on": "#FFFFFF",
+    "--st-magenta-bg": "#FBE9F1", "--st-magenta-tx": "#7A1E4B", "--st-magenta": "#B02A6B", "--st-magenta-on": "#FFFFFF",
+    "--st-green-bg": "#E8F4DB", "--st-green-tx": "#2A5A0A", "--st-green": "#3B7A12", "--st-green-on": "#FFFFFF",
+    "--st-yellow-bg": "#FFF4D0", "--st-yellow-tx": "#5B4300", "--st-yellow": "#FFC93C", "--st-yellow-on": "#1B1442",
+    "--st-orange-bg": "#FDE8D8", "--st-orange-tx": "#7A3208", "--st-orange": "#B54A00", "--st-orange-on": "#FFFFFF",
+    "--st-lime-bg": "#EEF3D2", "--st-lime-tx": "#4A5A0A", "--st-lime": "#5E7A0A", "--st-lime-on": "#FFFFFF",
+    "--st-red-bg": "#FCE8E8", "--st-red-tx": "#8A1F1F", "--st-red": "#B3261E", "--st-red-on": "#FFFFFF",
+    "--st-draft-bg": "#ECE8F5", "--st-draft-tx": "#3F3862",
+}
+DARK = {
+    "--bg": "#130F2E", "--paper": "#1D1845", "--tint": "#251E55", "--ink": "#F6F3FF", "--muted": "#C9C3EA", "--line": "#3A3178",
+    "--action": "#FFC34D", "--on-action": "#1B1442", "--link": "#FFD27A", "--focus": "#FFC34D",
+    "--accent": "#FFB86B", "--gold": "#FFC34D", "--goldt": "#FFB86B",
+    "--wash-gold": "#251C45", "--wash-rose": "#2C1740", "--wash-teal": "#0F2A3A",
+    "--hero-a": "#1A1442", "--hero-b": "#24174F", "--blob-1": "rgba(255,92,138,.22)", "--blob-2": "rgba(46,196,182,.20)", "--blob-3": "rgba(255,201,60,.12)",
+    "--band": "var(--bar-b)", "--band-deep": "var(--bar-deep)", "--on-band": "#FFFFFF", "--band-muted": "#E4DEFF", "--band-gold": "#FFD166",
+    "--cta-bg": "#4A1766", "--cta-a": "#7E0F42", "--cta-b": "#2E1A80", "--cta-on": "#FFFFFF", "--cta-btn": "#FFFFFF", "--cta-btn-on": "#2A1677",
+    "--shadow": "0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)", "--shadow-lift": "0 2px 4px rgba(0,0,0,.35),0 16px 36px rgba(0,0,0,.4)",
+    "--hl": "rgba(255,201,60,.38)", "--disc": "#2B2360",
+    "--field": "#130F2E", "--field-line": "#8F86C9",
+    "--ok": "#7BD99A", "--ok-bg": "#12301F", "--bad": "#FF9A93", "--bad-bg": "#3F1A1E", "--warn": "#FFC261", "--warn-bg": "#3A2C0A",
+    "--gw-tambola": "#3A1F3F", "--gw-bingo": "#232B63", "--gw-ttt": "#163A33", "--gw-snakes": "#3A2526", "--gw-luck": "#2E1F5E", "--gw-draw": "#123A40",
+    "--st-blue-bg": "#14304F", "--st-blue-tx": "#BBD9FA", "--st-blue": "#7DB6F5", "--st-blue-on": "#0B1B33",
+    "--st-aqua-bg": "#0F3A33", "--st-aqua-tx": "#A8EBDD", "--st-aqua": "#4FD1B8", "--st-aqua-on": "#06201C",
+    "--st-violet-bg": "#2A2560", "--st-violet-tx": "#D2CEFF", "--st-violet": "#A79BFF", "--st-violet-on": "#1A1545",
+    "--st-magenta-bg": "#4A1B38", "--st-magenta-tx": "#FFC4DE", "--st-magenta": "#F276B0", "--st-magenta-on": "#2A0A1D",
+    "--st-green-bg": "#1F3B12", "--st-green-tx": "#C9F0A5", "--st-green": "#8FD35C", "--st-green-on": "#0F2207",
+    "--st-yellow-bg": "#4A3A0A", "--st-yellow-tx": "#FFE9A6", "--st-yellow": "#FFC93C", "--st-yellow-on": "#2B2000",
+    "--st-orange-bg": "#4A2410", "--st-orange-tx": "#FFD2B0", "--st-orange": "#FF9A55", "--st-orange-on": "#2B1204",
+    "--st-lime-bg": "#34400F", "--st-lime-tx": "#E2F2A5", "--st-lime": "#B7D63A", "--st-lime-on": "#1D2504",
+    "--st-red-bg": "#4A1B1B", "--st-red-tx": "#FFC8C8", "--st-red": "#FF8080", "--st-red-on": "#2A0B0B",
+    "--st-draft-bg": "#2B2560", "--st-draft-tx": "#DAD5F7",
+}
+
+
+def block(sel, d, ind="  "):
+    return ind + sel + "{\n" + "\n".join(f"{ind}  {k}:{v};" for k, v in d.items()) + "\n" + ind + "}"
+
+
+def main():
+    out = []
+    out.append("""/* Corporate Games brand kit: design tokens (the ONE source of colours, type, spacing, radius and shadows).
+   Matches the home site (home.corporatetambola.com, site.css) and Corporate Tambola 1.6.6 (housie.corporatetambola.com).
+   GENERATED by tools/make_tokens.py: edit the tables there, never this file. Dark follows the device; the button on the page
+   overrides it with <html data-mode="dark|light"> (the older <html data-theme="dark|light"> of the home site also works).
+   Colour theme of the header bar and buttons: <html data-theme="blue|maroon|emerald|indigo"> (blue is the default; the three
+   theme dots on a game site switch blue, maroon and emerald; indigo is the home site's own). */
+:root{
+  color-scheme:light dark;""")
+    out.append(COMMON)
+    out.append("  /* header bar and button colour: blue by default */")
+    out.append("  --bar-a:#1553B8; --bar-b:#0B3D91; --bar-deep:#061B45; " + BAR_COMMON)
+    out.append("\n".join(f"  {k}:{v};" for k, v in LIGHT.items()))
+    out.append("}")
+    for name, d in THEMES.items():
+        if name == "blue":
+            continue
+        out.append(":root[data-theme=" + name + "]{" + " ".join(f"{k}:{v};" for k, v in d.items()) + "}")
+    out.append("@media (prefers-color-scheme:dark){\n" + block(":root:not([data-mode=light]):not([data-theme=light])", DARK) + "\n}")
+    out.append(block(":root[data-mode=dark]", {**DARK, "color-scheme": "dark"}, ""))
+    out.append(block(":root[data-theme=dark]", {**DARK, "color-scheme": "dark"}, ""))
+    out.append(":root[data-mode=light],:root[data-theme=light]{color-scheme:light}")
+    out.append("""/* the colour of each game: .g-tambola, .g-bingo, .g-ttt, .g-snakes, .g-luck, .g-draw set --c (solid) and --g-wash (soft background) */
+.g-tambola{--c:var(--g-tambola);--g-wash:var(--gw-tambola)}.g-bingo{--c:var(--g-bingo);--g-wash:var(--gw-bingo)}.g-ttt{--c:var(--g-ttt);--g-wash:var(--gw-ttt)}
+.g-snakes{--c:var(--g-snakes);--g-wash:var(--gw-snakes)}.g-luck{--c:var(--g-luck);--g-wash:var(--gw-luck)}.g-draw{--c:var(--g-draw);--g-wash:var(--gw-draw)}
+""")
+    text = "\n".join(out) + "\n"
+    with open(os.path.join(ROOT, "tokens.css"), "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    print("tokens.css written,", len(text), "bytes")
+
+
+main()

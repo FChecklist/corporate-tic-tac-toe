@@ -1,0 +1,12 @@
+// The Corporate Games bar is ONE shared component: this site's copy must equal the canonical files in C:\ct\test-sites\corporate-games-bar
+// byte for byte (SHA-256 below, printed by that folder's src/build.py). If this fails, copy the canonical files again; never edit the copy here.
+import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+const sha = (f: string) => createHash("sha256").update(readFileSync(new URL("../public/" + f, import.meta.url), "utf8").split(String.fromCharCode(13)).join("")).digest("hex"); // line endings do not count (git may check files out with CRLF)
+describe("the shared Corporate Games bar", () => {
+  test("gamesbar.js and gamesbar.css are identical to the canonical copy", () => {
+    expect(sha("gamesbar.js")).toBe("16f02208af3c84cef63d81cdfcbc788f1baf23957ed71e912d44cafd4f881b98");
+    expect(sha("gamesbar.css")).toBe("6b0311de98525de646e637a28102163dfecf9fde35b8befe0344a5e16fff8b5b");
+  });
+});

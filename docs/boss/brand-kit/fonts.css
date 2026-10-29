@@ -1,0 +1,4 @@
+/* Corporate Games brand kit: the two self-hosted fonts (Inter for text, Fraunces for headings). Copy the fonts/ folder to /fonts/ on the site.
+   No Google Fonts, no outside request. Both files are the same bytes as on home.corporatetambola.com. Licence: SIL Open Font License 1.1. */
+@font-face{font-family:Inter;src:url(/fonts/Inter-normal-400.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:Fraunces;src:url(/fonts/Fraunces-normal-500-700.woff2) format("woff2");font-weight:500 700;font-display:swap}

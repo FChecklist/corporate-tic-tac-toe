@@ -1,0 +1,22 @@
+# Add these lines to the site's _headers file (Cloudflare Pages keeps css and js for 4 hours unless told not to).
+# The Content-Security-Policy is the one every Corporate Games site already uses; the kit needs nothing more than this.
+/*
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+/tokens.css
+  Cache-Control: no-cache
+/fonts.css
+  Cache-Control: no-cache
+/components.css
+  Cache-Control: no-cache
+/console.css
+  Cache-Control: no-cache
+/brandkit.js
+  Cache-Control: no-cache
+/theme-init.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
