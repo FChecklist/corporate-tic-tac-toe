@@ -22,3 +22,7 @@ Rule: the claim must be TRUE for that product before it is printed. Each product
 - DPDP: no random numbers. Use the matching promise that is true there: nobody, including us, can change or delete a record in the audit trail without it showing (only if true), and say who can see what.
 - Home site and all site footers/guides: one short line per product, linking to that product's trust page.
 Owner decides wording; boss only checks that it is true.
+
+## TOWNHALL BALLOTS (owner confirmed 29 Oct): votes are 100% secret. No one knows what any voter voted, only the final outcome is known. BUT it must come with validation, verification and audit.
+Text: "Your vote is secret. No one, not the organizer, not us, can see how you voted. Only the final result is shown. Every vote is checked (one person, one vote), the count can be verified, and a full audit record is kept, without ever linking a vote to a voter."
+Code duty (Townhall session, plan 120): prove in code and tests that (1) ballot content is never stored with voter identity, (2) validation: eligible voter, one vote each, event open; (3) verification: result recomputable from the sealed ballots, each voter can confirm their vote was counted without revealing it; (4) audit log of who voted (yes/no) and events, never what. Until proven, pages say only what is proven.
