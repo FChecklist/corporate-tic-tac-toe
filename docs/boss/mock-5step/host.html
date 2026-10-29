@@ -37,4 +37,9 @@ function check(){const v=[...Array(6).keys()].map(i=>document.getElementById('c'
 if(v.length<6){m.className='msg warn';m.textContent='Please type all 6 digits.';return}
 if(v!==code){tries++;m.className='msg warn';m.textContent=tries>=5?'Too many wrong tries. Please ask for a new passcode.':'That passcode is not right. Please try again ('+(5-tries)+' tries left).';return}
 m.className='msg ok';m.textContent='Confirmed. Opening your '+(LIST[email]==='host'?'Host':'Co-host')+' page...';setTimeout(()=>location.href='index.html?role='+LIST[email]+'&email='+encodeURIComponent(email),700)}
+
+(function(){const sc=new URLSearchParams(location.search).get('screen');if(!sc)return;
+if(sc==='passcode'||sc==='wrong'){email='host@acme.com';code='482913';document.getElementById('to').textContent=email;document.getElementById('s1').classList.add('hide');document.getElementById('s2').classList.remove('hide');document.getElementById('demo').textContent='Demo only: your passcode is 482913 (a real one arrives by email).';if(sc==='wrong'){const m=document.getElementById('m2');m.className='msg warn';m.textContent='That passcode is not right. Please try again (4 tries left).'}}
+if(sc==='notlisted'){document.getElementById('em').value='nobody@x.com';const m=document.getElementById('m1');m.className='msg warn';m.textContent='This email ID is not on the Host or Co-host list. If you are a participant, please use the participant option below. If you should be a Host or Co-host, ask the organizer to add you.'}
+if(sc==='cohost'){document.getElementById('em').value='cohost@acme.com'}})();
 </script></body></html>
