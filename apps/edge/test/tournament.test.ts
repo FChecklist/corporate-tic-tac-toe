@@ -191,7 +191,7 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const h = await game("MB-8"); const ps = await joinAll("MB-8", 4); await begin("MB-8", h);
     const { list: [x, y] } = await pairs("MB-8", ps, 2);
     const w0 = x!.a, w1 = y!.b; const l0 = x!.b, l1 = y!.a;
-    const body = (p: P, extra: Record<string, unknown> = {}) => ({ pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: "e0", b: "e1", boards: [[w0.pid, w1.pid]], from: [x!.mid, y!.mid], opened: T + 9000, ...extra });
+    const body = (p: P, extra: Record<string, unknown> = {}) => ({ pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: w0.pid, b: w1.pid, boards: [[w0.pid, w1.pid]], from: [x!.mid, y!.mid], opened: T + 9000, ...extra }); // a solo entrant's id is the player's own code
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(w0), {}, T + 5000)).status).toBe(409); // the earlier matches are not finished
     for (const [m, w] of [[x!, w0], [y!, w1]] as const) { expect((await call("POST", "/api/z/MB-8/ttt/settle", { mid: m.mid, j: 0, winner: w.pid }, h, T + 6000)).status).toBe(200); }
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(l0), {}, T + 7000)).status).toBe(403); // somebody who is not on the board
@@ -200,23 +200,24 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     expect((await j(await call("POST", "/api/z/MB-8/ttt/open", body(w1), {}, T + 7100))).again).toBe(true); // the same pairing from the other player: fine
     const clash = await call("POST", "/api/z/MB-8/ttt/open", body(w1, { boards: [[w1.pid, w0.pid]] }), {}, T + 7200); expect(clash.status).toBe(409); expect((await j(clash)).code).toBe("conflict");
     expect(sql("SELECT kind FROM ttt_x WHERE eid='MB-8'")[0].kind).toBe("pairing");
-    const reg = await getM("MB-8", "r2m0", T + 8000); expect(reg.reg).toMatchObject({ round: 2, a: "e0", b: "e1", opened: T + 9000 }); expect(reg.boards.length).toBe(1);
+    const reg = await getM("MB-8", "r2m0", T + 8000); expect(reg.reg).toMatchObject({ round: 2, a: w0.pid, b: w1.pid, opened: T + 6000 }); expect(reg.boards.length).toBe(1); // opened is worked out from the results (settled at T + 6000), not the T + 9000 the caller sent
     expect((await mv("MB-8", w0, { mid: "r2m0", seq: 0, sq: 4 }, T + 9000)).status).toBe(200);
     expect(l1.pid).toBeTruthy();
   });
   test("M9: the final ranking is kept only when two different phones in the final send the same thing (or the Organizer's page does); a different one is flagged", async () => {
     const h = await game("MB-9"); const ps = await joinAll("MB-9", 2); const { clock } = await begin("MB-9", h); void clock;
     const { list: [x] } = await pairs("MB-9", ps);
-    const pay = { champion: "e1", rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: "e1", name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: "e2", name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] };
+    const pay = { champion: x!.a.pid, rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: x!.a.pid, name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: x!.b.pid, name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] };
     const fin = (p: P, body: unknown, now: number) => call("POST", "/api/z/MB-9/ttt/finish", { pid: p.pid, device: p.device, ...(body as object) }, {}, now);
     expect((await fin(x!.a, pay, T + 1000)).status).toBe(409); // the final is not finished
     await result("MB-9", x!.a, x!.mid, x!.a.pid, T + 2000); await result("MB-9", x!.b, x!.mid, x!.a.pid, T + 2100);
     expect((await call("POST", "/api/z/MB-9/ttt/finish", pay, {}, T + 2500)).status).toBe(403); // a stranger
     const one = await j(await fin(x!.a, pay, T + 3000)); expect(one).toMatchObject({ ok: true, done: false });
-    const diff = await j(await fin(x!.b, { ...pay, champion: "e2" }, T + 3100)); expect(diff.done).toBe(false);
+    expect((await fin(x!.b, { ...pay, champion: x!.b.pid }, T + 3050)).status).toBe(409); // not the result the boards give: refused
+    const diff = await j(await fin(x!.b, { ...pay, ranking: [{ ...pay.ranking[0]!, points: 9 }, pay.ranking[1]!] }, T + 3100)); expect(diff.done).toBe(false);
     expect(sql("SELECT kind FROM ttt_x WHERE eid='MB-9'").map((x) => x.kind)).toContain("finish-mismatch");
     const two = await j(await fin(x!.b, pay, T + 3200)); expect(two.done).toBe(true);
-    const v = await view("MB-9", T + 4000); expect(v.state).toBe("done"); expect(v.champion).toBeNull(); // no entrant named e1 in the draw: the mailbox shows what it was given
+    const v = await view("MB-9", T + 4000); expect(v.state).toBe("done"); expect(v.champion).toBe(x!.a.name);
     expect(sql("SELECT pattern FROM settled WHERE eid='MB-9' ORDER BY pattern").map((x) => x.pattern)).toEqual(["first", "second"]);
   });
   test("G11/R29: a player who reloads (a brand-new phone, nothing remembered) sees the board exactly as it is, with the clock still running", async () => {
@@ -430,6 +431,60 @@ describe("QA 2026-10-29: one false report must not take a board; a tap after the
     const w = await game("QA-8"); const q = await joinAll("QA-8", 2); await call("POST", "/api/z/QA-8/ttt/start", {}, w, T);
     const waiting = await phoneFor("QA-8", q[0]!, { t: T + 1000 }).tick(); expect(waiting.phase).toBe("waiting"); expect(waiting.message).toBe("The game is starting. Please wait a moment.");
   });
+  test("S1 (open, QA security review): a later match is registered only with the pairing the agreed results give: an eliminated player cannot put himself in the final, a made-up round or id is refused, the opening time is worked out from the results, and the real finalists can play", async () => {
+    const h = await game("QA-9"); const ps = await joinAll("QA-9", 4); await begin("QA-9", h);
+    const { list: [x, y] } = await pairs("QA-9", ps, 2);
+    for (const m of [x!, y!]) { await result("QA-9", m.a, m.mid, m.a.pid, T + 1000); await result("QA-9", m.b, m.mid, m.a.pid, T + 1000); }
+    const [W1, L1, W2, L2] = [x!.a, x!.b, y!.a, y!.b];
+    const open = (p: P, extra: Record<string, unknown> = {}) => call("POST", "/api/z/QA-9/ttt/open", { pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: W1.pid, b: W2.pid, boards: [[W1.pid, W2.pid]], from: [x!.mid, y!.mid], ...extra }, {}, T + 3000);
+    expect((await open(L1, { a: L1.pid, b: L2.pid, boards: [[L1.pid, L2.pid]] })).status).toBe(409); // not the pairing the results give
+    expect((await open(L1)).status).toBe(403); // the right pairing, but L1 is not in it
+    expect((await open(W1, { mid: "r99m99999", round: 99, idx: 99999 })).status).toBe(400); // no such place in the bracket
+    expect((await open(W1, { from: [y!.mid, x!.mid] })).status).toBe(400); // not its own feeders
+    expect((await open(W1, { a: W2.pid, b: W1.pid, boards: [[W2.pid, W1.pid]] })).status).toBe(409); // the sides the wrong way round
+    expect(sql("SELECT COUNT(*) c FROM ttt_m WHERE eid='QA-9' AND round>1")[0].c).toBe(0); // nothing was stored by the refusals
+    expect((await open(W1, { opened: 0 })).status).toBe(200); // the honest registration; the caller's 'opened' is ignored
+    expect(sql("SELECT a, b, deadline FROM ttt_m WHERE eid='QA-9' AND mid='r2m0'")).toEqual([{ a: W1.pid, b: W2.pid, deadline: T + 1000 }]);
+    expect((await open(W2)).status).toBe(200); // the other finalist sends the same thing: fine
+    expect((await mv("QA-9", W1, { mid: "r2m0", seq: 0, sq: 4 }, T + 4000)).status).toBe(200); // the real finalist plays
+    expect((await mv("QA-9", L1, { mid: "r2m0", seq: 1, sq: 4 }, T + 4100)).status).toBe(403); // the eliminated one cannot
+    void L2;
+  });
+  test("S1 (open): the big screen and the Organizer's page skip a registered match that is not in the draw instead of failing", async () => {
+    const h = await game("QA-9B"); const ps = await joinAll("QA-9B", 4); const { clock } = await begin("QA-9B", h); void ps;
+    const junk = { mid: "r99m99999", complete: false, reg: { round: 99, idx: 5, a: "x", b: "y", bye: false, winner: null, opened: 0, ms: 0 }, boards: [{ j: 0, a: "x", b: "y", events: [], result: null, reports: [] }], t: { state: "running", pauses: [], serverNow: T } };
+    const api = async (m: string, path: string) => { if (path.endsWith("/ttt/flags")) return { flags: [], disputed: [{ mid: "r99m99999", j: 0 }] }; if (path.includes("/ttt/m/")) return junk; if (path.endsWith("/ttt/setup")) return setupOf("QA-9B", clock.t); if (path.includes("/ttt/stuck")) return { serverNow: T, matches: [junk], pauses: [] }; throw new Error("unexpected " + m + " " + path); };
+    const con = new TttConsole(api as any, "QA-9B"); expect(await con.settleDisputed()).toBe(0); expect(await con.watch()).toEqual({ claims: 0, reports: 0 });
+  });
+  test("S3 (finish, QA security review): two members of the LOSING team cannot fix the champion or the podium; the result must be what the boards give; the honest result still closes the tournament", async () => {
+    const h = await game("QA-10"); const ps = await joinAll("QA-10", 6); await begin("QA-10", h, { format: "team", teamSize: 3 });
+    const { plan, list: [m] } = await pairs("QA-10", ps); const by = new Map(ps.map((p) => [p.pid, p]));
+    const boards = m!.m.boards.map((b) => [by.get(b.a)!, by.get(b.b)!] as [P, P]);
+    for (const [a, b] of boards) { await result("QA-10", a, m!.mid, a.pid, T + 1000); await result("QA-10", b, m!.mid, a.pid, T + 1000); } // team A wins all three boards
+    const teamA = plan.t.matches[m!.mid]!.a!, teamB = plan.t.matches[m!.mid]!.b!; const members = (id: string) => plan.t.entrants.find((e) => e.id === id)!.members;
+    const losers = boards.map(([, b]) => b);
+    const body = (champion: string, podium: string[][]) => ({ champion, rounds: 1, finalMid: m!.mid, podium, ranking: [{ rank: 1, id: champion, name: "Team", roundReached: 2, points: 6, decidedBy: "", tie: "" }, { rank: 2, id: champion === teamA ? teamB : teamA, name: "Team", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] });
+    const fin = (p: P, b: unknown, now: number) => call("POST", "/api/z/QA-10/ttt/finish", { pid: p.pid, device: p.device, ...(b as object) }, {}, now);
+    const fake = body(teamB, [losers.map((p) => p.pid), ["99999"]]);
+    expect((await fin(losers[0]!, fake, T + 3000)).status).toBe(409); expect((await fin(losers[1]!, fake, T + 3001)).status).toBe(409);
+    expect((await fin(losers[0]!, body(teamB, [members(teamB), members(teamA)]), T + 3002)).status).toBe(409); // the right members, the wrong champion
+    expect((await fin(losers[0]!, body(teamA, [members(teamA), ["99999"]]), T + 3003)).status).toBe(409); // a seat that is not in the game
+    expect(sql("SELECT state, champion FROM ttt_t WHERE eid='QA-10'")[0]).toEqual({ state: "running", champion: null });
+    const honest = body(teamA, [members(teamA), members(teamB)]);
+    expect((await j(await fin(boards[0]![0], honest, T + 4000))).done).toBe(false); expect((await j(await fin(boards[1]![0], honest, T + 4001))).done).toBe(true);
+    expect(sql("SELECT state, champion FROM ttt_t WHERE eid='QA-10'")[0]).toEqual({ state: "done", champion: teamA });
+  });
+  test("S7 (opened): the opening time the mailbox works out for every later match equals the later of the two results that feed it, in an 8-player tournament played by phones", async () => {
+    const h = await game("QA-14"); const ps = await joinAll("QA-14", 8); const { clock } = await begin("QA-14", h, { moveSecs: 10 });
+    await playCrowd({ call, eid: "QA-14", phones: ps, orgHeaders: h, clock, rng: rnd, isDone: () => (raw.query("SELECT state FROM ttt_t WHERE eid='QA-14'").get() as any)?.state === "done" });
+    const rows = sql("SELECT mid, round, idx, deadline, started_ms FROM ttt_m WHERE eid='QA-14' AND round>1 ORDER BY round, idx"); expect(rows.length).toBe(3);
+    const started = (sql("SELECT started_ms FROM ttt_t WHERE eid='QA-14'")[0] as any).started_ms;
+    for (const r of rows) {
+      const feeders = [`r${r.round - 1}m${2 * r.idx}`, `r${r.round - 1}m${2 * r.idx + 1}`];
+      const ends = feeders.map((f) => { const own = r.round - 1 === 1 ? started : (sql("SELECT deadline FROM ttt_m WHERE eid='QA-14' AND mid=?", f)[0] as any).deadline; return Math.max(own, ...sql("SELECT at_ms FROM ttt_b WHERE eid='QA-14' AND mid=?", f).map((b: any) => b.at_ms)); });
+      expect(r.deadline).toBe(Math.max(started, ...ends));
+    }
+  }, 60_000);
   test("F-late: a tap after the turn ended is answered late-move with the owner-approved words; the mailbox keeps the row, every phone ignores it, the square the software played stays", async () => {
     const h = await game("QA-4"); const ps = await joinAll("QA-4", 2); const { clock } = await begin("QA-4", h, { moveSecs: 20 });
     clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-4", p, clock)); const views = await Promise.all(phones.map((x) => x.tick()));

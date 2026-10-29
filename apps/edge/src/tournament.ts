@@ -59,6 +59,27 @@ export function endBoundTtt(startMs: number, t: { ended_ms: number | null } | nu
 
 const boardsOf = (m: Pick<MRow, "data">): [string, string][] => (m.data ? JSON.parse(m.data) : []);
 const pausesOf = async (env: Env, eid: string): Promise<[number, number | null][]> => ((await env.DB.prepare("SELECT from_ms, to_ms FROM ttt_z WHERE eid=? ORDER BY from_ms").bind(eid).all<{ from_ms: number; to_ms: number | null }>()).results ?? []).map((x) => [x.from_ms, x.to_ms]);
+/** The tournament clock: wall time minus every pause (the same sum packages/ttt/src/phone.ts effOf makes). Only used to turn the mailbox's own stamps into the clock the phones use. */
+const effOf = (pauses: readonly [number, number | null][], wall: number): number => { let cut = 0; for (const [f, to] of pauses) if (wall > f) cut += Math.min(wall, to ?? Infinity) - f; return wall - cut; };
+/** Who won a finished match and when it was over, by COUNTING the agreed board results the mailbox holds (a side wins with more boards); never by looking at a board. Null while the match is not finished. */
+async function tally(env: Env, t: TRow, mid: string, pauses: readonly [number, number | null][]): Promise<{ winner: string; doneAt: number } | null> {
+  const startAt = t.started_ms ?? 0;
+  const m = await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid=?").bind(t.eid, mid).first<MRow>();
+  if (!m || m.status !== "done") return null;
+  if (m.bye) return m.winner ? { winner: m.winner, doneAt: startAt } : null;
+  const pairs = boardsOf(m);
+  const rs = (await env.DB.prepare("SELECT j, winner, at_ms FROM ttt_b WHERE eid=? AND mid=? AND flag=0 AND winner IS NOT NULL").bind(t.eid, mid).all<{ j: number; winner: string; at_ms: number }>()).results ?? [];
+  if (!m.a || !m.b || rs.length < pairs.length) return null;
+  const winsA = rs.filter((r) => r.winner === pairs[r.j]?.[0]).length;
+  return { winner: winsA * 2 > pairs.length ? m.a : m.b, doneAt: Math.max(m.round === 1 ? startAt : m.deadline ?? startAt, ...rs.map((r) => effOf(pauses, r.at_ms))) };
+}
+const membersOf = async (env: Env, eid: string, id: string): Promise<string[] | null> => { const r = await env.DB.prepare("SELECT members FROM ttt_e WHERE eid=? AND id=?").bind(eid, id).first<{ members: string }>(); return r ? (JSON.parse(r.members) as string[]) : null; };
+/** What a later-round match must be, from the agreed results: its two sides are the winners of the two matches that feed it, its boards pair their members in order, and it opens when the later of the two was over (tournament clock). Null while either is unfinished. */
+async function sidesOf(env: Env, t: TRow, feeders: readonly [string, string]): Promise<{ a: string; b: string; boards: [string, string][]; opened: number } | null> {
+  const pauses = await pausesOf(env, t.eid), x = await tally(env, t, feeders[0], pauses), y = await tally(env, t, feeders[1], pauses); if (!x || !y) return null;
+  const am = await membersOf(env, t.eid, x.winner), bm = await membersOf(env, t.eid, y.winner); if (!am || !bm || am.length !== bm.length) return null;
+  return { a: x.winner, b: y.winner, boards: am.map((p, j) => [p, bm[j]!] as [string, string]), opened: Math.round(Math.max(t.started_ms ?? 0, x.doneAt, y.doneAt)) };
+}
 
 // ---------------------------------------------------------------------------------------------------------------- storing results (counting, never judging)
 /** A match is "done" in the mailbox when every one of its boards has an agreed result. */
@@ -221,15 +242,17 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (typeof b.mid !== "string" || !MID.test(b.mid) || !Number.isInteger(b.round) || b.round < 2 || !Number.isInteger(b.idx) || !Array.isArray(boards) || boards.length < 1 || boards.length > 5 || !boards.every((x: unknown) => Array.isArray(x) && x.length === 2 && (x as unknown[]).every((p) => typeof p === "string" && PID.test(p as string)))) return json({ error: "Bad match." }, 400);
     if (!Array.isArray(from) || from.length !== 2 || from[0] === from[1] || !from.every((x: unknown) => typeof x === "string" && MID.test(x))) return json({ error: "A match needs the two matches it comes from.", code: "needs-feeders" }, 400);
     if (!orgOpen && !boards.some(([x, y]: [string, string]) => x === who.pid || y === who.pid)) return json({ error: "You are not in this match.", code: "not-in-match" }, 403);
-    const pids = [...new Set((boards as [string, string][]).flat())];
-    const known = (await env.DB.prepare(`SELECT COUNT(*) AS c FROM ttt_p WHERE eid=? AND pid IN (${pids.map(() => "?").join(",")})`).bind(eid, ...pids).first<{ c: number }>())?.c ?? 0;
-    if (known !== pids.length) return json({ error: "A board lists someone who did not join.", code: "not-in-game" }, 400);
-    const ready = await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_m WHERE eid=? AND mid IN (?,?) AND status='done'").bind(eid, from[0], from[1]).first<{ c: number }>();
-    if ((ready?.c ?? 0) !== 2) return json({ error: "The two earlier matches are not finished yet.", code: "feeders-not-done" }, 409);
-    const data = JSON.stringify(boards);
-    const have = await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid=?").bind(eid, b.mid).first<MRow>();
-    if (have) { if (have.data === data && have.a === (b.a ?? null) && have.b === (b.b ?? null)) return json({ ok: true, again: true }); await note(env, eid, "pairing", b.mid, who.pid, "Two different pairings were sent for the same match.", now); return json({ error: "That match is already registered with other players. The Organizer was told.", code: "conflict" }, 409); }
-    await env.DB.prepare("INSERT OR IGNORE INTO ttt_m(eid,mid,round,idx,a,b,status,bye,started_ms,deadline,data) VALUES(?,?,?,?,?,?,'live',0,?,?,?)").bind(eid, b.mid, b.round, b.idx, b.a ?? null, b.b ?? null, now, Number.isFinite(b.opened) ? Math.trunc(b.opened) : null, data).run();
+    // The registration is checked against the agreed results the mailbox holds (counting, never judging a board). A later match sits right above the two matches it comes from, its sides are the
+    // winners of those two, its boards pair their members in order, and the moment it opens is worked out here from the stamps of those results, not taken from the caller.
+    const [, rr, ii] = /^r(\d+)m(\d+)$/.exec(b.mid)!; const round = Number(rr), idx = Number(ii);
+    if (b.round !== round || b.idx !== idx || round < 2 || round > (t.rounds ?? 0)) return json({ error: "Bad match." }, 400);
+    if (from[0] !== `r${round - 1}m${2 * idx}` || from[1] !== `r${round - 1}m${2 * idx + 1}`) return json({ error: "A match needs the two matches it comes from.", code: "needs-feeders" }, 400);
+    const sides = await sidesOf(env, t, [from[0], from[1]]);
+    if (!sides) return json({ error: "The two earlier matches are not finished yet.", code: "feeders-not-done" }, 409);
+    if (b.a !== sides.a || b.b !== sides.b || JSON.stringify(boards) !== JSON.stringify(sides.boards)) { await note(env, eid, "pairing", b.mid, who.pid, "A pairing was sent that the results do not give.", now); return json({ error: "That is not the pairing the results give. The Organizer was told.", code: "conflict" }, 409); }
+    const have = await env.DB.prepare("SELECT 1 AS x FROM ttt_m WHERE eid=? AND mid=?").bind(eid, b.mid).first();
+    if (have) return json({ ok: true, again: true });
+    await env.DB.prepare("INSERT OR IGNORE INTO ttt_m(eid,mid,round,idx,a,b,status,bye,started_ms,deadline,data) VALUES(?,?,?,?,?,?,'live',0,?,?,?)").bind(eid, b.mid, round, idx, sides.a, sides.b, now, sides.opened, JSON.stringify(sides.boards)).run();
     return json({ ok: true });
   }
 
@@ -334,6 +357,13 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!fm || fm.status !== "done") return json({ error: "The final is not finished.", code: "final-open" }, 409);
     if (!byOrganizer && boardOfPid(fm, who) < 0) return json({ error: "Only the finalists' phones or the Organizer's page can send the result.", code: "not-in-final" }, 403);
     const podium = b.podium, ranking = b.ranking;
+    { // the champion and the first two places must be what the agreed results of the final give (two phones that agree on a made-up result are not enough)
+      const won = await tally(env, t, finalMid, await pausesOf(env, eid)), cm = won ? await membersOf(env, eid, won.winner) : null;
+      const same = (x: unknown, y: string[] | null) => Array.isArray(x) && !!y && x.length === y.length && x.every((p) => y.includes(p as string));
+      if (!won || b.champion !== won.winner || !Array.isArray(podium) || !same(podium[0], cm)) return json({ error: "That is not the result the boards give.", code: "bad-result" }, 409);
+      const everyone = [...new Set((podium as unknown[]).flat().filter((p): p is string => typeof p === "string"))];
+      if (everyone.length > 25 || (everyone.length && ((await env.DB.prepare(`SELECT COUNT(*) AS c FROM ttt_p WHERE eid=? AND pid IN (${everyone.map(() => "?").join(",")})`).bind(eid, ...everyone).first<{ c: number }>())?.c ?? 0) !== everyone.length)) return json({ error: "That is not the result the boards give.", code: "bad-result" }, 409);
+    }
     if (typeof b.champion !== "string" || b.finalMid !== finalMid || !Array.isArray(podium) || podium.length < 1 || podium.length > 5 || !podium.every((x: unknown) => Array.isArray(x) && x.length >= 1 && x.length <= 5 && (x as unknown[]).every((p) => typeof p === "string" && PID.test(p as string)))
       || !Array.isArray(ranking) || ranking.length < 1 || ranking.length > 100) return json({ error: "Bad result." }, 400);
     const clean = { champion: b.champion, rounds: t.rounds, finalMid, podium, ranking: ranking.map((r: any) => ({ rank: Number(r.rank), id: String(r.id).slice(0, 40), name: cleanName(r.name), roundReached: Number(r.roundReached), points: Number(r.points), decidedBy: String(r.decidedBy ?? "").slice(0, 40), tie: String(r.tie ?? "").slice(0, 200) })) };

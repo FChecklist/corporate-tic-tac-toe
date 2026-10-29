@@ -406,7 +406,7 @@ export class TttConsole {
       if (!recs.length) break;
       const { plan, setup } = await this.loaded(); const startAt = setup.startedMs ?? 0, pr: [number, number | null][] = r.pauses ?? setup.pauses;
       for (const rec0 of recs) {
-        if (!rec0.reg || rec0.reg.bye) continue;
+        if (!rec0.reg || rec0.reg.bye || !plan.t.matches[rec0.mid]) continue; // a match that is not in the draw is skipped
         let rec = rec0;
         for (let pass = 0; pass < 2; pass++) {
           const base = structuredClone(plan.t.matches[rec.mid]!) as MatchState; base.a = rec.reg!.a; base.b = rec.reg!.b;
@@ -431,7 +431,7 @@ export class TttConsole {
     const f = await this.flags(); let settled = 0;
     for (const d of f.disputed as { mid: string; j: number }[]) {
       const { plan, setup } = await this.loaded(); const startAt = setup.startedMs ?? 0;
-      const rec: MatchRec = await this.get(`m/${d.mid}`); if (!rec.reg || rec.reg.bye) continue;
+      const rec: MatchRec = await this.get(`m/${d.mid}`); if (!rec.reg || rec.reg.bye || !plan.t.matches[d.mid]) continue;
       const base = structuredClone(plan.t.matches[d.mid]!) as MatchState; base.a = rec.reg.a; base.b = rec.reg.b;
       const b = (await replayMatch(plan, startAt, base, rec, rec.reg.opened ?? startAt, rec.t?.pauses ?? setup.pauses)).m.boards[d.j];
       if (b?.done && b.winner) { try { await this.post("settle", { mid: d.mid, j: d.j, winner: b.winner }); settled++; } catch { /* somebody settled it first */ } }
@@ -458,7 +458,7 @@ export class TttWatcher {
   constructor(public api: Api, public eid: string) {}
   private get = (path: string) => this.api("GET", `/api/z/${this.eid}/ttt/${path}`);
   private async card(rec: MatchRec, pauses: [number, number | null][], paused: boolean): Promise<any | null> {
-    const p = this.plan!, startAt = this.setup!.startedMs ?? 0; if (!rec.reg) return null;
+    const p = this.plan!, startAt = this.setup!.startedMs ?? 0; if (!rec.reg || !p.t.matches[rec.mid]) return null;
     const base = structuredClone(p.t.matches[rec.mid]!) as MatchState; base.a = rec.reg.a; base.b = rec.reg.b;
     if (rec.reg.bye) return { mid: rec.mid, round: base.round, roundName: roundName(p.t, base.round), a: p.E.get(rec.reg.a ?? rec.reg.b)?.name ?? "-", b: "-", status: "done", bye: true, winner: p.E.get(rec.reg.winner ?? "")?.name ?? null, boards: [] };
     const rep = await replayMatch(p, startAt, base, rec, rec.reg.opened ?? startAt, pauses);
