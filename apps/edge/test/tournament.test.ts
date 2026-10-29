@@ -422,6 +422,14 @@ describe("QA 2026-10-29: one false report must not take a board; a tap after the
     expect(reports).toBeGreaterThan(-1); expect(results).toBeGreaterThan(-1); expect(moves).toBeGreaterThan(-1);
     expect(reports).toBeLessThan(moves); expect(results).toBeLessThan(moves); void ps;
   });
+  test("QA wording: a leftover player in a team game is told in plain words that they are a reserve; a player who joined waits with 'The game is starting' (no 'draw')", async () => {
+    const h = await game("QA-7"); const ps = await joinAll("QA-7", 7); const { clock } = await begin("QA-7", h, { format: "team", teamSize: 3, moveSecs: 20 });
+    clock.t = T + 2000; const views = await Promise.all(ps.map((p) => phoneFor("QA-7", p, clock).tick()));
+    const reserve = views.filter((v) => v.phase === "reserve"); expect(reserve.length).toBe(1);
+    expect(reserve[0]!.message).toBe("You are a reserve this time. The teams are full. You can watch the games.");
+    const w = await game("QA-8"); const q = await joinAll("QA-8", 2); await call("POST", "/api/z/QA-8/ttt/start", {}, w, T);
+    const waiting = await phoneFor("QA-8", q[0]!, { t: T + 1000 }).tick(); expect(waiting.phase).toBe("waiting"); expect(waiting.message).toBe("The game is starting. Please wait a moment.");
+  });
   test("F-late: a tap after the turn ended is answered late-move with the owner-approved words; the mailbox keeps the row, every phone ignores it, the square the software played stays", async () => {
     const h = await game("QA-4"); const ps = await joinAll("QA-4", 2); const { clock } = await begin("QA-4", h, { moveSecs: 20 });
     clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-4", p, clock)); const views = await Promise.all(phones.map((x) => x.tick()));

@@ -146,12 +146,12 @@ export class TttPhone {
   /** Looks at the mailbox, works out where this player stands, does whatever is due (open the match, claim a clock-out, report a result) and returns what the screen should show. */
   async tick(): Promise<any> {
     const s = await this.loadSetup(); const base = { serverNow: this.serverNow(), state: s.state, commit: s.commit, paused: false };
-    if (s.state === "open" || s.state === "starting") return (this.last = { ...base, phase: "waiting", joined: s.joined ?? 0, message: s.state === "open" ? "You are in. Waiting for the host to start." : "The host has started the game. Getting the draw ready." });
+    if (s.state === "open" || s.state === "starting") return (this.last = { ...base, phase: "waiting", joined: s.joined ?? 0, message: s.state === "open" ? "You are in. Waiting for the host to start." : "The game is starting. Please wait a moment." });
     const p = this.plan!; const me = this.deps.pid; const name = p.names[me];
     if (s.state === "done" && s.endedEarly) return (this.last = { ...base, phase: "ended", message: ENDED_MESSAGE }); // the Organizer or a Host ended it: every phone stops here
     if (!name) return (this.last = { ...base, phase: "watching", message: "The list closed before you joined. You can watch." });
     const ent = p.entOfPid.get(me);
-    if (!ent) return (this.last = { ...base, phase: "reserve", you: name, message: "There were not enough players for a full team for you. You can watch the games." });
+    if (!ent) return (this.last = { ...base, phase: "reserve", you: name, message: "You are a reserve this time. The teams are full. You can watch the games." });
     const v = await this.walk(ent);
     if (this.setup?.state === "done" && this.setup.endedEarly) return (this.last = { ...base, state: "done", phase: "ended", message: ENDED_MESSAGE }); // found out while reading the boards
     return (this.last = { ...base, ...v });

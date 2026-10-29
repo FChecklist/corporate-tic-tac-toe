@@ -59,6 +59,15 @@ describe("the join screen (K4, U1-U3)", () => {
     const { d } = await openPlayerPage("?e=GAME-1", { verify: "number" });
     expect(d.getElementById("emp")).toBeNull(); expect(d.getElementById("mob")).toBeNull();
   });
+  test("QA 2026-10-29: the join screen tells the truth about what is asked: 'your name only' by default, and the name plus what the organizer asked for when an ID or a number is asked", async () => {
+    const plain = await openPlayerPage("?e=GAME-1", { verify: "number" });
+    expect(plain.d.body.textContent).toContain("We ask your name only."); expect(plain.d.body.textContent).not.toContain("the organizer asked for");
+    const ask = await openPlayerPage("?e=GAME-1", { verify: "id", employeesOnly: false });
+    expect(ask.d.body.textContent).not.toContain("We ask your name only."); expect(ask.d.body.textContent).toContain("We ask your name and the details your organizer asked for below.");
+  });
+  test("QA 2026-10-29: the champion screen no longer says 'Every board you played was won' (false for a team member whose own board was lost, and for a free pass)", () => {
+    expect(pub("ttt.js")).not.toContain("Every board you played was won");
+  });
   test("K4: one box is not enough; with both ticked and a name typed the button works, and the request carries both ticks and the version", async () => {
     const { d, sent } = await openPlayerPage();
     const [a, b] = [...d.querySelectorAll('input[type="checkbox"]')] as any[];
