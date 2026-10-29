@@ -7,7 +7,9 @@ const PUB = join(import.meta.dir, "../public");
 const pages = readdirSync(PUB).filter((f) => f.endsWith(".html"));
 const read = (f: string) => readFileSync(join(PUB, f), "utf8");
 /** Visible text of a page: scripts, styles and tags removed, entities for the rupee sign and non-breaking space turned back. */
-const textOf = (f: string) => read(f).replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+const cache = new Map<string, string>();
+const textOf = (f: string) => { let t = cache.get(f); if (t === undefined) { t = textOf0(f); cache.set(f, t); } return t; };
+const textOf0 = (f: string) => read(f).replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
 
 /** Fails with the few words around the hit, not the whole page. */
 const no = (f: string, re: RegExp) => { const m = re.exec(textOf(f)); if (m) throw new Error(`${f} still says: "...${textOf(f).slice(Math.max(0, m.index - 50), m.index + m[0].length + 50)}..."`); };
@@ -72,5 +74,18 @@ describe("TT-16: the hours named for the report link and the erasure are the rea
   test("the trust page and the AI facts say the job runs at the real hour", () => {
     expect(textOf("trust.html")).toContain(`(the job runs at ${PURGE_H} hours)`);
     expect(readFileSync(join(EDGE, "ai-facts.ts"), "utf8")).toContain("PURGE_HOURS");
+  });
+});
+
+// ---- TT-02: the game does not start by itself; the Organizer or a Host presses Start ---------------------------------------------------------------------------------
+describe("TT-02: no text says the game starts by itself", () => {
+  test("the console says the Organizer presses Start, and pays before the start", () => {
+    const js = read("zc.js");
+    for (const bad of [/starts on time by itself/, /begins the moment you have/, /game starts 2 minutes after your payment/, /Your game starts <b>/]) expect(bad.test(js)).toBe(false);
+    expect(js).toContain("You press Start on the tournament page");
+    expect(js).toContain("Paid late? The game opens 2 minutes after your payment is confirmed. You still press Start yourself.");
+  });
+  test("the organizer guide says a late payment opens the game, not starts it", () => {
+    const t = textOf("organizer-guide.html"); expect(t).not.toMatch(/late payment starts the game/); expect(t).toMatch(/Press Start|press Start/);
   });
 });

@@ -983,7 +983,7 @@ describe("console: ten steps, Pay is its own step, and the price is shown only t
     await publish(o, "UI-PAY8");
     const q = await consolePage(o, "UI-PAY8"); await q.waitFor((x) => /Last step: pay before the start/i.test(x)); // a published, unpaid game opens on Pay
     expect(q.$("#sec8")!.className).toMatch(/open/); expect(q.$("#pricerow")!.textContent).toMatch(/Rs 2,399\.00/); expect((q.$('#sec8 a[href^="/pay.html"]') as any).getAttribute("href")).toBe("/pay.html?e=UI-PAY8");
-    expect(q.$("#copypaylink")).toBeTruthy(); expect(q.$("#sec8").textContent).toMatch(/Paid late\? The game starts 2 minutes after your payment is confirmed/); expect(q.$("[data-save='8']")).toBeNull(); // Pay has its own button, no Continue
+    expect(q.$("#copypaylink")).toBeTruthy(); expect(q.$("#sec8").textContent).toMatch(/Paid late\? The game opens 2 minutes after your payment is confirmed\. You still press Start yourself/); expect(q.$("[data-save='8']")).toBeNull(); // Pay has its own button, no Continue
     expect(q.$("#sec8 .zc-sech b")!.textContent).toBe("Pay");
   });
   test("the price shows ONLY in the Pay step: not in the side summary, not in steps 1 to 7, 9 or 10, not in the Next card; the Co-host's own Payment step keeps it", async () => {
