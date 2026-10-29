@@ -89,3 +89,19 @@ describe("TT-02: no text says the game starts by itself", () => {
     const t = textOf("organizer-guide.html"); expect(t).not.toMatch(/late payment starts the game/); expect(t).toMatch(/Press Start|press Start/);
   });
 });
+
+// ---- TT-14: the pages must not say "nobody can change a result" while the host page lets the Organizer pick the winner of a stuck board --------------------------------
+// host.js lists "Boards to settle" (the two phones reported different winners, or nobody played the board) and the Organizer or a Host picks the winner (tournament.ts settle route).
+describe("TT-14: the fairness copy names the one case where a person picks a winner", () => {
+  const EXCEPTION = /picks the winner of that one board/;
+  test("home page, legal page and trust page no longer say no person can change a result, and name the exception", () => {
+    expect(textOf("index.html")).not.toMatch(/No person, including the organizer and us, can change a draw or a result/);
+    expect(textOf("legal.html")).not.toMatch(/no way to change a draw or a result/);
+    expect(textOf("trust.html")).not.toMatch(/cannot choose, change or remove a result/);
+    for (const f of ["index.html", "legal.html", "trust.html"]) expect(textOf(f)).toMatch(EXCEPTION);
+  });
+  test("the AI facts say the same as the trust page, and the report's closing note names the exception too", () => {
+    const facts = readFileSync(join(EDGE, "ai-facts.ts"), "utf8"); expect(facts).not.toMatch(/cannot choose, change or remove a result/); expect(facts).toMatch(EXCEPTION);
+    const rep = readFileSync(join(EDGE, "report-layout.ts"), "utf8"); expect(rep).not.toMatch(/can choose, change or remove a winner/); expect(rep).toMatch(EXCEPTION);
+  });
+});

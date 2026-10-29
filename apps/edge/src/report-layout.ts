@@ -108,7 +108,7 @@ export function layoutReport(d: ReportData): Uint8Array {
       pdf.table([{ head: "Place", width: 8, align: "r" }, { head: "Prize", width: 30 }, { head: "Seat", width: 8, align: "r" }, { head: "Name", width: 40 }], rows);
     }
   }
-  pdf.para("Every result here was worked out by the players' phones from the sealed draw and the moves that were played, and was accepted only when the phones agreed ('Agreed by: phones'). Neither you nor anyone at Corporate Tic Tac Toe can choose, change or remove a winner or a place in the bracket. Names and mobile numbers are those the winner confirmed on their own phone after the game; if they changed them, that is shown under the table.", { size: 8.5 });
+  pdf.para("Every result here was worked out by the players' phones from the sealed draw and the moves that were played, and was accepted when the phones agreed ('Agreed by: phones'). Nobody can change the draw or a place in the bracket. If the phones of the two players report different winners for a board, or a board is never played, the Organizer or a Host picks the winner of that one board. Names and mobile numbers are those the winner confirmed on their own phone after the game; if they changed them, that is shown under the table.", { size: 8.5 });
 
   // ---- 4 statistics
   const total = d.prizes.length, won = d.prizes.filter((p) => p.winners.length).length;
