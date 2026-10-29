@@ -654,7 +654,7 @@
   /** "Your credit: Rs 2,358.82, valid until 14 Jun 2027." (no refund: a paid game that is cancelled becomes credit for 365 days) */
   const creditText = (c) => (c ? `Your credit: ${money(c.amountInr)}, valid until ${dayIst(c.expiresMs)}.` : "");
   const cloneButton = () => (canRun() && eid ? `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s zc-btn-alt" data-clonebtn="1">Create a new game like this one</button></div>` : "");
-  /** A cancelled PAID game can be moved to a new date for 30 days after the cancel (the payment stays with the game). */
+  /** A cancelled PAID game can be moved to a new date within 365 days of the payment (the payment stays with the game). */
   function moveBlock() {
     const I = Object.assign({}, S.info, S.sum), M = S.move || {};
     if (!I.rescheduleUntilMs) return "";

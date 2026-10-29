@@ -1,7 +1,7 @@
 // Credit instead of refunds (docs/ROLES_AND_CONSOLE_SPEC_6.md, product rule 2026-10-08). THERE ARE NO REFUNDS.
 //   - If the Organizer or a Host cancels a PAID game before its start time, what was paid stays with us as CREDIT for that Organizer's account. It can pay for a next game for 365 days
 //     counted from the date of the original payment, until the end of day 365 in India time. Unused credit lapses then (no refund, no credit note). Cancelling an UNPAID game moves no money.
-//   - A cancelled PAID game can be moved to a new date for 30 days after the cancel (cancel.ts reopenGame): its unused credit is then marked 'revived' (never listed, never spendable) and the game keeps its payment.
+//   - A cancelled PAID game can be moved to a new date within 365 days of the payment (cancel.ts reopenGame): its unused credit is then marked 'revived' (never listed, never spendable) and the game keeps its payment.
 //   - A payment that arrives after a game was cancelled (or after it closed as "did not start") is kept the same way: it becomes credit, never a refund.
 //   - Using credit: oldest-expiring first. Credit >= price pays the game with no Razorpay; credit < price is used up and the rest is paid through the normal checkout (same game);
 //     credit > price leaves the remainder active with the same expiry. Applying is atomic and idempotent (a game can never get more credit than its price; a credit never goes negative).

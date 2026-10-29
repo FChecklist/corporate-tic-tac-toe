@@ -1509,7 +1509,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const out = await cancelGame(env as PayEnv, e, now, a.plat ? "platform" : a.kind!);
     return json(out.body, out.status);
   }
-  if (action === "reopen" && req.method === "POST") { // a cancelled PAID game moved to a new date within 30 days of the cancel (cancel.ts): Organizer and Host only, never an AI key or a Co-host
+  if (action === "reopen" && req.method === "POST") { // a cancelled PAID game moved to a new date within 365 days of the payment (cancel.ts): Organizer and Host only, never an AI key or a Co-host
     if (!can(a, e, true)) return deny(a);
     const rb = await body(req, 512);
     if (!(await spend(env, now, 14))) return BUSY();
