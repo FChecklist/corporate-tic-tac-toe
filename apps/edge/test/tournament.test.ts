@@ -474,6 +474,28 @@ describe("QA 2026-10-29: one false report must not take a board; a tap after the
     expect((await j(await fin(boards[0]![0], honest, T + 4000))).done).toBe(false); expect((await j(await fin(boards[1]![0], honest, T + 4001))).done).toBe(true);
     expect(sql("SELECT state, champion FROM ttt_t WHERE eid='QA-10'")[0]).toEqual({ state: "done", champion: teamA });
   });
+  test("S4 (limits, QA security review): one player stores at most 60 moves or claims on a board and 20 notes in a game; the other player is not blocked", async () => {
+    const h = await game("QA-11"); const ps = await joinAll("QA-11", 4); await begin("QA-11", h);
+    const { list: [m] } = await pairs("QA-11", ps); const [a, b] = [m!.a, m!.b]; const first = m!.m.boards[0]!.games[0]!.x === a.pid ? a : b, second = first === a ? b : a;
+    let ok = 0, refused = 0; for (let i = 0; i < 70; i++) { const r = await mv("QA-11", second, { mid: m!.mid, seq: Math.min(i, 60), sq: i % 9 }, T + 5000 + i); if (r.status === 200) ok++; else if (r.status === 429) refused++; } // always the right next number: the 61st is refused for being too many, not for the number
+    expect([ok, refused]).toEqual([60, 10]);
+    expect((await mv("QA-11", first, { mid: m!.mid, seq: 60, sq: 4 }, T + 6000)).status).toBe(200); // the player who is to move is not locked out by the other one's junk
+    for (let i = 0; i < 25; i++) await call("POST", "/api/z/QA-11/ttt/flag", { pid: second.pid, device: second.device, kind: "x", note: "n" }, {}, T + 7000);
+    expect(sql("SELECT COUNT(*) c FROM ttt_x WHERE eid='QA-11' AND who=?", second.pid)[0].c).toBe(20);
+  });
+  test("S5 (over, QA security review): two players cannot end a tournament that is being played by the old 'game over' vote (no deletion clock, no report)", async () => {
+    const h = await game("QA-12"); const ps = await joinAll("QA-12", 4); await begin("QA-12", h);
+    const start = (await j(await call("GET", "/api/z/QA-12/info", undefined, {}, T))).startMs; const now = start + 5 * 60_000;
+    for (const p of ps.slice(0, 3)) await call("POST", "/api/z/QA-12/over", { pid: p.pid, device: p.device }, {}, now);
+    expect(sql("SELECT COUNT(*) c FROM life WHERE eid='QA-12'")[0].c).toBe(0); expect(sql("SELECT COUNT(*) c FROM overvote WHERE eid='QA-12'")[0].c).toBe(0);
+  });
+  test("S6 (seq): a tap whose number was taken by a stray row is sent again once with the new number; the board shows the square", async () => {
+    const h = await game("QA-13"); const ps = await joinAll("QA-13", 2); const { clock } = await begin("QA-13", h);
+    clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-13", p, clock)); const views = await Promise.all(phones.map((x) => x.tick())); const who = views.findIndex((v) => v.board.yourTurn);
+    const other = ps[1 - who]!; expect((await mv("QA-13", other, { mid: "r1m0", seq: 0, sq: 0 }, T + 2500)).status).toBe(200); // a stray row from the other player takes seq 0
+    clock.t = T + 3000; expect(await phones[who]!.play(4)).toEqual({ ok: true });
+    const after = await phoneFor("QA-13", ps[who]!, clock).tick(); expect(after.board.cells[4]).not.toBe(0);
+  });
   test("S7 (opened): the opening time the mailbox works out for every later match equals the later of the two results that feed it, in an 8-player tournament played by phones", async () => {
     const h = await game("QA-14"); const ps = await joinAll("QA-14", 8); const { clock } = await begin("QA-14", h, { moveSecs: 10 });
     await playCrowd({ call, eid: "QA-14", phones: ps, orgHeaders: h, clock, rng: rnd, isDone: () => (raw.query("SELECT state FROM ttt_t WHERE eid='QA-14'").get() as any)?.state === "done" });

@@ -294,10 +294,17 @@ export class TttPhone {
   }
   /** The player taps a square. `ok` is true when the mailbox took the move and the rules counted it. "late-move": the mailbox took the tap (it stamps and stores whatever a player sends) but the turn had already ended, so every phone ignores it. */
   async play(cell: number): Promise<{ ok: boolean; error?: string }> {
-    const c = this.cur; if (!c || !c.yourTurn) return { ok: false, error: "not-your-turn" };
+    let c = this.cur; if (!c || !c.yourTurn) return { ok: false, error: "not-your-turn" };
     this.counters.moves++;
-    try { await this.post("move", { ...this.id(), mid: c.mid, seq: c.seq, sq: cell, client_ms: this.deps.now() }); c.yourTurn = false; }
-    catch (e: any) { return { ok: false, error: e?.code ?? "refused" }; }
+    for (let again = 0; ; again++) {
+      try { await this.post("move", { ...this.id(), mid: c.mid, seq: c.seq, sq: cell, client_ms: this.deps.now() }); c.yourTurn = false; break; }
+      catch (e: any) {
+        if (e?.code !== "seq" || again > 0) return { ok: false, error: e?.code ?? "refused" };
+        await this.tick(); const n = this.cur; // somebody else's row took our number (a claim from another phone, or a stray tap): look again once and send the tap with the new number if it is still our turn
+        if (!n || !n.yourTurn || n.mid !== c.mid) return { ok: false, error: "seq" };
+        c = n;
+      }
+    }
     return (await this.wasLate(c)) ? { ok: false, error: "late-move" } : { ok: true };
   }
   /** Did the tap just stored under `c.seq` come after the turn ended? The same replay every phone makes says so. A failed look is not a late tap. */

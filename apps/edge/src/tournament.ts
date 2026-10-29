@@ -39,6 +39,7 @@ export const TTT_MOVE_SECONDS = [10, 20, 30, 60] as const;
 const MAX_MS = 6 * 3_600_000; // a tournament that has not finished this long after its scheduled start is closed for the data-deletion clock (lifecycle.ts)
 const UNCONTESTED_MS = 30_000; // a single report that nobody contradicts for this long (server clock) is kept as the result
 const PAGE = 100, LIVE_SAMPLE = 24, MAX_PLAN_MATCHES = 600;
+const MAX_EVENTS_EACH = 60, MAX_NOTES_EACH = 20; // a player stores at most this many moves or claims on one board (a board needs at most 27 squares in all) and this many notes for the Organizer in one game
 const OBJECTION = "-"; // a report "winner: -" says: my rules do not say this board is decided (packages/ttt/src/phone.ts, OBJECTION)
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -272,6 +273,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (await env.DB.prepare("SELECT 1 AS x FROM ttt_b WHERE eid=? AND mid=? AND j=? AND flag=0").bind(eid, b.mid, j).first()) return json({ error: "This board is finished.", code: "board-over" }, 409); // a disputed board (flag 1) is not finished: it is played on until the rules decide it
     const next = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ c: number }>())?.c ?? 0;
     if (b.seq !== next) return json({ error: "The board changed. Look again.", code: "seq", next }, 409);
+    if (((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=? AND pid=?").bind(eid, b.mid, j, who.pid).first<{ c: number }>())?.c ?? 0) >= MAX_EVENTS_EACH) return json({ error: "Too many moves from you on this board.", code: "too-many" }, 429);
     try { await env.DB.prepare("INSERT INTO ttt_mv(eid,mid,j,seq,pid,sq,client_ms,at_ms) VALUES(?,?,?,?,?,?,?,?)").bind(eid, b.mid, j, b.seq, who.pid, sq, Number.isFinite(b.client_ms) ? Math.trunc(b.client_ms) : null, now).run(); }
     catch { return json({ error: "The board changed. Look again.", code: "seq", next: next + 1 }, 409); }
     return json({ ok: true, seq: b.seq, at: now });
@@ -319,6 +321,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
   if (sub === "flag" && method === "POST") {
     const b = await c.body(req, 512); if (!b) return json({ error: "Bad request." }, 400);
     const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
+    if (((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_x WHERE eid=? AND who=?").bind(eid, who.pid).first<{ c: number }>())?.c ?? 0) >= MAX_NOTES_EACH) return json({ ok: true, kept: false }); // enough notes from this player; the Organizer has them
     await note(env, eid, String(b.kind ?? "note").slice(0, 20), typeof b.mid === "string" && MID.test(b.mid) ? b.mid : null, who.pid, String(b.note ?? ""), now);
     return json({ ok: true });
   }
