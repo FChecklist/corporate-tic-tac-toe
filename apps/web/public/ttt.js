@@ -136,6 +136,8 @@
     if (!b) { set(`${top()}<div class="zcard"><h2>${esc(s.roundName)}</h2><p>Your board is finished. Waiting for your team.</p></div>${others(s)}`); return; }
     const t = b.deadlineMs ? secs(b.deadlineMs) : null, key = boardKey(s, b);
     const won = b.done && (b.youWon !== undefined ? b.youWon : b.winner === s.you), opp = s.vs || (b.a === s.you ? b.b : b.a) /* TT-26: who won comes from ids (youWon), never from comparing names */, mine = b.yourMark, theirs = mine === "X" ? "O" : "X";
+    // TT-05: say why the board changed on its own: a new game with the marks swapped after a draw, or a square played because a clock ran out
+    const note = b.done ? "" : b.ply === 0 && b.gameNo > 1 ? `The last game was a draw, so this game starts with the marks swapped. You now play ${mine}.` : b.lastAuto ? (b.yourTurn ? `Time ran out for ${esc(opp)}, so a square was played for them.` : "Your time ran out, so a square was played for you.") : "";
     const status = b.done ? (won ? "You won this board." : "This board is over.") : b.yourTurn ? "Your turn" : "Waiting for " + esc(b.turn === s.you ? b.turn + " (the other player)" : b.turn);
     const tone = b.done ? (won ? "won" : "over") : s.paused ? "pause" : b.yourTurn ? "go" : "wait";
     const instr = b.done ? (won ? "Well played! Keep this page open." : "This board is finished. Keep this page open.") : s.paused ? "The host paused the game. It carries on shortly." : b.yourTurn ? `Tap a square to place your ${mine}.` : `${esc(opp)} is choosing a square.`;
@@ -145,7 +147,7 @@
     set(`${top()}<div class="zcard tplay"><h2>${esc(s.roundName)}${s.team ? " &middot; " + esc(s.team) : ""}</h2>
       <div class="tplayers" role="group" aria-label="Players"><span class="tpl ${mine === "X" ? "x" : "o"}${!b.done && b.yourTurn ? " on" : ""}"><i>${mine}</i><b>${esc(s.you)}</b> <em>(you)</em></span><span class="tvsw">vs</span><span class="tpl ${theirs === "X" ? "x" : "o"}${!b.done && !b.yourTurn ? " on" : ""}"><i>${theirs}</i><b>${esc(opp)}</b></span></div>
       ${s.flagged ? `<div class="zbanner warn" role="alert">The two reports of this board are different. The organizer will settle it.</div>` : ""}
-      <div class="tbanner ${tone}${flash}"><p class="tstat ${b.yourTurn ? "mine" : ""}" role="status"><span class="tstxt">${status}</span>${t !== null && !s.paused && !b.done ? ` <span class="tclock${t <= 5 ? " low" : t <= 10 ? " mid" : ""}" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p><p class="tinstr">${instr}</p></div>
+      <div class="tbanner ${tone}${flash}"><p class="tstat ${b.yourTurn ? "mine" : ""}" role="status"><span class="tstxt">${status}</span>${t !== null && !s.paused && !b.done ? ` <span class="tclock${t <= 5 ? " low" : t <= 10 ? " mid" : ""}" id="clk">${t}s</span>` : ""}${s.paused ? " (paused by the host)" : ""}</p><p class="tinstr">${instr}</p>${note ? `<p class="tnote" role="status">${note}</p>` : ""}</div>
       ${boardHtml(b, true, key)}
       ${b.done ? "" : `<p class="tgoal">Win this board to move on.</p>`}
       ${fold("rules", "How this board works", `<p class="zsmall">Game ${b.gameNo}${b.games > 1 ? " (earlier games were drawn)" : ""}. A draw is replayed with the marks swapped, up to 3 games. If the clock runs out, a square is played for you. Twice in a row loses the board.</p>`)}</div>${others(s)}

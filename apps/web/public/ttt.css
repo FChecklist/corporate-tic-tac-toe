@@ -12,6 +12,7 @@
 .tbanner.go{background:#0B7F4A;color:#fff}.tbanner.wait{background:#E3EEFF;color:#0A2A66}.tbanner.pause{background:#FFB703;color:#2A1B00}.tbanner.won{background:linear-gradient(90deg,#FFE08A,#FFB703);color:#3A2400}.tbanner.over{background:#E8EAF0;color:#2B3345}
 .tstat,.tstat.mine{text-align:center;font-weight:800;font-size:20px;line-height:1.25;margin:0;color:inherit}
 .tinstr{margin:4px 0 0;font-size:15px;font-weight:600;color:inherit}
+.tnote{margin:6px 0 0;font-size:14px;font-weight:600;color:inherit}
 .tclock{display:inline-block;min-width:3em;padding:2px 10px;margin-left:8px;border-radius:999px;background:rgba(255,255,255,.92);color:#0A2A66;font-size:16px;font-variant-numeric:tabular-nums;font-weight:800}
 .tclock.mid{background:#FFE08A;color:#4A2A00}.tclock.low{background:#D61F3A;color:#fff}
 .tboard{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:340px;margin:12px auto;padding:10px;border-radius:22px;background:linear-gradient(145deg,#1F6FEA,#0B3FA8);box-shadow:0 7px 0 #0A3A8A,0 14px 24px -10px rgba(10,58,138,.6)}
