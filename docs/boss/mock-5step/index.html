@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store"><title>Corporate Tambola - 5 step setup (UX mock)</title>
+<style>
+:root{--bg:#f6f4ff;--card:#fff;--ink:#1d1b3a;--mut:#6a6788;--line:#e4e0f5;--blue:#2f6df6;--aqua:#12a8b5;--violet:#7a4cf0;--mag:#d4348f;--green:#1f9d63;--yellow:#f2b51d;--orange:#f07c24;--ok:#1f9d63;--warn:#b86400}
+@media(prefers-color-scheme:dark){:root{--bg:#14122a;--card:#1e1b3d;--ink:#f1efff;--mut:#a9a5cf;--line:#37336a}}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);background:var(--card)}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--mag));display:grid;place-items:center;color:#fff;font-weight:700}
+header b{font-size:17px}header span{color:var(--mut);font-size:14px;margin-left:auto}
+.trust{position:sticky;top:0;z-index:5;background:#e3f4ec;color:#0f4d33;border-bottom:1px solid rgba(31,157,99,.4);padding:8px 16px;font-size:14px;text-align:center}@media(prefers-color-scheme:dark){.trust{background:#12372a;color:#bff0d8}}
+.safe{background:var(--card);border:2px solid var(--green);border-radius:14px;padding:14px 16px;margin:0 0 12px}.safe b{display:block;margin-bottom:6px}.safe ul{margin:0;padding-left:20px;color:var(--ink);font-size:15px}.safe li{margin:3px 0}
+.steps button.tab{height:auto;background:none;display:flex;flex-direction:column;gap:6px;align-items:stretch;text-align:left;color:var(--mut);font:inherit;font-size:13px}.steps button.tab.on,.steps button.tab.done{background:none}.tab i{display:block;height:8px;border-radius:6px;background:var(--line)}.tab.on i{background:var(--c)}.tab.done i{background:var(--ok)}.tab.on{color:var(--ink);font-weight:700}.tab span{display:block;line-height:1.25}.tab span b{display:block}.tab span em{font-style:normal;display:block;font-size:12.5px}@media(max-width:720px){.tab span{font-size:11.5px}.tab span em{font-size:11.5px}}
+main{max-width:860px;margin:0 auto;padding:18px 16px 110px}
+.steps{display:flex;gap:8px;margin:6px 0 18px}.steps button.tab{flex:1;min-width:0}
+.steps button{flex:1;border:0;background:var(--line);height:8px;border-radius:6px;cursor:pointer;padding:0}
+.steps button.on{background:var(--c,var(--violet))}.steps button.done{background:var(--ok)}
+.crumb{color:var(--mut);font-size:14px;margin:0 0 4px}
+h1{font-size:26px;margin:0 0 6px}p.sub{color:var(--mut);margin:0 0 18px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:720px){.cards{grid-template-columns:1fr}}
+.card{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;text-align:left;font:inherit;color:inherit;position:relative}
+.card:hover{border-color:var(--violet)}.card[aria-pressed=true]{border-color:var(--violet);box-shadow:0 0 0 4px rgba(122,76,240,.15)}
+.card h3{margin:6px 0 6px;font-size:18px}.card p{margin:0;color:var(--mut);font-size:14.5px}
+.ico{font-size:26px}.tick{position:absolute;top:12px;right:14px;width:24px;height:24px;border-radius:50%;background:var(--violet);color:#fff;display:none;place-items:center;font-size:14px}
+.card[aria-pressed=true] .tick{display:grid}
+.note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;color:var(--mut);font-size:14.5px;margin:14px 0}
+.sec{margin-top:22px}.sec h2{font-size:18px;margin:0 0 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:720px){.two{grid-template-columns:1fr}}
+.opt{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.opt[aria-pressed=true]{border-color:var(--green);box-shadow:0 0 0 4px rgba(31,157,99,.15)}
+.opt b{display:block;font-size:17px}.opt small{color:var(--mut);font-size:14px}
+.rec{display:inline-block;background:var(--green);color:#fff;font-size:12px;border-radius:20px;padding:1px 9px;margin-left:6px;vertical-align:middle}
+label{display:block;font-weight:600;margin:12px 0 6px}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+textarea{min-height:130px;resize:vertical}.row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:200px}
+.size{background:linear-gradient(135deg,rgba(18,168,181,.12),rgba(122,76,240,.12));border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.size big{font-size:34px;font-weight:800;line-height:1}.size div{flex:1;min-width:180px}.size .why{color:var(--mut);font-size:14px}
+.link{background:none;border:0;color:var(--blue);font:inherit;font-weight:600;cursor:pointer;padding:6px 0;text-decoration:underline}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:30px;padding:7px 14px;font:inherit;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--violet);border-color:var(--violet);color:#fff}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;justify-content:center}
+.bar .in{max-width:860px;width:100%;display:flex;gap:10px;align-items:center}.bar .grow{flex:1;color:var(--mut);font-size:14px}
+.btn{border:0;border-radius:12px;padding:12px 22px;font:inherit;font-weight:700;cursor:pointer;background:var(--violet);color:#fff}
+.btn.sec2{background:transparent;color:var(--ink);border:1.5px solid var(--line)}.btn.go{background:var(--green)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.priv{display:flex;gap:10px;align-items:flex-start;background:rgba(31,157,99,.1);border:1px solid rgba(31,157,99,.35);border-radius:12px;padding:10px 14px;font-size:14.5px;margin-top:14px}
+.read{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}.read div{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center}.read div:last-child{border:0}
+.read b{min-width:130px}.read span{flex:1}.pre{white-space:pre-wrap;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:14.5px}
+.hide{display:none!important}.ok{color:var(--ok);font-weight:600}.warn{color:var(--warn);font-weight:600}
+.pill{display:inline-block;border-radius:20px;padding:2px 10px;font-size:13px;background:var(--line);margin-left:6px}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1d1b3a;color:#fff;padding:10px 18px;border-radius:30px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}.toast.on{opacity:1}
+.steps .tab,.steps .tab.on,.steps .tab.done{background:transparent!important;border:0}.steps .tab span,.steps .tab span b,.steps .tab span em{color:var(--ink)!important;font-style:normal!important}.steps .tab:not(.on) span{opacity:.75}.steps .tab span b{font-size:13.5px}.steps .tab span em{font-size:14px}@media(max-width:720px){.steps .tab span b,.steps .tab span em{font-size:12px}}
+.tip{color:var(--mut);font-size:14.5px;margin:-2px 0 8px}
+.sec,#szbox,input,select,textarea{scroll-margin-top:130px}
+.prow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}.prow.on{border-color:var(--violet);background:rgba(122,76,240,.06)}
+.pl{display:flex;gap:12px;flex:1;align-items:flex-start;margin:0;font-weight:400;cursor:pointer}.pl input{width:22px;height:22px;margin-top:3px;accent-color:var(--violet)}.pl b{font-size:16px}.pl small{display:block;color:var(--mut);font-size:14px}
+.tag{font-style:normal;font-size:12px;border-radius:20px;padding:1px 9px;margin-left:8px;color:#fff;vertical-align:middle}.tag.rec{background:var(--green)}.tag.pop{background:var(--violet)}
+.win{display:flex;gap:6px;align-items:center;margin:0;font-weight:400;font-size:14px;color:var(--mut)}.win select{width:auto;padding:6px 8px}
+details.more{margin-top:8px}details.more summary{cursor:pointer;color:var(--blue);font-weight:600;padding:8px 0}
+.gift{flex-basis:100%;display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-left:34px}.gift label{display:flex;gap:8px;align-items:center;margin:0;font-weight:400;color:var(--mut);font-size:14px}.gift select{width:auto;min-width:170px;padding:7px 9px}.gift input{flex:1;min-width:200px;padding:8px 10px}
+.cur{display:inline-flex;gap:6px;margin-left:8px}.cur select{min-width:0!important;width:76px!important}.cur input{width:150px!important;min-width:0!important;flex:none!important}
+.brk{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}.brk b{display:block;margin-bottom:4px}.brk label{margin:8px 0 4px;font-size:14px}.logo-up{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.logo-up img,.logo-up .ph{width:64px;height:64px;border-radius:14px;object-fit:contain;background:var(--card);border:1.5px dashed var(--line);display:grid;place-items:center;color:var(--mut);font-size:13px}
+.stat{border-radius:16px;padding:16px 18px;margin:6px 0 14px;border:2px solid}.stat .big{font-size:21px;font-weight:800;margin-bottom:6px}.stat p{margin:0 0 12px}.stat.paid{background:rgba(31,157,99,.12);border-color:var(--green)}.stat.unpaid{background:rgba(242,181,29,.16);border-color:var(--yellow)}.gb{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-top:10px}.gb i{font-style:normal;text-align:center;font-size:12px;padding:5px 0;border-radius:6px;background:var(--line);color:var(--mut)}.bar2{height:10px;border-radius:6px;background:var(--line);margin-top:10px;overflow:hidden}.bar2 i{display:block;height:100%;background:var(--green)}
+.dashbtn{flex:0 0 auto;align-self:flex-start;border:2px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--card);color:var(--ink);font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}.dashbtn.on{border-color:var(--green);background:rgba(31,157,99,.12)}.dashbtn.lock{opacity:.55}@media(max-width:720px){.dashbtn{padding:6px 8px;font-size:12px}}
+.steps .dashbtn{height:auto;flex:0 0 auto;padding:8px 12px;background:var(--card);border:2px solid var(--line);border-radius:12px}.steps .dashbtn.on{background:rgba(31,157,99,.14);border-color:var(--green)}.steps .dashbtn.lock{background:var(--card)}@media(max-width:720px){.steps .dashbtn{padding:6px 8px}}
+.two2{display:flex;gap:10px;margin:8px 0 10px}.tk{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--card)}.tk i{display:block;height:9px;border-radius:5px;background:var(--line);margin-top:6px}h3.grp{font-size:16px;margin:18px 0 4px}
+.tkrow{flex-basis:100%;border-top:1px dashed var(--line);padding:8px 0 0 34px}.tkrow .gift{padding-left:0;margin-top:6px}.tkck{display:flex;gap:8px;align-items:center;margin:0;font-weight:400;cursor:pointer}.tkck input{width:20px;height:20px;accent-color:var(--violet)}
+</style></head><body>
+<header><div class="logo">T</div><b>Corporate Tambola</b><span id="who">Organizer</span></header>
+<div class="trust" role="note">🔒 <b>No personal details needed.</b> <span>All game and participant information is deleted within 24 hours of the game.</span></div>
+<main>
+<div class="steps" id="steps" role="list" aria-label="Steps"></div>
+<div id="view"></div>
+</main>
+<div class="bar"><div class="in"><button class="btn sec2" id="back">Back</button><div class="grow" id="hint"></div><button class="btn" id="next">Next</button></div></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const COL=['var(--blue)','var(--aqua)','var(--violet)','var(--mag)','var(--green)'];
+const NAMES=['Date and time','Who are you creating this game for','Tickets and prizes','Brand & Breaks','Check and publish','Game dashboard'];
+const PACKS=[10,100,250,500,1000,2500,5000,10000];
+const S={idk:'emp',step:1,day:'Today',time:'4 pm',occ:'Team party',card:null,how:null,people:'',fam:'4',list:'',size:null,sizeManual:false,prize:'Classic',brand:'',hosts:[],cohosts:[],published:false};
+const $=s=>document.querySelector(s);
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),1800)}
+function listCount(){return analyse(S.idk==='email').filter(x=>!x.dup&&!x.bad).length}
+function perPerson(){return S.card==='fam'?1+Number(S.fam):1}
+function need(){const l=listCount();if(S.how==='system'&&l)return l*perPerson();const p=Number(S.people);return p?p*perPerson():0}
+function pack(n){return PACKS.find(p=>p>=n)||PACKS[PACKS.length-1]}
+function curSize(){return S.sizeManual&&S.size?S.size:(need()?pack(need()):null)}
+const SHORT=['Date and time','Who is it for','Tickets & prizes','Brand & Breaks','Publish','Dashboard'];
+function steps(){$('#steps').innerHTML=NAMES.slice(0,5).map((n,i)=>`<button role="listitem" aria-label="Step ${i+1}: ${n}" style="--c:${COL[i]}" class="tab ${i+1===S.step?'on':(i+1<S.step||S.step===6?'done':'')}" onclick="go(${i+1})"><i></i><span><b>Step ${i+1}</b> <em>${SHORT[i]}</em></span></button>`).join('')+`<button class="dashbtn ${S.step===6?'on':''} ${S.published?'':'lock'}" onclick="go(6)" aria-label="Game dashboard">Game dashboard${S.published?'':' 🔒'}</button>`}
+function tidy(){if(S.how==='system'){const it=analyse(S.idk==='email');S.ign={d:it.filter(x=>x.dup).length,b:it.filter(x=>x.bad&&!x.dup).length};S.list=it.filter(x=>!x.dup&&!x.bad).map(x=>x.v).join(NL)}}
+function go(n){if(S.step===2&&n>2){tidy()}if(n===6&&!S.published){toast('Your game page opens after you publish');return}if(n>S.step){for(let k=1;k<n;k++){if(!ok(k)){S.step=k;render();toast('Please finish this step first');return}}}S.step=n;render()}
+function ok(n){if(n===5){const h=emails(S.hostTxt),c=emails(S.coTxt);if(h.length>5||h.some(x=>x.bad)||c.some(x=>x.bad))return false}if(n===2&&S.how==='system'&&listCount()<1)return false;if(n===1)return !!(S.occ.trim()&&S.day&&S.time);if(n===2)return S.card&&S.how&&curSize();return true}
+const CARDS={ppl:['🏢','Your people','For staff, associates, contract staff and everyone who works with you, in any location.'],fam:['👨‍👩‍👧','Your people and their families','Your people, in any location, any place, and their families too. Everyone gets 1 ticket of their own (1 + 4), plus 4 more to share with their family members.'],ext:['🤝','Extended family','For your people, vendors, customers and friends of the company, wherever they are, whichever location they are in. The people in the game can bring a few more.']};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const NOW=new Date();
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dl(d,y){return DOW[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+(y?' '+d.getFullYear():'')}
+const DAYS=[0,1,2,3,4].map(n=>{const d=new Date(NOW.getFullYear(),NOW.getMonth(),NOW.getDate()+n);return{iso:iso(d),label:(n===0?'Today, ':n===1?'Tomorrow, ':'')+dl(d)}});
+const TIMES=[['10 am',10,0],['12 pm',12,0],['4 pm',16,0],['6 pm',18,0],['7 pm',19,0]];
+const ZONES=[['IST','Asia/Kolkata'],['Dubai','Asia/Dubai'],['Singapore','Asia/Singapore'],['UK','Europe/London'],['Europe','Europe/Paris'],['US East','America/New_York'],['US West','America/Los_Angeles'],['Australia','Australia/Sydney']];
+function off(ms,tz){const f=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(new Date(ms)),g=t=>+f.find(x=>x.type===t).value;return Date.UTC(g('year'),g('month')-1,g('day'),g('hour'),g('minute'),g('second'))-ms}
+function utcOf(isoD,h,m,tz){if(!isoD)return null;const[a,b,c]=isoD.split('-').map(Number),guess=Date.UTC(a,b-1,c,h,m);return guess-off(guess-off(guess,tz),tz)}
+function tzName(){const z=ZONES.find(x=>x[1]===S.tz);return z?z[0]:S.tz.split('/').pop().replace(/_/g,' ')}
+function fmt12(h,m){return(h%12||12)+(m?':'+String(m).padStart(2,'0'):'')+' '+(h<12?'am':'pm')}
+function passed(t){const u=utcOf(S.iso,t[1],t[2],S.tz);return u!==null&&u<=Date.now()}
+S.iso=DAYS[0].iso;S.day=DAYS[0].label;S.tz='Asia/Kolkata';S.hh=null;S.mm=0;
+(function(){const t=TIMES.find(t=>!passed(t))||TIMES[0];S.time=t[0];S.hh=t[1]})();
+function chip(txt,on,act,dis){return`<button class="chip" aria-pressed="${on}" ${dis?'disabled style="opacity:.45;cursor:not-allowed"':''} onclick="${act}">${txt}${dis?' (passed)':''}</button>`}
+function others(){if(!S.iso||S.hh===null)return'';const u=utcOf(S.iso,S.hh,S.mm,S.tz);if(u===null)return'';
+return ZONES.filter(z=>z[1]!==S.tz).slice(0,6).map(z=>{const f=new Intl.DateTimeFormat('en-GB',{timeZone:z[1],hour:'numeric',minute:'2-digit',hour12:true,weekday:'short'}).format(new Date(u));return`<span class="pill">${z[0]} ${f.replace(',','')}</span>`}).join('')}
+function view1(){const occ=['Diwali','Team party','Annual day','Customer event','Family day'];
+const known=ZONES.some(z=>z[1]===S.tz);
+return`<p class="crumb">Step 1 of 5</p><h1>When are you planning this online team engagement activity?</h1><p class="sub">Pick the occasion, day and time. The system has already filled in popular choices, so you can simply check and press Next.</p>
+<div class="sec" id="s-occ"><h2>Occasion</h2><div class="chips">${occ.map(o=>chip(o,!S.occO&&S.occ===o,`S.occ='${o}';S.occO=false;render('s-day')`)).join('')}${chip('Other',S.occO,"S.occO=true;S.occ='';render('oo')")}</div>
+${S.occO?`<label for="oo">Name your occasion</label><input id="oo" maxlength="60" placeholder="For example, Founders' day" value="${S.occ}" oninput="S.occ=this.value;foot()">`:''}</div>
+<div class="sec" id="s-day"><h2>Day and date</h2><div class="chips">${DAYS.map(o=>chip(o.label,!S.dayO&&S.iso===o.iso,`S.iso='${o.iso}';S.day='${o.label}';S.dayO=false;render('s-time')`)).join('')}${chip('Other date',S.dayO,"S.dayO=true;S.iso='';S.day='';render('od')")}</div>
+${S.dayO?`<label for="od">Pick a date</label><input id="od" type="date" min="${DAYS[0].iso}" value="${S.iso}" onchange="pickDate(this.value)"><div class="note ok" id="dayShow">${S.day?'✓ '+S.day+' '+S.iso.slice(0,4):'Choose a date and the day shows here'}</div>`:''}</div>
+<div class="sec" id="s-time"><h2>Time</h2><div class="chips">${TIMES.map(t=>chip(t[0],!S.timeO&&S.time===t[0],`S.time='${t[0]}';S.hh=${t[1]};S.mm=${t[2]};S.timeO=false;render('s-zone')`,passed(t))).join('')}${chip('Other time',S.timeO,"S.timeO=true;S.time='';S.hh=null;render('ot')")}</div>
+${S.timeO?`<label for="ot">Pick a time</label><input id="ot" type="time" onchange="pickTime(this.value)">`:''}</div>
+<div class="sec" id="s-zone"><h2>Time zone</h2><div class="chips">${ZONES.map(z=>chip(z[0],S.tz===z[1],`S.tz='${z[1]}';S.zoneO=false;render('s-sum')`)).join('')}${chip('Other',S.zoneO||!known,"S.zoneO=true;render('oz')")}</div>
+${(S.zoneO||!known)?`<label for="oz">Choose a time zone</label><select id="oz" onchange="S.tz=this.value;render()">${Intl.supportedValuesOf('timeZone').map(z=>`<option value="${z}" ${z===S.tz?'selected':''}>${z.replace(/_/g,' ')}</option>`).join('')}</select>`:''}
+<div class="note" id="s-sum" style="margin-top:12px"><b>${S.day||'Pick a date'}${S.time?', '+S.time:''} ${tzName()}</b>${S.time&&S.iso?`<div style="margin-top:6px">Your people in other places will see: ${others()}</div>`:''}</div></div>`}
+function pickDate(v){if(!v){S.iso='';S.day='';foot();return}const d=new Date(v+'T00:00');S.iso=v;S.day=dl(d);document.getElementById('dayShow').textContent='✓ '+dl(d,true);foot();jump('s-time')}
+function pickTime(v){if(!v){S.time='';S.hh=null;foot();return}const[h,m]=v.split(':').map(Number);S.hh=h;S.mm=m;S.time=fmt12(h,m);render('s-zone');setTimeout(()=>{const e=document.getElementById('ot');if(e)e.value=v},0)}
+function sizeBox(){const n=need();if(!n)return`<div class="note">Tell us roughly how many people, and the system will suggest a size.</div>`;const sz=curSize();const l=listCount();
+const why=S.sizeManual?'You chose this size.':(S.how==='system'&&l?`Worked out from your ${l} people${S.card==='fam'?`, each with ${S.fam} family ticket${S.fam==1?'':'s'}`:''}, with a little room to spare.`:`You chose up to ${Number(S.people).toLocaleString('en-IN')} ${S.card==='fam'?`employees, 5 tickets each`:'people'}.`);
+const small=S.sizeManual&&sz<(S.how==='system'&&listCount()?listCount()*perPerson():0);
+return`<div class="size"><div><div class="why">Game size</div><big>${sz.toLocaleString('en-IN')} participants</big><div class="why">${why}</div></div><div><div class="why">Price</div><b>Shown here from your plan</b><div><button class="link" onclick="S.chg=!S.chg;render()">Change size</button></div></div></div>
+${S.chg?`<div class="chips">${PACKS.map(p=>`<button class="chip" aria-pressed="${p===sz}" onclick="S.size=${p};S.sizeManual=true;S.chg=false;render()">${p===10?'Demo, 10 participants':p.toLocaleString('en-IN')}</button>`).join('')}</div>`:''}
+${small?`<div class="note warn">Your list needs ${listCount()*perPerson()} participants. Please choose a bigger size.</div>`:''}
+<div class="note">Everyone who plays is one participant. An employee with 4 family tickets is 5 participants.</div>`}
+function view2(){const c=S.card;
+let h=`<p class="crumb">Step 2 of 5</p><h1>Who are you creating this game for?</h1><p class="sub">Pick your group, and the system sets up the rest around them. You can change it any time.</p>
+<div class="cards">${Object.entries(CARDS).map(([k,v])=>`<button class="card" aria-pressed="${c===k}" onclick="pick('${k}')"><span class="tick">✓</span><div class="ico">${v[0]}</div><h3>${v[1]}</h3><p>${v[2]}</p></button>`).join('')}</div>`;
+if(c){h+=`<div class="sec" id="s-ask"><h2>${c==='fam'?'Roughly how many employees is this game for?':c==='ext'?'Roughly how many people do you expect to join in the fun?':'Roughly how many people is this game for?'}</h2>
+<select aria-label="Number of people" onchange="S.people=this.value;S.sizeManual=false;upd();jump('s-how')">${(c==='fam'?[20,50,100,200,500,1000,2000]:[10,100,250,500,1000,2500,5000,10000]).map(n=>`<option value="${n}" ${String(S.people)===String(n)?'selected':''}>Up to ${n.toLocaleString('en-IN')} ${c==='fam'?'employees, '+(n*5).toLocaleString('en-IN')+' participants':(n===10?'people (a free demo)':'people')}</option>`).join('')}</select>
+<div class="note" style="margin-top:8px">Pick the closest. You can change it any time.</div>${c==='fam'?`<div class="note"><b>Each employee gets 5 tickets:</b> 1 of their own and 4 for their family.</div>`:''}</div>
+<div class="sec" id="s-how"><h2>How should the right people get in?</h2><div class="two">
+<button class="opt" aria-pressed="${S.how==='system'}" onclick="S.how='system';render('s-list')"><b>System validates for you ${c!=='ext'?'<span class="rec">Recommended</span>':''}</b><small>You share a single, system-generated game link. The system does the rest.</small></button>
+<button class="opt" aria-pressed="${S.how==='you'}" onclick="S.how='you';render('szbox')"><b>You validate yourself ${c==='ext'?'<span class="rec">Recommended</span>':''}</b><small>Nothing to add. People wait, and you let them in.</small></button></div></div>`;
+if(S.how==='system'){const em=S.idk==='email';h+=`<div class="sec" id="s-list"><h2>Participants you want the system to validate</h2>
+<label style="margin-top:0">System validation criteria</label>
+<p class="sub" style="margin:0 0 10px">Choose which one you want. The system matches what each person enters against your list.</p>
+<div class="chips" style="margin:0 0 12px"><button class="chip" aria-pressed="${!em}" onclick="S.idk='emp';resetList()">Employee ID</button><button class="chip" aria-pressed="${em}" onclick="S.idk='email';resetList()">Email ID</button></div>
+<div class="safe"><b>🔒 No personal details (name, mobile) are taken from you.</b><ul><li>Only the ${em?'email IDs':'employee IDs'} you add are allowed to participate.</li><li>The system sends no email to your participants. You share the game link yourself.</li><li>All information is deleted within 24 hours of the game ending.</li></ul></div>
+${S.review?reviewBox(em):`<label for="lst">Copy and paste the ${em?'employee email IDs':'employee IDs'} here, one on each line</label><div class="tip">Tip: ${em?'copy the employee email IDs from your Excel sheet or email list, and paste them here.':'copy the employee IDs from your Excel sheet, and paste them here.'}</div>
+<textarea id="lst" placeholder="${em?'priya.sharma@acme.com&#10;rahul.verma@acme.co.in':'E1042&#10;E1043'}" oninput="S.list=this.value;S.sizeManual=false;upd()">${S.list}</textarea>
+<div class="row" style="margin-top:8px;align-items:center"><span id="cnt" class="pill">${listCount()} participants added</span><button class="link" onclick="sample()">Try a sample</button></div>
+<div class="row" style="margin-top:10px"><button class="btn sec2" onclick="if(S.list.trim()){S.review=true;S.rvPage=0;S.rvQ='';S.rvProb=false;render('s-review')}else toast('Add your list first')">Look at my list (optional)</button></div>
+<div class="note" style="margin-top:14px;text-align:center"><b>or</b></div>
+<div class="note"><b>Upload a file instead</b><div class="row" style="margin-top:8px;align-items:center"><input id="fil" type="file" accept=".csv,.txt" style="max-width:340px" onchange="readFile(this.files[0])"><button class="link" onclick="dlFormat()">Download the file format</button></div></div>
+<div class="note">If someone new opens the game link, they wait politely until you let them in.</div>`}</div>`}
+if(S.how==='you')h+=`<div class="note" style="margin-top:14px">Everyone who opens your game link will wait for you. You see their name and let them in one by one, or press <b>Let everyone in</b>.${c==='ext'?' People in the game can bring up to 4 more.':''}</div>`;
+h+=`<div class="sec" id="szbox">${sizeBox()}</div>
+`}
+return h}
+
+const NL=String.fromCharCode(10);
+function listRows(){return S.list.split(NL).map(x=>x.trim()).filter(Boolean)}
+function resetList(){S.list='';S.listOk=false;S.review=false;render()}
+function chk(v,em){return em?/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v):/^[A-Za-z0-9._-]{2,30}$/.test(v)}
+function analyse(em){const seen=new Set();return listRows().map(v=>{const k=v.toLowerCase(),dup=seen.has(k);seen.add(k);return{v,dup,bad:!chk(v,em)}})}
+S.rvPage=0;S.rvQ='';S.rvProb=false;
+function rvRows(){const em=S.idk==='email',it=analyse(em).map((x,i)=>({...x,n:i+1})),q=S.rvQ.trim().toLowerCase();let f=it.filter(x=>(!q||x.v.toLowerCase().includes(q))&&(!S.rvProb||x.dup||x.bad));const per=50,pages=Math.max(1,Math.ceil(f.length/per));if(S.rvPage>=pages)S.rvPage=pages-1;const sl=f.slice(S.rvPage*per,S.rvPage*per+per);
+return`<div style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)">${sl.map(x=>`<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)"><span style="min-width:40px;color:var(--mut)">${x.n}</span><span style="flex:1;word-break:break-all">${x.v.replace(/</g,'&lt;')}</span><span class="${x.dup||x.bad?'warn':'ok'}">${x.dup?'Repeated':x.bad?(em?'Not an email ID':'Check this ID'):'✓'}</span></div>`).join('')||'<div style="padding:12px;color:var(--mut)">Nothing found</div>'}</div>
+<div class="row" style="margin-top:8px;align-items:center"><span class="tip" style="margin:0">Showing ${f.length?S.rvPage*per+1:0} to ${Math.min(f.length,S.rvPage*per+per)} of ${f.length}</span><span style="flex:1"></span><button class="btn sec2" ${S.rvPage<=0?'disabled':''} onclick="S.rvPage--;rvDraw()">Previous</button><button class="btn sec2" ${S.rvPage>=pages-1?'disabled':''} onclick="S.rvPage++;rvDraw()">Next page</button></div>`}
+function rvDraw(){const e=document.getElementById('rvrows');if(e)e.innerHTML=rvRows()}
+function reviewBox(em){const it=analyse(em),d=it.filter(x=>x.dup).length,b=it.filter(x=>x.bad&&!x.dup).length,good=it.length-d-b;
+return`<div class="sec" id="s-review" style="margin-top:14px"><h2>Your list</h2><div class="note"><b>${good}</b> ${em?'email IDs':'employee IDs'} look right${d?`, <span class="warn">${d} repeated</span>`:''}${b?`, <span class="warn">${b} look wrong</span>`:''}. ${(d||b)?'Repeated and wrong ones are left out automatically.':'This is optional. You can continue without checking.'}</div>
+<div class="row" style="margin:10px 0;align-items:center"><input style="flex:1;min-width:180px" placeholder="Search for an ${em?'email ID':'employee ID'}" oninput="S.rvQ=this.value;S.rvPage=0;rvDraw()" value="${S.rvQ.replace(/"/g,'&quot;')}" aria-label="Search the list">${(d||b)?`<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:400"><input type="checkbox" style="width:20px;height:20px" ${S.rvProb?'checked':''} onchange="S.rvProb=this.checked;S.rvPage=0;rvDraw()">Show only problems</label>`:''}</div>
+<div id="rvrows">${rvRows()}</div>
+<div class="row" style="margin-top:12px;align-items:center">${(d||b)?`<button class="btn sec2" onclick="cleanList()">Remove them now</button>`:''}<button class="btn" onclick="S.review=false;render('szbox')">Done</button><button class="link" onclick="S.review=false;render('s-list')">Edit the list</button></div></div>`}
+function cleanList(){const em=S.idk==='email';S.list=analyse(em).filter(x=>!x.dup&&!x.bad).map(x=>x.v).join(NL);render()}
+function readFile(f){if(!f)return;const r=new FileReader();r.onload=()=>{let rows=String(r.result).split(NL).map(x=>x.split(',')[0].replace(/["\r]/g,'').trim()).filter(Boolean);if(rows.length&&/email|employee|\bid\b/i.test(rows[0])&&!chk(rows[0],S.idk==='email'))rows=rows.slice(1);S.list=rows.join(NL);S.sizeManual=false;S.review=true;S.listOk=false;render('s-review')};r.readAsText(f)}
+function dlFormat(){const em=S.idk==='email',t=em?['Email ID','priya.sharma@acme.com','rahul.verma@acme.co.in']:['Employee ID','E1042','E1043'];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t.join(NL)+NL],{type:'text/csv'}));a.download=em?'email-ids-format.csv':'employee-ids-format.csv';a.click();toast('Format file downloaded')}
+function sample(){var NL=String.fromCharCode(10);S.list=S.idk==='email'?['priya.sharma@acme.com','rahul.verma@acme.co.in','neha.k@acme.com'].join(NL):['E1042','E1043','E1050'].join(NL);S.sizeManual=false;render()}
+function pick(k){S.card=k;S.listOk=false;S.review=false;S.people=k==='fam'?'50':'250';if(!S.how)S.how=k==='ext'?'you':'system';S.sizeManual=false;render('s-ask')}
+function upd(){const b=$('#szbox');if(b)b.innerHTML=sizeBox();const c=$('#cnt');if(c)c.textContent=listCount()+' participants added';foot()}
+const H=[['early5','Early Five','Be the first to mark any 5 of your numbers.',['Popular','Recommended']],['top','Top Line','Mark all 5 numbers of the top line.',['Recommended']],['mid','Middle Line','Mark all 5 numbers of the middle line.',['Recommended']],['bot','Bottom Line','Mark all 5 numbers of the bottom line.',['Recommended']],['corners','Four Corners','Mark the first and last number of the top and bottom lines.',['Popular']],['fh1','1st Full House','The first person to mark all 15 numbers of their ticket.',['Popular','Recommended']],['fh2','2nd Full House','The second person to mark all 15 numbers of their ticket.',['Popular','Recommended']],['fh3','3rd Full House','The third person to mark all 15 numbers of their ticket.',['Recommended']],['fh4','4th Full House','The fourth person to mark all 15 numbers of their ticket.',['Recommended']],['fh5','5th Full House','The fifth person to mark all 15 numbers of their ticket.',['Recommended']]];
+const SB=Array.from({length:10},(_,i)=>['sb'+(i+1),'Super Bumper House '+(i+1),'Mark all 30 numbers of your two tickets together. Prize number '+(i+1)+'.',i<2?['Recommended']:[]]);
+const HM=[['early7','Early Seven','Be the first to mark any 7 of your numbers.',[]],['early10','Early Ten','Be the first to mark any 10 of your numbers.',[]],['twolines','Two Lines','Be the first to complete any two of your three lines.',[]],['star','Star','Mark the four corners and the centre number of the middle line.',[]],['plus','Plus','Mark the whole middle line and the middle number of the top and bottom lines.',[]],['frame','Frame','Mark the top line, the bottom line and the first and last number of the middle line.',[]],['topbottom','Top and Bottom','Mark both the top line and the bottom line.',[]],['midcorners','Middle and Corners','Mark the whole middle line and the four corners.',[]],['odd5','Odd Five','Be the first to mark any 5 odd numbers.',[]],['even5','Even Five','Be the first to mark any 5 even numbers.',[]],['low5','Low Five','Be the first to mark 5 numbers from 1 to 30.',[]],['high5','High Five','Be the first to mark 5 numbers from 61 to 90.',[]]];
+S.tix=1;S.pr={early5:1,top:1,mid:1,bot:1,fh1:1,fh2:1};
+function allH(){return H.concat(S.tix===2?SB:[],HM)}
+function prizeCount(){return Object.keys(S.pr).filter(k=>S.pr[k]>0&&(!/^sb/.test(k)||S.tix===2)).length}
+function togg(id){if(S.pr[id])delete S.pr[id];else S.pr[id]=1;render()}
+function prow(h,sfx){sfx=sfx||'';const on=!!S.pr[h[0]];return`<div class="prow ${on?'on':''}"><label class="pl"><input type="checkbox" ${on?'checked':''} onchange="togg('${h[0]}')" aria-label="${h[1]}"><span><b>${h[1]}</b>${h[3].map(t=>`<em class="tag ${t==='Popular'?'pop':'rec'}">${t}</em>`).join('')}<small>${h[2]}${sfx}</small></span></label>${on&&!/^(fh|sb)/.test(h[0])?`<label class="win">This prize can be won<select onchange="S.pr['${h[0]}']=+this.value;foot()">${[1,2,3,4,5].map(n=>`<option value="${n}" ${S.pr[h[0]]===n?'selected':''}>${n} ${n===1?'time':'times'}</option>`).join('')}</select></label>`:''}${on?(S.tix===2&&!/^sb/.test(h[0])?giftRowT(h[0],'A')+giftRowT(h[0],'B'):giftRow(h[0])):''}</div>`}
+const GIFTS=['Decide later','Gift voucher','Hamper','Phone','Watch','Earbuds','Tablet or laptop','Holiday','Dinner','Movie tickets','Extra day off','Other (write it)'];
+S.gift={};S.giftTxt={};S.cost={};S.curRow={};S.cur='₹';const CURS=['₹','US$','€','£','AED','S$','A$'];
+S.tk={};
+function giftRowT(id,t){const key=id+'|'+t,on=S.tk[key]!==false;return`<div class="tkrow"><label class="tkck"><input type="checkbox" ${on?'checked':''} onchange="S.tk['${key}']=this.checked;render()"><b>Prize for Ticket ${t}</b></label>${on?giftRow(key):''}</div>`}
+function giftRow(id){const g=S.gift[id]||'Decide later';return`<div class="gift"><label>The prize<select onchange="S.gift['${id}']=this.value;render(this.value.startsWith('Other')?'gt-${id}':undefined)">${GIFTS.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join('')}</select></label><label>Worth up to (optional)<span class="cur"><select aria-label="Currency" onchange="S.curRow['${id}']=this.value;S.cur=this.value;render()">${CURS.map(c=>`<option ${c===(S.curRow[id]||S.cur)?'selected':''}>${c}</option>`).join('')}</select><input inputmode="numeric" aria-label="Prize worth" placeholder="for example 2,000" value="${S.cost[id]||''}" oninput="S.cost['${id}']=this.value.replace(/[^0-9]/g,'')"></span></label>${g.startsWith('Other')?`<input id="gt-${id}" maxlength="60" placeholder="Write the prize, for example Lunch with the CEO" value="${(S.giftTxt[id]||'').replace(/"/g,'&quot;')}" oninput="S.giftTxt['${id}']=this.value">`:''}</div>`}
+function view3(){return`<p class="crumb">Step 3 of 5</p><h1>Tickets and prizes</h1><p class="sub">The most popular prizes are already ticked. Tick or untick anything you like.</p>
+<div class="sec" id="s-tix"><h2>How many tickets does each player get in this game?</h2><div class="chips"><button class="chip" aria-pressed="${S.tix===1}" onclick="S.tix=1;Object.keys(S.pr).forEach(k=>{if(/^sb/.test(k))delete S.pr[k]});render('s-prz')">1 ticket</button><button class="chip" aria-pressed="${S.tix===2}" onclick="S.tix=2;if(!Object.keys(S.pr).some(k=>/^sb/.test(k)))S.pr.sb1=1;render('s-prz')">2 tickets</button></div>
+<div class="note" style="margin-top:10px">${S.tix===2?'With 2 tickets, Super Bumper Houses are available: a player marks all 30 numbers of both tickets. You can have up to 10 of them.':'Most games use 1 ticket. Choose 2 tickets for a longer game with a Super Bumper House.'}</div></div>
+<div class="sec" id="s-prz"><h2>Prizes <span class="pill">${prizeCount()} selected</span></h2>
+${S.tix===2?`<div class="two2"><div class="tk"><b>Ticket A</b><i></i><i></i><i></i></div><div class="tk"><b>Ticket B</b><i></i><i></i><i></i></div></div>
+<div class="note"><b>How prizes work with 2 tickets.</b> Each ticket plays on its own. For every prize you can choose a separate prize for Ticket A and for Ticket B. Untick a ticket if that ticket should not win it.</div>
+<h3 class="grp">Prizes for each ticket</h3>${H.map(h=>prow(h,' Choose the prize for each ticket below.')).join('')}
+<details class="more"><summary>More prizes</summary>${HM.map(h=>prow(h,' Choose the prize for each ticket below.')).join('')}</details>
+<h3 class="grp">Prizes for both tickets together</h3>${SB.slice(0,5).map(h=>prow(h)).join('')}<details class="more"><summary>More Super Bumper Houses (6 to 10)</summary>${SB.slice(5).map(h=>prow(h)).join('')}</details>`:`${H.map(h=>prow(h)).join('')}<details class="more"><summary>More prizes</summary>${HM.map(h=>prow(h)).join('')}</details>`}
+<div class="note" style="margin-top:12px">Choose the prize for each one now, or leave it on Decide later. Prizes are gifts such as vouchers, hampers or a day off.</div></div>`}
+S.brk=1;S.bmsg=[];S.blnk=[];S.logo=null;
+function maxBrk(){return S.tix===2?5:3}
+function brandSummary(){const p=[];if(S.brand)p.push(S.brand);if(S.logo)p.push('logo');const n=Math.min(S.brk,maxBrk()),f=S.blnk.slice(0,n).filter(x=>/^https:\/\//.test((x||'').trim())).length;if(n&&f)p.push(f+(f===1?' message break':' message breaks'));return p.length?p.join(', '):'Skipped'}
+function readLogo(f){if(!f)return;if(f.size>2*1024*1024){toast('Please choose a picture under 2 MB');return}const r=new FileReader();r.onload=()=>{S.logo=r.result;render()};r.readAsDataURL(f)}
+function lk(k){const e=document.getElementById('lk'+k);if(!e)return;const v=(S.blnk[k]||'').trim();e.className='tip'+(v?(/^https:\/\/[^ ]+\.[^ ]+/.test(v)?' ok':' warn'):'');e.textContent=v?(/^https:\/\/[^ ]+\.[^ ]+/.test(v)?'Looks good':'The link must start with https:// and be public, otherwise it will not play'):'';foot()}
+function view4(){const mx=maxBrk();if(S.brk>mx)S.brk=mx;
+const rows=Array.from({length:S.brk},(_,k)=>`<div class="brk"><label for="bl${k}" style="margin-top:0"><b style="display:inline">Break ${k+1}</b>: paste the link to your message</label><input id="bl${k}" type="url" placeholder="https://" value="${(S.blnk[k]||'').replace(/"/g,'&quot;')}" oninput="S.blnk[${k}]=this.value;lk(${k})"><div class="tip" id="lk${k}" style="margin:6px 0 0"></div></div>`).join('');
+return`<p class="crumb">Step 4 of 5 <span class="pill">Optional</span></p><h1>Brand & Breaks</h1><p class="sub">Add your company name, logo and messages. Or skip, it takes a second.</p>
+<div class="sec"><label for="br" style="margin-top:0">Company name</label><input id="br" maxlength="40" value="${S.brand}" placeholder="For example, Acme India" oninput="S.brand=this.value;foot()">
+<label>Your logo <span class="pill">Optional</span></label>
+<div class="logo-up">${S.logo?`<img src="${S.logo}" alt="Your logo">`:`<div class="ph">Logo</div>`}<div><label class="btn sec2" style="display:inline-block;margin:0;cursor:pointer">${S.logo?'Change logo':'Upload logo'}<input type="file" accept="image/png,image/jpeg,image/svg+xml" style="display:none" onchange="readLogo(this.files[0])"></label>${S.logo?' <button class="link" onclick="S.logo=null;render()">Remove</button>':''}<div class="tip" style="margin:6px 0 0">A square picture works best. It is made small automatically.</div></div></div></div>
+<div class="sec" id="s-brk"><h2>Brand breaks</h2><p class="sub" style="margin:0 0 10px">A break is a pause in the game when all players see your message.</p>
+<div class="note"><b>What is a message?</b> It is your company video or audio, or a speech by your CEO or manager. Paste its link and the system plays it for everyone. A public YouTube link works best, and every participant sees the same message. If a link is missing or not available, that message will not play.</div>
+<div class="note ok" style="margin-top:10px">You have chosen a ${S.tix}-ticket game, so you can have a maximum of ${mx} message breaks.</div>
+<label for="nb" style="margin-top:0">Number of message breaks</label><select id="nb" onchange="S.brk=+this.value;render('s-b1')">${[0,1,2,3,4,5].filter(n=>n<=mx).map(n=>`<option value="${n}" ${S.brk===n?'selected':''}>${n===0?'No breaks':n+(n===1?' break':' breaks')}</option>`).join('')}</select>
+<div id="s-b1">${rows}</div></div>`}
+
+function emails(t){const seen=new Set(),out=[];String(t||'').split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean).forEach(v=>{const k=v.toLowerCase();if(seen.has(k))return;seen.add(k);out.push({v,bad:!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)})});return out}
+S.hostTxt='';S.coTxt='';
+function hmsg(){const h=emails(S.hostTxt),c=emails(S.coTxt),hs=new Set(h.map(x=>x.v.toLowerCase()));const msg=[];
+const set=(id,t,cls)=>{const e=document.getElementById(id);if(e){e.className='tip '+(cls||'');e.textContent=t}};
+const hb=h.filter(x=>x.bad).length,cb=c.filter(x=>x.bad).length,both=c.filter(x=>hs.has(x.v.toLowerCase())).length;
+set('hmsg',h.length?(h.length>5?h.length+' email IDs added. A game can have at most 5 Hosts, please remove '+(h.length-5)+'.':h.length+(h.length===1?' Host':' Hosts')+' added'+(hb?', '+hb+' look wrong':'')):'','warn');
+if(h.length&&h.length<=5&&!hb)set('hmsg',h.length+(h.length===1?' Host':' Hosts')+' added','ok');
+set('cmsg',c.length?c.length+(c.length===1?' Co-host':' Co-hosts')+' added'+(cb?', '+cb+' look wrong':'')+(both?', '+both+' also listed as Host':''):'',(cb||both)?'warn':'ok');foot()}
+function helpers(){return`<div class="sec" id="s-help"><h2>Add Hosts and Co-hosts <span class="pill">Optional</span></h2>
+<div class="note"><b>What is a Host?</b> A Host is your right hand on game day. A Host can make any change in the game, just like you, and helps you run the game and let people in. You can have up to 5 Hosts.</div>
+<label for="hostTxt">Host email IDs, one on each line</label><textarea id="hostTxt" style="min-height:90px" placeholder="host1@acme.com" oninput="S.hostTxt=this.value;hmsg()">${S.hostTxt}</textarea><div class="tip" id="hmsg" style="margin:6px 0 0"></div>
+<div class="note" style="margin-top:14px"><b>What is a Co-host?</b> A Co-host helps you bring people to the game, for example one Co-host for each team or location. A Co-host cannot make any change to the game. You can have as many Co-hosts as you like.</div>
+<label for="coTxt">Co-host email IDs, one on each line</label><textarea id="coTxt" style="min-height:90px" placeholder="cohost1@acme.com" oninput="S.coTxt=this.value;hmsg()">${S.coTxt}</textarea><div class="tip" id="cmsg" style="margin:6px 0 0"></div>
+<div class="note ok" style="margin-top:14px">Everyone uses the same game link. A Host or Co-host opens it and types their email ID. The system sends a 6-digit passcode to that email ID only, and they enter it to become a Host or Co-host.</div></div>`}
+
+S.paid=false;S.wait=[{t:14,m:3},{t:15,m:1}];S.joined=0;
+function startIn(){const u=utcOf(S.iso,S.hh,S.mm,S.tz);if(u===null)return'';const d=u-Date.now();if(d<=0)return'It is time';const m=Math.round(d/60000),h=Math.floor(m/60),dd=Math.floor(h/24);return dd>=1?'Starts in '+dd+(dd===1?' day':' days')+' '+(h%24)+' h':h>=1?'Starts in '+h+' h '+(m%60)+' min':'Starts in '+m+' min'}
+function banner(){const when=`${S.day}, ${S.time} ${tzName()}`,free=curSize()===10;
+if(S.paid)return`<div class="stat paid"><div class="big">🎉 Congratulations, ${free?'your free game':'your game'} is on!</div><p>It will begin at <b>${when}</b>. Don't worry if you want to postpone or change anything: you can do it up to 5 minutes before the game begins.</p><div class="row"><button class="btn sec2" onclick="go(1)">Change date or time</button><button class="btn sec2" onclick="go(3)">Change prizes</button></div><div class="tip" style="margin-top:8px">${startIn()}</div></div>`;
+return`<div class="stat unpaid"><div class="big">Published, payment is pending</div><p>Don't worry. The game will not start until the payment is done, and you can cancel it at any time.</p><div class="row"><button class="btn go" onclick="S.paid=true;render()">Pay now</button><button class="btn sec2" onclick="toast('Payment link copied')">Copy payment link</button><button class="link" onclick="toast('You would be asked to confirm before cancelling')">Cancel this game</button></div><div class="tip" style="margin-top:8px">Game time: ${when}. ${startIn()}</div></div>`}
+function letIn(t){S.wait=S.wait.filter(x=>x.t!==t);S.joined++;render()}
+function noWait(t){S.wait=S.wait.filter(x=>x.t!==t);render()}
+function all(){S.joined+=S.wait.length;S.wait=[];render()}
+function board(){let g='';for(let n=1;n<=90;n++)g+=`<i>${n}</i>`;return`<div class="gb">${g}</div>`}
+function view6(){const sz=curSize(),pct=Math.min(100,Math.round(S.joined/sz*100));
+return`<p class="crumb ok">Published</p><h1>Game dashboard</h1><p class="sub">Everything about your game in one place.</p>${banner()}
+<div class="sec"><h2>Do these next</h2><div class="read">
+<div><b>1. Share</b><span>Send the game link to your people.</span><button class="btn sec2" onclick="toast('Link copied')">Copy link</button></div>
+${S.paid?'':`<div><b>2. Pay</b><span>The game starts once payment is done. Pay yourself, or share the payment link.</span></div>`}
+<div><b>${S.paid?'2':'3'}. Let people in</b><span>Someone new waits for you below.</span></div></div></div>
+${S.paid?`<div class="note ok" style="margin-top:14px">✓ Payment received. Thank you.</div>`:`<div class="sec" id="s-pay"><h2>Payment</h2><div class="note">The payment is small, so many organizers pay it themselves and claim it back. You can also copy the payment link and share it with the person who will pay.<div class="tip" style="margin-top:6px">The payment link works for 7 days.</div></div><div class="row" style="margin-top:10px"><button class="btn go" onclick="S.paid=true;render()">Pay now</button><button class="btn sec2" onclick="toast('Payment link copied')">Copy payment link to share</button></div></div>`}
+<div class="sec"><h2>Your game link</h2><div class="size"><div><big style="font-size:20px">housie.corporatetambola.com/g/K7Q2</big><div class="why">Participants, Hosts and Co-hosts all use this same link.</div></div><div style="flex:0"><button class="btn" onclick="toast('Link copied')">Copy link</button></div></div>
+<div class="row" style="margin-top:10px"><button class="btn sec2" onclick="document.getElementById('msgbox').classList.toggle('hide')">Message to send</button></div><div id="msgbox" class="pre hide" style="margin-top:8px">${msg()}</div></div>
+<div class="sec"><h2>Waiting for you <span class="pill">${S.wait.length}</span></h2><div class="note">${S.how==='system'?'If someone new opens the link, they wait here until you let them in.':'Everyone who opens the link waits here until you let them in.'} <span class="tip">(Example people are shown below.)</span></div>
+${S.wait.map(x=>`<div class="read" style="margin-top:8px"><div><b>Ticket ${x.t}</b><span>Waiting for ${x.m} min</span><button class="btn go" onclick="letIn(${x.t})">Let in</button><button class="btn sec2" onclick="noWait(${x.t})">Not now</button></div></div>`).join('')}
+${S.wait.length>1?`<div class="row" style="margin-top:8px"><button class="btn" onclick="all()">Let everyone in</button></div>`:''}</div>
+<div class="sec"><h2>Tickets claimed</h2><div class="note"><b>${S.joined} of ${sz.toLocaleString('en-IN')} participants have joined.</b> This updates live.<div class="bar2"><i style="width:${pct}%"></i></div></div></div>
+<div class="sec"><h2>Game board</h2><div class="note">On game day the numbers light up here as they are called. You can also open it on a big screen.</div>${board()}<div class="row" style="margin-top:10px"><button class="btn sec2" onclick="toast('Opens the big-screen board')">Open game board on a big screen</button></div></div>
+<div class="priv"><span>🔒</span><div>Download your report within 24 hours of the game. After that, the system keeps nothing.</div></div>`}
+function view5(){if(!S.card||!curSize()){S.step=2;return view2()}const sz=curSize();
+return`<p class="crumb">Step 5 of 5</p><h1>Check and publish</h1><p class="sub">One last look. Everything can be changed after publishing.</p>
+<div class="read">
+<div><b>Date and time</b><span>${S.occ}, ${S.day}, ${S.time} ${tzName()}</span><button class="link" onclick="go(1)">Change</button></div>
+<div><b>Who it is for</b><span>${CARDS[S.card][1]}, ${S.how==='system'?'the system validates for you':'you validate yourself'}</span><button class="link" onclick="go(2)">Change</button></div>
+${S.how==='system'?`<div><b>Your people</b><span>${listCount()} ${S.idk==='email'?'email IDs':'employee IDs'}${(S.ign&&(S.ign.d||S.ign.b))?` (${S.ign.d+S.ign.b} repeated or wrong ones were left out)`:''}</span><button class="link" onclick="go(2)">Change</button></div>`:''}<div><b>Game size</b><span>${sz.toLocaleString('en-IN')} participants</span><button class="link" onclick="go(2)">Change</button></div>
+<div><b>Tickets and prizes</b><span>${S.tix} ticket${S.tix>1?'s':''} each, ${prizeCount()} prizes</span><button class="link" onclick="go(3)">Change</button></div>
+<div><b>Your brand</b><span>${brandSummary()}</span><button class="link" onclick="go(4)">Change</button></div></div>
+${helpers()}`}
+function msg(){const l='housie.corporatetambola.com/g/K7Q2';return`Hello everyone,\n\nWe are playing Tambola together on ${S.day}, ${S.time} ${tzName()}. It is easy and fun.\n\nPlease open this link and enter your ${S.how==='system'?'email ID or employee ID':'name'} to get your ticket:\n${l}\n\nSee you there!`}
+function viewDone(){return`<p class="crumb ok">Published ✓</p><h1>Your game is ready</h1><p class="sub">Well done. You set it up in 5 steps. Now share the game link with your people, and they will enjoy the rest.</p>
+<div class="size"><div><div class="why">Your game link</div><big style="font-size:22px">housie.corporatetambola.com/g/K7Q2</big></div><div style="flex:0"><button class="btn" onclick="toast('Link copied')">Copy link</button></div></div>
+<div class="note ok" style="margin-top:12px">Hosts and Co-hosts use this same link. They type their email ID, and the system sends them a 6-digit passcode to confirm.</div>
+<div class="sec"><h2>A message you can send</h2><div class="pre">${msg()}</div><div class="row" style="margin-top:10px"><button class="btn" onclick="toast('Message copied')">Copy a message to share</button></div></div>
+<div class="sec"><h2>Waiting for you <span class="pill">0</span></h2><div class="note">${S.how==='system'?'If someone new opens the link, they wait here until you let them in.':'Everyone who opens the link waits here. You let them in one by one, or press Let everyone in.'}</div></div>
+<div class="sec"><h2>Tickets claimed</h2><div class="note">0 of ${curSize().toLocaleString('en-IN')} participants have joined. This updates live.</div></div>
+<div class="priv"><span>🔒</span><div>Download your report within 24 hours of the game. After that, the system keeps nothing.</div></div>`}
+function addH(k){const n=$('#'+k+'n').value.trim();if(!n)return;S[k].push(n+' - link ready');render()}
+function foot(){const n=$('#next'),b=$('#back'),h=$('#hint');b.style.visibility=(S.step===1||S.published)?'hidden':'visible';
+if(S.published){n.classList.add('hide');h.textContent='';return}n.classList.remove('hide');
+n.textContent=S.step===5?'Publish':(S.step===4&&brandSummary()==='Skipped'?'Skip':'Next');n.classList.toggle('go',S.step===5);n.disabled=!ok(S.step);
+h.textContent=S.step===6?'Game dashboard':S.step===5&&!ok(5)?'Please fix the Host or Co-host email IDs to continue':S.step===1&&!ok(1)?'Please fill the occasion, day and time':S.step===2&&!ok(2)?(!S.card?'Pick who you are creating the game for':(S.how==='system'&&listCount()<1?'Add your list to continue':'Almost there')):(S.step>=4?'Almost there. ':'')+'Step '+S.step+' of 5: '+NAMES[S.step-1]}
+function jump(t){const e=document.getElementById(t);if(!e)return;setTimeout(()=>{e.scrollIntoView({behavior:'smooth',block:'start'});if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.tagName))setTimeout(()=>e.focus({preventScroll:true}),350)},60)}
+let LASTSTEP=0;
+function render(t){const y=window.scrollY;steps();$('#view').innerHTML=[null,view1,view2,view3,view4,view5,view6][S.step]();foot();if(S.step!==LASTSTEP){window.scrollTo(0,0);LASTSTEP=S.step}else window.scrollTo(0,y);if(typeof t==='string')jump(t)}
+$('#next').onclick=()=>{if(S.step===5){S.published=true;S.paid=(curSize()===10);S.step=6;render();return}go(S.step+1)};
+$('#back').onclick=()=>go(S.step-1);
+render();
+</script></body></html>
