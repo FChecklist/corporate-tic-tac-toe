@@ -128,7 +128,8 @@ describe("links, files, cache versions, headers", () => {
 describe("the free demo game is the real free game for 10 people", () => {
   test("the header and the hero lead to the console's demo path, which is the Rs 0 game of up to FREE_GAME_CAP people", () => {
     expect(FREE_GAME_CAP).toBe(10);
-    expect(rd("index.html")).toContain('<a class="ck-btn main" href="/zc.html?demo=1">Try a free game with 10 people</a>');
+    const h = rd("index.html"), hero = h.slice(h.indexOf('<section class="ck-hero'), h.indexOf("</section>", h.indexOf('<section class="ck-hero'))), day = h.slice(h.indexOf('id="game-day"'), h.indexOf("</section>", h.indexOf('id="game-day"')));
+    for (const part of [hero, day]) expect(part).toContain('<a class="ck-btn main" href="/zc.html?demo=1">Try a free game with 10 people</a>'); // the hero and the game-day strip both lead to the free game
     expect(rd("zc.js")).toContain('const NEWDEMO = q.get("demo") === "1"'); expect(rd("zc.js")).toContain("Start your demo game");
     expect(rd("site.js")).toContain("demo=1"); // the sign-in hand-back keeps ?demo=1
   });
