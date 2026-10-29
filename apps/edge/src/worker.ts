@@ -40,6 +40,7 @@ import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
 import { googleClientId, verifyGoogleCredential } from "./google";
 import { MODE_SCHEMA, isTestMode, modeRoute, orgIsTest, testFlag } from "./mode";
+import { PURGE_HOURS } from "./lifetimes";
 import { purgeTestData } from "./test-data";
 import { frontDoorText, nextHint, GET_BODY_MAX, LINK_KEY, CONVERSATION, aiPaste, manualJson, manualText, type LinkRole } from "./ai-link";
 import { factsText } from "./ai-facts";
@@ -430,7 +431,7 @@ export async function remindUnpaid(env: Env, now: number): Promise<void> {
     const due = await env.DB.prepare("SELECT e.id, e.start_round, (SELECT v FROM kv WHERE k='pub/'||e.id) AS pub FROM engagement e WHERE e.pack=0 AND EXISTS (SELECT 1 FROM kv WHERE k='pub/'||e.id)").all<{ id: string; start_round: number; pub: string }>();
     for (const x of due.results ?? []) {
       const at = roundMs(x.start_round);
-      if (at > now && at - now < 36 * 3_600_000 && now - (Number(x.pub) || 0) >= 2 * 3_600_000) await nudge(env, x.id, "remind", now, `Payment pending for your game ${x.id}: it starts ${istTime(at)}`, `Your game ${x.id} starts ${istTime(at)}. It is not paid yet, and a game that is not paid for does not begin.\n\nYou can pay at any time until the guest data is erased (23 hours after the game was meant to end). If you pay late, the game opens 2 minutes after the payment is confirmed.\n\nPay now (about 2 minutes): ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/pay.html?e=${x.id}`);
+      if (at > now && at - now < 36 * 3_600_000 && now - (Number(x.pub) || 0) >= 2 * 3_600_000) await nudge(env, x.id, "remind", now, `Payment pending for your game ${x.id}: it starts ${istTime(at)}`, `Your game ${x.id} starts ${istTime(at)}. It is not paid yet, and a game that is not paid for does not begin.\n\nYou can pay at any time until the guest data is erased (${PURGE_HOURS} hours after the game was meant to end). If you pay late, the game opens 2 minutes after the payment is confirmed.\n\nPay now (about 2 minutes): ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/pay.html?e=${x.id}`);
     }
   } catch { /* tried again at the next tick */ }
 }
@@ -730,7 +731,7 @@ export const AI_MANIFEST = {
     "Building and publishing are free. Only the organizer publishes (they confirm their email and mobile number), and only the organizer pays; you never do either.",
     "Price is per game, by size: the smallest pack that covers the limit (see `packs`, the price in rupees is the whole amount: no GST is added). The limit does not have to match a pack size; people beyond the limit cannot join.",
     "The organizer pays on the payment page, online through Razorpay (the page shows the methods available). It takes about 2 minutes, and an invoice is emailed. The payment page names the seller, IT Services by Rajat Agarwal. Credit from an earlier cancelled game can pay for it (the Pay step offers it first).",
-    "No payment, no game. There is no separate payment cut-off: the game can be paid at any time until the guests' data is erased (23 hours after the game was meant to end). Until it is paid the Organizer and Hosts see \"Payment pending for this game\" and everyone else sees \"Waiting for the Organizer or Host to start the game.\" Nothing is charged and there is no penalty.",
+    "No payment, no game. There is no separate payment cut-off: the game can be paid at any time until the guests' data is erased (" + PURGE_HOURS + " hours after the game was meant to end). Until it is paid the Organizer and Hosts see \"Payment pending for this game\" and everyone else sees \"Waiting for the Organizer or Host to start the game.\" Nothing is charged and there is no penalty.",
     "If the organizer pays late, even hours later, the game opens 2 minutes after the payment is confirmed, for everyone already waiting, and they can also choose a new start time first (at most 30 days ahead). After the guest data is erased the game is closed (\"This game did not start. Your details have been erased.\"): nobody can join or pay, and the Organizer can create a new game like it.",
     "If they never pay, nothing is owed. They can create a new game whenever they like. The settings of a game that did not start stay for 30 days, then they are forgotten (as unpublished drafts are).",
     "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The credit stays in the organizer's account. Unused places are not credited once the game has started. Rules and privacy are at /legal.html.",

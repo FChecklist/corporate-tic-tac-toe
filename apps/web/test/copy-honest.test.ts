@@ -19,3 +19,58 @@ describe("TT-15: the 1,000-player claim says it was a computer rehearsal", () =>
     expect(t).toMatch(/1,000 simulated players/); expect(t).toMatch(/live event of that size has not been run/i);
   });
 });
+
+// ---- TT-17: the word "private" never appears in what a person reads --------------------------------------------------------------------------------------------------
+// Owner rule 2026-10-28: the games are close group online engagement; "private" suggests something it is not. Checked in every public page's visible text, every public script
+// and every server file that writes text for people (mails, AI messages, payment texts). Code comments are not text for people and are ignored.
+const EDGE = join(import.meta.dir, "../../edge/src");
+const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, " ").split(/\r?\n/).map((l) => l.replace(/(^|[^:\w"'`\\])\/\/.*$/, "$1")).join("\n");
+const SKIP_JS = /^(tttgame|zgame|control|reportgen|pdf|v)\.js$/; // built bundles
+/** Pages that are the lawyer's own text, not product copy: the legal statement keeps its term until the lawyer rules (owner ruling Q6 spirit). */
+const LAWYER_TEXT = new Set(["legal-position.html"]);
+
+describe("TT-17: no 'private' in text for people", () => {
+  test("public pages (visible text)", () => { for (const f of pages) if (!LAWYER_TEXT.has(f)) no(f, /\bprivate\b/i); });
+  test("public scripts (strings the page shows)", () => {
+    for (const f of readdirSync(PUB).filter((x) => x.endsWith(".js") && !SKIP_JS.test(x))) {
+      const m = /\bprivate\b/i.exec(stripComments(read(f))); if (m) throw new Error(`${f} still says: "...${stripComments(read(f)).slice(Math.max(0, m.index - 50), m.index + 60)}..."`);
+    }
+  });
+  test("server files (mails, AI messages, payment texts)", () => {
+    for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts") || x.endsWith(".json"))) {
+      const code = stripComments(readFileSync(join(EDGE, f), "utf8")).replace(/\bprivate\s+(readonly|static|async|get|set|[\w$]+\s*[:=(<;?])/g, "x $1"); const m = /\bprivate\b/i.exec(code); // a TypeScript "private" modifier is code, not text
+      if (m) throw new Error(`edge/${f} still says: "...${code.slice(Math.max(0, m.index - 50), m.index + 60)}..."`);
+    }
+  });
+});
+
+// ---- TT-16: one deletion promise, the same numbers everywhere --------------------------------------------------------------------------------------------------------
+// The promise to players is "within 24 hours". The code erases guest data at PURGE_AFTER_MS and closes the report link at REPORT_LINK_MS (lifecycle.ts); every sentence that
+// names those hours must name THESE hours. The numbers are read from the constants, so changing a window without the words fails here.
+import { PURGE_AFTER_MS, REPORT_LINK_MS } from "../../edge/src/lifetimes";
+const PURGE_H = PURGE_AFTER_MS / 3_600_000, LINK_H = REPORT_LINK_MS / 3_600_000;
+/** terms.html is the contract: changing it needs a new Terms version and the lawyer (owner ruling Q6), so it is the one page not swept here. */
+const CONTRACT = new Set(["terms.html"]);
+const STALE = /\b(21|22|23)[ -]hours?\b/i; // the old 22/23-hour numbers; 24 is the promise, 19 and 20 are the real windows
+
+describe("TT-16: the hours named for the report link and the erasure are the real ones", () => {
+  test("the constants are what the promise needs (erase well inside 24 hours; link closes before the data goes)", () => {
+    expect(PURGE_H).toBeLessThan(24); expect(LINK_H).toBeLessThan(PURGE_H);
+  });
+  test("no page names the old 21/22/23-hour numbers", () => { for (const f of pages) if (!CONTRACT.has(f)) no(f, STALE); });
+  test("no public script or server text names the old 21/22/23-hour numbers", () => {
+    const files = [...readdirSync(PUB).filter((x) => x.endsWith(".js") && !SKIP_JS.test(x)).map((x) => [x, join(PUB, x)]), ...readdirSync(EDGE).filter((x) => x.endsWith(".ts")).map((x) => ["edge/" + x, join(EDGE, x)])];
+    for (const [name, path] of files as [string, string][]) { const code = stripComments(readFileSync(path, "utf8")); const m = STALE.exec(code); if (m) throw new Error(`${name} still says: "...${code.slice(Math.max(0, m.index - 60), m.index + 60)}..."`); }
+  });
+  test("the organizer guide says when the report link closes and when the data is erased, with the real numbers", () => {
+    const t = textOf("organizer-guide.html");
+    expect(t).toContain(`Your report link works for ${LINK_H} hours`); expect(t).toContain(`within 24 hours after the game (we do it at ${PURGE_H} hours)`);
+  });
+  test("the console's After the game step says the same", () => {
+    const js = read("zc.js"); expect(js).toContain(`The report link works for ${LINK_H} hours`); expect(js).toContain(`names and numbers are deleted at ${PURGE_H} hours`);
+  });
+  test("the trust page and the AI facts say the job runs at the real hour", () => {
+    expect(textOf("trust.html")).toContain(`(the job runs at ${PURGE_H} hours)`);
+    expect(readFileSync(join(EDGE, "ai-facts.ts"), "utf8")).toContain("PURGE_HOURS");
+  });
+});

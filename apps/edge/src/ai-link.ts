@@ -7,6 +7,7 @@ import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { BRAND_COLORS, HOUSES_HELP_LIST, INVITE_CATEGORIES, PRIZE_HOUSES } from "../../../packages/beacon/src/config";
 import { FACTS, FACT_RULES, factsText } from "./ai-facts";
 import { FUNCTIONS, mapJson, mapText } from "./ai-functions";
+import { PURGE_HOURS } from "./lifetimes";
 
 export type LinkRole = "ai" | "host";
 /** The most a GET-mode `_body` may carry (URL-encoded JSON). Roster loads in that mode are chunks of about 20 people. */
@@ -146,7 +147,7 @@ export function manualText(origin: string, key: string, role: LinkRole, now: num
       "6. PAYMENT FACTS (explain these honestly)",
       "- Only the organizer publishes (confirming their e-mail and mobile number) and only the organizer pays; you never do either.",
       "- The price depends on the limit (section 1). They pay on the payment page, online, in about 2 minutes; an invoice is e-mailed. Credit from a cancelled game pays first (the organizer taps Use my credit).",
-      "- No payment, no game. There is no separate payment cut-off: they can pay any time until the guests' data is erased (23 hours after the game was meant to end). Until then the Organizer and Hosts see Payment pending and everyone else sees Waiting for the Organizer or Host to start the game. If they pay late the game opens 2 minutes after the payment is confirmed. After the erasure the game is closed (This game did not start. Your details have been erased.).",
+      "- No payment, no game. There is no separate payment cut-off: they can pay any time until the guests' data is erased (" + PURGE_HOURS + " hours after the game was meant to end). Until then the Organizer and Hosts see Payment pending and everyone else sees Waiting for the Organizer or Host to start the game. If they pay late the game opens 2 minutes after the payment is confirmed. After the erasure the game is closed (This game did not start. Your details have been erased.).",
       "- We do not give refunds after payment. After payment the organizer can move the game to any date within 365 days of the payment. If the organizer cancels a paid game, the payment stays as credit for a game of Corporate Tic Tac Toe within the same 365 days.",
       "",
       "7. HOW TO TALK",
@@ -233,7 +234,7 @@ export function frontDoorText(origin: string, key: string, role: LinkRole): stri
     `1. Start a new game: ${base}/go/new`,
     `2. Change a game that has not started yet: ${base}/go/games`,
     `3. Show the links of a game: ${base}/go/games?then=links`,
-    `4. Is the software safe, private, legal? (the 10 facts): ${base}/facts`,
+    `4. Is the software safe, secure, legal? (the 10 facts): ${base}/facts`,
     `5. Everything you can do for them: ${base}/map`,
     `6. Try a free demo first (the organizer opens it and presses Run Demo): ${origin}/demo.html`,
     "",

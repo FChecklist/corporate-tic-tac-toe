@@ -83,12 +83,12 @@
 
   <section id="keep" aria-labelledby="keeph"><h2 id="keeph">How long we keep it</h2>
     <ul>
-      <li>A player&rsquo;s name, seat, phone code, moves, invitation record and requests are deleted within 24 hours after the tournament ends. Our job runs at 23 hours.</li>
+      <li>A player&rsquo;s name, seat, phone code, moves, invitation record and requests are deleted within 24 hours after the tournament ends. Our job runs at 20 hours.</li>
       <li>Names are sealed (AES-256) when you join. From the start, the names on the bracket are also held as plain text so every phone can show them; they go with the rest.</li>
       <li>The results are kept for 365 days as seat numbers and player codes, without names.</li>
       <li>The organizer&rsquo;s details and the tournament settings are kept until 365 days after the tournament, or until the organizer closes the account.</li>
       <li>We keep billing data for audit and tax reasons.</li>
-      <li>The security record of a tournament is kept 365 days. Its personal part for players is destroyed at the same 23 hours as the names.</li>
+      <li>The security record of a tournament is kept 365 days. Its personal part for players is destroyed at the same 20 hours as the names.</li>
       <li>The security record of a refused or failed request is kept 90 days.</li>
       <li>Visits to the public pages: 365 days, then only anonymous daily totals. Speed and error reports: 90 days. The log of mail sent (address and subject): 3 days.</li>
     </ul></section>
@@ -99,7 +99,7 @@
       <li>Resend: sends e-mail to organizers and Hosts.</li>
       <li>Razorpay: takes the organizer&rsquo;s payment. We never see or store card details.</li>
       <li>The IT Services payment service (itservices-rajat-agarwal.pages.dev): records each payment for the organizer&rsquo;s invoice and our accounts.</li>
-      <li>GitHub: runs our scheduled jobs and holds a private copy of the payment records. It never holds players&rsquo; details.</li>
+      <li>GitHub: runs our scheduled jobs and holds an access-restricted copy of the payment records. It never holds players&rsquo; details.</li>
       <li>Google: only if an organizer chooses &ldquo;Continue with Google&rdquo; to sign in.</li>
       <li>The full list is on the <a href="/subprocessors.html">sub-processors page</a>.</li>
     </ul></section>

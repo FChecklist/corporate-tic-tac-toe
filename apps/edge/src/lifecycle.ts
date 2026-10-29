@@ -1,6 +1,6 @@
 // The life of an engagement's personal data. When a game ends (as seen from the public schedule, or sooner when enough phones say so):
 //   1. the organizer's report is built from the sealed records and e-mailed as PDF(s), in small steps because a free Worker has ~10 ms of CPU per call;
-//   2. the report link stops working 22 hours after the end; 23 hours after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
+//   2. the report link stops working 19 hours after the end; 20 hours after the end (we promise 24) every participant's name, number, seat, invite record and card link is deleted, the report's working copies too,
 //      and the participants' personal part of the audit log is crypto-shredded (audit.ts `shredParticipantAudit`: its per-engagement key is destroyed, the hash chain still verifies);
 //   3. only the organizer / host / co-host details and the winners record (seat, prize, round, time) remain, until 00:00 IST at the end of the 365th day, then everything goes.
 // Called by the scheduled job (and, as a fallback, by any outside timer with the platform key). Every call does a bounded amount of work and can be repeated safely.
@@ -25,9 +25,8 @@ import type { D1, Env } from "./worker";
 
 export const GENESIS = 1692803367;
 export const roundMs = (r: number) => (GENESIS + (r - 1) * 3) * 1000;
-export const PURGE_AFTER_MS = 20 * 3_600_000;      // participants' personal data (and the personal part of their audit rows) goes this long after the game ended (the promise is 24 hours)
-export const REPORT_LINK_MS = 19 * 3_600_000;      // the organizer's report link stops working this long after the game ended, an hour before the deletion
-export const REPORT_AFTER_MS = 3 * 60_000;         // the report starts a few minutes after the end, so late wins have been recorded
+import { PURGE_AFTER_MS, REPORT_LINK_MS, REPORT_AFTER_MS } from "./lifetimes"; // the three clocks of a finished game live in lifetimes.ts, so the words people read use the same numbers
+export { PURGE_AFTER_MS, REPORT_LINK_MS, REPORT_AFTER_MS };
 export const UNPLAYED_WARN_MS = 6 * 3_600_000;       // the heads-up e-mail for a game that did not start goes out this long before its guests' data is erased
 export const SETTINGS_KEEP_MS = 30 * 86_400_000;      // the settings of a game that did not start (occasion, prizes, brand...) stay this long after it closed, so the Organizer can reuse them
 export const PAID_WINDOW_MS = 365 * 86_400_000;      // a PAID game can be set to any date within this long from the day of payment
@@ -72,7 +71,7 @@ export async function endBoundMs(env: Env, e: any): Promise<number> {
   return endBoundTtt(roundMs(e.start_round), t);
 }
 
-/** When this game's guest data will be (or was) erased: 23 hours after it ended, after it was cancelled, or, for a game nobody paid for, after it was meant to end. Follows the newest schedule. */
+/** When this game's guest data will be (or was) erased: 20 hours after it ended, after it was cancelled, or, for a game nobody paid for, after it was meant to end. Follows the newest schedule. */
 export async function erasureOf(env: Env, e: any): Promise<number> {
   if (e.cancelled_ms) return personalDeleteAt(e.cancelled_ms);
   if (e.pack !== 0) { const l = await env.DB.prepare("SELECT end_ms, end_src FROM life WHERE eid=?").bind(e.id).first<{ end_ms: number; end_src: string }>(); if (l && l.end_src === "phones") return personalDeleteAt(l.end_ms); }
