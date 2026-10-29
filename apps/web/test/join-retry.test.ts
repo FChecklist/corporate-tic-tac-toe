@@ -8,9 +8,9 @@ const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any)
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
-async function page(joinAnswer: (n: number) => Response | Promise<Response>) {
+async function page(joinAnswer: (n: number) => Response | Promise<Response>, retryMs = 20) {
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html?e=GAME-1", width: 390, height: 780 });
-  w.crypto = globalThis.crypto; w.__joinRetryMs = 20; // the real page waits 6 to 30 seconds; the test waits 20 ms
+  w.crypto = globalThis.crypto; w.__joinRetryMs = retryMs; // the real page waits 6 to 30 seconds; the test waits 20 ms (more where the test must see the "busy" screen before the next try)
   let joins = 0;
   w.fetch = async (url: string) => {
     const u = String(url); const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status });
@@ -40,9 +40,9 @@ describe("a join that gets no answer is asked again by itself", () => {
     expect(p.d.body.textContent).not.toMatch(/Could not join/);
   });
   test("a 'busy' answer shows 'Many people are joining right now' and is asked again", async () => {
-    const p = await page((n) => (n <= 2 ? ok({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429) : ok({ pid: "1x000000000001" })));
+    const p = await page((n) => (n <= 2 ? ok({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429) : ok({ pid: "1x000000000001" })), 150); // with 20 ms the third (good) answer could arrive before the 40 ms look: 2 runs in 8 failed
     await tick(40); expect(p.d.body.textContent).toMatch(/Many people are joining right now/);
-    await tick(300); expect(p.joins()).toBe(3);
+    await tick(700); expect(p.joins()).toBe(3);
   });
   test("any other refusal is shown at once and is not asked again", async () => {
     const p = await page(() => ok({ error: "This game is full.", code: "full" }, 409));

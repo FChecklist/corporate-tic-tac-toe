@@ -7,7 +7,7 @@ const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 
 async function bigScreen(fetchImpl: (u: string) => Promise<Response>) {
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/big.html?e=GAME-1", width: 1280, height: 720 });
-  w.crypto = globalThis.crypto; w.__lostMs = 0; // the real page waits 15 seconds
+  w.crypto = globalThis.crypto; w.__lostMs = -1; // the real page waits 15 seconds; the test shows the bar at once (0 failed when the first failure came in the same millisecond as the load: 0 > 0 is false)
   w.fetch = (u: any) => fetchImpl(String(u));
   w.document.body.innerHTML = '<main id="app"></main>';
   new Function("globalThis", pub("tttgame.js"))(w);
