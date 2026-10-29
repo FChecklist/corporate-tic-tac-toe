@@ -80,6 +80,31 @@ describe("R11-R15 the clock", () => {
     await applyMove(cfg, "m1", b2, moverOf(lastGame(b2)), 4, T0 + cfg.readyMs + 1);
     expect(lastGame(b2).moves[0]!.auto).toBe(true);
   });
+  test("R11 late move: a tap after the turn ended is answered late-move, nothing of it is placed, and the square the software played stays", async () => {
+    const b = await newBoard(cfg, "m1", 0, "ann", "ben", T0); const g = lastGame(b); const late = moverOf(g);
+    const r = await applyMove(cfg, "m1", b, late, 4, T0 + cfg.readyMs + 1);
+    expect(r).toMatchObject({ ok: false, error: "late-move" });
+    expect(lastGame(b).moves.length).toBe(1); expect(lastGame(b).moves[0]!.auto).toBe(true); expect(lastGame(b).moves[0]!.pid).toBe(late);
+    expect(lastGame(b).cells.filter((c) => c).length).toBe(1);
+    const other = late === "ann" ? "ben" : "ann";
+    expect((await applyMove(cfg, "m1", b, other, emptiesOf(lastGame(b).cells)[0]!, T0 + cfg.readyMs + 2)).ok).toBe(true); // the other player's turn is open and unharmed
+  });
+  test("R11 late move: the same late tap by the player whose clock-out made them forfeit is also late-move; a player who was away so long that it is their turn again is accepted", async () => {
+    const b = await newBoard(cfg, "m1", 0, "ann", "ben", T0); const first = moverOf(lastGame(b));
+    await advanceBoard(cfg, "m1", b, T0 + cfg.readyMs + 1); await advanceBoard(cfg, "m1", b, T0 + cfg.readyMs + cfg.moveMs + 1); // X and O each missed once
+    // 80 s after the start the first player taps: both clock-outs have been played and it is their turn again with a fresh clock
+    const ok = await applyMove(cfg, "m1", b, first, emptiesOf(lastGame(b).cells)[0]!, T0 + cfg.readyMs + cfg.moveMs + 5_000);
+    expect(ok.ok).toBe(true);
+    const f = await newBoard(cfg, "m1", 0, "ann", "ben", T0); const x = moverOf(lastGame(f));
+    await advanceBoard(cfg, "m1", f, T0 + cfg.readyMs + 1); await advanceBoard(cfg, "m1", f, T0 + cfg.readyMs + cfg.moveMs + 1); // each missed once; X is to move again
+    const r = await applyMove(cfg, "m1", f, x, emptiesOf(lastGame(f).cells)[0]!, T0 + cfg.readyMs + 2 * cfg.moveMs + 1); // X's second miss makes X forfeit before this tap
+    expect(r).toMatchObject({ ok: false, error: "late-move" }); expect(f.done).toBe(true); expect(f.winner).not.toBe(x);
+  });
+  test("R11: a tap in time is never answered late-move (a move at the last millisecond, a tap by the player who is not to move)", async () => {
+    const b = await newBoard(cfg, "m1", 0, "ann", "ben", T0); const g = lastGame(b); const other = g.x === "ann" ? "ben" : "ann";
+    expect(await applyMove(cfg, "m1", b, other, 0, T0 + 5_000)).toMatchObject({ ok: false, error: "not-your-turn" });
+    expect((await applyMove(cfg, "m1", b, g.x, 0, T0 + cfg.readyMs)).ok).toBe(true);
+  });
   test("R12: when the clock runs out the software plays a seeded square for that player, the same every time", async () => {
     const mk = async () => { const b = await newBoard(cfg, "m1", 0, "ann", "ben", T0); await advanceBoard(cfg, "m1", b, T0 + cfg.readyMs + 1); return b; };
     const [b1, b2] = [await mk(), await mk()];

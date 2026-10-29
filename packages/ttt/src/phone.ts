@@ -9,13 +9,15 @@
 //   4. reports the winner of its board; the server keeps the result when both players' reports agree (or when nobody contradicts a single report), and lists it;
 //   5. builds the next round's pairing from the listed results (feedersOf, parentOf) and registers the next match.
 import { sha256Hex } from "./hash";
-import { advanceBoard, applyMove, lastGame, moverOf, type BoardState } from "./match";
+import { advanceBoard, applyMove, lastGame, moverOf, type BoardState, type MoveResult } from "./match";
 import { ctxOf, feedersOf, finalizeMatchP, midOf, openMatchP, parentOf, rankings, roundName, startTournament, tieLine, type Entrant, type MatchCtx, type MatchState, type PlayerIn, type Tournament } from "./bracket";
 
 /** Square number of an "opponent absent" claim in the stored event list (a move has 0 to 8). */
 export const ABSENT = -1;
 /** What every phone says when the Organizer or a Host has ended the tournament. */
 export const ENDED_MESSAGE = "The organizer ended the tournament. Thank you for playing.";
+/** What a player is told when a tap came after their turn had ended (owner-approved wording, 2026-10-27). */
+export const LATE_MOVE_MESSAGE = "Ohooo! \u{1F60A} Sorry, you moved after your turn ended. This move cannot be made.";
 
 export interface Opts { format: "solo" | "team"; teamSize: number; moveMs: number; readyMs: number }
 export interface Setup {
@@ -72,7 +74,7 @@ function force(b: BoardState, winner: string): void {
 
 export interface Replayed { m: MatchState; complete: boolean; /** tournament-clock time at which the last board's result was agreed */ doneAt: number; due: boolean[] }
 /** Opens the match at `openedAt` (tournament clock) and replays every stored event of every board with the rules. `nowEff` (optional) is used to see whether a clock-out is due that nobody has claimed yet. */
-export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: MatchRec | null, openedAt: number, pauses: readonly [number, number | null][], nowEff?: number): Promise<Replayed> {
+export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: MatchRec | null, openedAt: number, pauses: readonly [number, number | null][], nowEff?: number, onMove?: (j: number, seq: number, r: MoveResult) => void): Promise<Replayed> {
   const c = ctxAt(p, startAt);
   await openMatchP(c, m, openedAt);
   const due: boolean[] = m.boards.map(() => false);
@@ -82,7 +84,7 @@ export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: 
     for (const e of [...br.events].sort((x, y) => x.seq - y.seq)) {
       if (b.done) break;
       const at = effOf(pauses, e.ms);
-      if (e.sq === ABSENT) await advanceBoard(c.cfg, m.mid, b, at); else await applyMove(c.cfg, m.mid, b, e.pid, e.sq, at);
+      if (e.sq === ABSENT) await advanceBoard(c.cfg, m.mid, b, at); else { const r = await applyMove(c.cfg, m.mid, b, e.pid, e.sq, at); onMove?.(br.j, e.seq, r); }
     }
     if (nowEff !== undefined && !b.done) {
       const probe = structuredClone(b); await advanceBoard(c.cfg, m.mid, probe, nowEff);
@@ -116,6 +118,7 @@ export class TttPhone {
   readonly counters: Counters = { gets: 0, posts: 0, replays: 0, claims: 0, results: 0, opens: 0, moves: 0 };
   private done = new Map<string, Replayed>(); private reported = new Set<string>(); private claimedAt = new Map<string, number>(); private opened = new Set<string>();
   private cur: { mid: string; j: number; seq: number; mine: boolean; yourTurn: boolean; ply: number } | null = null;
+  private pre: { mid: string; base: MatchState; openedAt: number } | null = null; // the match as it was before the stored moves were replayed: play() replays it again to see whether its own tap counted
   constructor(public deps: PhoneDeps) {}
   private get = async (path: string) => { this.counters.gets++; return this.deps.api("GET", `/api/z/${this.deps.eid}/ttt/${path}`); };
   private post = async (path: string, body: unknown) => { this.counters.posts++; return this.deps.api("POST", `/api/z/${this.deps.eid}/ttt/${path}`, body); };
@@ -176,6 +179,7 @@ export class TttPhone {
         if (rec.reg && base.round > 1 && (rec.reg.a !== base.a || rec.reg.b !== base.b) && !this.opened.has("x" + mid)) { this.opened.add("x" + mid); await this.post("flag", { ...this.id(), kind: "pairing", mid, note: "The pairing stored for this match is not the one the results give." }).catch(() => {}); }
         this.counters.replays++;
         const nowEff = effOf(pr, this.serverNow());
+        this.pre = { mid, base: structuredClone(base), openedAt };
         rep = await replayMatch(p, startAt, base, rec, openedAt, pr, this.isPaused() ? undefined : nowEff);
         if (rep.complete) this.done.set(mid, rep);
       }
@@ -278,12 +282,22 @@ export class TttPhone {
       await this.post("finish", { ...this.id(), ...(await finishPayload(t)) });
     } catch { this.finished = false; }
   }
-  /** The player taps a square. Returns whether the mailbox took the move. */
+  /** The player taps a square. `ok` is true when the mailbox took the move and the rules counted it. "late-move": the mailbox took the tap (it stamps and stores whatever a player sends) but the turn had already ended, so every phone ignores it. */
   async play(cell: number): Promise<{ ok: boolean; error?: string }> {
     const c = this.cur; if (!c || !c.yourTurn) return { ok: false, error: "not-your-turn" };
     this.counters.moves++;
-    try { await this.post("move", { ...this.id(), mid: c.mid, seq: c.seq, sq: cell, client_ms: this.deps.now() }); c.yourTurn = false; return { ok: true }; }
+    try { await this.post("move", { ...this.id(), mid: c.mid, seq: c.seq, sq: cell, client_ms: this.deps.now() }); c.yourTurn = false; }
     catch (e: any) { return { ok: false, error: e?.code ?? "refused" }; }
+    return (await this.wasLate(c)) ? { ok: false, error: "late-move" } : { ok: true };
+  }
+  /** Did the tap just stored under `c.seq` come after the turn ended? The same replay every phone makes says so. A failed look is not a late tap. */
+  private async wasLate(c: { mid: string; j: number; seq: number }): Promise<boolean> {
+    const pre = this.pre; if (!pre || pre.mid !== c.mid || !this.plan || !this.setup) return false;
+    try {
+      const rec = await this.fetchMatch(c.mid); let late = false;
+      await replayMatch(this.plan, this.setup.startedMs ?? 0, structuredClone(pre.base), rec, pre.openedAt, this.pausesNow(), undefined, (j, seq, r) => { if (j === c.j && seq === c.seq && !r.ok && r.error === "late-move") late = true; });
+      return late;
+    } catch { return false; }
   }
   /** For the page: the board I am on right now (so the tap handler needs nothing else). */
   get myBoard(): { mid: string; j: number; seq: number; yourTurn: boolean; ply: number } | null { return this.cur; }

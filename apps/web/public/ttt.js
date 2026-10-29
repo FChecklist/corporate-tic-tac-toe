@@ -157,13 +157,17 @@
     if (fresh) { SEEN.won.add(key + "|" + b.cells.join("")); if (won) celebrate(); }
   };
   const others = (s) => (s.boards && s.boards.length > 1 ? `<div class="zcard"><h2>Your team's boards</h2>${s.boards.map((x) => `<p class="zsmall">${esc(x.a)} vs ${esc(x.b)}: ${x.done ? (x.winner ? esc(x.winner) + " won" : "done") : "playing, game " + x.gameNo}</p>`).join("")}</div>` : "");
+  let lateUntil = 0; // a tap after the turn ended: the kind message stays on screen for 8 seconds
+  const lateBanner = () => (lateUntil > Date.now() ? `<div class="zbanner warn" id="latemsg" role="alert">${esc(window.TTT.LATE_MOVE_MESSAGE)}</div>` : "");
   const play = async (cell) => {
-    try { await thePhone().play(cell); } catch (e) { /* stale or too late: the next look shows the board as it is */ }
+    let r = null;
+    try { r = await thePhone().play(cell); } catch (e) { /* stale or refused: the next look shows the board as it is */ }
+    if (r && r.error === "late-move") lateUntil = Date.now() + 8000;
     tick();
   };
   const rankHtml = (r) => (r && r.length ? `<div class="zcard"><h2>Results</h2><ol class="trank">${r.map((x) => `<li><b>${esc(x.name)}</b>${x.tie ? `<small>${esc(x.tie)}</small>` : ""}</li>`).join("")}</ol></div>` : "");
 
-  const render = (s) => { try { render0(s); } finally { countUps(); } };
+  const render = (s) => { try { render0(s); const first = $app.firstElementChild; if (first && lateBanner()) first.insertAdjacentHTML("afterend", lateBanner()); } finally { countUps(); } };
   const render0 = (s) => {
     if (window.ctzView) window.ctzView({ phase: s.phase === "champion" || s.phase === "out" ? "ended" : String(s.phase || "") }); // the flight recorder (blackbox.js) learns the stage
     last = s; skew = (s.serverNow || Date.now()) - Date.now();

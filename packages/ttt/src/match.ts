@@ -21,7 +21,7 @@ export interface BoardState {
   /** 2 points for each game won, 1 for each game drawn. A forfeited game is a win for the other player. Used only for the final ranking. */
   points: Record<string, number>;
 }
-export type MoveResult = { ok: true; board: BoardState } | { ok: false; error: "match-over" | "not-your-turn" | "square-taken" | "bad-square" | "not-in-board" | "stale"; board: BoardState };
+export type MoveResult = { ok: true; board: BoardState } | { ok: false; error: "match-over" | "not-your-turn" | "square-taken" | "bad-square" | "not-in-board" | "stale" | "late-move"; board: BoardState };
 
 const maxGames = (cfg: Cfg) => cfg.maxGames ?? MAX_GAMES;
 const last = <T>(a: readonly T[]): T => a[a.length - 1]!;
@@ -91,10 +91,13 @@ export async function advanceBoard(cfg: Cfg, mid: string, board: BoardState, now
   return board;
 }
 
-/** A player places a mark. `ply` (optional) is the number of moves the player saw; a stale tap (a double tap, an old screen) is refused. */
+/** A player places a mark. `ply` (optional) is the number of moves the player saw; a stale tap (a double tap, an old screen) is refused.
+ *  A tap from the player whose turn had already ended (the clock-out is played first, then the tap is too late) is answered "late-move", not "not-your-turn" or "match-over". */
 export async function applyMove(cfg: Cfg, mid: string, board: BoardState, pid: string, cell: number, now: number, ply?: number): Promise<MoveResult> {
   if (pid !== board.a && pid !== board.b) return { ok: false, error: "not-in-board", board };
+  const before = board.done ? null : lastGame(board), overdue = !!before && moverOf(before) === pid && now > before.deadline;
   await advanceBoard(cfg, mid, board, now);
+  if (overdue && (board.done || moverOf(lastGame(board)) !== pid)) return { ok: false, error: "late-move", board };
   if (board.done) return { ok: false, error: "match-over", board };
   const g = lastGame(board);
   if (ply !== undefined && ply !== g.moves.length) return { ok: false, error: "stale", board };

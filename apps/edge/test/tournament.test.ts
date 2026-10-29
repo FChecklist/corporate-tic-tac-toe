@@ -7,7 +7,7 @@ import { handle } from "./with-terms";
 import { eraseEverything } from "../src/lifecycle";
 import { makeD1 } from "./d1-sqlite";
 import { commitOf, seedOf, verifyReveal } from "../../../packages/ttt/src/seal";
-import { TttConsole, TttPhone, planOf, replayMatch, type MatchRec, type Setup } from "../../../packages/ttt/src/phone";
+import { LATE_MOVE_MESSAGE, TttConsole, TttPhone, planOf, replayMatch, type MatchRec, type Setup } from "../../../packages/ttt/src/phone";
 import type { MatchState } from "../../../packages/ttt/src/bracket";
 import { lastGame } from "../../../packages/ttt/src/match";
 import { apiFor, playCrowd } from "../../../tools/sim2/phones";
@@ -362,5 +362,26 @@ describe("removing a player after the host pressed Start (found by the Chrome si
     expect((await j(rm)).during).toBe(false);
     expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='TT-RM2'")[0].c).toBe(2);
     void ps;
+  });
+});
+
+describe("QA 2026-10-29: a tap after the turn ended is told so", () => {
+  const phoneFor = (id: string, p: P, clock: { t: number }) => new TttPhone({ api: apiFor(call, clock), eid: id, pid: p.pid, device: p.device, now: () => clock.t });
+  test("F-late: a tap after the turn ended is answered late-move with the owner-approved words; the mailbox keeps the row, every phone ignores it, the square the software played stays", async () => {
+    const h = await game("QA-4"); const ps = await joinAll("QA-4", 2); const { clock } = await begin("QA-4", h, { moveSecs: 20 });
+    clock.t = T + 2000; const phones = ps.map((p) => phoneFor("QA-4", p, clock)); const views = await Promise.all(phones.map((x) => x.tick()));
+    const who = views.findIndex((v) => v.board.yourTurn); expect(who).toBeGreaterThanOrEqual(0);
+    clock.t = T + 31_000; // the first move has 30 seconds; the page still says 'your turn' because it looks only every 1.2 s
+    const r = await phones[who]!.play(4);
+    expect(r).toEqual({ ok: false, error: "late-move" });
+    expect(LATE_MOVE_MESSAGE).toBe("Ohooo! \u{1F60A} Sorry, you moved after your turn ended. This move cannot be made.");
+    expect(sql("SELECT COUNT(*) c FROM ttt_mv WHERE eid='QA-4'")[0].c).toBe(1); // the mailbox stores whatever it is sent (it never judges a board)
+    const after = await phoneFor("QA-4", ps[who]!, clock).tick(); const other = await phoneFor("QA-4", ps[1 - who]!, clock).tick();
+    expect(after.board.cells.filter((c: number) => c).length).toBe(1); expect(after.board.lastAuto).toBe(true); expect(after.board.cells[4] === 0 || after.board.lastAuto).toBe(true);
+    expect(other.board.yourTurn).toBe(true); // the other player's turn is open
+    // a tap in time is not late
+    const h2 = await game("QA-5"); const ps2 = await joinAll("QA-5", 2, 20); const { clock: c2 } = await begin("QA-5", h2, { moveSecs: 20 });
+    c2.t = T + 2000; const q = ps2.map((p) => phoneFor("QA-5", p, c2)); const vs = await Promise.all(q.map((x) => x.tick())); const w2 = vs.findIndex((v) => v.board.yourTurn);
+    c2.t = T + 29_999; expect(await q[w2]!.play(4)).toEqual({ ok: true });
   });
 });

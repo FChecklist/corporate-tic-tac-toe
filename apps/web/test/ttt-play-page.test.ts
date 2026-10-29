@@ -59,4 +59,22 @@ describe("the player page runs the game on the phone (docs/RULES.md, section I)"
       for (const s of seen) expect(["move", "result", "open", "flag"]).toContain(s);
     } finally { await a.close(); }
   }, 30_000);
+  test("a tap after the turn ended shows the owner-approved kind message for a few seconds, places nothing of the player's own, and the board goes on (RULES_tictactoe.md section 4.2)", async () => {
+    const { world, ps, id } = await twoPlayerGame("PG-LATE");
+    const a = await openFor(world, id, ps[0]!), b = await openFor(world, id, ps[1]!);
+    try {
+      await a.waitFor((t) => /Your turn|Waiting for/.test(t), 9000); await b.waitFor((t) => /Your turn|Waiting for/.test(t), 9000);
+      const mover = a.text().includes("Your turn") ? a : b;
+      expect(mover.html()).not.toContain("latemsg");
+      world.now += 31_000; // the 30 seconds of the first move are over; the page has not looked yet and still offers the square
+      mover.click('.tsq[data-i="4"]');
+      const MSG = "Ohooo! \u{1F60A} Sorry, you moved after your turn ended. This move cannot be made.";
+      await mover.waitFor((t) => t.includes(MSG), 9000);
+      expect(mover.$("#latemsg")!.getAttribute("role")).toBe("alert");
+      expect(mover.errors).toEqual([]);
+      const mine = world.raw.query("SELECT sq FROM ttt_mv WHERE eid=?").all(id) as any[];
+      expect(mine.length).toBe(1); // the mailbox kept the tap; the board shows the square the software played, not the one tapped late
+      expect(mover.text()).not.toContain("Your turn"); // the other player's turn is open
+    } finally { await a.close(); await b.close(); }
+  }, 30_000);
 });
