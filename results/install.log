@@ -1,0 +1,12 @@
+bun install v1.4.4 (38afee6c8)
+Resolving dependencies
+Resolved, downloaded and extracted [68]
+Saved lockfile
+
++ @types/bun@1.4.4
++ axe-core@4.14.0
++ happy-dom@20.14.6 (v21.0.4 available)
++ playwright-core@1.64.1
++ typescript@5.9.3 (v7.0.2 available)
+
+17 packages installed [2.00s]

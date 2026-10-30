@@ -1,0 +1,28 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/web/test/storage-notice.test.ts:
+16 |   const { uses, cookies } = scan();
+17 |   const used = new Set(uses.map((u) => `${u.store}|${u.key}`));
+18 | 
+19 |   test("every key the scripts keep on a device is listed in storage-registry.json", () => {
+20 |     const missing = uses.filter((u) => !listed.has(`${u.store}|${u.key}`)).map((u) => `${u.file}: ${u.store} ${u.key}`);
+21 |     expect(missing).toEqual([]);
+                         ^
+error: expect(received).toEqual(expected)
+
+- []
++ [
++   "theme-init.js: localStorage ct-theme",
++   "theme-init.js: localStorage cg-theme",
++ ]
+
+- Expected  - 1
++ Received  + 4
+
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/storage-notice.test.ts:21:21)
+(fail) R9: the storage notice matches the code > every key the scripts keep on a device is listed in storage-registry.json [0.55ms]
+
+ 6 pass
+ 1 fail
+ 10 expect() calls
+Ran 7 tests across 1 file. [29.00ms]

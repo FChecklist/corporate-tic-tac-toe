@@ -1,0 +1,292 @@
+$ tsc --noEmit -p tsconfig.json
+apps/edge/test/ai-enablement.test.ts(9,10): error TS2300: Duplicate identifier 'handle'.
+apps/edge/test/ai-enablement.test.ts(10,10): error TS2300: Duplicate identifier 'handle'.
+apps/edge/test/consent.test.ts(23,145): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Record<string, string>'.
+apps/edge/test/consent.test.ts(236,76): error TS2345: Argument of type '{ "x-organizer": string; }' is not assignable to parameter of type 'string'.
+apps/edge/test/demo-pass.test.ts(16,63): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(25,69): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(30,61): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(31,67): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(33,67): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(38,177): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(40,61): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/demo-pass.test.ts(41,55): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(30,101): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(31,121): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(34,81): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(36,91): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(59,148): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(60,75): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(62,73): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(94,80): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(96,110): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(110,62): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(113,60): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(121,72): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/join-gaps.test.ts(128,133): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(77,103): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(107,181): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(125,93): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(126,101): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(127,97): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(141,86): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(153,84): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(172,64): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(176,64): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(184,46): error TS2367: This comparison appears to be unintentional because the types 'HouseId' and '"full2"' have no overlap.
+apps/edge/test/param-config.test.ts(191,119): error TS2367: This comparison appears to be unintentional because the types 'HouseId' and '"full2"' have no overlap.
+apps/edge/test/param-config.test.ts(199,79): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(234,93): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(240,90): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(265,96): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(299,190): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-config.test.ts(312,79): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-harness.ts(61,147): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-harness.ts(63,146): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-harness.ts(68,146): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(56,71): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(104,75): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(162,109): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(342,81): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(360,145): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(393,145): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-life.test.ts(396,75): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(48,80): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(54,78): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(61,85): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(86,101): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(95,133): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(96,133): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(129,78): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(136,70): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(140,74): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(148,292): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(149,113): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(153,119): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(171,105): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(181,112): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(186,94): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(204,97): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(214,109): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(237,87): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(238,86): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(242,74): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/param-people.test.ts(246,92): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/privacy.test.ts(8,10): error TS2300: Duplicate identifier 'handle'.
+apps/edge/test/privacy.test.ts(9,10): error TS2300: Duplicate identifier 'handle'.
+apps/edge/test/shared-read.test.ts(13,210): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/edge/test/shared-read.test.ts(18,73): error TS2345: Argument of type '{ "x-organizer": string; } | { "x-organizer"?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ "x-organizer"?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property '"x-organizer"' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+packages/beacon/src/game.ts(12,14): error TS2322: Type 'readonly HouseId[]' is not assignable to type 'readonly PatternId[]'.
+  Type 'HouseId' is not assignable to type 'PatternId'.
+    Type '"first"' is not assignable to type 'PatternId'.
+packages/beacon/test/config.test.ts(78,58): error TS2345: Argument of type '"blackout"' is not assignable to parameter of type 'HouseId'.
+packages/beacon/test/config.test.ts(79,35): error TS2345: Argument of type '"blackout"' is not assignable to parameter of type 'HouseId'.
+packages/beacon/test/config.test.ts(84,27): error TS2345: Argument of type '"blackout"' is not assignable to parameter of type 'HouseId'.
+packages/beacon/test/config.test.ts(85,27): error TS2345: Argument of type '"blackout"' is not assignable to parameter of type 'HouseId'.

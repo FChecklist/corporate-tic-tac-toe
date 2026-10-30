@@ -1,0 +1,78 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/web/test/visits-dom.test.ts:
+42 |     await s.flush();
+43 |     expect(s.sent.length).toBe(1); const b = s.sent[0]!.body;
+44 |     expect(b.e[0]).toEqual({ k: "pv", p: "/" }); expect(b.lp).toBe("/"); expect(b.u).toEqual({ s: "Diwali", m: "email", c: "" }); expect(b.pc).toBe("ab3de4fg");
+45 |     expect(JSON.stringify(b)).not.toContain("secret"); expect(b.d).toMatch(/^[a-f0-9]{32}$/); expect(b.s).toMatch(/^[a-f0-9]{24}$/); expect(["mobile", "tablet", "desktop"]).toContain(b.dv);
+46 |     const watched = s.observed.flatMap((o) => o.els).map((e: any) => e.id);
+47 |     for (const id of ["top", "benefits", "pricing", "faq", "how", "ai-host"]) expect(watched).toContain(id);
+                                                                                                   ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "top"
+Received: [ "trust", "game-day" ]
+
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:47:95)
+(fail) v.js on the home page > it tells the page view first, with where the visit came from and the device, and watches the home page's sections [140.21ms]
+TypeError: null is not an object (evaluating 'el.getAttribute')
+      at nameOf (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:54:35)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:73:25)
+      at forEach (1:11)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:72:24)
+      at see (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:33:135)
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:51:31)
+(fail) v.js on the home page > section views carry the time each section was on screen, and only what is new in each message [42.80ms]
+58 |     expect(s.rows("SELECT name, SUM(n) AS ms FROM visit_event WHERE kind='sec' GROUP BY name ORDER BY name")).toEqual([{ name: "faq", ms: 5000 }, { name: "pricing", ms: 7000 }]);
+59 |     expect(s.rows("SELECT stage FROM visit_session")[0]!.stage).toBe(1); // pricing seen
+60 |   });
+61 |   test("choosing a size in the price card (#pack2) and in the home drop-down (#pack) each tell the size and the price shown", async () => {
+62 |     const s = await site(); await s.flush();
+63 |     const pack2 = s.p.$("#pack2"); pack2.value = "2500"; pack2.dispatchEvent(new s.p.win.Event("change", { bubbles: true }));
+                                        ^
+TypeError: null is not an object (evaluating 'pack2.value = "2500"')
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:63:36)
+(fail) v.js on the home page > choosing a size in the price card (#pack2) and in the home drop-down (#pack) each tell the size and the price shown [53.52ms]
+57 |   const tickBoxes = () => { win.document.querySelectorAll(".tb input[type=checkbox]").forEach((c: any) => { if (!c.checked) { c.checked = true; c.dispatchEvent(new win.Event("change", { bubbles: true })); } }); };
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+                                                                                                       ^
+error: no element .pcta
+      at click (/home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:62:99)
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:76:9)
+(fail) v.js on the home page > pressing Create sends at once, with the size and the price; switching currency and opening Log in are actions too [54.72ms]
+TypeError: null is not an object (evaluating 'el.getAttribute')
+      at nameOf (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:54:35)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:73:25)
+      at forEach (1:11)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:72:24)
+      at see (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:33:135)
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:86:31)
+(fail) v.js on the home page > when the page is hidden an exit message goes with the last section seen, the time on the page and how far it was scrolled [29.34ms]
+57 |   const tickBoxes = () => { win.document.querySelectorAll(".tb input[type=checkbox]").forEach((c: any) => { if (!c.checked) { c.checked = true; c.dispatchEvent(new win.Event("change", { bubbles: true })); } }); };
+58 |   const text = () => String(win.document.getElementById("app")?.textContent ?? "").replace(/\s+/g, " ").trim();
+59 |   return {
+60 |     win, errors, text, html: () => String(win.document.getElementById("app")?.innerHTML ?? ""),
+61 |     $: (sel) => win.document.querySelector(sel),
+62 |     click: (sel) => { tickBoxes(); const el = win.document.querySelector(sel); if (!el) throw new Error("no element " + sel); el.click(); },
+                                                                                                       ^
+error: no element [data-c="INR"]
+      at click (/home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:62:99)
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:97:38)
+(fail) v.js on the home page > messages hold at most 20 events [31.24ms]
+TypeError: null is not an object (evaluating 'el.getAttribute')
+      at nameOf (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:54:35)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:73:25)
+      at forEach (1:11)
+      at <anonymous> (file:///home/user/corporate-tic-tac-toe/apps/web/test/harness.ts:72:24)
+      at see (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:33:135)
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/visits-dom.test.ts:119:7)
+(fail) privacy signal > with Global Privacy Control on, no visitor id is made, nothing is stored in the browser, no id header goes out, and the server keeps counts only [28.65ms]
+
+ 9 pass
+ 7 fail
+ 56 expect() calls
+Ran 16 tests across 1 file. [897.00ms]

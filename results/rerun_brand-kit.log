@@ -1,0 +1,35 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/web/test/brand-kit.test.ts:
+35 |   const PUBLIC = ["index", "how-it-works", "guide", "brochure", "refer", "thank-you", "game-completed"];
+36 |   test("every new public page has the six-item menu, the logo, the bar, canonical and share tags, and never the banned word", () => {
+37 |     for (const p of PUBLIC) {
+38 |       const h = readFileSync(new URL("../public/" + p + ".html", import.meta.url), "utf8");
+39 |       const nav = /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(h)![1].replace(/<span class="ck-dots"[\s\S]*?<\/span>/, "");
+40 |       expect([p, [...nav.matchAll(/<a[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1].replace(/&amp;/g, "&").trim())]).toEqual([p, ["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"]]);
+                                                                                                                      ^
+error: expect(received).toEqual(expected)
+
+@@ -2,10 +2,3 @@
+    "index",
+-   [
+-     "How it works",
+-     "Free demo game",
+-     "Guide",
+-     "Brochure",
+-     "Refer & earn",
+-     "Log in",
+-   ],
++   [],
+  ]
+
+- Expected  - 8
++ Received  + 1
+
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/web/test/brand-kit.test.ts:40:114)
+(fail) the shared Corporate Games brand kit > every new public page has the six-item menu, the logo, the bar, canonical and share tags, and never the banned word [0.57ms]
+
+ 5 pass
+ 1 fail
+ 23 expect() calls
+Ran 6 tests across 1 file. [20.00ms]

@@ -1,0 +1,5 @@
+$ bun build apps/edge/src/report-browser.ts --target browser --format iife --minify --outfile apps/web/public/reportgen.js
+Bundled 5 modules in 7ms
+
+  reportgen.js  20.1 KB  (entry point)
+

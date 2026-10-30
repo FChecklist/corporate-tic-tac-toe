@@ -1,0 +1,21 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/edge/test/verify.test.ts:
+36 | beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
+37 | afterEach(() => { globalThis.fetch = realFetch; });
+38 | 
+39 | describe("employee ID", () => {
+40 |   test("an ID is trimmed and upper-cased; rubbish is refused; blank is blank", () => {
+41 |     expect(normEmp(" ab 123 ")).toBe("AB123"); expect(normEmp("")).toBe(""); expect(normEmp(undefined)).toBe(""); expect(normEmp("a<b>")).toBeNull(); expect(normEmp("x".repeat(31))).toBeNull();
+                                                                                                                                               ^
+error: expect(received).toBeNull()
+
+Received: "AB"
+
+      at <anonymous> (/home/user/corporate-tic-tac-toe/apps/edge/test/verify.test.ts:41:139)
+(fail) employee ID > an ID is trimmed and upper-cased; rubbish is refused; blank is blank [24.34ms]
+
+ 19 pass
+ 1 fail
+ 207 expect() calls
+Ran 20 tests across 1 file. [915.00ms]

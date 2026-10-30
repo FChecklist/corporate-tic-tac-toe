@@ -1,0 +1,5 @@
+$ bun build packages/ttt/src/browser.ts --target browser --format iife --minify --outfile apps/web/public/tttgame.js
+Bundled 8 modules in 6ms
+
+  tttgame.js  25.61 KB  (entry point)
+
