@@ -1836,7 +1836,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!can(a, e, true)) return deny(a);
     if (!isDraft) { // already published (for example the game was paid for first): the organizer's confirmed e-mail and mobile number are still kept if they have none on file, because the end-of-game report is sent to that e-mail
       const pb0 = await body(req); const ce = typeof pb0?.email === "string" ? pb0.email.trim() : "", cp = String(pb0?.phone ?? "").replace(/\D/g, "");
-      if (pb0 && !consentMissing(pb0, "K1") && /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(ce) && cp.length >= 10 && cp.length <= 15 && cleanPhone(pb0.phone).ok && !(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`contact/${eid}`).first())) {
+      if (pb0 && !consentMissing(pb0, "K1") && /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/.test(ce) && cp.length >= 10 && cp.length <= 15 && cleanPhone(pb0.phone).ok && !(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`contact/${eid}`).first())) {
         await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO NOTHING").bind(`contact/${eid}`, JSON.stringify({ email: ce, phone: cp.slice(-10) })).run();
       }
       return json({ ok: true, published: true, already: true, paid: !unpaid, startMs: roundMs(e.start_round), payUrl, shareUrl });
