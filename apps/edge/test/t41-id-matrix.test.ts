@@ -8,24 +8,24 @@ import { world, T_NEW, dev, j } from "./t30-kit";
 
 /** every sequence of 0 to 3 tokens, then seeded random sequences of 4 to 8 tokens until `want` distinct inputs have been produced */
 function* inputs(want: number): Generator<{ raw: string; toks: Tok[] }> {
-  const seen = new Set<string>(); const n = VOCAB.length;
-  const emit = (toks: Tok[]) => { const raw = toks.map((x) => x.s).join(""); if (seen.has(raw)) return null; seen.add(raw); return { raw, toks }; };
+  const seen = new Set<string>(); let skipped = 0; const n = VOCAB.length;
+  const emit = (toks: Tok[]) => { const raw = toks.map((x) => x.s).join(""); if (seen.has(raw)) { skipped++; return null; } seen.add(raw); return { raw, toks }; };
   let r = emit([]); if (r) yield r;
   for (let a = 0; a < n; a++) { r = emit([VOCAB[a]!]); if (r) yield r; }
   for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) { r = emit([VOCAB[a]!, VOCAB[b]!]); if (r) yield r; }
   for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) for (let c = 0; c < n; c++) { r = emit([VOCAB[a]!, VOCAB[b]!, VOCAB[c]!]); if (r) yield r; }
   let x = 123456789; const next = () => { x = (Math.imul(x, 1103515245) + 12345) >>> 0; return x; };
   while (seen.size < want) { const len = 4 + (next() % 5); const toks: Tok[] = []; for (let i = 0; i < len; i++) toks.push(VOCAB[next() % n]!); r = emit(toks); if (r) yield r; }
-  (inputs as any).distinct = seen.size;
+  (inputs as any).distinct = seen.size; (inputs as any).skipped = skipped;
 }
 
 describe("the Email ID / employee ID cleaning matrix", () => {
   test("the oracle itself: a few answers worked out by hand", () => {
     const by = (s: string) => VOCAB.find((x) => x.s === s)!;
     expect(answers([by("Ａ"), by("１"), by("ß")]).emp).toBe("A1SS"); expect(answers([by("ﬁ"), by("Ⅷ")]).mail).toBe("fiviii");
-    expect(oracleEmp([by("a"), by("-"), by("7")])).toBe("A7"); expect(oracleEmp([by("a"), by("@")])).toBeNull(); expect(oracleEmp([by(" "), by("\t")])).toBe(""); expect(oracleEmp([by("​")])).toBeNull(); expect(oracleEmp([by("A".repeat(30))])).toBe("A".repeat(30)); expect(oracleEmp([by("A".repeat(30)), by("a")])).toBeNull();
+    expect(oracleEmp([by("a"), by("-"), by("7")])).toBe("A7"); expect(oracleEmp([by("a"), by("@")])).toBeNull(); expect(oracleEmp([by(" "), by("\t")])).toBe(""); expect(oracleEmp([by("\u200B")])).toBeNull(); expect(oracleEmp([by("A".repeat(30))])).toBe("A".repeat(30)); expect(oracleEmp([by("A".repeat(30)), by("a")])).toBeNull();
     expect(oracleMailId([by("bob@x.io")])).toBe("bob@x.io"); expect(oracleMailId([by("a"), by("@"), by("B")])).toBeNull(); expect(oracleMailId([by("dev@"), by("mail."), by("co")])).toBe("dev@mail.co"); expect(oracleMailId([by("c".repeat(64)), by("@"), by("a"), by("."), by("co")])).toBe("c".repeat(64) + "@a.co"); expect(oracleMailId([by("d".repeat(65)), by("@"), by("a"), by("."), by("co")])).toBeNull();
-    expect(oracleAccount("  Demo 1＠Xyz.In\t")).toBe("demo 1＠xyz.in"); expect(oracleEmpOld(" 1b-678 ")).toBe("1B-678"); expect(oracleEmpOld("1b*678")).toBeNull(); expect(oracleEmpOld("-1")).toBeNull();
+    expect(oracleAccount("  Demo 1＠Xyz.In\t")).toBe("demo 1＠xyz.in"); expect(oracleAccount("a\u200B")).toBe(""); expect(oracleAccount("a\u0085")).toBe(""); expect(oracleAccount("a\uFEFF")).toBe(""); expect(oracleEmpOld(" 1b-678 ")).toBe("1B-678"); expect(oracleEmpOld("1b*678")).toBeNull(); expect(oracleEmpOld("-1")).toBeNull();
   });
 
   test("at least 1,000,000 distinct inputs: every cleaner agrees with the oracle", () => {
@@ -45,7 +45,7 @@ describe("the Email ID / employee ID cleaning matrix", () => {
       if (bad.length >= 25) break;
     }
     const distinct = (inputs as any).distinct as number | undefined;
-    console.log(`ID MATRIX: ${n} distinct inputs checked against 8 rules (${n * 8} checks); employee ID new rule accepted ${accepted.emp}, refused ${refused.emp}; Email ID accepted ${accepted.mail}, refused ${refused.mail}; old rule accepted ${accepted.empOld}; vocabulary ${VOCAB.length} tokens; generator reported ${distinct}`);
+    console.log(`ID MATRIX: ${n} distinct inputs checked against 8 rules (${n * 8} checks); employee ID new rule accepted ${accepted.emp}, refused ${refused.emp}; Email ID accepted ${accepted.mail}, refused ${refused.mail}; old rule accepted ${accepted.empOld}; vocabulary ${VOCAB.length} tokens; generator reported ${distinct}; repeated inputs SKIPPED (generated twice, checked once): ${(inputs as any).skipped}`);
     expect(bad).toEqual([]); expect(n).toBeGreaterThanOrEqual(1_000_000); expect(distinct).toBe(n);
     expect(accepted.emp).toBeGreaterThan(50_000); expect(accepted.mail).toBeGreaterThan(1_000); expect(refused.emp).toBeGreaterThan(50_000); expect(refused.mail).toBeGreaterThan(50_000); // the matrix really exercises both outcomes
   }, 280_000);

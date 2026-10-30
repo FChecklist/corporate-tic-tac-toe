@@ -18,9 +18,9 @@ describe("the hint is shown only where the server really cleans (employee-ID gam
       for (const t of ["demo1@demo-test.invalid", "a@b.co", "demo1＠demo-test.invalid", "demo1﹫demo-test.invalid", "de mo1 @ demo-test.invalid", "x@", "@y", "1B-678@x"]) { await p.type(t); expect([verify, t, p.hint()]).toEqual([verify, t, ""]); }
     }
   });
-  test("not shown when more than 30 are left after cleaning (the server refuses them), shown at exactly 30", async () => {
+  test("the 'will read this as' hint is not shown when more than 30 are left after cleaning (the server refuses them), shown at exactly 30", async () => {
     const p = await openJoin({ verify: "id" });
-    await p.type("a".repeat(31)); expect(p.hint()).toBe(""); await p.type("ab-".repeat(16)); expect(p.hint()).toBe(""); /* 32 left */ await p.type("ab-".repeat(15)); expect(p.hint()).toBe(HINT + "AB".repeat(15)); /* 30 left */ await p.type("a".repeat(30)); expect(p.hint()).toBe(HINT + "A".repeat(30)); await p.type("a-".repeat(15)); expect(p.hint()).toBe(HINT + "A".repeat(15));
+    await p.type("a".repeat(31)); expect(p.hint()).not.toContain(HINT); await p.type("ab-".repeat(16)); expect(p.hint()).not.toContain(HINT); /* 32 left; the owner rule puts the too-long sentence here instead, see t42-join-texts */ await p.type("ab-".repeat(15)); expect(p.hint()).toBe(HINT + "AB".repeat(15)); /* 30 left */ await p.type("a".repeat(30)); expect(p.hint()).toBe(HINT + "A".repeat(30)); await p.type("a-".repeat(15)); expect(p.hint()).toBe(HINT + "A".repeat(15));
   });
   test("not shown when nothing is left (symbols, emoji, zero-width only)", async () => { const p = await openJoin({ verify: "id" }); for (const t of ["---//", "😀😀", "​‌", "..."]) { await p.type(t); expect([t, p.hint()]).toEqual([t, ""]); } });
 });
@@ -48,12 +48,12 @@ describe("regexes written by the coder have real backslashes (checked by behavio
     await p.type("SAM@SOScom"); expect(p.hint()).toBe(""); // \. without its backslash would accept any character as the dot
     await p.type("a b@c d.co"); expect(p.hint()).toBe(HINT + "ab@cd.co"); // \s in the cleaning class
   });
-  test("the file text has the backslashes, and the zero-width class holds the four marks", () => {
+  test("the file text has the backslashes, and the zero-width class holds the invisible marks", () => {
     const t = pub("ttt.js");
     expect(t).toContain("/^[^\\s@]{1,64}@[^\\s@]{1,255}\\.[^\\s@]{2,}$/"); expect(t).toContain("replace(/[\\s");
     const m = t.match(/replace\(\/\[\\s([^\]]*)\]\/g, ""\)\.toLowerCase\(\)/); expect(m).toBeTruthy();
     const marks = [...m![1]!.replace(/\\u([0-9a-fA-F]{4})/g, (_x, h) => String.fromCharCode(parseInt(h, 16)))]; // literal marks or \u escapes both read here
-    expect(marks.map((c) => c.charCodeAt(0))).toEqual([0x200b, 0x2d, 0x200d, 0x2060, 0xfeff]); // U+200B-U+200D (a range), U+2060, U+FEFF
+    expect(marks.map((c) => c.charCodeAt(0))).toEqual([0x85, 0x200b, 0x2d, 0x200d, 0x2060, 0xfeff]); // U+0085, U+200B-U+200D (a range), U+2060, U+FEFF
   });
 });
 

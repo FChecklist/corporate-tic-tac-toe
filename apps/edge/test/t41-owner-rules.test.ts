@@ -5,7 +5,7 @@ import { isTestLogin, TEST_LOGINS } from "../src/testlogins";
 import { EMP_CLEAN_FROM_MS, cleanAccountEmail, normEmpFor } from "../src/ids";
 import { normId, badIdMessage } from "../src/people";
 import { world, T_NEW, dev, j, mob } from "./t30-kit";
-const GAME = "T41-1", LOCK_MSG = "You already have people listed. Start a new game to use a different kind of ID.";
+const GAME = "T41-1";
 let W: ReturnType<typeof world>;
 beforeEach(() => { W = world(T_NEW); });
 afterEach(() => W.restore());
@@ -32,36 +32,47 @@ describe("account e-mails refuse inner spaces and full-width at-signs", () => {
   });
 });
 
-describe("the ID kind and the verify mode lock once anyone is listed or has joined (worker.ts ~2003)", () => {
+describe("the ID kind and the verify mode lock once anyone holding an ID hash is listed or has joined", () => {
+  // OWNER RULE: refused with 409 and code id-kind-locked. Sentence: '...different kind of ID.' when the kind changes; '...different way of asking for IDs.' when only verify changes.
+  const KIND = "You already have people listed. Start a new game to use a different kind of ID.", WAY = "You already have people listed. Start a new game to use a different way of asking for IDs.";
   const patch = (key: string, body: Record<string, unknown>) => W.call("PATCH", `/api/z/${GAME}/settings`, body, key);
   const count = (t: "person" | "participant") => W.raw.prepare(`SELECT COUNT(*) c FROM ${t} WHERE eid = ?`).get(GAME).c as number;
   const shown = async (key: string) => { const s = await j(await W.call("GET", `/api/z/${GAME}/summary`, undefined, key)); return { verify: s.verify, idKind: s.idKind }; };
+  const changes: [Record<string, unknown>, string][] = [[{ idKind: "email" }, KIND], [{ verify: "both" }, WAY], [{ verify: "either" }, WAY], [{ verify: "mobile" }, WAY], [{ idKind: "email", verify: "both" }, KIND]];
+  const listed = async () => { const g = await W.game(GAME, { who: "list", verify: "id" }); expect((await W.call("POST", `/api/z/${GAME}/people`, { people: [{ name: "Asha Demo", empId: "1B-678" }] }, g.key)).status).toBe(200); expect([count("person"), count("participant")]).toEqual([1, 0]); return g; };
+  const joined = async () => { const g = await W.game(GAME, { verify: "id" }); expect((await W.join(GAME, { name: "Sam Demo", phone: mob(5), device: dev(5) })).status).toBe(200); W.raw.prepare("DELETE FROM person WHERE eid = ?").run(GAME); expect([count("person"), count("participant")]).toEqual([0, 1]); return g; }; // ONLY the participant row is left
   test("with nobody on the game, both can change (and change back)", async () => {
     const g = await W.game(GAME, { who: "list", verify: "id" }); expect(count("person") + count("participant")).toBe(0);
     expect((await patch(g.key, { idKind: "email" })).status).toBe(200); expect(await shown(g.key)).toEqual({ verify: "id", idKind: "email" });
     expect((await patch(g.key, { verify: "both" })).status).toBe(200); expect((await patch(g.key, { idKind: "emp", verify: "mobile" })).status).toBe(200); expect(await shown(g.key)).toEqual({ verify: "mobile", idKind: "emp" });
   });
-  test("a LISTED person (person row) locks both: 400 ids-locked with the owner's sentence, nothing changes", async () => {
-    const g = await W.game(GAME, { who: "list", verify: "id" });
-    const a = await W.call("POST", `/api/z/${GAME}/people`, { people: [{ name: "Asha Demo", empId: "1B-678" }] }, g.key); expect(a.status).toBe(200);
-    expect([count("person"), count("participant")]).toEqual([1, 0]); // proves it is the person row that locks
-    const before = await shown(g.key);
-    for (const body of [{ idKind: "email" }, { verify: "both" }, { verify: "either" }, { verify: "mobile" }, { idKind: "email", verify: "both" }]) { const r = await patch(g.key, body); const b = await j(r); expect([JSON.stringify(body), r.status, b.code, b.error]).toEqual([JSON.stringify(body), 400, "ids-locked", LOCK_MSG]); }
+  test("a LISTED person: the refusal sentence is the owner's (kind sentence for a kind change, 'way of asking' for verify only) and nothing changes", async () => {
+    const g = await listed(); const before = await shown(g.key);
+    for (const [body, msg] of changes) { const b = await j(await patch(g.key, body)); expect([JSON.stringify(body), b.error]).toEqual([JSON.stringify(body), msg]); }
     expect(await shown(g.key)).toEqual(before);
   });
-  test("a JOINED person (participant row, nobody listed) locks both the same way", async () => {
-    const g = await W.game(GAME, { verify: "id" });
-    const r0 = await W.join(GAME, { name: "Sam Demo", phone: mob(5), device: dev(5) }); expect(r0.status).toBe(200);
-    expect(count("participant")).toBe(1); expect(count("person")).toBeGreaterThanOrEqual(0); // an open join also writes a person row
-    W.raw.prepare("DELETE FROM person WHERE eid = ?").run(GAME); expect([count("person"), count("participant")]).toEqual([0, 1]); // now ONLY the participant row is left, so it alone must lock
-    const before = await shown(g.key);
-    for (const body of [{ idKind: "email" }, { verify: "both" }, { verify: "mobile" }]) { const r = await patch(g.key, body); const b = await j(r); expect([JSON.stringify(body), r.status, b.code, b.error]).toEqual([JSON.stringify(body), 400, "ids-locked", LOCK_MSG]); }
+  test("a JOINED person (participant row only): same sentences, nothing changes", async () => {
+    const g = await joined(); const before = await shown(g.key);
+    for (const [body, msg] of changes.filter(([b]) => !("verify" in b && b.verify === "either"))) { const b = await j(await patch(g.key, body)); expect([JSON.stringify(body), b.error]).toEqual([JSON.stringify(body), msg]); }
     expect(await shown(g.key)).toEqual(before);
   });
-  test("an Email ID game locks the other way too (email -> employee ID refused once someone is listed)", async () => {
+  test("OWNER RULE status and code: a LISTED person -> 409 id-kind-locked", async () => {
+    const g = await listed();
+    for (const [body] of changes) { const r = await patch(g.key, body); const b = await j(r); expect([JSON.stringify(body), r.status, b.code]).toEqual([JSON.stringify(body), 409, "id-kind-locked"]); }
+  });
+  test("OWNER RULE status and code: a JOINED person -> 409 id-kind-locked", async () => {
+    const g = await joined();
+    for (const body of [{ idKind: "email" }, { verify: "both" }, { verify: "mobile" }]) { const r = await patch(g.key, body); const b = await j(r); expect([JSON.stringify(body), r.status, b.code]).toEqual([JSON.stringify(body), 409, "id-kind-locked"]); }
+  });
+  test("an Email ID game locks the other way too (email -> employee ID refused once someone is listed): 409 id-kind-locked", async () => {
     const g = await W.game(GAME, { who: "list", verify: "id", settings: { idKind: "email" } });
     expect((await W.call("POST", `/api/z/${GAME}/people`, { people: [{ name: "Asha Demo", empId: "asha@demo-test.invalid" }] }, g.key)).status).toBe(200);
-    const r = await patch(g.key, { idKind: "emp" }); expect([r.status, (await j(r)).code]).toEqual([400, "ids-locked"]);
+    const r = await patch(g.key, { idKind: "emp" }); const b = await j(r); expect(b.error).toBe(KIND); expect([r.status, b.code]).toEqual([409, "id-kind-locked"]);
+  });
+  test("OWNER RULE: only someone HOLDING AN ID HASH locks; a person listed by mobile number alone (verify 'mobile') holds none, so the kind can still be set", async () => {
+    const g = await W.game(GAME, { who: "list", verify: "mobile" });
+    expect((await W.call("POST", `/api/z/${GAME}/people`, { people: [{ name: "Asha Demo", phone: mob(3) }] }, g.key)).status).toBe(200); expect(count("person")).toBe(1);
+    const r = await patch(g.key, { idKind: "email" }); expect(r.status).toBe(200);
   });
   test("the same value is allowed (the console resends it on every save), and other settings still save", async () => {
     const g = await W.game(GAME, { who: "list", verify: "id" });

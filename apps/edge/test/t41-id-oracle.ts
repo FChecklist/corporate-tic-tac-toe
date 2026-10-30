@@ -1,6 +1,6 @@
 // TEST AUTHOR, fix pass 1.4.1. The ORACLE for the Email ID / employee ID cleaning matrix. Written by hand from the owner's rules, NOT from ids.ts or people.ts:
 // every token below carries the answer a person would expect, worked out from the Unicode chart, so the product is never asked what the right answer is.
-// Owner rules: employee ID = NFKC, upper case, keep only A-Z and 0-9, 1 to 30 left, never an e-mail ("@" after NFKC is refused). Email ID = NFKC, no inner spaces or zero-width marks, lower case.
+// Owner rules (account e-mails refuse invisible characters, see oracleAccount): employee ID = NFKC, upper case, keep only A-Z and 0-9, 1 to 30 left, never an e-mail ("@" after NFKC is refused). Email ID = NFKC, no inner spaces or zero-width marks, lower case.
 // Cleaning works one character at a time, so the answer for a whole input is the answers of its tokens put side by side (no token joins with its neighbour: there are no combining marks).
 export type Tok = { s: string; emp: string; mail: string; at?: true; ws?: true };
 const t = (s: string, emp: string, mail: string, f: { at?: true; ws?: true } = {}): Tok => ({ s, emp, mail, ...f });
@@ -28,6 +28,8 @@ export const VOCAB: Tok[] = [
   t(" ", "", "", WS), t("\t", "", "", WS), t("\n", "", "", WS), t("\r", "", "", WS), t(" ", "", "", WS), t("　", "", "", WS), t(" ", "", "", WS), t(" ", "", "", WS), t(" ", "", "", WS),
   // zero-width marks (removed from both; only the byte-order mark is white space for trimming) and the soft hyphen (an Email ID keeps it)
   t("​", "", ""), t("‌", "", ""), t("‍", "", ""), t("⁠", "", ""), t("﻿", "", "", WS), t("­", "", "­"),
+  // owner list of invisible characters, as escapes: NEL (not trimmed by JS), line and paragraph separator (trimmed by JS, so they count as white space)
+  t("\u0085", "", ""), t("\u2028", "", "", WS), t("\u2029", "", "", WS),
   // pieces that make real-looking addresses
   t("dev@", "DEV", "dev@", AT), t("@corp.in", "CORPIN", "@corp.in", AT), t("bob@x.io", "BOBXIO", "bob@x.io", AT), t(".com", "COM", ".com"), t("co", "CO", "co"), t("mail.", "MAIL", "mail."),
   // very long runs (lengths on both sides of 30, 64, 254)
@@ -62,5 +64,10 @@ export const oracleEmpOld = (raw: string): string | null => {
   return s;
 };
 
-/** An ACCOUNT e-mail: only the outer white space goes and the letters are lower case. Nothing inside changes. */
-export const oracleAccount = (raw: string): string => { let a = 0, b = raw.length; while (a < b && JS_WS.has(raw.charCodeAt(a))) a++; while (b > a && JS_WS.has(raw.charCodeAt(b - 1))) b--; return raw.slice(a, b).toLowerCase(); };
+/** An ACCOUNT e-mail (owner rule): inner spaces and invisible characters are REFUSED (answer ""), nothing is repaired; otherwise only the outer white space goes and the letters are lower case.
+ *  Invisible characters: U+200B-U+200D, U+2060, U+FEFF, U+0085, U+2028, U+2029, anywhere in the text (including the ends). An inner space is left in place (the address shape check refuses it later). */
+const INVISIBLE = new Set([0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x0085, 0x2028, 0x2029]);
+export const oracleAccount = (raw: string): string => {
+  for (let i = 0; i < raw.length; i++) if (INVISIBLE.has(raw.charCodeAt(i))) return "";
+  let a = 0, b = raw.length; while (a < b && JS_WS.has(raw.charCodeAt(a))) a++; while (b > a && JS_WS.has(raw.charCodeAt(b - 1))) b--; return raw.slice(a, b).toLowerCase();
+};
