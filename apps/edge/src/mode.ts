@@ -8,6 +8,7 @@
 //     - the owner can delete all test data in one call (test-data.ts).
 //   The switch itself is owner-only (the platform key, never through an AI work link), and every switch is written to the owner's access log (audit_access).
 //   The mode is read at most every few seconds per Worker instance (a switch is visible everywhere within TTL_MS; the instance that handled the switch sees it at once).
+import { cleanEmail } from "./ids";
 import { logAccess } from "./audit";
 import type { D1, Env } from "./worker";
 
@@ -60,7 +61,7 @@ export async function setMode(env: { DB: D1 }, to: SiteMode, reason: string, now
 
 // ------------------------------------------------------------------------------------------------ the e-mail allow-list
 /** gmail-style plus addresses (owner+t1@x.com) count as the owner's own address, so a test can use many accounts that all reach the owner. */
-export const normMail = (e: string): string => { const v = String(e ?? "").trim().toLowerCase(); const i = v.lastIndexOf("@"); return i < 1 ? v : v.slice(0, i).split("+")[0] + v.slice(i); };
+export const normMail = (e: string): string => { const v = cleanEmail(e); const i = v.lastIndexOf("@"); return i < 1 ? v : v.slice(0, i).split("+")[0] + v.slice(i); };
 function defaultAllow(env: ModeEnv): string[] {
   const out: string[] = [];
   for (const x of [env.OWNER_EMAIL, ...(env.TEST_MAIL_ALLOW ?? "").split(",")]) if (x && x.trim()) out.push(x);

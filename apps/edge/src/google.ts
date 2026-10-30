@@ -66,7 +66,7 @@ export async function verifyGoogleCredential(env: GoogleEnv, credential: unknown
     if (typeof c.exp !== "number" || c.exp * 1000 <= now) return { ok: false, why: "expired" };
     if (typeof c.iat === "number" && c.iat * 1000 > now + SKEW_MS) return { ok: false, why: "claims" };
     if (c.email_verified !== true && c.email_verified !== "true") return { ok: false, why: "unverified" };
-    const email = typeof c.email === "string" ? c.email.trim().toLowerCase() : "";
+    const email = typeof c.email === "string" ? cleanEmail(c.email) : "";
     if (!EMAIL_RE.test(email)) return { ok: false, why: "claims" };
     return { ok: true, email };
   } catch { return { ok: false, why: "format" }; }
