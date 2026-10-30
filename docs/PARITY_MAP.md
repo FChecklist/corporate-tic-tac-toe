@@ -9,7 +9,7 @@ Source of truth: handover notes 300 (sections numbered below), 200, 210; Tambola
 | 3 | Thank-you and Game completed pages with Share + WhatsApp | ADOPTED (static) | thank-you.html, game-completed.html; not yet linked from the game end screen (TODO) |
 | 4 | Uniform employee ID (A-Z 0-9) | ADOPTED | apps/edge/src/ids.ts, uses engagement created_ms; ids.test.ts |
 | 5 | Email ID case-insensitive cleaner | ADOPTED | cleanEmail used by organizer/host sign-in paths |
-| 6 | Email ID as a list criterion (Employee ID or Email ID, list decides) | TODO (M3) | copy from empid.ts/people.ts of 1.8.5 |
+| 6 | Email ID as a list criterion (Employee ID or Email ID, list decides) | ADOPTED (coded, untested) | config idKind 'emp'|'email' (same design as Bingo 8d1609a): config.ts, people.ts normId/badIdMessage, worker.ts join/who/settings/info, zc.js step 2 "Which ID?", ttt.js label and hint |
 | 7 | Browser hint "The system will read this as ..." | ADAPTED | player join page (ttt.js) done; organizer console input TODO |
 | 8 | Step 1 date, time, how the game runs (3, 22) | ADAPT/TODO (M5) | TTT: tournament shape + move clock instead of rounds/call speed |
 | 9 | Step 2 who is it for, open join (Name, Mobile, Email), approvals by role (4, 28, 29) | TODO (M5) | engine has verify modes mobile/id/either/both |
