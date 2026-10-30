@@ -75,14 +75,14 @@ describe("two cards", () => {
   });
   test("a house is completed by the better of the two cards", () => {
     const tk = ticketsFor(E, "q5", 2);
-    const single = tk.map((t) => completionIndexKey([t], "blackout", LOG));
-    expect(completionIndexKey(tk, "blackout", LOG)).toBe(Math.min(...single));
+    const single = tk.map((t) => completionIndexKey([t], "blackout" as any, LOG));
+    expect(completionIndexKey(tk, "blackout" as any, LOG)).toBe(Math.min(...single));
   });
   test("still to win counts the nearer card", () => {
     const tk = ticketsFor(E, "q6", 2); const part = LOG.slice(0, 25);
     const left = (t: any) => ticketNumbers(t).filter((n) => !part.includes(n)).length;
-    expect(stillToWin(tk, "blackout", part)).toBe(Math.min(left(tk[0]), left(tk[1])));
-    expect(stillToWin(tk, "blackout", LOG)).toBe(0);
+    expect(stillToWin(tk, "blackout" as any, part)).toBe(Math.min(left(tk[0]), left(tk[1])));
+    expect(stillToWin(tk, "blackout" as any, LOG)).toBe(0);
   });
 });
 
