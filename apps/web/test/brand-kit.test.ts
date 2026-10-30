@@ -37,7 +37,7 @@ describe("the shared Corporate Games brand kit", () => {
     for (const p of PUBLIC) {
       const h = readFileSync(new URL("../public/" + p + ".html", import.meta.url), "utf8");
       const nav = /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(h)![1].replace(/<span class="ck-dots"[\s\S]*?<\/span>/, "");
-      expect([p, [...nav.matchAll(/<a[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1].replace(/&amp;/g, "&").trim())]).toEqual([p, ["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"]]);
+      expect([p, [...nav.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1].replace(/&amp;/g, "&").trim())]).toEqual([p, ["How it works", "Free demo game", "Guide", "Brochure", "Refer & earn", "Log in"]]);
       expect([p, h.includes('href="/zc?demo=1"'), h.includes('<use href="#i-ttt"/>'), h.includes('src="/gamesbar.js?v=3"')]).toEqual([p, true, true, true]);
       expect([p, /<link rel="canonical" href="https:\/\/tictactoe\.corporatetambola\.com\//.test(h), /property="og:image" content="https:\/\/tictactoe\.corporatetambola\.com\/og-card\.png"/.test(h)]).toEqual([p, true, true]);
       expect([p, /priv(?:ate)/i.test(h)]).toEqual([p, false]);

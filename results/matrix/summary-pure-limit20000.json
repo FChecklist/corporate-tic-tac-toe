@@ -1,0 +1,283 @@
+{
+ "when": "2026-10-30T03:46:51.734Z",
+ "tier": "pure",
+ "limit": 20000,
+ "seconds": 0,
+ "total": 20336,
+ "pass": 20123,
+ "fail": 213,
+ "checks": 148180,
+ "tiers": {
+  "pure": {
+   "total": 20000,
+   "pass": 19787,
+   "fail": 213,
+   "checks": 147220
+  },
+  "pure-pay": {
+   "total": 288,
+   "pass": 288,
+   "fail": 0,
+   "checks": 864
+  },
+  "pure-theme": {
+   "total": 48,
+   "pass": 48,
+   "fail": 0,
+   "checks": 96
+  }
+ },
+ "pureDimensions": {
+  "idFormat": 47,
+  "idBase": 2,
+  "gameEra": 2,
+  "verifyConfig": 8,
+  "emailCase": 8,
+  "emailNoise": 7,
+  "emailPath": 3,
+  "linkType": 5
+ },
+ "pureProduct": 1263360,
+ "firstFailures": [
+  {
+   "tier": "pure",
+   "id": 29,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 76,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 217,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 264,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 405,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"id\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 452,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"id\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 593,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"id\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 640,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"id\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 781,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"either\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 828,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"either\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 969,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"either\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1016,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"either\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1157,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"both\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1204,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"both\",\"employeesOnly\":false} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1345,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"both\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1392,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"both\",\"employeesOnly\":true} | email case 0 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1533,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1580,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1721,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1768,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"mobile\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1909,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"id\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 1956,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"id\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2097,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"id\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2144,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"id\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2285,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"either\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2332,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"either\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2473,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"either\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2520,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"either\",\"employeesOnly\":true} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2661,
+   "tuple": "byte-order mark | base 1B678 | old game | verify {\"verify\":\"both\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "1B678",
+   "want": null
+  },
+  {
+   "tier": "pure",
+   "id": 2708,
+   "tuple": "byte-order mark | base E101 | old game | verify {\"verify\":\"both\",\"employeesOnly\":false} | email case 1 noise none | organizer sign-in (normMail) | Organizer common link",
+   "check": "employee ID cleaned as the rule says",
+   "got": "E101",
+   "want": null
+  }
+ ]
+}
