@@ -1,3 +1,4 @@
+import { cleanEmail } from "./ids";
 // "Continue with Google" (Phase 4, docs/ROLES_AND_CONSOLE_SPEC_4.md section C). This file only PROVES who a Google ID token belongs to; what happens next
 // (sign in, sign up, Host first open) is decided in worker.ts / hostsetup.ts and is exactly what the e-mail code does.
 //

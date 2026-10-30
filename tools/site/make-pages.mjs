@@ -54,7 +54,7 @@ const FACTS = sec("Good to know", "Plain answers", cards([
   ["Is there prize money?", "No. Players never pay and never stake money. Corporate Tic Tac Toe is software only: we never hold or pay prize money. Any gift is the organizer's own, outside the product."],
   ["Who decides the winners?", "The software only. The phones apply the same rules and our server only stores and passes on the moves. When boards must be settled, a person picks the winner of that one board, and it is shown on screen."],
   ["Is it tested for a big crowd?", "A computer rehearsal with 1,000 simulated players finished. A live event of that size has not been run yet."],
-  ["What does it cost?", "You pay once per game, before it starts. See the <a href=\"/pricing.html\">price list</a>, the <a href=\"/terms.html\">terms</a> and the <a href=\"/privacy.html\">privacy notice</a>."],
+  ["What does it cost?", "You pay once per game, before it starts. Festive offer: 50% off on every pack. See the <a href=\"/pricing.html\">price list</a>, the <a href=\"/terms.html\">terms</a>, the <a href=\"/privacy.html\">privacy notice</a>, the <a href=\"/dpa.html\">data processing terms</a> and the <a href=\"/organizer-guide.html\">organizer guide</a>."],
   ["Earn by telling others", "See the <a href=\"/partner.html\">partner page</a>."]]), "ck-alt");
 out.index = page({ jsonld: `<script type="application/ld+json">${LD}</script>`, file: "index", title: "Corporate Tic Tac Toe | Online games for company events", index: true,
   desc: "Corporate Tic Tac Toe: a tournament for your whole company. Colleagues play one against one on their own phone, every move has a clock, and the software names the winners.",
