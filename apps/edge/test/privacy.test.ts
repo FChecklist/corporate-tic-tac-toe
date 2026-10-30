@@ -6,7 +6,6 @@ import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
 import { purgeOld, type Env } from "../src/worker";
 import { handle } from "./with-terms";
-import { handle } from "./with-terms";
 import { makeD1 } from "./d1-sqlite";
 import { endBoundMs, fullDeleteAt, lifecycleTick, personalDeleteAt, PURGE_AFTER_MS } from "../src/lifecycle";
 import { sentReports } from "../src/pay";
