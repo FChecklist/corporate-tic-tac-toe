@@ -1,4 +1,4 @@
-import { cleanEmail } from "./ids";
+import { cleanAccountEmail } from "./ids";
 // "Continue with Google" (Phase 4, docs/ROLES_AND_CONSOLE_SPEC_4.md section C). This file only PROVES who a Google ID token belongs to; what happens next
 // (sign in, sign up, Host first open) is decided in worker.ts / hostsetup.ts and is exactly what the e-mail code does.
 //
@@ -67,7 +67,7 @@ export async function verifyGoogleCredential(env: GoogleEnv, credential: unknown
     if (typeof c.exp !== "number" || c.exp * 1000 <= now) return { ok: false, why: "expired" };
     if (typeof c.iat === "number" && c.iat * 1000 > now + SKEW_MS) return { ok: false, why: "claims" };
     if (c.email_verified !== true && c.email_verified !== "true") return { ok: false, why: "unverified" };
-    const email = typeof c.email === "string" ? cleanEmail(c.email) : "";
+    const email = typeof c.email === "string" ? cleanAccountEmail(c.email) : "";
     if (!EMAIL_RE.test(email)) return { ok: false, why: "claims" };
     return { ok: true, email };
   } catch { return { ok: false, why: "format" }; }

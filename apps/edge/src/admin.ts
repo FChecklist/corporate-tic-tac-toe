@@ -14,7 +14,7 @@
 //   E12 Mail events      POST /api/mail/events  the mail service's webhook (Svix-style signature, secret RESEND_WEBHOOK_SECRET; with no secret set the address answers 404 and accepts nothing)
 //                        -> table mail_bounce; GET /api/owner/mail-events shows bounced / complained / delivered, newest first.
 // A recipient is kept as a one-way hash plus a masked form (j***@example.com) so the owner can recognise it; nothing else about the person. Rows are deleted after 90 days.
-import { cleanEmail } from "./ids";
+import { cleanAccountEmail } from "./ids";
 import { logAccess } from "./audit";
 import { GENESIS, PURGE_AFTER_MS } from "./lifecycle";
 import type { D1, Env } from "./worker";
@@ -39,7 +39,7 @@ const MAX_COUNTER_WRITES = 500;
 const enc = new TextEncoder();
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
 const jsonRes = (o: unknown, status = 200, extra: Record<string, string> = {}) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...extra } });
-const normMail = (e: string): string => { const v = cleanEmail(e); const i = v.lastIndexOf("@"); return i < 1 ? v : v.slice(0, i).split("+")[0] + v.slice(i); };
+const normMail = (e: string): string => { const v = cleanAccountEmail(e); const i = v.lastIndexOf("@"); return i < 1 ? v : v.slice(0, i).split("+")[0] + v.slice(i); };
 export const maskMail = (e: string): string => { const v = String(e ?? "").trim().toLowerCase(), i = v.lastIndexOf("@"); return i < 1 ? "***" : v.slice(0, 1) + "***" + v.slice(i); };
 
 // ------------------------------------------------------------------------------------------------ A5: the site switch

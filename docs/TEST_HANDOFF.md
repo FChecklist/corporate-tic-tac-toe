@@ -31,3 +31,27 @@ Created: apps/web/test/brand-kit.test.ts, apps/edge/test/ids.test.ts. Edited: ap
 
 ## Start the app locally
 `bun run zlocal` (apps/edge/src/local.ts) and open the printed address; needs the shared heavy lock and 900 MB free.
+
+## Fix pass fix/ttt-1.4.1-2026-10-30 (coder, 30 Oct; cut from tests/ttt-2026-10-30 02f4381, with my a539891 and 8fa4a05 merged in)
+Release branch note: this branch is the Tic Tac Toe release line from here (tests branch + all coder work).
+| Item (cloud 4 report) | Product or test-side | Change (file:line) |
+|---|---|---|
+| t30-findings F-1 x2 (account e-mail with inner space / full-width at-sign read as same address) | TEST-SIDE (owner rule: account e-mails REFUSE inner spaces). The product was wrong the other way (my earlier cleanEmail on account paths) and is fixed | ids.ts:10 new cleanAccountEmail (trim + lower case only); used in admin.ts:42, mode.ts:64 (normMail), google.ts:70, hostsetup.ts:28 and :120. cleanEmail (NFKC, no spaces) is now ONLY for participant Email IDs (people.ts normId). isTestLogin('demo 1＠xyz.in') stays false (testlogins.ts:7 trims and lower-cases only). My apps/edge/test/ids.test.ts line asserting normMail("Rajat1＠Demo.com") equals the plain address is now WRONG by the owner rule: test author to change it |
+| t30-findings F-2 x7 (guide.js before blackbox.js on new pages) | product, already fixed in 8fa4a05 | tools/site/make-pages.mjs: guide.js script before blackbox.js; pages regenerated |
+| t30-findings F-3 x2 (hint for an e-mail / over 30 characters) | product | apps/web/public/ttt.js:85: hint only where the server really cleans (employee-ID kind: no "@", 1 to 30 characters left; Email ID kind: a complete address shape /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/). Regex re-read after the edit |
+| t30-findings F-4 (verify=either shows no ID box) | product | ttt.js:71 askWhat accepts "either" |
+| guide.test "screens use it" | product, same cause as F-2 | guide.js script on new pages |
+| seo.test image / early picture | product, fixed in 8fa4a05 | index has /img/card.png with alt, width, height, fetchpriority="high" |
+| seo.test fonts `font-display: swap` | TEST-SIDE | the shared kit fonts.css has `font-display:swap` (no space) and is a checksummed copy; change the test regex to /font-display:\s*swap/ |
+| storage-notice | product, fixed in 8fa4a05 | storage-registry.json "site-theme" (ct-theme, cg-theme) + sentence in legal.html storage list |
+| visits-dom x7 (home page tests for the old buy block #pack, #pack2, .pcta, [data-c="INR"]) | TEST-SIDE (the new simple home page has no buy block; v.js is unchanged and tolerant). "top" section added in 8fa4a05 (id="top" on the hero) |
+| big-lost "different" on rerun | TEST-SIDE (flake, not touched) |
+| pages.test x3 | TEST-SIDE (fixed dates in the past) |
+| join-retry busy | TEST-SIDE flake (ttt.js busy retry unchanged) |
+
+Owner rules added in this pass:
+- idKind / verify cannot change once anyone is listed or has joined: apps/edge/src/worker.ts:2003 (settings PATCH) answers 400 `{ code: "ids-locked", error: "You already have people listed. Start a new game to use a different kind of ID." }`; an unchanged value is allowed (the console resends it on every save).
+- EMP_CLEAN_FROM_MS is a far-future placeholder (2099-01-01): apps/edge/src/ids.ts:3. The release session MUST set the deploy instant. Until then every game keeps the old employee-ID rule; tests that need the new rule must pass a created time after the constant or use cleanEmpId directly. (Tic Tac Toe has no APPROVAL_RULES_FROM_MS: no approvals engine yet.)
+- Email typed in an employee-ID game: refused with the plain message (people.ts badIdMessage) and never gets the "will read this as" hint (ttt.js:85).
+- Public files checked for internal notes/TODO text: none found (only HTML placeholder attributes in owner pages).
+- Screens promise only what the code does: new pages reuse sentences already in the live rules (clock 10/20/30/60 s, two clock-outs lose the board, draw replayed with marks swapped up to 3 games then fate, pause stops clocks, 24 h erase promise; real erase is 20 h). No "ends when" wording on any new page.

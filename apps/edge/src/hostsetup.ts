@@ -8,7 +8,7 @@
 //   - until the Host has a confirmed e-mail AND a mobile number (typed, never verified, sealed) every Host route answers 403 {code:'host-setup'} (worker.ts).
 // A Host is identified by `host_id` = the hash of the key row the Organizer created (the "identity row"); device keys are extra organizer_key rows whose host_id points at it.
 // Only the Organizer and Hosts have e-mail addresses; nothing here is available to an AI key (the setup routes need a Host key, the new-link route the Organizer's own key).
-import { cleanEmail } from "./ids";
+import { cleanAccountEmail } from "./ids";
 import { consentRequired, recordConsent } from "./consent";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import type { D1, Env } from "./worker";
@@ -25,7 +25,7 @@ export const HOST_SCHEMA: string[] = [
 const encoder = new TextEncoder();
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
 export const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
-export const emailHashOf = (email: string) => sha("email|" + cleanEmail(email));
+export const emailHashOf = (email: string) => sha("email|" + cleanAccountEmail(email));
 /** "a***@acme.com": enough for the Host to recognise their own address, not enough to learn it. */
 export const maskEmail = (e: string): string => { const [l = "", d = ""] = e.split("@"); return `${l.slice(0, 1)}***@${d}`; };
 export const maskMobile = (digits: string): string => "******" + digits.slice(-4);
@@ -117,7 +117,7 @@ export async function hostSetupRoute(c: HostCtx): Promise<Response | null> {
     { const mt = consentRequired(await c.body(req.clone()), "K5"); if (mt) return mt; } // K5: "I will not charge any player. I will hand over prizes as the organizer decides. I follow the Terms."
     await recordConsent(db, { subject: c.hid, kind: "K5", ref: null, now });
     const b = await c.body(req);
-    const email = typeof b?.email === "string" ? cleanEmail(b.email) : "";
+    const email = typeof b?.email === "string" ? cleanAccountEmail(b.email) : "";
     if (!EMAIL_RE.test(email)) return c.json({ error: "Please enter a valid e-mail address." }, 400);
     const st = await hostStateRow(db, c.hid);
     if (st?.verified_ms) return c.json({ error: "Your e-mail is already confirmed. Sign in with it on other devices.", code: "already-verified" }, 409);
