@@ -8,7 +8,7 @@ const NEW = EMP_CLEAN_FROM_MS + 1;
 function* caseMixes(s: string): Generator<string> { const idx = [...s].map((c, i) => (c.toLowerCase() !== c.toUpperCase() ? i : -1)).filter((i) => i >= 0); for (let m = 0; m < 1 << idx.length; m++) { const a = [...s]; idx.forEach((p, b) => { a[p] = (m >> b) & 1 ? a[p]!.toUpperCase() : a[p]!.toLowerCase(); }); yield a.join(""); } }
 
 describe("e-mail: one address however it is typed", () => {
-  test("RAJAT1＠DEMO.COM (full-width @, upper case) is rajat1@demo.com", () => { expect(cleanEmail("RAJAT1＠DEMO.COM")).toBe("rajat1@demo.com"); expect(normMail("RAJAT1＠DEMO.COM")).toBe("rajat1@demo.com"); });
+  test("RAJAT1＠DEMO.COM (full-width @, upper case): a participant Email ID reads it as rajat1@demo.com; an ACCOUNT e-mail (normMail) only lower-cases it and keeps the ＠, so it can never match", () => { expect(cleanEmail("RAJAT1＠DEMO.COM")).toBe("rajat1@demo.com"); expect(normMail("RAJAT1＠DEMO.COM")).toBe("rajat1＠demo.com"); expect(normMail("RAJAT1＠DEMO.COM")).not.toBe("rajat1@demo.com"); });
   test("every case mix of demo7@demo-test.invalid local part + first domain word is ONE address (2^8 = 256 mixes)", () => {
     const seen = new Set<string>(); let n = 0; for (const m of caseMixes("demo7@demo")) { n++; seen.add(cleanEmail(m + "-test.invalid")); }
     expect(n).toBe(256); expect([...seen]).toEqual(["demo7@demo-test.invalid"]);
@@ -26,15 +26,15 @@ describe("e-mail: one address however it is typed", () => {
 });
 describe("e-mail: normMail drops the +tag part and nothing else", () => {
   test("Demo4+Tag@Demo-Test.Invalid -> demo4@demo-test.invalid; two tags and no tag are one person", () => {
-    expect(normMail("Demo4+Tag@Demo-Test.Invalid")).toBe("demo4@demo-test.invalid"); expect(normMail("demo4+a+b@demo-test.invalid")).toBe("demo4@demo-test.invalid"); expect(normMail("DEMO4＠demo-test.invalid")).toBe("demo4@demo-test.invalid");
+    expect(normMail("Demo4+Tag@Demo-Test.Invalid")).toBe("demo4@demo-test.invalid"); expect(normMail("demo4+a+b@demo-test.invalid")).toBe("demo4@demo-test.invalid"); expect(normMail("DEMO4＠demo-test.invalid")).not.toBe("demo4@demo-test.invalid");
   });
   test("a + in the DOMAIN is kept (only the local part is cut); no @ gives the cleaned text unchanged", () => { expect(normMail("demo4@demo+x.invalid")).toBe("demo4@demo+x.invalid"); expect(normMail("NoAtSign")).toBe("noatsign"); });
-  test("the + is dropped only after cleaning: a full-width ＋ is NFKC '+', so it is dropped too", () => { expect(normMail("demo4＋tag@demo-test.invalid")).toBe("demo4@demo-test.invalid"); });
+  test("account e-mails are not NFKC-folded: a full-width ＋ is NOT a plus tag and is kept", () => { expect(normMail("demo4＋tag@demo-test.invalid")).toBe("demo4＋tag@demo-test.invalid"); });
 });
-describe("e-mail: the Host e-mail hash is the same for every spelling (hostsetup.ts uses cleanEmail)", () => {
-  test("hash of DEMO5＠Demo-Test.invalid == hash of demo5@demo-test.invalid; a different person differs", async () => {
+describe("e-mail: the Host e-mail hash ignores case and outer spaces only (hostsetup.ts uses cleanAccountEmail)", () => {
+  test("hash of DEMO5@Demo-Test.invalid == hash of demo5@demo-test.invalid; an inner space or ＠ is a different (refused) address; a different person differs", async () => {
     const a = await emailHashOf("demo5@demo-test.invalid"); expect(a).toMatch(/^[0-9a-f]{32,}$/);
-    expect(await emailHashOf("DEMO5＠Demo-Test.invalid")).toBe(a); expect(await emailHashOf(" demo5 @demo-test.invalid ")).toBe(a); expect(await emailHashOf("demo6@demo-test.invalid")).not.toBe(a);
+    expect(await emailHashOf("DEMO5@Demo-Test.invalid")).toBe(a); expect(await emailHashOf("  demo5@demo-test.invalid ")).toBe(a); expect(await emailHashOf("DEMO5＠Demo-Test.invalid")).not.toBe(a); expect(await emailHashOf(" demo5 @demo-test.invalid ")).not.toBe(a); expect(await emailHashOf("demo6@demo-test.invalid")).not.toBe(a);
   });
 });
 describe("the ID cleaner is never applied to an e-mail (and the e-mail cleaner never to an ID)", () => {

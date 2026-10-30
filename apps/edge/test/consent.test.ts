@@ -20,7 +20,7 @@ const dev = (i: number) => i.toString(16).padStart(4, "0").repeat(8);
 const tick = (k: Kind, v: string = CONSENT_VERSION) => ({ v, boxes: boxesOf(k).map(([id]) => id) });
 const rows = (kind: string) => raw.query("SELECT * FROM consent_log WHERE kind=? ORDER BY at_ms, id").all(kind) as any[];
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-async function draft(key: string, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
+async function draft(key: Record<string, string>, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
 const JSON_FILE = "C:/Users/Dell/AppData/Local/Temp/claude/C--ct-ct/2cf843e7-2735-4b37-9fc2-d660aa06a369/scratchpad/CONSENT_TEXT.json";
 
 beforeEach(() => {

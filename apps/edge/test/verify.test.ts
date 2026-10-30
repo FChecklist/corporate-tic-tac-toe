@@ -234,7 +234,12 @@ describe("this game's name-only joining with IDs asked", () => {
     const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(400); expect((await j(nameOnly)).code).toBe("need-id");
     expect((await joinAs("PPL-1", 2, { empId: undefined })).status).toBe(200); // an outsider with a mobile number only
     expect((await join("PPL-1", { name: "Sam", device: dev(3), empId: "E-7" })).status).toBe(403); // an ID that is on no list waits for the organizer's answer
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "both" }, t.master)).status).toBe(200);
+    // owner rule (1.4.1): once someone has joined, what people must give cannot change; the same value is allowed
+    const locked = await call("PATCH", "/api/z/PPL-1/settings", { verify: "both" }, t.master); expect(locked.status).toBe(400); expect((await j(locked)).code).toBe("ids-locked");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "id" }, t.master)).status).toBe(200);
+  });
+  test("'both' needs the mobile number with the ID (game made with 'both' from the start)", async () => {
+    await setup({ verify: "both" });
     const noPhone = await join("PPL-1", { name: "Tia", device: dev(4), empId: "E-8" }); expect(noPhone.status).toBe(400); expect((await j(noPhone)).code).toBe("need-id");
   });
 });
