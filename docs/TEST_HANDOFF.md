@@ -50,7 +50,7 @@ Release branch note: this branch is the Tic Tac Toe release line from here (test
 | join-retry busy | TEST-SIDE flake (ttt.js busy retry unchanged) |
 
 Owner rules added in this pass:
-- idKind / verify cannot change once anyone is listed or has joined: apps/edge/src/worker.ts:2003 (settings PATCH) answers 400 `{ code: "ids-locked", error: "You already have people listed. Start a new game to use a different kind of ID." }`; an unchanged value is allowed (the console resends it on every save).
+- idKind / verify cannot change once anyone is listed or has joined: apps/edge/src/worker.ts:2003 (settings PATCH) answers 400 `{ code: "id-kind-locked", error: "You already have people listed. Start a new game to use a different kind of ID." }`; an unchanged value is allowed (the console resends it on every save).
 - EMP_CLEAN_FROM_MS is a far-future placeholder (2099-01-01): apps/edge/src/ids.ts:3. The release session MUST set the deploy instant. Until then every game keeps the old employee-ID rule; tests that need the new rule must pass a created time after the constant or use cleanEmpId directly. (Tic Tac Toe has no APPROVAL_RULES_FROM_MS: no approvals engine yet.)
 - Email typed in an employee-ID game: refused with the plain message (people.ts badIdMessage) and never gets the "will read this as" hint (ttt.js:85).
 - Public files checked for internal notes/TODO text: none found (only HTML placeholder attributes in owner pages).

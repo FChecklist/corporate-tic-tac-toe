@@ -48,7 +48,7 @@
       w: "A mobile number has 10 digits.", d: ["Press Edit next to your number.", "Type the 10 digits without spaces, then tick the box."], g: { field: "#ckmob", label: "the mobile number box" } },
     { m: ["Mark yourself present first"], k: "blocked", t: "Mark yourself present first",
       w: "Your card opens, and a prize can be claimed, only after you mark yourself present.", d: ["Open your game page and complete the check-in: name, mobile number, the 4-digit code, Submit."], g: { href: "#", label: "Back to my page" } },
-    { m: ["Enter your employee ID", "An employee ID has letters and numbers only", "Enter your mobile number or your employee ID"], k: "field", t: "Your employee ID is needed",
+    { m: ["Enter your employee ID", "This ID is too long. An employee ID may be up to 30 characters once cleaned.", "An employee ID has letters and numbers only", "Enter your mobile number or your employee ID"], k: "field", t: "Your employee ID is needed",
       w: "The organizer asked everyone to give their employee ID to get in.", d: ["Type your employee ID in the box. Letters and numbers only, no spaces needed.", "If you are not an employee and the box allows it, type your mobile number instead.", "Still stuck? Ask the person who invited you."], g: { field: "#emp", label: "the employee ID box" } },
     { m: ["There is no account for this Google e-mail yet"], k: "blocked", t: "We do not have an account for this Google address yet",
       w: "Signing in needs an account first.", d: ["Choose Sign up to make your account with this address.", "Then come back and sign in."], g: { href: "/#login", label: "Sign up" } },

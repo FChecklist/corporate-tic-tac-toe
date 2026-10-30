@@ -54,6 +54,14 @@ export async function ensureT(env: Env, eid: string): Promise<TRow> {
   return (await env.DB.prepare("SELECT * FROM ttt_t WHERE eid=?").bind(eid).first<TRow>())!;
 }
 export const tournamentStarted = async (env: Env, eid: string): Promise<boolean> => !!(await env.DB.prepare("SELECT 1 AS x FROM ttt_t WHERE eid=? AND state<>'open'").bind(eid).first());
+/** The real end of the game, or {} while it can still be live: the moment phones confirmed the end or the Organizer or a Host ended it (returned at once, whatever the clock); otherwise the scheduled end bound, only once now has reached it. Never moves once returned. Erasing people's data and cancelling are not an end. */
+export async function endedAtOf(env: Env, e: any, now: number): Promise<{ endedAtMs?: number }> {
+  const t = await env.DB.prepare("SELECT ended_ms FROM ttt_t WHERE eid=?").bind(e.id).first<{ ended_ms: number | null }>();
+  if (t?.ended_ms) return { endedAtMs: t.ended_ms };
+  if (e.cancelled_ms) return {};
+  const bound = endBoundTtt((1692803367 + (e.start_round - 1) * 3) * 1000, null);
+  return now >= bound ? { endedAtMs: bound } : {};
+}
 export function endBoundTtt(startMs: number, t: { ended_ms: number | null } | null): number { return t?.ended_ms ? t.ended_ms + 60_000 : startMs + MAX_MS; }
 
 const boardsOf = (m: Pick<MRow, "data">): [string, string][] => (m.data ? JSON.parse(m.data) : []);
@@ -369,7 +377,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     await sweep(env, eid, now);
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
     const o = optsOf(t);
-    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t) };
+    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t), ...(await endedAtOf(env, c.e, now)) };
     if (t.state === "open") return json({ ...head, phase: "waiting" });
     const counts = (await env.DB.prepare("SELECT round, status, COUNT(*) AS n FROM ttt_m WHERE eid=? AND bye=0 GROUP BY round, status").bind(eid).all<{ round: number; status: string; n: number }>()).results ?? [];
     const flags = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_b WHERE eid=? AND flag=1").bind(eid).first<{ c: number }>())?.c ?? 0;
