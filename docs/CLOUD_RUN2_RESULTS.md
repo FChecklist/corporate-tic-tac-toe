@@ -9,7 +9,7 @@
 
 - **Branch now has 30 failures** (run 1: 36). `apps/edge` 14, `apps/web` 16. Other four folders pass.
 - **Typecheck: 83 errors** (run 1: 82). One is NEW: `apps/edge/src/google.ts(69,49): Cannot find name 'cleanEmail'` (the file uses `cleanEmail` but does not import it from `./ids`). This is the likely cause of 10 of the 12 new edge failures (all the Google sign-in tests).
-- **Fixed since run 1: 22.** Remaining from run 1: 13 of the 34 new ones. **New in run 2: 15.** (22 fixed + 13 remaining = 35 run-1 branch failures, minus 1 test counted in both lists below; see the tables for exact lists.)
+- **Of run 1's 34 new failures: 21 fixed, 13 remain. 15 new failures appeared in run 2** (13 + 15 + 2 pre-existing = 30).
 - Pre-existing, still failing: 2 (`pages.test.ts`, "Create a new game like this one", "Rescheduling").
 - Bun did not crash. No folder had to be split.
 
@@ -82,9 +82,9 @@ Cause: `cleanEmail` is not imported in `apps/edge/src/google.ts` (typecheck erro
 
 ## Run 1 versus run 2
 
-Fixed since run 1 (22):
-- `apps/edge`: all 7 `no-other-game-words` tests; `branding` theme colour test; `terms` "public website pages describe Bingo only" test. (The two others in this area are listed above as still failing with a different error.)
-- `apps/web`: both `copy-honest` tests; both `gamesbar` tests; `blackbox` (1); `server-copy` (1); `seo` sitemap, `index.html` title/lang, `brochure.html` canonical and structured data (4); `pages` Refer & Earn partner link (1); `visits-dom` "none of the game pages loads the script" (1); `storage-notice` is NOT fixed (see above). `join-retry` (pre-existing in run 1) still passes.
+Fixed since run 1 (21 of the 34 new ones):
+- `apps/edge` (9): all 7 `no-other-game-words` tests; `branding` theme colour test; `terms` "public website pages describe Bingo only" test.
+- `apps/web` (12): both `copy-honest` tests; both `gamesbar` tests; `blackbox` (1); `server-copy` (1); `seo` sitemap, `index.html` title/lang, `brochure.html` canonical and structured data (4); `pages` Refer & Earn partner link (1); `visits-dom` "none of the game pages loads the script" (1); `join-retry` (pre-existing on base) still passes on the branch. `storage-notice` is NOT fixed (see above).
 
 Remaining from run 1: 2 edge + 11 web = 13 (listed above).
 
