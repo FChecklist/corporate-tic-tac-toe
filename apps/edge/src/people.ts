@@ -268,7 +268,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = normEmp(x?.empId ?? x?.employeeId);
+    const emp = normEmp(x?.empId ?? x?.employeeId, (c.e as any)?.created_ms);
     if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }

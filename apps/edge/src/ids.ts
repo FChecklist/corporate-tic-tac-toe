@@ -12,5 +12,6 @@ export const empHint = (raw: unknown): string => { const c = cleanEmpId(raw); re
 export const normEmpFor = (raw: unknown, createdMs?: number): string | null => {
   if (typeof createdMs === "number" && createdMs < EMP_CLEAN_FROM_MS) { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; }
   if (!String(raw ?? "").trim()) return "";
+  if (String(raw ?? "").normalize("NFKC").includes("@")) return null; // an e-mail typed where an employee ID is asked is refused, never turned into letters
   const c = cleanEmpId(raw); return c && c.length <= EMP_MAX ? c : null;
 };

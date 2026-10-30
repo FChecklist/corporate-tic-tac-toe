@@ -13,6 +13,7 @@ describe("employee ID", () => {
     expect(normEmpFor("   ", NEW)).toBe(""); expect(normEmpFor("---//", NEW)).toBeNull(); expect(normEmpFor("A".repeat(31), NEW)).toBeNull(); expect(normEmpFor("-" + "A".repeat(30), NEW)).toBe("A".repeat(30));
     expect(empHint("1B-678")).toBe("The system will read this as 1B678"); expect(empHint("--")).toBe("");
   });
+  test("an e-mail typed in the employee-ID box is refused, not mangled", () => { expect(normEmpFor("a.b@x.com", NEW)).toBeNull(); expect(normEmpFor("a＠x.com", NEW)).toBeNull(); });
   test("two typings of one ID are the same person after cleaning, and an old game keeps the old rule", () => {
     expect(normEmpFor("1B-678", NEW)).toBe(normEmpFor("1b 678", NEW));
     expect(normEmpFor("1B-678", OLD)).toBe("1B-678"); expect(normEmpFor("1B*678", OLD)).toBeNull();
