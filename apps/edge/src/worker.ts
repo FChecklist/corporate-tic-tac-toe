@@ -679,7 +679,7 @@ const HOST_ACTIONS = new Set(["participants", "summary", "results", "info", "ann
 const MAX_HOSTS = 5;
 /** A payment the gateway has not confirmed yet shows as "Confirming your payment..." for this long; after that it is simply pending again. */
 const CONFIRMING_WINDOW_MS = 30 * 60_000;
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 const cleanLabel = (v: unknown): string => (typeof v === "string" ? v.replace(/[<>`]/g, "").trim().slice(0, 40) : "");
 /** Paid or pending, and (for a game paid after roles existed) who paid and when. */
 async function paymentOf(env: Env, e: { id: string }, unpaid: boolean, now: number): Promise<{ status: "paid" | "pending" | "confirming"; paidBy?: string; paidMs?: number; paidVia?: string }> {

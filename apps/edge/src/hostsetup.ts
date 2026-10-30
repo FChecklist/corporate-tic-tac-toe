@@ -24,7 +24,7 @@ export const HOST_SCHEMA: string[] = [
 
 const encoder = new TextEncoder();
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
-export const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+export const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 export const emailHashOf = (email: string) => sha("email|" + cleanAccountEmail(email));
 /** "a***@acme.com": enough for the Host to recognise their own address, not enough to learn it. */
 export const maskEmail = (e: string): string => { const [l = "", d = ""] = e.split("@"); return `${l.slice(0, 1)}***@${d}`; };

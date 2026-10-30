@@ -44,7 +44,7 @@ const b64u = (s: string): Uint8Array<ArrayBuffer> => {
 };
 const jsonPart = (s: string): any => JSON.parse(new TextDecoder().decode(b64u(s)));
 const ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 
 export type GoogleResult = { ok: true; email: string } | { ok: false; why: "config" | "format" | "key" | "signature" | "claims" | "expired" | "unverified" };
 
