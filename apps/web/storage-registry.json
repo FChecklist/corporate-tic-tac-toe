@@ -158,6 +158,15 @@
       "keys": [
         "ctz-return"
       ]
+    },
+    {
+      "id": "site-theme",
+      "store": "localStorage",
+      "say": "On any page, on this device: the colour and light or dark choice you make in the header or footer, so the site looks the same next time.",
+      "keys": [
+        "ct-theme",
+        "cg-theme"
+      ]
     }
   ],
   "cookies": [

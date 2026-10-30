@@ -202,7 +202,7 @@
     const date = istDateStr(start), time = pad2(start.getUTCHours()) + ":" + pad2(start.getUTCMinutes());
     const nm = (c.name || "").trim();
     const f = { occ: nm ? (OCC.includes(nm) && nm !== "Other" ? nm : "Other") : "Team event", oname: nm && !OCC.includes(nm) ? nm : "", day: blank ? "" : dayOpts().some((d) => d[0] === date) ? date : "other", dayo: blank ? "" : date, time: blank ? "" : TIMES.some((x) => x[0] === time) ? time : "other", timeo: blank ? "" : time,
-      cap: String(inf.cap || 250), tix: String(t), mk: c.mark === "tap" ? "tap" : "auto", gj: c.join === "phone" ? "phone" : "name", spd: String(inf.callSeconds || 9), rnd: String(c.rounds || 1), who: whoNow(), ver: c.verify === "id" || c.verify === "both" ? c.verify : "mobile", emp: !!c.employeesOnly,
+      cap: String(inf.cap || 250), tix: String(t), mk: c.mark === "tap" ? "tap" : "auto", gj: c.join === "phone" ? "phone" : "name", spd: String(inf.callSeconds || 9), rnd: String(c.rounds || 1), who: whoNow(), ver: c.verify === "id" || c.verify === "both" ? c.verify : "mobile", idk: c.idKind === "email" ? "email" : "emp", emp: !!c.employeesOnly,
       inv: !!(c.invites && c.invites.on), per: String((c.invites && c.invites.per) || 4), cats: ((c.invites && c.invites.cats) || ["family", "colleagues"]).slice(), bundle: "", hs: {}, ph: "" };
     for (const [k] of HS) f.hs[k] = { on: false, n: 1, pt: "later", pd: "", orig: [] };
     for (const l of c.rewards || []) { const k = l.pattern, h = f.hs[k]; if (!h) continue; h.on = true; h.n = Math.max(h.n, l.ordinal); h.orig[l.ordinal - 1] = l.text || ""; }
@@ -239,7 +239,7 @@
   const HINTS = {
     occ: "The kind of event. It becomes the name of your game.", day: "The day players should be ready.", time: "The time players should be ready. Your own time is used.",
     cap: "The most people who can play. Invited guests count too.", who: "Choose who can come in without waiting for your yes.", emp: "Tick this for a staff-only game: only people on your list can play and nobody can invite anyone.",
-    ver: "What a person must type to get in.", inv: "Each guest can bring a few of their own people.", per: "The most people one guest can invite.", cats: "The kinds of guests they may invite.",
+    ver: "What a person must type to get in.", idk: "Employee ID or Email ID: one choice for the whole game. The list decides who is in.", inv: "Each guest can bring a few of their own people.", per: "The most people one guest can invite.", cats: "The kinds of guests they may invite.",
     bundle: "How many places win a prize. You can change each one below.", join: "Players type only their name, or their mobile number as well.",
     opN: "Plays while players wait for the tournament to start.", midN: "Shown between rounds.", clN: "Plays on the final screen.",
   };
@@ -304,7 +304,7 @@
         + small(f.who === "list" ? "Only people you have added can join straight away. Anyone else who clicks your link has to wait until you or a Host says yes." : "Anyone who clicks your link joins straight away. You can change this until the tournament starts."))
       + `<span class="zc-lbl zc-sec zc-sub">Who is this game for?</span>` + `<div class="zc-chips">${bchip("emp", "Only my employees (nobody can invite anyone)")}</div>`
       + small(f.emp ? "Only the employees on your list can play. Anyone else who opens your link waits for you to say yes." : "Employees, vendors, customers, families: everyone can play. Put the people you know on your list; others can still come in with the link.")
-            + (!f.emp && f.ver === "mobile" ? `<div class="zc-hide" data-hidden="1">` : "") + grp("ver", "What must a person give to get in?", [["mobile", "Name only (or mobile number)"], ["id", "Employee ID"], ["both", "Mobile number and employee ID"]])
+            + (!f.emp && f.ver === "mobile" ? `<div class="zc-hide" data-hidden="1">` : "") + grp("ver", "What must a person give to get in?", [["mobile", "Name only (or mobile number)"], ["id", "Employee ID or Email ID"], ["both", "Mobile number and ID"]]) + (f.ver === "mobile" ? "" : grp("idk", "Which ID?", [["emp", "Employee ID"], ["email", "Email ID"]]))
       + small(f.ver === "mobile" ? "Players type only their name. The common link works in Slack, Teams or Zoom chat. Personal links from a list still work." : f.emp ? "Each employee types " + (f.ver === "id" ? "their employee ID" : "their mobile number and their employee ID") + ". Add the employees to your list with their " + (f.ver === "id" ? "employee ID (a mobile number is optional)." : "employee ID and mobile number.") : "Employees type their employee ID" + (f.ver === "both" ? " and mobile number" : "") + ". Someone from outside gives a mobile number instead and waits for your yes if they are not on your list.") + (!f.emp && f.ver === "mobile" ? `</div>` : "")
       + save(2);
   }
@@ -1133,7 +1133,7 @@
   }
   S.pp = { list: null, err: "", limit: 0, common: "", me: null, waiting: null, approved: [], decided: [], confirm: "", sent: {}, sentFor: "", sum: "", wrong: [] };
   S.shield = ss.get("cbz-shield") === "1"; S.acctOpen = null; S.mkrole = "organizer"; S.screen = "";
-  const GROUPS = { 1: ["occ", "oname", "day", "dayo", "time", "timeo"], 2: ["cap", "tix", "spd", "rnd", "who", "ver", "emp", "inv", "per", "cats"], 3: ["hs", "ph", "bundle"], 4: ["opN", "op", "midN", "mid", "clN", "cl", "lucky", "brand"] };
+  const GROUPS = { 1: ["occ", "oname", "day", "dayo", "time", "timeo"], 2: ["cap", "tix", "spd", "rnd", "who", "ver", "idk", "emp", "inv", "per", "cats"], 3: ["hs", "ph", "bundle"], 4: ["opN", "op", "midN", "mid", "clN", "cl", "lucky", "brand"] };
   /** Brings the form in line with what the server holds, step by step, but never over a step the person has started changing (an AI may be changing the draft at the same time). */
   function syncForm() {
     const fresh = formFromServer();
@@ -1301,7 +1301,7 @@
       const f = S.f;
       if (role() === "cohost") { markDone(n); return advance(n); }
       if (n === 1) { const name = f.occ === "Other" ? (f.oname || "").trim() : f.occ, ms = startOf(f); if (!(ms > Date.now())) throw new Error(MSG_PAST); if (ms > Date.now() + 30 * 86400000) throw new Error("A game can start at most 30 days from today. Please pick a closer date."); await call("PATCH", `/api/z/${eid}/settings`, { name, startRound: ZG.roundAt(ms), tz: TZ }); }
-      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write to us and we will arrange it."); } if (f.inv && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: f.gj === "phone" ? "phone" : "name", rounds: Number(f.rnd), whoCanJoin: f.emp ? "list" : f.who === "anyone" ? "anyone" : "list", verify: f.ver === "id" || f.ver === "both" ? f.ver : "mobile", employeesOnly: !!f.emp, invites: { on: !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
+      else if (n === 2) { { const c = Number(f.cap); if (!Number.isInteger(c) || c < 1) throw new Error("Please give the number of players, for example 180."); if (c > 10000) throw new Error("For more than 10,000 players, please write to us and we will arrange it."); } if (f.inv && !f.cats.length) throw new Error("Pick at least one kind of guest."); await call("PATCH", `/api/z/${eid}/settings`, { cap: Number(f.cap), callSeconds: Number(f.spd), tickets: Number(f.tix), mark: f.mk === "tap" ? "tap" : "auto", join: f.gj === "phone" ? "phone" : "name", rounds: Number(f.rnd), whoCanJoin: f.emp ? "list" : f.who === "anyone" ? "anyone" : "list", verify: f.ver === "id" || f.ver === "both" ? f.ver : "mobile", idKind: f.idk === "email" ? "email" : "emp", employeesOnly: !!f.emp, invites: { on: !!f.inv, per: Number(f.per) || 4, cats: f.cats } }); }
       else if (n === 3) { const rewards = rewardsOut(f); if (!rewards.length) throw new Error("Tick at least one prize."); await call("PATCH", `/api/z/${eid}/settings`, { tickets: Number(f.tix), rewards }); }
       else if (n === 4) {
         const bn = (f.brand.name || "").trim(), bc = f.brand.color || "", bl = f.brand.logo || "", brandChanged = JSON.stringify(f.brand) !== JSON.stringify((S.fBase || {}).brand);

@@ -17,6 +17,9 @@ Coder wrote product code only from now on. Local runs so far (before the role ru
 - Sitemap lists the 3 new pages; robots allows them; thank-you and game-completed are noindex (build.mjs rule).
 - Footer date/time shows IST when /version.json is served; plain "Version 1.5.0" otherwise.
 
+## M3 Email ID criterion (added)
+Config idKind: absent/"emp" = employee ID (default, old games unchanged), "email" = Email ID. Saved by settings PATCH and game create (`idKind`), returned by /info (`idKind`). Behaviour: join and list upload clean per kind (cleanEmail for email, A-Z0-9 cleaner for employee ID); a typed e-mail in an employee-ID game is refused with "This looks like an Email ID. This game asks for an employee ID: letters and numbers only."; a half address in an Email ID game is refused with "Please check your Email ID. It looks incomplete."; invalid idKind value -> 400 "What the ID is: an employee ID or an Email ID."; duplicates after cleaning flagged by the existing ID-hash check in the list. Console step 2 shows "Which ID?" (Employee ID / Email ID) when the game asks for an ID; join page label becomes "Your Email ID" and the hint reads "The system will read this as ..." in lower case. Files: packages/beacon/src/config.ts, apps/edge/src/people.ts, worker.ts, apps/web/public/zc.js, ttt.js. Coder ran only a syntax check and typecheck, no tests.
+
 ## Files touched (product)
 apps/web/public: index, how-it-works, guide, brochure, refer, thank-you, game-completed .html; siteversion.js, ttt.js, gamesbar.*, tokens.css, components.css, console.css, fonts.css, brandkit.js, theme-init.js, icons, sitemap.xml, robots.txt, _headers. pages/build.mjs. apps/edge/src: ids.ts, people.ts, worker.ts, mode.ts, admin.ts, hostsetup.ts, google.ts. tools/site/make-pages.mjs, tools/site/ld-index.json. docs/*.
 

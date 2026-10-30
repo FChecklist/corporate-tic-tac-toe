@@ -10,7 +10,7 @@ const snip = (n) => readFileSync(join(KIT, "snippets", n), "utf8").replace(/\r/g
 const spriteAll = snip("sprite.html"), sprite = spriteAll.replace(/<symbol id="(?!i-ttt")[\s\S]*?<\/symbol>/g, ""),  header = snip("header-tictactoe.html"), footer = snip("footer-tictactoe.html").replace(/(<p class="ck-brandline">[^<]*<\/p>)/, `$1<p class="ck-small" data-version>Version ${VERSION}</p>`);
 const LEG = { terms: "Terms", privacy: "Privacy notice", subprocessors: "Sub-processors", dpa: "Data processing terms", "refund-policy": "Refund policy" };
 const footerFixed = footer.replace(/<li><a href="https:\/\/housie\.corporatetambola\.com\/(terms|privacy|subprocessors|dpa|refund-policy)">/g, (m, k) => `<li><a href="/${k}.html">`).replace("<h2>Legal, on corporatetambola.com</h2>", "<h2>Legal</h2>");
-const hero = snip("hero-tictactoe.html"), trust = snip("trust.html").replace("A free Tambola or Bingo demo for 10 people.", "A free Tic Tac Toe demo for 10 people."), gameday = snip("gameday.html");
+const hero = snip("hero-tictactoe.html").replace('<section class="ck-hero g-ttt">', '<section class="ck-hero g-ttt" id="top">'), trust = snip("trust.html").replace("A free Tambola or Bingo demo for 10 people.", "A free Tic Tac Toe demo for 10 people."), gameday = snip("gameday.html");
 
 const page = ({ file, title, desc, body, index = true, hero: h = "", jsonld = "" }) => {
   const url = ORIGIN + (file === "index" ? "/" : "/" + file + ".html"), img = ORIGIN + "/og-card.png";
@@ -36,7 +36,7 @@ ${header}
 ${h}${body}
 </main>
 ${footerFixed}
-<script src="/brandkit.js?v=${V}" defer></script><script src="/gamesbar.js?v=3" defer></script><script src="/siteversion.js?v=${V}" defer></script><script src="/blackbox.js" defer></script><script src="/rum.js" defer></script><script src="/v.js" defer></script><script src="/pwa.js" defer></script>
+<script src="/brandkit.js?v=${V}" defer></script><script src="/gamesbar.js?v=3" defer></script><script src="/siteversion.js?v=${V}" defer></script><script src="/guide.js" defer></script><script src="/blackbox.js" defer></script><script src="/rum.js" defer></script><script src="/v.js" defer></script><script src="/pwa.js" defer></script>
 </body></html>
 `;
 };
@@ -44,7 +44,7 @@ const sec = (kick, h2, inner, cls = "") => `<section class="ck-sec ${cls}"><div 
 const cta = `<div class="ck-btn-row"><a class="ck-btn main" href="/zc?demo=1">Try a free game with 10 people</a><a class="ck-btn" href="/zc">Log in</a></div>`;
 const card = (h, p) => `<div class="ck-card"><h3>${h}</h3><p>${p}</p></div>`;
 const cards = (a) => `<div class="ck-cards">${a.map(([h, p]) => card(h, p)).join("")}</div>`;
-const small = (h1, lead) => `<section class="ck-hero g-ttt"><div class="ck-wrap ck-hero-in"><div><h1>${h1}</h1><p class="ck-lead">${lead}</p>${cta}</div></div></section>`;
+const small = (h1, lead) => `<section class="ck-hero g-ttt" id="top"><div class="ck-wrap ck-hero-in"><div><h1>${h1}</h1><p class="ck-lead">${lead}</p>${cta}</div></div></section>`;
 
 const FAIR = "Who plays whom is fixed before anyone joins, and the same rules run on every phone. Nobody can change the draw or the bracket. There is one exception, and it is shown on screen: when boards must be settled, a person decides.";
 const out = {};
@@ -58,7 +58,7 @@ const FACTS = sec("Good to know", "Plain answers", cards([
   ["Earn by telling others", "See the <a href=\"/partner.html\">partner page</a>."]]), "ck-alt");
 out.index = page({ jsonld: `<script type="application/ld+json">${LD}</script>`, file: "index", title: "Corporate Tic Tac Toe | Online games for company events", index: true,
   desc: "Corporate Tic Tac Toe: a tournament for your whole company. Colleagues play one against one on their own phone, every move has a clock, and the software names the winners.",
-  hero, body: trust + gameday.replace(/<\/?main>/g, "") + sec("Fair play", "Fair, and easy to check", `<p class="ck-lead">${FAIR}</p>`, "ck-alt") + FACTS });
+  hero, body: `<section class="ck-sec"><div class="ck-wrap"><img src="/img/card.png" width="1400" height="879" decoding="async" fetchpriority="high" alt="Corporate Tic Tac Toe on a phone: a 3 by 3 board with crosses and noughts"></div></section>` + trust + gameday.replace(/<\/?main>/g, "") + sec("Fair play", "Fair, and easy to check", `<p class="ck-lead">${FAIR}</p>`, "ck-alt") + FACTS });
 
 out["how-it-works"] = page({ file: "how-it-works", title: "How it works | Corporate Tic Tac Toe",
   desc: "How a Corporate Tic Tac Toe game works: you set it up in ten short steps, share one link, colleagues play one against one on their phones, and the software names the winners.",

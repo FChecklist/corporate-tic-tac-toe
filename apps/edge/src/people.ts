@@ -7,7 +7,7 @@
 //   - Removing a person before the game frees the place; during the game the seat stays in the public seat list (winners must be identical on every phone) and is only blocked.
 // Names and numbers are sealed at rest (pii.ts) and never reach an AI key (every route here refuses an AI, and anything arriving through an AI work link).
 // The Worker (worker.ts) owns routing, `join` and `settings`; this file owns the schema, the cleaning of numbers and the people / waiting / me routes.
-import { normEmpFor } from "./ids";
+import { normEmpFor, cleanEmail, EMP_CLEAN_FROM_MS } from "./ids";
 import { consentRequired, recordConsent } from "./consent";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import { consentMissing } from "./consent";
@@ -52,10 +52,18 @@ export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: strin
 
 /** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
 export const normEmp = (raw: unknown, createdMs?: number): string | null => normEmpFor(raw, createdMs); // one shared cleaner: see ids.ts
+/** An Email ID shape check on the cleaned form. */
+const EMAIL_ID_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+/** The ID a person gives, by what this game asks for: an employee ID (A-Z 0-9) or an Email ID (cleanEmail). "" = nothing typed, null = not usable. */
+export const normId = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string | null => {
+  if (kind === "email") { const k = cleanEmail(raw); if (!k) return ""; return EMAIL_ID_RE.test(k) && k.length <= 254 ? k : null; }
+  return normEmp(raw, createdMs ?? undefined);
+};
+export const badIdMessage = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string => kind === "email" ? "Please check your Email ID. It looks incomplete." : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && String(raw ?? "").normalize("NFKC").includes("@") ? "This looks like an Email ID. This game asks for an employee ID: letters and numbers only." : "An employee ID has letters and numbers only (up to 30).";
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; idKind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, idKind: j.idKind === "email" ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, idKind: "emp" }; } };
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
 export type { Cleaned } from "./phonekit";
@@ -268,8 +276,8 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = normEmp(x?.empId ?? x?.employeeId, (c.e as any)?.created_ms);
-    if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
+    const empRaw = x?.empId ?? x?.employeeId, emp = normId(empRaw, vf.idKind, (c.e as any)?.created_ms);
+    if (emp === null) { invalid.push({ raw, why: badIdMessage(empRaw, vf.idKind, (c.e as any)?.created_ms) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
