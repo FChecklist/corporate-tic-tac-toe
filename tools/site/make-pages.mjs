@@ -7,24 +7,26 @@ import { join } from "node:path";
 const KIT = process.env.BRANDKIT || "C:/ct/test-sites/corporate-brand-kit", PUB = join(import.meta.dirname, "../../apps/web/public");
 const ORIGIN = "https://tictactoe.corporatetambola.com", V = "2", VERSION = "1.5.0";
 const snip = (n) => readFileSync(join(KIT, "snippets", n), "utf8").replace(/\r/g, "").trim();
-const sprite = snip("sprite.html"), header = snip("header-tictactoe.html"), footer = snip("footer-tictactoe.html").replace(/(<p class="ck-brandline">[^<]*<\/p>)/, `$1<p class="ck-small" data-version>Version ${VERSION}</p>`);
+const spriteAll = snip("sprite.html"), sprite = spriteAll.replace(/<symbol id="(?!i-ttt")[\s\S]*?<\/symbol>/g, ""),  header = snip("header-tictactoe.html"), footer = snip("footer-tictactoe.html").replace(/(<p class="ck-brandline">[^<]*<\/p>)/, `$1<p class="ck-small" data-version>Version ${VERSION}</p>`);
+const LEG = { terms: "Terms", privacy: "Privacy notice", subprocessors: "Sub-processors", dpa: "Data processing terms", "refund-policy": "Refund policy" };
+const footerFixed = footer.replace(/<li><a href="https:\/\/housie\.corporatetambola\.com\/(terms|privacy|subprocessors|dpa|refund-policy)">/g, (m, k) => `<li><a href="/${k}.html">`).replace("<h2>Legal, on corporatetambola.com</h2>", "<h2>Legal</h2>");
 const hero = snip("hero-tictactoe.html"), trust = snip("trust.html").replace("A free Tambola or Bingo demo for 10 people.", "A free Tic Tac Toe demo for 10 people."), gameday = snip("gameday.html");
 
 const page = ({ file, title, desc, body, index = true, hero: h = "", jsonld = "" }) => {
-  const url = ORIGIN + (file === "index" ? "/" : "/" + file), img = ORIGIN + "/og-card.png";
+  const url = ORIGIN + (file === "index" ? "/" : "/" + file + ".html"), img = ORIGIN + "/og-card.png";
   return `<!doctype html>
-<html lang="en" data-theme="blue"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title}</title>
 <meta name="description" content="${desc}">
 <link rel="canonical" href="${url}">
 <meta name="robots" content="${index ? "index, follow, max-image-preview:large" : "noindex, follow"}">
-<meta name="theme-color" content="#0B3D91">
+<meta name="theme-color" content="#0B5D5B">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Tic Tac Toe"><meta property="og:title" content="${title}"><meta property="og:description" content="${desc}"><meta property="og:url" content="${url}"><meta property="og:image" content="${img}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Corporate Tic Tac Toe"><meta property="og:locale" content="en_IN">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${title}"><meta name="twitter:description" content="${desc}"><meta name="twitter:image" content="${img}">${jsonld}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48"><link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=${V}"><link rel="manifest" href="/manifest.webmanifest">
 <link rel="preload" href="/fonts/Inter-normal-400.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/fonts/Fraunces-normal-500-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/fonts.css?v=${V}"><link rel="stylesheet" href="/tokens.css?v=${V}"><link rel="stylesheet" href="/components.css?v=${V}"><link rel="stylesheet" href="/gamesbar.css?v=2">
+<link rel="stylesheet" href="/fonts.css?v=${V}"><link rel="stylesheet" href="/tokens.css?v=${V}"><link rel="stylesheet" href="/components.css?v=${V}"><link rel="stylesheet" href="/gamesbar.css?v=3">
 <script src="/theme-init.js?v=${V}"></script>
 </head><body class="ck g-ttt">
 ${sprite}
@@ -33,8 +35,8 @@ ${header}
 <main id="main" tabindex="-1">
 ${h}${body}
 </main>
-${footer}
-<script src="/brandkit.js?v=${V}" defer></script><script src="/gamesbar.js?v=2" defer></script><script src="/siteversion.js?v=${V}" defer></script><script src="/pwa.js" defer></script>
+${footerFixed}
+<script src="/brandkit.js?v=${V}" defer></script><script src="/gamesbar.js?v=3" defer></script><script src="/siteversion.js?v=${V}" defer></script><script src="/blackbox.js" defer></script><script src="/rum.js" defer></script><script src="/v.js" defer></script><script src="/pwa.js" defer></script>
 </body></html>
 `;
 };
@@ -47,9 +49,16 @@ const small = (h1, lead) => `<section class="ck-hero g-ttt"><div class="ck-wrap 
 const FAIR = "Who plays whom is fixed before anyone joins, and the same rules run on every phone. Nobody can change the draw or the bracket. There is one exception, and it is shown on screen: when boards must be settled, a person decides.";
 const out = {};
 
-out.index = page({ file: "index", title: "Corporate Tic Tac Toe | Online games for company events", index: true,
+const LD = readFileSync(join(import.meta.dirname, "ld-index.json"), "utf8").trim();
+const FACTS = sec("Good to know", "Plain answers", cards([
+  ["Is there prize money?", "No. Players never pay and never stake money. Corporate Tic Tac Toe is software only: we never hold or pay prize money. Any gift is the organizer's own, outside the product."],
+  ["Who decides the winners?", "The software only. The phones apply the same rules and our server only stores and passes on the moves. When boards must be settled, a person picks the winner of that one board, and it is shown on screen."],
+  ["Is it tested for a big crowd?", "A computer rehearsal with 1,000 simulated players finished. A live event of that size has not been run yet."],
+  ["What does it cost?", "You pay once per game, before it starts. See the <a href=\"/pricing.html\">price list</a>, the <a href=\"/terms.html\">terms</a> and the <a href=\"/privacy.html\">privacy notice</a>."],
+  ["Earn by telling others", "See the <a href=\"/partner.html\">partner page</a>."]]), "ck-alt");
+out.index = page({ jsonld: `<script type="application/ld+json">${LD}</script>`, file: "index", title: "Corporate Tic Tac Toe | Online games for company events", index: true,
   desc: "Corporate Tic Tac Toe: a tournament for your whole company. Colleagues play one against one on their own phone, every move has a clock, and the software names the winners.",
-  hero, body: trust + gameday.replace(/<\/?main>/g, "") + sec("Fair play", "Fair, and easy to check", `<p class="ck-lead">${FAIR}</p>`, "ck-alt") });
+  hero, body: trust + gameday.replace(/<\/?main>/g, "") + sec("Fair play", "Fair, and easy to check", `<p class="ck-lead">${FAIR}</p>`, "ck-alt") + FACTS });
 
 out["how-it-works"] = page({ file: "how-it-works", title: "How it works | Corporate Tic Tac Toe",
   desc: "How a Corporate Tic Tac Toe game works: you set it up in ten short steps, share one link, colleagues play one against one on their phones, and the software names the winners.",

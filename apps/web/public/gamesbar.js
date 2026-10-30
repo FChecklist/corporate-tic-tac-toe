@@ -1,4 +1,4 @@
-/*! Corporate Games bar v2 - one shared navigation for every Corporate Games site. Canonical copy: C:\ct\test-sites\corporate-games-bar (do not edit a site's copy; edit here and copy). */
+/*! Corporate Games bar v3 - one shared navigation for every Corporate Games site. Canonical copy: C:\ct\test-sites\corporate-games-bar (do not edit a site's copy; edit here and copy). */
 /* What it does: puts a slim bar at the very top of the page with every Corporate game, each shown by its own badge (ticket or board art)
    and its proper name under a small CORPORATE line. The game of the current site is marked (aria-current="page").
    Laptop (900px and wider): one row, everything visible, no scrollbar. Phone: the Corporate Games mark, the current game, and an
@@ -8,15 +8,15 @@
 (function () {
   "use strict";
   if (document.querySelector(".cgb")) return;
-  var VERSION = "2";
+  var VERSION = "3";
   var HOME = "https://home.corporatetambola.com/";
   var GAMES = [
-    { id: "tambola", name: "Tambola", url: "https://housie.corporatetambola.com/", badge: "cgb-tambola" },
-    { id: "bingo", name: "Bingo", url: "https://bingo.corporatetambola.com/", badge: "cgb-bingo" },
-    { id: "tictactoe", name: "Tic Tac Toe", url: "https://tictactoe.corporatetambola.com/", badge: "cgb-ttt" },
-    { id: "snakes", name: "Snakes and Ladders", url: "https://snakes.corporatetambola.com/", badge: "cgb-snakes" },
-    { id: "luck", name: "Luck by Chance", url: "https://luck.corporatetambola.com/", badge: "cgb-luck" },
-    { id: "draw", name: "Lucky Draw", url: "https://home.corporatetambola.com/contact", badge: "cgb-draw", note: "Tell us you want it" }
+    { id: "tambola", name: "Corporate Tambola", url: "https://housie.corporatetambola.com/", badge: "cgb-tambola" },
+    { id: "bingo", name: "Corporate Bingo", url: "https://bingo.corporatetambola.com/", badge: "cgb-bingo" },
+    { id: "tictactoe", name: "Corporate Tic Tac Toe", url: "https://tictactoe.corporatetambola.com/", badge: "cgb-ttt" },
+    { id: "snakes", name: "Corporate Snakes and Ladders", url: "https://snakes.corporatetambola.com/", badge: "cgb-snakes" },
+    { id: "luck", name: "Corporate Luck by Chance", url: "https://luck.corporatetambola.com/", badge: "cgb-luck" },
+    { id: "draw", name: "Corporate Lucky Draw", url: "https://home.corporatetambola.com/contact", badge: "cgb-draw", note: "Coming soon, ask for it" }
   ];
   var HOSTS = { housie: "tambola", "corporate-tambola": "tambola", bingo: "bingo", "corporate-bingo": "bingo", tictactoe: "tictactoe", "corporate-tic-tac-toe": "tictactoe",
     snakes: "snakes", "corporate-snakes-and-ladders": "snakes", luck: "luck", "corporate-luck-by-chance": "luck", luckydraw: "draw", home: "home", corporatetambola: "home" };
@@ -43,14 +43,14 @@
     var u = document.createElementNS(NS, "use"); u.setAttribute("href", "#" + id); s.appendChild(u); return s;
   }
   function name(text, sub) { // the small CORPORATE line above the proper name; screen readers hear "Corporate Bingo"
-    var n = el("span", "cgb-name"); n.appendChild(el("span", "cgb-corp", "Corporate ")); n.appendChild(document.createTextNode(text));
+    var n = el("span", "cgb-name"); n.appendChild(el("span", "cgb-corp", "Corporate ")); n.appendChild(document.createTextNode(String(text).replace(/^Corporate /, ""))); // the data holds the full name; the small line shows "Corporate", the big line the rest
     if (sub) n.appendChild(el("span", "cgb-note", sub));
     return n;
   }
   function gameLink(g, cls) {
     var a = el("a", cls); a.href = g.url; a.setAttribute("data-game", g.id);
     if (g.id === CUR) markCurrent(a, g.url);
-    if (g.note) a.setAttribute("aria-label", "Corporate " + g.name + ": " + g.note.toLowerCase());
+    if (g.note) a.setAttribute("aria-label", g.name + ": " + g.note.toLowerCase());
     a.appendChild(badge(g.badge)); a.appendChild(name(g.name, cls === "cgb-tile" ? g.note : null)); return a;
   }
 

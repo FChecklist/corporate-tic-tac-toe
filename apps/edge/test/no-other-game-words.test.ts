@@ -9,7 +9,7 @@ import { layoutReport, type ReportData } from "../src/report-layout";
 const WEB = join(import.meta.dir, "../../web/public"), SRC = join(import.meta.dir, "../src");
 const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "tttgame.js", "reportgen.js"]); // the games bar lists the other games; the others are built bundles with internal names
 const WORDS = /\b(bingo|tambola|housie)\b/i;
-const UNIFORM_FOOTER = /<footer class="uf"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
+const UNIFORM_FOOTER = /<footer class="(?:uf|ck-foot)"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
 
 describe("no wording from another game", () => {
   for (const f of readdirSync(WEB).filter((x) => /\.(html|js)$/.test(x) && !SKIP.has(x))) {
