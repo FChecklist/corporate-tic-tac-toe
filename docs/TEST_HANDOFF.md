@@ -55,3 +55,9 @@ Owner rules added in this pass:
 - Email typed in an employee-ID game: refused with the plain message (people.ts badIdMessage) and never gets the "will read this as" hint (ttt.js:85).
 - Public files checked for internal notes/TODO text: none found (only HTML placeholder attributes in owner pages).
 - Screens promise only what the code does: new pages reuse sentences already in the live rules (clock 10/20/30/60 s, two clock-outs lose the board, draw replayed with marks swapped up to 3 games then fate, pause stops clocks, 24 h erase promise; real erase is 20 h). No "ends when" wording on any new page.
+
+## Fix pass 2 (report_ttt141, product items; NOT run by the coder)
+- P-1: guide.js has a card for both lock messages (kind of ID / way of asking for IDs); worker.ts:2003 now says "way of asking for IDs" when only verify changed.
+- P-3: packages/beacon/src/game.ts:12 typed `readonly HouseId[]` (unused PatternId import removed). tsconfig untouched.
+- Invisible characters: ids.ts cleanAccountEmail returns "" (refused) if zero-width (U+200B-D, U+2060, U+FEFF), NEL or U+2028/9 appear anywhere; cleanEmail (participant Email ID) also removes NEL; ttt.js hint class matches (adds NEL, now escaped text).
+- P-2: EMP_CLEAN_FROM_MS stays the 2099 placeholder; the hint/server mismatch ends when the release session sets it. P-4/P-5/P-6 left for the boss's judgment.

@@ -5,9 +5,9 @@ export const EMP_MAX = 30;
 /** Employee ID: NFKC, upper case, keep only A-Z and 0-9 (spaces, dashes, slashes, dots, symbols, accents, other scripts, emoji and zero-width marks all go). Never use this on an e-mail. */
 export const cleanEmpId = (raw: unknown): string => String(raw ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "");
 /** E-mail ID: NFKC, trim, no inner spaces, lower case. Upper/lower case never makes a different person. */
-export const cleanEmail = (raw: unknown): string => String(raw ?? "").normalize("NFKC").replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, "").toLowerCase();
+export const cleanEmail = (raw: unknown): string => String(raw ?? "").normalize("NFKC").replace(/[\s\u0085\u200B-\u200D\u2060\uFEFF]/g, "").toLowerCase();
 /** An ACCOUNT e-mail (organizer sign-up/sign-in, Host, Google, payment, forms): only trim and lower case. An inner space or a full-width at-sign is NOT repaired: such an address is not valid and is refused by the shape checks. Only a participant's Email ID uses cleanEmail. */
-export const cleanAccountEmail = (raw: unknown): string => String(raw ?? "").trim().toLowerCase();
+export const cleanAccountEmail = (raw: unknown): string => { const s = String(raw ?? ""); return /[\u0085\u2028\u2029\u200B-\u200D\u2060\uFEFF]/.test(s) ? "" : s.trim().toLowerCase(); }; // zero-width marks, NEL and line separators anywhere: refused (empty is never a valid address)
 /** What the browser hint says: "The system will read this as 1B678". */
 export const empHint = (raw: unknown): string => { const c = cleanEmpId(raw); return c ? `The system will read this as ${c}` : ""; };
 /** "" = nothing typed, null = refused (nothing left after cleaning, or longer than 30). Old games (created before EMP_CLEAN_FROM_MS) use the old rule. */
