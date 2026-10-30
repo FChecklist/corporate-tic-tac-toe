@@ -47,7 +47,7 @@ const randHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(
 const brand = BRANDS.corporate_tic_tac_toe;
 /** Payment attempts one network address may start through pay links in a day. */
 const PAYLINK_PER_IP_DAY = 30;
-const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 
 export const company = (env: PayEnv): Company => { try { return { ...DEFAULT_COMPANY, ...(env.COMPANY_JSON ? JSON.parse(env.COMPANY_JSON) : {}) }; } catch { return DEFAULT_COMPANY; } };
 /** Indian payers see UPI first (on a phone this opens their UPI app); cards and net banking stay one tap away. USD payers get Razorpay's normal international card screen. */
@@ -360,7 +360,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const pack = boundPack ?? Number(b?.pack); const cur = b?.currency === "USD" ? "USD" : "INR";
     if (!b || !PACKS.some((x) => x[0] === pack)) return json({ error: "Choose a pack." }, 400);
     { const mt = consentRequired(b, "K3"); if (mt) return mt; } // K3: "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit."
-    if (typeof b.email !== "string" || !EMAIL.test(b.email.trim())) return json({ error: "Enter a valid e-mail address." }, 400);
+    if (typeof b.email !== "string" || !EMAIL.test(b.email)) return json({ error: "Enter a valid e-mail address." }, 400);
     // minimum to pay: a name and an e-mail. Organisation, mobile, country and GSTIN are optional (an older caller that sends only `org` still works: it is used as the name).
     const payerName = (typeof b.name === "string" && b.name.trim() ? b.name : typeof b.org === "string" ? b.org : "").trim();
     if (payerName.length < 2) return json({ error: "Enter your name." }, 400);
@@ -402,7 +402,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
   if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; anyone, any number of times
     if (!rzp || (await getMode(env)) === "TEST") return json({ error: "Online payments are not switched on." }, 503);
     const b = await body(req);
-    if (!b || typeof b.email !== "string" || !EMAIL.test(b.email.trim())) return json({ error: "Enter a valid e-mail address." }, 400);
+    if (!b || typeof b.email !== "string" || !EMAIL.test(b.email)) return json({ error: "Enter a valid e-mail address." }, 400);
     { const mt = consentRequired(b, "K3"); if (mt) return mt; } // K3: also before the Rs 1 test payment
     const nm = typeof b.name === "string" ? b.name.trim() : ""; if (nm.length < 2) return json({ error: "Enter your name." }, 400);
     const cty = typeof b.country === "string" && /^[A-Z]{2}$/.test(b.country) ? b.country : "IN", cur = cty === "IN" ? "INR" : "USD";

@@ -170,10 +170,10 @@ async function mailEventsWebhook(req: Request, env: AdminEnv, now: number, spend
 // ------------------------------------------------------------------------------------------------ the routes
 const readBody = async (req: Request): Promise<any | null> => { const t = await req.text(); if (t.length > 4096) return null; try { const v = JSON.parse(t); return v && typeof v === "object" ? v : null; } catch { return null; } };
 const GENESIS_S = 1692803367; // drand quicknet: round r is published at GENESIS_S + (r-1)*3 s
-const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 
 async function organizerLookup(env: AdminEnv, email: string, now: number): Promise<Response> {
-  const mail = email.trim().toLowerCase();
+  const mail = email.toLowerCase();
   if (!EMAIL.test(mail)) return jsonRes({ error: "Give the organizer's e-mail address: ?email=<the organizer's e-mail address>" }, 400);
   const eh = await sha("email|" + mail);
   const acct = await env.DB.prepare("SELECT org, is_test FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string; is_test: number }>();
