@@ -3,6 +3,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { PACKS } from "../../../packages/shared/src/pricing";
 
 const PUB = new URL("../public/", import.meta.url), ORIGIN = "https://tictactoe.corporatetambola.com";
@@ -78,7 +79,7 @@ describe("sitemap and robots", () => {
 describe("headers from a real build (pages/build.mjs): thank-you and game-completed are noindex, the others are not", () => {
   let headers = "";
   beforeAll(() => {
-    const r = spawnSync("bun", ["pages/build.mjs"], { cwd: new URL("../../../", import.meta.url).pathname, encoding: "utf8" });
+    const r = spawnSync(process.execPath, ["pages/build.mjs"], { cwd: fileURLToPath(new URL("../../../", import.meta.url)), encoding: "utf8" });
     expect(r.status).toBe(0); headers = readFileSync(new URL("../../../pages/public/_headers", import.meta.url), "utf8");
   }, 60_000);
   const block = (path: string) => { const i = headers.split("\n").findIndex((l) => l === path); if (i < 0) return null; const out: string[] = []; for (let k = i + 1; k < headers.split("\n").length && /^\s/.test(headers.split("\n")[k]!); k++) out.push(headers.split("\n")[k]!.trim()); return out.join("\n"); };

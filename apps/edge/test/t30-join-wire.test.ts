@@ -33,7 +33,7 @@ describe("refusals have plain words and the right code", () => {
   const EMAIL_MSG = "This looks like an Email ID. This game asks for an employee ID: letters and numbers only.", PLAIN_MSG = "An employee ID has letters and numbers only (up to 30).";
   const cases: [string, string, string, string][] = [
     ["an e-mail typed in the ID box", "demo1@demo-test.invalid", "bad-id", EMAIL_MSG], ["a full-width ＠ e-mail", "demo1＠demo-test.invalid", "bad-id", EMAIL_MSG],
-    ["only symbols", "---//", "bad-id", PLAIN_MSG], ["only emoji", "😀😀", "bad-id", PLAIN_MSG], ["31 characters", "A".repeat(31), "bad-id", PLAIN_MSG],
+    ["only symbols", "---//", "bad-id", PLAIN_MSG], ["only emoji", "😀😀", "bad-id", PLAIN_MSG], ["31 characters", "A".repeat(31), "bad-id", "This ID is too long. An employee ID may be up to 30 characters once cleaned."],
   ];
   for (const [label, typed, code, msg] of cases) test(`${label} -> 400 ${code}`, async () => {
     W = world(T_NEW); await W.game(GAME, { verify: "id" });
