@@ -1,8 +1,9 @@
 // Sales funnel (funnel.ts, owner order 1 Nov 2026), the parts that need no Worker: the switch (off until audited), once per key, what a page may send, Do Not Track / Global Privacy Control,
 // the report by day / week / total with drop-off, the CSV, and proof that nothing personal can be in a row. Needs only the database stand-in.
 import { beforeEach, describe, expect, test } from "bun:test";
-import { FUNNEL_EVENTS, FUN_LABELS, funKey, funnelBeacon, funnelCsv, funnelReport, funnelRows, recordFun, resetFunnelRate, sweepFunnel, weekOf } from "../src/funnel";
+import { FUNNEL_EVENTS, FUN_LABELS, cleanProps, funKey, funnelBeacon, funnelCsv, funnelReport, funnelRows, recordFun, resetFunnelRate, sweepFunnel, weekOf } from "../src/funnel";
 import { Database } from "bun:sqlite";
+import { FUNNEL_EVENTS as CORE_EVENTS, cleanProps as coreClean } from "../../../vendor/game-core/packages/core/src/funnel";
 
 /** The smallest D1 stand-in this file needs (prepare, bind, run, all, first) on bun:sqlite, with the mode row mode.ts keeps; it does not load the Worker. */
 function makeD1(): { db: any; raw: Database } {
@@ -34,6 +35,13 @@ describe("the steps", () => {
     expect(by.size_chosen!.ofPrevious).toBe(50); expect(by.game_published!.ofPrevious).toBe(40); expect(by.game_published!.ofFirst).toBe(5); expect(by.payment_failed!.ofPrevious).toBeNull(); expect(by.viewed!.ofPrevious).toBeNull();
     expect(funnelRows({}).every((r) => r.count === 0 && r.ofFirst === null)).toBe(true);
     expect(weekOf(T)).toBe("2026-10-05"); expect(weekOf(T + 6 * DAY)).toBe("2026-10-05"); expect(weekOf(T + 7 * DAY)).toBe("2026-10-12");
+  });
+});
+
+describe("the Worker's copy of the core's rules", () => {
+  test("same events, same field check as the vendored core", () => {
+    expect([...FUNNEL_EVENTS]).toEqual([...CORE_EVENTS]);
+    for (const p of [{ game: "tictactoe", size: 100.7, mode: "auto", reason: "error" }, { game: "a@b.c", size: -1 }, { game: "x1234567", size: 2_000_000, mode: "x" }, { size: NaN, reason: "timeout" }, { game: "ok_game-1", name: "Ravi", phone: "9876543210" }]) expect(cleanProps(p)).toEqual(coreClean(p));
   });
 });
 

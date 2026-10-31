@@ -4,10 +4,22 @@
 // A browser with Global Privacy Control or Do Not Track is not counted at all (the page sends nothing, the route drops anything that still arrives).
 // Switch: FUNNEL_EVENTS = "on" turns it on. It is OFF until the owner has audited it: with any other value nothing is written and the report only shows what was already kept.
 // The table is created here, the first time it is needed (CREATE TABLE IF NOT EXISTS), so there is no migration to apply before switching on; every write is guarded and never breaks a game or a payment.
-import { FUNNEL_EVENTS, cleanProps, type FunnelEvent } from "../../../vendor/game-core/packages/core/src/funnel";
+// The event list and the field check are the common core's (vendor/game-core/packages/core/src/funnel.ts, which the pages run). The Worker takes nothing from the vendored folder (the server does no
+// game work, and its import list is closed), so the same small rules are written out here; apps/edge/test/funnel-unit.test.ts compares them with the core's, so they cannot drift apart.
+export const FUNNEL_EVENTS = ["viewed", "size_chosen", "signup_started", "game_created", "game_published", "payment_page_reached", "payment_page_opened", "payment_link_copied", "payment_started", "payment_succeeded", "payment_failed", "game_started", "game_completed"] as const;
+export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
+const WORD = /^[a-z0-9_-]{1,24}$/, PERSONAL = /@|\d{6,}/;
+/** Keep only the allowed fields with safe values (the core's cleanProps). */
+export function cleanProps(p: Record<string, unknown> = {}): { game?: string; size?: number; mode?: "auto" | "manual"; reason?: "declined" | "cancelled" | "error" | "timeout" } {
+  const o: ReturnType<typeof cleanProps> = {};
+  if (typeof p.game === "string" && WORD.test(p.game) && !PERSONAL.test(p.game)) o.game = p.game;
+  if (typeof p.size === "number" && Number.isFinite(p.size) && p.size >= 0 && p.size <= 1_000_000) o.size = Math.floor(p.size);
+  if (p.mode === "auto" || p.mode === "manual") o.mode = p.mode;
+  if (p.reason === "declined" || p.reason === "cancelled" || p.reason === "error" || p.reason === "timeout") o.reason = p.reason;
+  return o;
+}
 import type { D1 } from "./worker";
 
-export { FUNNEL_EVENTS };
 export type FunEnv = { DB: D1; FUNNEL_EVENTS?: string };
 export const funnelOn = (env: { FUNNEL_EVENTS?: string }) => env.FUNNEL_EVENTS === "on";
 

@@ -18,6 +18,7 @@ Where things are set:
 | `CRON_KEY` | The scheduled job's own key: it can call only `/api/lifecycle/tick` | Pages secret and Cron secret (same value) | secret |
 | `INBOUND_SECRET` | Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion) | Pages secret | secret |
 | `VISIT_KEY` | Key that hashes network addresses for first-party public-page visit counts | Pages secret | secret |
+| `FUNNEL_EVENTS` | Switch for the sales funnel statistics: `on` turns it on, anything else is off | Optional Pages variable | setting |
 | `VISIT_DAILY_WRITES` | Most visit-count writes per day (a cap) | Optional Pages variable | setting |
 | `REPORT_KEY` | Key to read the first-party error and speed reports (`/api/telemetry`) | Pages secret | secret |
 | `RESEND_API_KEY` | Sends e-mail through the mail service (sign-in codes, invoices, reports, notes to the owner) | Pages secret | secret |
