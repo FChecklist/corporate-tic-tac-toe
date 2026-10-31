@@ -64,7 +64,7 @@ describe("TT-16: the hours named for the report link and the erasure are the rea
     const files = [...readdirSync(PUB).filter((x) => x.endsWith(".js") && !SKIP_JS.test(x)).map((x) => [x, join(PUB, x)]), ...readdirSync(EDGE).filter((x) => x.endsWith(".ts")).map((x) => ["edge/" + x, join(EDGE, x)])];
     for (const [name, path] of files as [string, string][]) { const code = stripComments(readFileSync(path, "utf8")); const m = STALE.exec(code); if (m) throw new Error(`${name} still says: "...${code.slice(Math.max(0, m.index - 60), m.index + 60)}..."`); }
   });
-  test("the organizer guide says when the report link closes and when the data is erased, with the real numbers", () => {
+  test("the organizer guide says when the report link closes and when the data is auto-deleted, with the real numbers", () => {
     const t = textOf("organizer-guide.html");
     expect(t).toContain(`Your report link works for ${LINK_H} hours`); expect(t).toContain(`within 24 hours after the game (we do it at ${PURGE_H} hours)`);
   });

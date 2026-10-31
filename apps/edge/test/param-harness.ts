@@ -37,7 +37,7 @@ export function reset(extra: Partial<PayEnv> = {}) {
 export function restore() { globalThis.fetch = realFetch; try { W.raw?.close(); } catch { /* already closed */ } } // closing the in-memory database after each test keeps a run of ~900 tests small
 
 export const PLAT = { "x-organizer": "plat" };
-export const keyH = (k?: string) => (k ? { "x-organizer": k } : {});
+export const keyH = (k?: string): Record<string, string> => (k ? { "x-organizer": k } : {});
 export const call = (method: string, path: string, body?: unknown, headers: Record<string, string> = {}, now = T) =>
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), W.env as Env, now);
 /** The same call, but through the real handler with no consent ticks added (for proving what the server refuses). */

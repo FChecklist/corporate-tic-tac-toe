@@ -1,4 +1,4 @@
-// TEST AUTHOR 30 Oct 2026. Wire: Google sign-in and Host setup use the same e-mail form (ids.ts cleanEmail). Google is the fake signing key (google-fake.ts); nothing leaves the machine.
+// TEST AUTHOR. Wire: Google sign-in and Host setup read an ACCOUNT e-mail in one form: trimmed and lower case only (ids.ts cleanAccountEmail); inner spaces and a full-width at-sign are refused (owner rule, fix pass 1.4.1). Google is the fake signing key (google-fake.ts); nothing leaves the machine.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { setGoogleKeyProvider, verifyGoogleCredential } from "../src/google";
 import { CLIENT_ID, claims, makeIdp, trust, type Idp } from "./google-fake";
@@ -9,14 +9,18 @@ afterEach(() => { W.restore(); setGoogleKeyProvider(); });
 const google = (credential: string, intent = "signup", extra: Record<string, unknown> = {}) => W.call("POST", "/api/auth/google", { credential, intent, ...extra }, undefined, W.now, "8.8.8.8");
 
 describe("Google sign-in reads the e-mail in one form", () => {
-  test("a verified token for 'Demo1＠Demo-Test.Invalid' with spaces returns demo1@demo-test.invalid", async () => {
-    for (const raw of ["Demo1@Demo-Test.Invalid", " DEMO1@demo-test.invalid ", "demo1 @demo-test.invalid", "demo1＠demo-test.invalid"]) {
+  test("a verified token with upper case or outer spaces returns demo1@demo-test.invalid; an inner space or a full-width ＠ is refused", async () => {
+    for (const raw of ["Demo1@Demo-Test.Invalid", " DEMO1@demo-test.invalid "]) {
       const v = await verifyGoogleCredential(W.env, await idp.sign(claims(raw, W.now)), W.now); expect([raw, v]).toEqual([raw, { ok: true, email: "demo1@demo-test.invalid" }]);
     }
+    for (const raw of ["demo1 @demo-test.invalid", "demo1＠demo-test.invalid"]) {
+      const v = await verifyGoogleCredential(W.env, await idp.sign(claims(raw, W.now)), W.now); expect([raw, v.ok]).toEqual([raw, false]);
+    }
   });
-  test("sign up with one spelling then sign in with another is the SAME account (no second Organizer)", async () => {
+  test("sign up with one spelling then sign in with upper case is the SAME account; a full-width ＠ does not find it and makes no second Organizer", async () => {
     const a = await j(await google(await idp.sign(claims("demo2@demo-test.invalid", W.now)))); expect(a).toMatchObject({ ok: true, created: true });
-    const b = await j(await google(await idp.sign(claims("DEMO2＠DEMO-TEST.INVALID", W.now)), "signin")); expect(b).toMatchObject({ ok: true, created: false });
+    const b = await j(await google(await idp.sign(claims("DEMO2@DEMO-TEST.INVALID", W.now)), "signin")); expect(b).toMatchObject({ ok: true, created: false });
+    const c = await google(await idp.sign(claims("DEMO2＠DEMO-TEST.INVALID", W.now)), "signin"); expect(c.status).not.toBe(200); expect((await j(c)).code).toBe("google-failed");
     expect(W.raw.prepare("SELECT COUNT(*) c FROM organizer_email").get().c).toBe(1);
     expect((await j(await W.call("GET", "/api/whoami", undefined, b.token))).kind).toBe("master");
   });

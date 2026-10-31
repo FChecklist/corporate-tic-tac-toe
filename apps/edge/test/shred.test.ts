@@ -80,12 +80,12 @@ describe("participant crypto-shredding", () => {
     expect(raw.prepare("SELECT shredded_ms FROM shred WHERE eid='EVT1'").get()).toEqual({ shredded_ms: T + 23 * HOUR });
   });
 
-  test("a tampered personal blob is caught while it exists; a removed blob with no recorded erasure is caught too", async () => {
+  test("a tampered personal blob is caught while it exists; a removed blob with no recorded deletion is caught too", async () => {
     await game();
     raw.prepare("UPDATE audit_pii SET sealed='e1.AAAA.BBBB' WHERE seq=2 AND eid='EVT1'").run();
     const v = await verifyChain((env as any).DB, "EVT1"); expect(v.ok).toBe(false); expect(v.reason).toMatch(/personal part was changed/);
     raw.prepare("DELETE FROM audit_pii WHERE eid='EVT1'").run();
-    const w = await verifyChain((env as any).DB, "EVT1"); expect(w.ok).toBe(false); expect(w.reason).toMatch(/without a recorded erasure/);
+    const w = await verifyChain((env as any).DB, "EVT1"); expect(w.ok).toBe(false); expect(w.reason).toMatch(/without a recorded deletion/);
   });
 
   test("rows of the organizer, co-host and AI key, and the winners' prize confirmations, are NOT shredded", async () => {

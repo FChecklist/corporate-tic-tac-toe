@@ -7,6 +7,8 @@ import TEXT from "../../edge/src/consent-text.json";
 const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any).version;
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
+/** Waits for the condition itself (polls every 2 ms) and fails with a clear message at the limit; no fixed sleep decides the result. */
+const until = async (what: string, pred: () => boolean, ms = 4000) => { const t0 = Date.now(); while (!pred()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for: " + what); await tick(2); } };
 
 async function page(joinAnswer: (n: number) => Response | Promise<Response>) {
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html?e=GAME-1", width: 390, height: 780 });
@@ -23,7 +25,7 @@ async function page(joinAnswer: (n: number) => Response | Promise<Response>) {
   w.document.body.innerHTML = '<main id="app"></main>';
   new Function("globalThis", pub("tttgame.js"))(w);
   for (const f of ["termsbox.js", "ttt.js"]) new Function("window", "document", "location", "localStorage", "fetch", "history", "navigator", "setTimeout", "clearTimeout", "setInterval", "clearInterval", pub(f))(w, w.document, w.location, w.localStorage, w.fetch, w.history, w.navigator, w.setTimeout.bind(w), w.clearTimeout.bind(w), w.setInterval.bind(w), w.clearInterval.bind(w));
-  await tick(40);
+  await until("the join form is drawn", () => !!w.document.getElementById("nm") && !!w.document.getElementById("go"));
   const d = w.document, W = w as any;
   for (const b of [...d.querySelectorAll('input[type="checkbox"]')] as any[]) { b.checked = true; b.dispatchEvent(new W.Event("change")); }
   const nm = d.getElementById("nm") as any; nm.value = "Asha"; nm.dispatchEvent(new W.Event("input")); await tick();
@@ -35,18 +37,23 @@ const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { statu
 describe("a join that gets no answer is asked again by itself", () => {
   test("the first join call fails with no answer at all; the page retries on its own", async () => {
     const p = await page((n) => (n === 1 ? Promise.reject(new TypeError("fetch failed")) : ok({ pid: "1x000000000001" })));
-    await tick(300);
+    await until("the page's own retry (second join call)", () => p.joins() >= 2);
+    await until("the person is in (the page leaves the join form)", () => /You are in/.test(String(p.d.body.textContent)));
     expect(p.joins()).toBeGreaterThanOrEqual(2); // the second call is the page's own retry
     expect(p.d.body.textContent).not.toMatch(/Could not join/);
   });
   test("a 'busy' answer shows 'Many people are joining right now' and is asked again", async () => {
     const p = await page((n) => (n <= 2 ? ok({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429) : ok({ pid: "1x000000000001" })));
-    await tick(40); expect(p.d.body.textContent).toMatch(/Many people are joining right now/);
-    await tick(300); expect(p.joins()).toBe(3);
+    await until("the busy sentence is shown", () => /Many people are joining right now/.test(String(p.d.body.textContent)));
+    await until("the third call (first two were busy)", () => p.joins() >= 3);
+    await until("the person is in", () => /You are in/.test(String(p.d.body.textContent)));
+    expect(p.joins()).toBe(3);
   });
   test("any other refusal is shown at once and is not asked again", async () => {
     const p = await page(() => ok({ error: "This game is full.", code: "full" }, 409));
-    await tick(300); expect(p.joins()).toBe(1); expect(p.d.body.textContent).toMatch(/This game is full/);
+    await until("the refusal is shown", () => /This game is full/.test(String(p.d.body.textContent)));
+    await tick(150); // only to prove NO retry follows: several retry periods (20 ms each) pass and the count stays at 1
+    expect(p.joins()).toBe(1); expect(p.d.body.textContent).toMatch(/This game is full/);
   });
 });
 
@@ -54,7 +61,7 @@ describe("a join that gets no answer is asked again by itself", () => {
 describe("a join after the player list closed", () => {
   test("the page stays on a plain card ('The list of players is closed') with a link to watch the bracket, and does not move the person by itself", async () => {
     const p = await page(() => ok({ error: "The tournament has started and the list is closed. You can still watch it.", code: "closed" }, 409));
-    await tick(200);
+    await until("the closed card is shown", () => /The list of players is closed/.test(String(p.d.body.textContent)));
     const t = p.d.body.textContent as string;
     expect(t).toMatch(/The list of players is closed/); expect(t).toMatch(/already started/);
     const a = p.d.querySelector('a[href^="/big.html?e=GAME-1"]'); expect(a).toBeTruthy(); expect(a!.textContent).toMatch(/Watch the bracket/);

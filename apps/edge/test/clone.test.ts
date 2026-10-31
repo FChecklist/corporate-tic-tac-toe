@@ -163,15 +163,15 @@ describe("bring my people list", () => {
     expect(list.people.map((x: any) => x.name).sort()).toEqual(["Asha", "Ben", "Chitra", "Dev"]); expect(list.people.every((x: any) => x.link.startsWith("https://bingo.test/j/") && x.status === "invited")).toBe(true);
     expect(count("SELECT COUNT(*) AS c FROM person WHERE eid='OLD-1'")).toBeGreaterThanOrEqual(3); // the old game keeps its own
   });
-  test("without the tick box nobody comes along; once the old list is erased the answer says so calmly", async () => {
+  test("without the tick box nobody comes along; once the old list is auto-deleted the answer says so calmly", async () => {
     const t = await world(); await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
     expect((await j(await clone(t.master, {}))).peopleCopied).toBe(0);
     await call("POST", "/api/z/OLD-1/erase", {}, t.master);
     const b = await j(await clone(t.master, { withPeople: true }));
-    expect(b.peopleCopied).toBe(0); expect(b.peopleNote).toBe("The old guest list has been erased, so add your people again.");
+    expect(b.peopleCopied).toBe(0); expect(b.peopleNote).toBe("The old guest list has been auto-deleted, so add your people again.");
     expect(count("SELECT COUNT(*) AS c FROM person WHERE eid=?", b.id)).toBe(0);
   });
-  test("the copy belongs to the new game and follows ITS clock: the old game's copy is erased on the old clock, the new list survives", async () => {
+  test("the copy belongs to the new game and follows ITS clock: the old game's copy is auto-deleted on the old clock, the new list survives", async () => {
     const t = await world();
     await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
     const b = await j(await clone(t.master, { withPeople: true, startRound: roundAt(T + 10 * DAY) }));
