@@ -10,6 +10,7 @@ import { restoreCreditUses } from "./credit";
 import { keepLegalParty } from "./legal";
 import { ensureGameRecordTable, keepGameRecord } from "./gamerecord";
 import { sweepVisits } from "./visits";
+import { recordFun, sweepFunnel } from "./funnel";
 import { closeAuditFor, isHeld, shredParticipantAudit } from "./audit";
 import { GRACE_ROUNDS, INVITE_CATEGORIES, PRIZE_HOUSES, validateCfg, keysInPlay, linesFor, type EngagementCfg, type PatternKey } from "../../../packages/beacon/src/config";
 import { callRoundR, luckyRound } from "../../../packages/beacon/src/game";
@@ -394,6 +395,11 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
         await env.DB.prepare("INSERT INTO life(eid,end_ms,end_src) VALUES(?,?,'schedule') ON CONFLICT(eid) DO UPDATE SET end_ms=excluded.end_ms WHERE life.end_src='schedule' AND life.purged_ms IS NULL").bind(e.id, end).run();
         life = await env.DB.prepare("SELECT * FROM life WHERE eid=?").bind(e.id).first<any>();
       }
+      if (life && now - roundMs(e.start_round) < 14 * 86_400_000 && roundMs(e.start_round) <= now) { // sales funnel (funnel.ts): started, and completed, once each; a game nobody joined is not counted as played
+        const fo = { test: !!e.is_test, size: e.cap };
+        await recordFun(env as any, e.id, "game_started", now, fo);
+        if (e.npart && now >= life.end_ms) await recordFun(env as any, e.id, "game_completed", now, fo);
+      }
       if (!life || now < life.end_ms + REPORT_AFTER_MS) continue; // still being played
       if (!e.npart) { // a game that was played with nobody joined (only a people list): no report to make; the list goes 23 hours after the end like everyone's data
         if (now >= personalDeleteAt(life.end_ms) && !(await isHeld(env.DB, e.id))) { await erasePersonal(env, e.id, now, "auto"); out.purged++; await mailDataDeleted(env as any, e, now); }
@@ -447,7 +453,7 @@ export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checke
   // public-page visit records older than 365 days: rolled into anonymous per-day totals, then deleted (once a day, a few days of catch-up at a time)
   try {
     const d = new Date(now).toISOString().slice(0, 10), last = await env.DB.prepare("SELECT v FROM kv WHERE k='visit_sweep_day'").first<{ v: string }>();
-    if (last?.v !== d) { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('visit_sweep_day',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(d).run(); await sweepVisits(env, now); }
+    if (last?.v !== d) { await env.DB.prepare("INSERT INTO kv(k,v) VALUES('visit_sweep_day',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(d).run(); await sweepVisits(env, now); await sweepFunnel(env, now); }
   } catch { /* tried again at the next tick */ }
   return out;
 }

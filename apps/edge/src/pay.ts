@@ -7,6 +7,7 @@
 // Needs the `nodejs_compat` flag (billing uses node:crypto HMAC). Test mode (env.TEST_MODE = "1", never in production) fulfils without Razorpay.
 import { consentRequired, recordConsent } from "./consent";
 import { recordFunnelForOrg } from "./visits";
+import { recordFun } from "./funnel";
 import { plainToHtml, tagSubject, withFooter } from "./brand";
 import {
   BRANDS, DEFAULT_COMPANY, companyGaps, createOrder, fetchPayment, capturePayment, paymentInfo, financialYear, formatInvoiceNumber, renderInvoiceHtml, renderInvoiceText, splitGst, toMinor,
@@ -292,6 +293,7 @@ Download the PDF: ${origin}/api/invoice/${token}.pdf`
   if (keptCredit && closedGame) await mailCreditCreated(env, keptCredit, closedGame, "late", now); // the Organizer and the Hosts are told once; the payer got the receipt above
   if (published) await recordFunnelForOrg({ DB: db }, org, "published", now); // marketing funnel (visits.ts): counted once, against the visitor's first visit
   await recordFunnelForOrg({ DB: db }, org, "paid", now);
+  await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, p.id, "payment_succeeded", now, { test: !!p.is_test, size: p.pack }); // sales funnel (funnel.ts)
   // E9: the owner is told of every paid order, once (the claim is inside notifyOwnerOfPaidOrder), whichever path - the webhook or the verify call - got here first
   try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
   return { result };
@@ -389,6 +391,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const bph = partnerCode(b.phone); // optional, only used to spot a partner buying through their own link
     const lf = ledgerFields(siteOf(meta.origin), "game_pack", `pack_${pack}`, boundOrg ?? null);
     await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, cleanAccountEmail(b.email), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
+    await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, id, "payment_started", now, { test: !!siteTest, size: pack }); // sales funnel (funnel.ts)
     if (!rzp) { const f = await fulfil(env, id, now, spend); return "result" in f ? json({ mode: "test", paymentId: id, result: f.result, ...(siteTest ? { testPayment: true, label: "TEST payment: nothing was charged." } : {}) }) : json({ error: f.error }, f.status); }
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: toMinor(pr.total), currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: payerName.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name, participants: String(pack) }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
@@ -471,9 +474,9 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
         return hook(json({ ok: true, refund: rf.id ?? null }), `refund recorded: ${ev.event}`, seen);
       }
       const attemptStatus = typeof ev?.event === "string" ? attemptStatusOf(ev.event) : null;
-      let prow: { id: string } | null = null;
+      let prow: { id: string; is_test?: number; pack?: number } | null = null;
       if (attemptStatus && ent?.id && orderId) { // ledger C: every attempt (authorized, captured, failed) of a payment this website opened is kept, with Razorpay's reason when it failed
-        prow = await db.prepare("SELECT id FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string }>();
+        prow = await db.prepare("SELECT id, is_test, pack FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string; is_test?: number; pack?: number }>();
         if (prow) { try { await recordAttempt(db, ent, attemptStatus, evMs, now, prow.id); } catch { /* the payment itself is handled below */ } }
       }
       if (ev.event === "payment.authorized" && orderId) { // the gateway has the money but has not captured it yet: the buyer sees "Confirming your payment..." and nothing is marked Paid
@@ -481,6 +484,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
         const pr = await db.prepare("SELECT id FROM payment WHERE rzp_order_id=?").bind(orderId).first<{ id: string }>();
         return hook(json({ ok: true, confirming: true }), "confirming", { ...seen, paymentId: pr?.id });
       }
+      if (ev.event === "payment.failed" && prow) await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, prow.id, "payment_failed", now, { test: !!prow.is_test, size: prow.pack, reason: "error" }); // sales funnel (funnel.ts)
       if (ev.event === "payment.failed" && prow) return hook(json({ ok: true, attempt: "failed" }), "attempt recorded: failed (the payment stays unpaid)", { ...seen, paymentId: prow.id }); // a failed try never marks the payment paid; a later paying try still can
       if (!["payment.captured", "order.paid"].includes(ev.event) || !orderId) return hook(json({ ok: true, ignored: ev.event }), "ignored: not a payment event", seen);
       const row = await db.prepare("SELECT * FROM payment WHERE rzp_order_id=?").bind(orderId).first<any>();

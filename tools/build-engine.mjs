@@ -9,4 +9,7 @@ if (r.status !== 0) process.exit(r.status ?? 1);
 let s = readFileSync(out, "utf8");
 s = s.replace(/tambola/gi, (m) => (m[0] === "T" ? "Tmb" : "tmb")).replace(/bingo/gi, (m) => (m[0] === "B" ? "Bgo" : "bgo")).replace(/housie/gi, (m) => (m[0] === "H" ? "Hse" : "hse"));
 writeFileSync(out, s);
-console.log("tttengine.js written");
+const fo = "apps/web/public/tttfunnel.js";
+const r2 = spawnSync("bun", ["build", "packages/ttt/src/funnel-browser.ts", "--target", "browser", "--format", "iife", "--minify", "--outfile", fo], { stdio: "inherit", shell: process.platform === "win32" });
+if (r2.status !== 0) process.exit(r2.status ?? 1);
+console.log("tttengine.js and tttfunnel.js written");

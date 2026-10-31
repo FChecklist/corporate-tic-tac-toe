@@ -48,6 +48,7 @@ import { factsText } from "./ai-facts";
 import { mapJson, mapText } from "./ai-functions";
 import { goScreen, screenJson, screenText } from "./ai-go";
 import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold, toCsv, verifyChain, closeAuditFor, sweepAudit, type AuditEnv } from "./audit";
+import { recordFun, funnelBeacon, funnelReport, funnelCsv } from "./funnel";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
 import { TTT_SCHEMA, TTT_MAILBOX_SCHEMA, STAGE_SCHEMA, tttRoute, ensureT, tournamentStarted, tttTick, endedAtOf } from "./tournament";
 import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentMissing, consentRequired, hasConsent, hasConsented, recordConsent, textFor, type Kind } from "./consent";
@@ -782,6 +783,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   { const bm = req.method === "GET" ? p.match(/^\/api\/beacon\/([0-9a-f]{64})\/public\/(latest|\d{1,10})$/) : null; if (bm) return beaconRelay(req, bm[1]!, bm[2]!); }
   { const mr = await modeRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => purgeTestData(env, n)); if (mr) return mr; } // TEST/LIVE switch, allow-list, purge (mode.ts): owner only, except the public read of the word TEST or LIVE
   { const ar = await adminRoute(req, env as any, now, a.plat && req.headers.get("x-cb-link") !== "1", (n) => spend(env, now, n)); if (ar) return ar; } // the owner's desk (admin.ts): site switch, organizer lookup, data requests, mail events, error counts; the health read; the mail webhook
+  if (p === "/api/f") return funnelBeacon(req, env as any, now); // sales funnel, one event from a public page (funnel.ts); off unless FUNNEL_EVENTS=on
   if (p === "/api/v/b") return beaconRoute(req, env as VisitEnv, now, (n) => spend(env, now, n)); // public-page visit tracking (visits.ts); never the live game
   if (p === "/api/owner/game-records") { // OWNER ONLY (platform key, never through an AI work link): the permanent settings record of every game (no personal data of any player in it). Anybody else gets the same 404 as an unknown address.
     if (!(a.plat && req.headers.get("x-cb-link") !== "1") || req.method !== "GET") { await logAccess(env.DB, now, "denied:game-records", null, null, 0, false, a.kind ?? "anonymous"); return json({ error: "Not found" }, 404); }
@@ -803,6 +805,14 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const out = await ownerLedger(env as PayEnv, url, now);
     await logAccess(env.DB, now, "ledger-c", null, url.searchParams.get("format") === "csv" ? "csv" : "json", 0);
     return out;
+  }
+  { // OWNER ONLY: the sales funnel by day, week and total (funnel.ts); CSV with ?format=csv. The access is written to the log like the visitor reports.
+    if (p === "/api/owner/funnel") {
+      if (!(a.plat && req.headers.get("x-cb-link") !== "1") || req.method !== "GET") { await logAccess(env.DB, now, "denied:funnel", null, null, 0, false, a.kind ?? "anonymous"); return json({ error: "Not found" }, 404); }
+      const { from, to } = parseRange(url.searchParams, now), r = await funnelReport(env, from, to), csv = url.searchParams.get("format") === "csv";
+      await logAccess(env.DB, now, "funnel", null, csv ? "csv" : "json", r.total[0]?.count ?? 0);
+      return csv ? new Response(funnelCsv(r), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="sales-funnel.csv"', "cache-control": "no-store" } }) : json(r);
+    }
   }
   { // OWNER ONLY (platform key, never through an AI work link): visitor-journey reports. Every read is written to the access log; anybody else gets the same 404 as an unknown address.
     const vm = p.match(/^\/api\/owner\/visits\/(summary|journey\/([A-Za-z0-9_]{32,40}))$/);
@@ -1084,6 +1094,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (!packFor(pe.cap)) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
       if (!(await spend(env, now, 2))) return BUSY();
       const made = await createPayLink(env.DB, pe.id, a.org, a.kind, now);
+      await recordFun(env as any, pe.id, "payment_link_copied", now, { size: pe.cap }); // sales funnel (funnel.ts)
       return json({ url: `${(env as PayEnv).PUBLIC_ORIGIN ?? url.origin}/paylink.html?t=${made.token}`, expiresMs: made.expiresMs });
     }
   }
@@ -1381,6 +1392,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const isTestEng = (await testFlag(env)) === 1 || (await orgIsTest(env, a.org)) ? 1 : 0; // made in TEST mode, or by a test account
     await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) || vc.cfg.employeesOnly ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
+    await recordFun(env as any, b.id, "game_created", now, { test: !!isTestEng, size: b.cap }); // sales funnel (funnel.ts)
     if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
     return json({ ok: true, draft, openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
@@ -1863,6 +1875,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     ]);
     const paid = !!(ent || free), startMs = roundMs(e.start_round);
     await recordFunnelForOrg(env as VisitEnv, e.org, "published", now);
+    { const fo = { test: !!e.is_test, size: e.cap }; await recordFun(env as any, eid!, "game_published", now, fo); if (!paid) await recordFun(env as any, eid!, "payment_page_reached", now, fo); } // sales funnel (funnel.ts)
     await sendMail(env as PayEnv, env.DB, cEmail, rs0 ? `Your game ${eid} is published (Rs 0, it starts ${istTime(startMs)})` : paid ? `Your game ${eid} is published and paid` : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
       `Your game ${eid} is live.${rs0 ? " It is for up to " + e.cap + " people at Rs 0: nothing to pay." : ""}\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is auto-deleted; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`, now);
     return json({ ok: true, published: true, paid, startMs, payUrl, shareUrl, confirmed: { email: cEmail, phone: cPhone.slice(-10) } });
