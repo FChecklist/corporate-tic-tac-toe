@@ -13,3 +13,6 @@ Engine: game-core 0.3.0 (e71f258), vendored in vendor/game-core. Everything belo
 4. Pause logged by role (Organizer or Host): not checked in the game log.
 5. Create from an earlier game, rehearsal of 10, late-join window, Auto/Manual prizes through the core planner, six-step organizer flow, winners' names erased at 24 h (live keeps the winners record to day 365), the 20 h erase wording, the Organizer's key storage bridge for the shared screens, the Organizer's reaction setting (full/reduced/off): none started.
 6. Independent tests for all of it.
+
+## Owner-approved rules of 31 Oct (core branch feat/ttt-owner-rules-2026-10-31, 1c23494; vendored here)
+Rules written in the core book and module (pairing with one bye, 3-game matches or 1, 2/1 points, 10 s and 5 s clocks, missed move, tie-breakers, ranking, cap, pause). NOT yet in the site adapter: the live phone engine (packages/ttt/src/match.ts, bracket.ts, classic.ts, phone.ts) still runs the old rules (fixed bracket, up to 3 games with a draw replay, 20 s default clock, 2 clock-outs lose). Porting needs: per-game rules switch stored with the game, 3-game match with swapping marks and points, tie-breaker games at 5 s, missed-move turn loss, random re-pairing each round with one bye, cap 2000 check, and the same chain check on the server. Reactions for draw, missed move and tie-breaker wait for those events.

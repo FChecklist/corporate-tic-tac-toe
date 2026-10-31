@@ -17,41 +17,49 @@ export const play = (b: Board, sq: number, mark: Mark): Board | null => {
   if (mark !== (xs === os ? "X" : "O")) return null;
   const n = [...b]; n[sq] = mark; return n;
 };
-export const MAX_GAMES = 2, MOVE_CLOCKS = [10, 20, 30, 60];
-/** firstMover: who had X (moved first) in that game. */
-export interface GameEnd { winner: "a" | "b" | "draw"; firstMover?: "a" | "b" }
+/** Owner-approved rules (31 Oct 2026, boss message): a match is 3 games (Organizer may choose 1); marks swap each game; 2 points a win, 1 a draw; more points goes through; level -> up to 3 tie-breaker games (5 s moves), still level -> lower fate. */
+export const MATCH_GAMES = [1, 3] as const, DEFAULT_MATCH_GAMES = 3, TIEBREAK_GAMES = 3;
+export const MOVE_SECONDS = 10, TIEBREAK_MOVE_SECONDS = 5;
+export const MOVE_CLOCKS = [MOVE_SECONDS];
+/** Move clock for game number `n` (1-based) of a match of `matchGames` games: 10 s in the match, 5 s in tie-breaker games. No other clock exists. */
+export const moveClockFor = (n: number, matchGames: number): number => (n > matchGames ? TIEBREAK_MOVE_SECONDS : MOVE_SECONDS);
+/** One game of a match. winner: "a" | "b" | "draw". */
+export interface GameEnd { winner: "a" | "b" | "draw" }
+/** A missed move loses that turn and the opponent moves (they then get their own clock). If both players miss in a row, the game is a draw. */
+export const afterMissedMove = (missedByMover: boolean, opponentAlsoMissed: boolean): "opponent-moves" | "draw" => (missedByMover && opponentAlsoMissed ? "draw" : "opponent-moves");
+/** Points of a player in a list of games. */
+export const pointsIn = (games: GameEnd[], me: "a" | "b"): number => games.reduce((n, g) => n + gamePoints(g.winner, me), 0);
 /**
- * Spec 410 section 5: one board between players a and b. A win ends it. A draw is replayed ONCE with the marks swapped; if the replay is drawn too, the first mover of the replay is out and the other wins.
- * (The live site replayed up to 3 games and then used fate; fate is now only the fallback when the replay does not say who moved first.)
- * `forfeit` = the player who lost by two clock-outs in a row in one game (R13), which ends the board at once.
+ * Who goes through a match. `games` = the match games then any tie-breaker games, in order; `matchGames` = 1 or 3.
+ * After the match games: more points goes through. Level: the FIRST tie-breaker game with a winner decides (assumption, see book rule 8); a drawn tie-breaker is followed by the next, up to 3; still level: lower fate number.
+ * Returns null while more games are needed.
  */
-export function boardWinner(games: GameEnd[], fate: { a: number; b: number }, forfeit?: "a" | "b"): "a" | "b" | null {
-  if (forfeit) return forfeit === "a" ? "b" : "a";
-  for (const g of games) if (g.winner !== "draw") return g.winner;
-  if (games.length < MAX_GAMES) return null;
-  const fm = games[MAX_GAMES - 1]!.firstMover;
-  return fm ? (fm === "a" ? "b" : "a") : fate.a < fate.b ? "a" : "b";
+export function matchWinner(games: GameEnd[], fate: { a: number; b: number }, matchGames: number = DEFAULT_MATCH_GAMES): "a" | "b" | null {
+  if (games.length < matchGames) return null;
+  const main = games.slice(0, matchGames), pa = pointsIn(main, "a"), pb = pointsIn(main, "b");
+  if (pa !== pb) return pa > pb ? "a" : "b";
+  const tb = games.slice(matchGames);
+  for (const g of tb) if (g.winner !== "draw") return g.winner;
+  if (tb.length < TIEBREAK_GAMES) return null;
+  return fate.a < fate.b ? "a" : "b";
 }
-/** R16-R18: the knockout bracket. `order` is the seeded shuffle of the players; places = next power of two; byes only in round 1 and never two in one pair. */
-export function bracket(order: string[]): (string | null)[][] {
-  let size = 1; while (size < order.length) size *= 2;
-  const byes = size - order.length, slots: (string | null)[] = [];
-  // spread the byes: pair i gets a bye while byes remain, so no pair has two
-  let p = 0;
-  for (let i = 0; i < size / 2; i++) { slots.push(order[p++] ?? null); slots.push(i < byes ? null : (order[p++] ?? null)); }
-  const round1: (string | null)[][] = [];
-  for (let i = 0; i < slots.length; i += 2) round1.push([slots[i]!, slots[i + 1]!]);
-  return round1;
+/** Round pairing: players are paired at random (`order` is the seeded shuffle given by the host site). An odd count gives ONE bye to the first player in the order who has not had a bye before. */
+export function pairRound(order: string[], hadBye: readonly string[]): { pairs: [string, string | null][]; bye: string | null } {
+  const list = [...order]; let bye: string | null = null;
+  if (list.length % 2 === 1) { const i = Math.max(0, list.findIndex((p) => !hadBye.includes(p))); bye = list.splice(i, 1)[0]!; }
+  const pairs: [string, string | null][] = []; for (let i = 0; i < list.length; i += 2) pairs.push([list[i]!, list[i + 1]!]);
+  if (bye) pairs.push([bye, null]);
+  return { pairs, bye };
 }
 /** R23: 2 points for a game won (a forfeit counts as a win for the other player), 1 for a draw. */
 export const gamePoints = (g: GameEnd["winner"], me: "a" | "b"): number => (g === "draw" ? 1 : g === me ? 2 : 0);
 export interface TttState {
   round: number; matches: { a: string | null; b: string | null; winner?: string }[][]; points: Record<string, number>; lastPoints: Record<string, number>;
-  reached: Record<string, number>; fate: Record<string, number>; over: boolean; champion?: string;
+  reached: Record<string, number>; fate: Record<string, number>; over: boolean; champion?: string; byes: string[]; matchGames: number;
 }
 export type TttEvent = { type: "matchResult"; round: number; index: number; winner: string; pointsA: number; pointsB: number } | { type: "tick" };
 export const setupFields: SetupField[] = [
-  { key: "moveClock", label: "Seconds for each move", kind: "choice", choices: MOVE_CLOCKS.map(String), default: 20 },
+  { key: "matchGames", label: "Games in each match", kind: "choice", choices: MATCH_GAMES.map(String), default: DEFAULT_MATCH_GAMES },
   { key: "format", label: "Format", kind: "choice", choices: ["knockout", "team"], default: "knockout", advanced: true },
 ];
 export const tttRules: RulesModule<TttState, TttEvent> = {
@@ -63,9 +71,10 @@ export const tttRules: RulesModule<TttState, TttEvent> = {
   lateJoin: MANIFESTS.tictactoe.lateJoin,
   init(setup, players) {
     const order = (setup.order as string[] | undefined) ?? players; // the seeded shuffle comes from the host site
-    const r1 = bracket(order).map(([a, b]) => ({ a: a!, b: b!, winner: a && !b ? a : !a && b ? b : undefined }));
+    const { pairs, bye } = pairRound(order, []);
+    const r1 = pairs.map(([a, b]) => ({ a, b, winner: b === null ? a : undefined }));
     const reached: Record<string, number> = {}; for (const p of players) reached[p] = 1;
-    return { round: 1, matches: [r1], points: {}, lastPoints: {}, reached, fate: (setup.fate as Record<string, number>) ?? {}, over: false };
+    return { round: 1, matches: [r1], points: {}, lastPoints: {}, reached, fate: (setup.fate as Record<string, number>) ?? {}, over: false, byes: bye ? [bye] : [], matchGames: Number(setup.matchGames) === 1 ? 1 : DEFAULT_MATCH_GAMES };
   },
   step(s, e, _now, clock) {
     if (s.over || e.type !== "matchResult" || clock.phase === "paused") return { state: s, out: [] }; // paused: clocks are frozen, nothing changes
@@ -85,11 +94,12 @@ export const tttRules: RulesModule<TttState, TttEvent> = {
         out.push({ kind: "win", player: winners[0]!, position: "1st" }, { kind: "end" });
         return { state: { ...s, matches, points, lastPoints: last, over: true, champion: winners[0]! }, out };
       }
-      const next = []; for (let i = 0; i < winners.length; i += 2) next.push({ a: winners[i] ?? null, b: winners[i + 1] ?? null });
+      const pr = pairRound(winners.filter((w): w is string => !!w), s.byes); // winners are paired again at random; an odd count gives one bye to someone who has not had one
+      const next = pr.pairs.map(([a, b]) => ({ a, b, winner: b === null ? a : undefined }));
       const reached = { ...s.reached }; for (const w of winners) if (w) reached[w] = e.round + 1;
       matches.push(next);
       out.push({ kind: "round", n: e.round + 1, alive: winners.length });
-      return { state: { ...s, round: e.round + 1, matches, points, lastPoints: last, reached }, out };
+      return { state: { ...s, round: e.round + 1, matches, points, lastPoints: last, reached, byes: pr.bye ? [...s.byes, pr.bye] : s.byes }, out };
     }
     return { state: { ...s, matches, points, lastPoints: last }, out };
   },
