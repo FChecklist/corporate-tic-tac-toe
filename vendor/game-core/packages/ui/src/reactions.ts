@@ -53,7 +53,7 @@ export const MIN_GAP_MS = 15_000, MAX_PER_WINDOW = 15, WINDOW_MS = 600_000;
 export type Priority = "normal" | "high";
 /** `who`: the participant the event happened to (needed for personal reactions). `now`: game time in ms (gameNow), so a pause freezes the throttle too. */
 export interface Offer { priority?: Priority; who?: string; now: number; game?: GameId }
-export type Verdict = "show" | "queued" | "off" | "unknown" | "wrong-game" | "not-yours" | "throttled" | "max" | "busy";
+export type Verdict = "show" | "queued" | "off" | "unknown" | "wrong-game" | "not-yours" | "throttled" | "max" | "busy" | "paused";
 /**
  * The scheduler: one reaction at a time, a queue of one, at least 15 s between two reactions for this participant and at most 15 per 10 minutes of game time.
  * A high-priority reaction (champion, bullseye, poof_gone: win, finish, out) may jump the 15 s gap but still counts toward the 15. It never makes a reaction up: the game offers one at a fitting event.
@@ -63,6 +63,10 @@ export class ReactionScheduler {
   private shown: number[] = []; private cur: { until: number } | null = null; private queue: { r: Reaction; high: boolean } | null = null; private last = -Infinity;
   /** `viewer`: the participant this screen belongs to. `onShow` draws the reaction (default: the page). */
   constructor(readonly viewer: string | null, private onShow: (r: Reaction, mode: ReactionMode) => void = (r, m) => domShow(r, m)) {}
+  private paused = false;
+  /** While the game is paused no reaction is shown or queued. Callers pass GAME time (pauses removed) as `now`, so the 15 s gap and the 10-minute window freeze too. */
+  setPaused(p: boolean): void { this.paused = p; if (p) this.queue = null; }
+  isPaused(): boolean { return this.paused; }
   setMode(m: ReactionMode): void { this.mode = m; if (m === "off") this.queue = null; }
   private allowed(now: number, high: boolean): Verdict | null {
     this.shown = this.shown.filter((t) => now - t < WINDOW_MS);
@@ -79,6 +83,7 @@ export class ReactionScheduler {
   react(id: string, o: Offer): Verdict {
     const r = REACTIONS.find((x) => x.id === id);
     if (this.mode === "off") return "off";
+    if (this.paused) return "paused";
     if (!r) return "unknown";
     if (o.game && !r.games.includes(o.game)) return "wrong-game";
     if (r.personal && (o.who === undefined || o.who !== this.viewer)) return "not-yours";

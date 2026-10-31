@@ -1,6 +1,9 @@
 // Plain-words messages shared by every game, extracted from Tambola 1.9.0 (packages/beacon/src/messages.ts and the organizer flow). English only; "close group", never "private".
 export const NO_PERSONAL_DETAILS = "No personal details needed. All participant information is deleted within 24 hours of the game."; // unchanged on-screen line (Tambola)
-export const RETENTION_LINE = "All participant data is deleted within 24 hours after the game ends, except the winners' record.";
+/** The ONE on-screen retention line (owner, 31 Oct 2026). */
+export const RETENTION_LINE = NO_PERSONAL_DETAILS;
+/** The longer sentence appears only in the Terms. */
+export const TERMS_RETENTION = "All participant data is deleted within 24 hours after the game ends, except the winners' record.";
 /** Messages by code, with {t} ticket/entry, {p} prize, {n} a count. A game adds its own codes; the shared ones are the same everywhere. */
 export const MSG: Record<string, string> = {
   "claim.k": "Ticket {t} has claimed {p}. Checking now…",
