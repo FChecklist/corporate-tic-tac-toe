@@ -167,7 +167,22 @@
   const rankHtml = (r) => (r && r.length ? `<div class="zcard"><h2>Results</h2><ol class="trank">${r.map((x) => `<li><b>${esc(x.name)}</b>${x.tie ? `<small>${esc(x.tie)}</small>` : ""}</li>`).join("")}</ol></div>` : "");
 
   const render = (s) => { try { render0(s); } finally { countUps(); } };
+  // The common engine's text reactions: only on the new flow (?flow=new or ct-flow=new on this device); the live game is unchanged without it.
+  const engineOn = (() => { try { return /[?&]flow=new\b/.test(location.search) || localStorage.getItem("ct-flow") === "new"; } catch { return /[?&]flow=new\b/.test(location.search); } })();
+  if (engineOn) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "/reactions.css?v=1"; document.head.appendChild(l); const sc = document.createElement("script"); sc.src = "/tttengine.js?v=1"; sc.async = true; document.head.appendChild(sc); }
+  let rxPrev = null, rxPaused = false;
+  const reactTo = (s) => {
+    const R = window.TTTENG; if (!engineOn || !R) { rxPrev = s.phase; return; }
+    const paused = !!s.paused, ph = s.phase;
+    if (paused !== rxPaused) { R.react(paused ? "pause" : "resume"); rxPaused = paused; }
+    else if (rxPrev !== null && ph !== rxPrev) {
+      if (ph === "champion") R.react("win"); else if (ph === "out") R.react("out");
+      else if (ph === "next") R.react("round_end"); else if (ph === "playing" && rxPrev !== "playing") R.react(rxPrev === "waiting" ? "go" : "round_start");
+    }
+    rxPrev = ph;
+  };
   const render0 = (s) => {
+    try { reactTo(s); } catch {}
     if (window.ctzView) window.ctzView({ phase: s.phase === "champion" || s.phase === "out" ? "ended" : String(s.phase || "") }); // the flight recorder (blackbox.js) learns the stage
     last = s; skew = (s.serverNow || Date.now()) - Date.now();
     if (s.phase === "waiting") set(`${top()}<div class="zcard twait" role="status"><h2>You are in</h2><div class="tbig" aria-hidden="true"><span class="tmk x">X</span><span class="tmk o">O</span></div><p class="tlead">Waiting for the host to start the tournament.</p><p class="tjoined"><b id="tjn" data-count="${Number(s.joined) || 0}" data-ck="joined">${Number(s.joined) || 0}</b> ${Number(s.joined) === 1 ? "player has" : "players have"} joined so far</p><div class="tdo"><b>What to do:</b> nothing yet. Keep this page open. When the host starts, your board appears here.</div>${planned()}<p class="zsmall">Who plays whom is fixed before anyone joins, so nobody can change it. Its fingerprint: <span class="mono">${esc((s.commit || "").slice(0, 16))}</span>. After the start the host shows the secret, so anybody can check it.</p></div>`);

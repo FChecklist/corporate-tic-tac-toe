@@ -11,3 +11,4 @@ export const enButton = (): string => `<button class="en-btn" type="button" aria
 /** A guided error: say what happened, then what to do next. */
 export const guidedError = (what: string, doNext: string): string => `<div class="guided-error" role="alert">${esc(what)}<span class="do">${esc(doNext)}</span></div>`;
 export const pausedBanner = (): string => `<div class="paused-banner" role="status">Paused</div>`;
+export * from "./reactions";

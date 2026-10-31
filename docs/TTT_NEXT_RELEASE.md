@@ -1,0 +1,15 @@
+# Tic Tac Toe on the common engine: what is still missing (31 Oct 2026)
+Engine: game-core 0.3.0 (e71f258), vendored in vendor/game-core. Everything below is OFF unless a person opens the new flow (?flow=new, or ct-flow=new on that device). The live game is unchanged.
+
+## Done (coded, not tested)
+- Engine vendored and pinned; rules module and Reaction pack come from the copy.
+- Text reactions on the player page (ttt.js, new flow only): "You won!" on becoming champion, "Out!" on being knocked out, "Round over" between rounds, "Round starts!"/"Go!" on a new board, "Paused"/"Back on!" when the Organizer or Host pauses or resumes. Built into apps/web/public/tttengine.js (bun run build:engine) with reactions.css.
+- Already live and kept: knockout rounds run by software, Pause/Resume by Organizer or Host key, results with no Organizer final say, the golden "You won" card for the champion.
+
+## Missing
+1. Draw rule: the engine replays a draw ONCE, then the first mover of the replay is out. Live replays up to 3 games and then uses the fate number (packages/ttt/src/match.ts MAX_GAMES=3, classic.ts). Needs a per-game switch (the Cfg already has maxGames) plus the first-mover rule, and the same rule on phones and server. Not changed: it alters live results.
+2. Reactions for draw, replay, missed move and countdown: the player page does not get those events yet (needs the match view to say "drawn, replaying" and a countdown tick). The pause reaction relies on the player state carrying `paused`; not verified.
+3. Cap 2000 on the new flow: the server still allows up to 100000 (worker.ts ~1359 and ~2008). Needs a per-game flag stored with the game.
+4. Pause logged by role (Organizer or Host): not checked in the game log.
+5. Create from an earlier game, rehearsal of 10, late-join window, Auto/Manual prizes through the core planner, six-step organizer flow, winners' names erased at 24 h (live keeps the winners record to day 365), the 20 h erase wording, the Organizer's key storage bridge for the shared screens, the Organizer's reaction setting (full/reduced/off): none started.
+6. Independent tests for all of it.

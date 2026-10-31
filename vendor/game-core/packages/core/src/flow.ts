@@ -1,10 +1,10 @@
 // The organizer flow as one shared definition (spec 410 section 2). Plain words, defaults filled, advanced options behind "More options".
 import type { Manifest } from "../../manifest/src";
 export type StepId = "game" | "people" | "time" | "prizes" | "brand" | "check";
-export interface Step { id: StepId; title: string; optional: boolean; applies: (m: Manifest) => boolean }
+export interface Step { id: StepId; title: string; optional: boolean; applies: (m: Manifest) => boolean; rows?: string[] }
 export const FLOW: Step[] = [
   { id: "game", title: "Game", optional: false, applies: () => true },
-  { id: "people", title: "People", optional: false, applies: () => true },
+  { id: "people", title: "People", optional: false, applies: () => true, rows: ["addHost", "addCohost"] },
   { id: "time", title: "Time", optional: false, applies: () => true },
   { id: "prizes", title: "Prizes", optional: false, applies: () => true },
   { id: "brand", title: "Brand and Breaks", optional: true, applies: () => true },

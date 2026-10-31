@@ -12,6 +12,7 @@
     "dev": "bun run apps/edge/src/local.ts",
     "build:control": "bun build packages/beacon/src/control-browser.ts --target browser --format iife --minify --outfile apps/web/public/control.js",
     "build:report": "bun build apps/edge/src/report-browser.ts --target browser --format iife --minify --outfile apps/web/public/reportgen.js",
+    "build:engine": "bun build packages/ttt/src/engine-browser.ts --target browser --format iife --minify --outfile apps/web/public/tttengine.js",
     "build:ttt": "bun build packages/ttt/src/browser.ts --target browser --format iife --minify --outfile apps/web/public/tttgame.js",
     "build:zgame": "bun build packages/beacon/src/zgame-browser.ts --target browser --format iife --minify-whitespace --minify-syntax --outfile apps/web/public/zgame.js",
     "zlocal": "bun run apps/edge/src/local.ts",
