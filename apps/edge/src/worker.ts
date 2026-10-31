@@ -1847,7 +1847,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     }
     // the organizer confirms (and may correct) their email and mobile number
     const pb = await body(req);
-    const cEmail = typeof pb?.email === "string" ? cleanAccountEmail(pb.email) : "", cPhone = String(pb?.phone ?? "").replace(/\D/g, "");
+    const cEmail = typeof pb?.email === "string" && cleanAccountEmail(pb.email) !== "" ? pb.email.trim() : "" /* typed case kept; an invisible character anywhere refuses the address */, cPhone = String(pb?.phone ?? "").replace(/\D/g, "");
     if (!/^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/.test(cEmail)) return json({ error: "Please confirm a valid email address." }, 400);
     if (cPhone.length < 10 || cPhone.length > 15 || !cleanPhone(pb?.phone).ok) return json({ error: "Please confirm a valid mobile number. " + (cleanPhone(pb?.phone) as any).why }, 400);
     if (roundMs(e.start_round) <= now || (await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`startpending/${eid}`).first())) return json({ error: "The start time has passed or has not been chosen. Please choose a new start time first.", code: "start-pending" }, 400);
