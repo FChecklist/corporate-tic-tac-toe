@@ -425,7 +425,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not on for this game." }, 404);
     const q = c.url.searchParams, after = Math.max(0, Number(q.get("after") ?? 0) || 0), slot = q.get("slot");
     let rows;
-    if (slot !== null) { if (!STAGE_SLOT.test(slot)) return json({ error: "Bad slot." }, 400); rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND slot=? AND kind<>'flag' AND id>? ORDER BY id LIMIT 200").bind(eid, slot, after).all<any>(); }
+    if (slot !== null) { if (!STAGE_SLOT.test(slot)) return json({ error: "That game slot is not valid." }, 400); rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND slot=? AND kind<>'flag' AND id>? ORDER BY id LIMIT 200").bind(eid, slot, after).all<any>(); }
     else rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND kind='result' AND id>? ORDER BY id LIMIT 1000").bind(eid, after).all<any>();
     return new Response(JSON.stringify({ serverNow: now, entries: rows.results ?? [] }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=2" } });
   }
