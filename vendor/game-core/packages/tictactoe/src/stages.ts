@@ -47,7 +47,8 @@ export function settleStages(o: { gameId: string; startMs: number; nowMs: number
   const clock = clockAt(o.startMs, o.nowMs, o.pausedMs ?? 0);
   let alive = [...o.players], stats: Record<string, Stat> = {}; const out: Settled["out"] = [], lastOpp: Record<string, string | undefined> = {};
   const lastStage = clock.phase === "done" ? STAGES : clock.stage, lastSlot = clock.phase === "done" ? SLOTS_PER_STAGE : clock.slot;
-  const res = new Map<string, SlotResult>(); for (const r of o.results) res.set(`${r.stage}|${r.slot}|${r.a}|${r.b}`, r);
+  // two results for the same pair and slot that disagree count as a draw, whatever order they arrived in
+  const res = new Map<string, SlotResult>(); for (const r of o.results) { const k = `${r.stage}|${r.slot}|${r.a}|${r.b}`, e = res.get(k); res.set(k, e && e.winner !== r.winner ? { ...r, winner: "draw" } : (e ?? r)); }
   let pairsNow: [string, string][] = [], byeNow: string | null = null, over = false, ranking: string[] | undefined;
   for (let st = 1; st <= lastStage && !over; st++) {
     for (const p of alive) stats[p] = { ...(stats[p] ?? zero()), stagePoints: 0 };
