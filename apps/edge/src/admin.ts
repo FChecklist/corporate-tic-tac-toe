@@ -173,7 +173,7 @@ const GENESIS_S = 1692803367; // drand quicknet: round r is published at GENESIS
 const EMAIL = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 
 async function organizerLookup(env: AdminEnv, email: string, now: number): Promise<Response> {
-  const mail = email.toLowerCase();
+  const mail = cleanAccountEmail(email);
   if (!EMAIL.test(mail)) return jsonRes({ error: "Give the organizer's e-mail address: ?email=<the organizer's e-mail address>" }, 400);
   const eh = await sha("email|" + mail);
   const acct = await env.DB.prepare("SELECT org, is_test FROM organizer_email WHERE email_hash=?").bind(eh).first<{ org: string; is_test: number }>();
