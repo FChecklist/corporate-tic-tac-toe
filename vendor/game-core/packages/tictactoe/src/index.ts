@@ -49,6 +49,22 @@ export const order = (s: Pick<TttState, "stats" | "fate">, players: string[]): s
  * Pair the free players (Swiss style): sort by points, pair neighbours, never the same opponent twice in a row. An odd count: ONE free player sits out and gets 1 point
  * (call `applyBye`), the lowest-ranked free player who has not had a bye in this stage.
  */
+/** With 4 or more free players nobody meets the same opponent as in the previous game: after the greedy pairing, swap partners between two pairs until no pair repeats (2 or 3 free players may rematch). */
+export function unrepeat(pairs: [string, string][], repeat: (x: string, y: string) => boolean): [string, string][] {
+  const out = pairs.map((p) => [...p] as [string, string]);
+  if (out.length < 2) return out;
+  for (let k = 0; k < out.length; k++) {
+    if (!repeat(out[k]![0], out[k]![1])) continue;
+    swap: for (let m = 0; m < out.length; m++) {
+      if (m === k) continue;
+      const [a, b] = out[k]!, [c, d] = out[m]!;
+      for (const [p, q] of [[[a, c], [b, d]], [[a, d], [b, c]]] as [[string, string], [string, string]][]) {
+        if (!repeat(p[0], p[1]) && !repeat(q[0], q[1])) { out[k] = p; out[m] = q; break swap; }
+      }
+    }
+  }
+  return out;
+}
 export function pairFree(s: TttState, free: string[]): { pairs: [string, string][]; bye: string | null } {
   const list = order(s, free); let bye: string | null = null;
   if (list.length % 2 === 1) {
@@ -60,9 +76,11 @@ export function pairFree(s: TttState, free: string[]): { pairs: [string, string]
     const a = list.shift()!; let j = list.findIndex((x) => stat(s, a).lastOpp !== x && stat(s, x).lastOpp !== a); if (j < 0) j = 0;
     pairs.push([a, list.splice(j, 1)[0]!]);
   }
-  return { pairs, bye };
+  const lo = (x: string, y: string) => stat(s, x).lastOpp === y || stat(s, y).lastOpp === x;
+  return { pairs: free.length >= 4 ? unrepeat(pairs, lo) : pairs, bye };
 }
-export const applyBye = (s: TttState, p: string): TttState => { const t = stat(s, p); return { ...s, stats: { ...s.stats, [p]: { ...t, points: t.points + BYE_POINTS, stagePoints: t.stagePoints + BYE_POINTS, byeStages: [...t.byeStages, s.stage] } } }; };
+/** The sit-out point is given at most once per player per stage; a second sit-out in the same stage (small fields, everybody had one) gives no point. */
+export const applyBye = (s: TttState, p: string): TttState => { const t = stat(s, p); if (t.byeStages.includes(s.stage)) return s; return { ...s, stats: { ...s.stats, [p]: { ...t, points: t.points + BYE_POINTS, stagePoints: t.stagePoints + BYE_POINTS, byeStages: [...t.byeStages, s.stage] } } }; };
 const addGame = (s: TttState, a: string, b: string, w: "a" | "b" | "draw"): TttState => {
   const A = stat(s, a), B = stat(s, b), pa = gamePoints(w, "a"), pb = gamePoints(w, "b");
   return { ...s, stats: { ...s.stats, [a]: { ...A, points: A.points + pa, stagePoints: A.stagePoints + pa, wins: A.wins + (w === "a" ? 1 : 0), lastOpp: b }, [b]: { ...B, points: B.points + pb, stagePoints: B.stagePoints + pb, wins: B.wins + (w === "b" ? 1 : 0), lastOpp: a } } };
