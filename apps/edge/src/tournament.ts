@@ -24,6 +24,9 @@ export const TTT_SCHEMA: string[] = [
   `CREATE INDEX IF NOT EXISTS ttt_m_live ON ttt_m (eid, status, deadline)`,
   `CREATE INDEX IF NOT EXISTS ttt_m_a ON ttt_m (eid, a)`,
   `CREATE INDEX IF NOT EXISTS ttt_m_b ON ttt_m (eid, b)`,
+];
+/** The new flow's append-only log (0030_stage_log.sql): moves and results of the stage games. Only opaque ids, squares and stamps. */
+export const STAGE_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS ttt_sl (eid TEXT NOT NULL, id INTEGER PRIMARY KEY AUTOINCREMENT, slot TEXT NOT NULL, kind TEXT NOT NULL, pid TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, at_ms INTEGER NOT NULL)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS ttt_sl_u ON ttt_sl (eid, slot, kind, pid, seq)`,
   `CREATE INDEX IF NOT EXISTS ttt_sl_p ON ttt_sl (eid, pid, at_ms)`,

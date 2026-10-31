@@ -26,6 +26,7 @@ import { getMode, mailGate, testFlag, type ModeEnv } from "./mode";
 import { isTestLogin } from "./testlogins";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
 import { consentMissing } from "./consent";
+import { cleanAccountEmail } from "./ids";
 import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs, teamEmails } from "./credit";
 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
@@ -360,7 +361,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const pack = boundPack ?? Number(b?.pack); const cur = b?.currency === "USD" ? "USD" : "INR";
     if (!b || !PACKS.some((x) => x[0] === pack)) return json({ error: "Choose a pack." }, 400);
     { const mt = consentRequired(b, "K3"); if (mt) return mt; } // K3: "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit."
-    if (typeof b.email !== "string" || !EMAIL.test(b.email)) return json({ error: "Enter a valid e-mail address." }, 400);
+    if (typeof b.email !== "string" || !EMAIL.test(cleanAccountEmail(b.email))) return json({ error: "Enter a valid e-mail address." }, 400);
     // minimum to pay: a name and an e-mail. Organisation, mobile, country and GSTIN are optional (an older caller that sends only `org` still works: it is used as the name).
     const payerName = (typeof b.name === "string" && b.name.trim() ? b.name : typeof b.org === "string" ? b.org : "").trim();
     if (payerName.length < 2) return json({ error: "Enter your name." }, 400);
@@ -381,15 +382,15 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}) };
     let order: any = null;
     if (rzp) {
-      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `tictactoe_pack_${pack}`, user: boundOrg ?? null, email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: `tictactoe_pack_${pack}`, variation: `tictactoe_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
+      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `tictactoe_pack_${pack}`, user: boundOrg ?? null, email: cleanAccountEmail(b.email), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: `tictactoe_pack_${pack}`, variation: `tictactoe_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
       catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     }
     const ref = (await helperRefFor(db, boundEid)) ?? refCode(b.ref); // a game a Help Desk helper prepared always pays its helper (helpdesk.ts); otherwise from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
     const bph = partnerCode(b.phone); // optional, only used to spot a partner buying through their own link
     const lf = ledgerFields(siteOf(meta.origin), "game_pack", `pack_${pack}`, boundOrg ?? null);
-    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
+    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,ref,buyer_phone_hash,is_test,eid,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id, null, cleanAccountEmail(b.email), pack, cur, pr.total, pr.tax, order?.id ?? null, "created", now, JSON.stringify(meta), ref, bph ? await phoneHashFor(env, bph) : null, siteTest ? 1 : 0, boundEid, lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
     if (!rzp) { const f = await fulfil(env, id, now, spend); return "result" in f ? json({ mode: "test", paymentId: id, result: f.result, ...(siteTest ? { testPayment: true, label: "TEST payment: nothing was charged." } : {}) }) : json({ error: f.error }, f.status); }
-    return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: toMinor(pr.total), currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: payerName.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name, participants: String(pack) }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
+    return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: toMinor(pr.total), currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: cleanAccountEmail(b.email), name: payerName.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name, participants: String(pack) }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
 
   const ptm = p.match(/^\/api\/payments\/paytest\/(pay_[0-9a-f]{16})$/); // the test page asks while Razorpay is still confirming
@@ -402,7 +403,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
   if (req.method === "POST" && p === "/api/payments/paytest") { // Payment Testing: Rs 1 from India, US$ 1 from abroad; buys nothing; anyone, any number of times
     if (!rzp || (await getMode(env)) === "TEST") return json({ error: "Online payments are not switched on." }, 503);
     const b = await body(req);
-    if (!b || typeof b.email !== "string" || !EMAIL.test(b.email)) return json({ error: "Enter a valid e-mail address." }, 400);
+    if (!b || typeof b.email !== "string" || !EMAIL.test(cleanAccountEmail(b.email))) return json({ error: "Enter a valid e-mail address." }, 400);
     { const mt = consentRequired(b, "K3"); if (mt) return mt; } // K3: also before the Rs 1 test payment
     const nm = typeof b.name === "string" ? b.name.trim() : ""; if (nm.length < 2) return json({ error: "Enter your name." }, 400);
     const cty = typeof b.country === "string" && /^[A-Z]{2}$/.test(b.country) ? b.country : "IN", cur = cty === "IN" ? "INR" : "USD";
@@ -413,14 +414,14 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: id, kind: "K3", ref: id, now }); // K3: stored with the test payment it was for
     let order: any;
-    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: b.email.trim().toLowerCase(), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
+    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: cleanAccountEmail(b.email), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
     catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     const taxId = typeof b.taxId === "string" ? b.taxId.trim().toUpperCase().slice(0, 20) : "";
     if (cty === "IN" && taxId && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(taxId)) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
     const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
     const lf = ledgerFields(siteOf(meta.origin), "payment_test", "payment_test", null);
-    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)").bind(id, null, b.email.trim().toLowerCase(), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
-    return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: 100, currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: nm.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
+    await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)").bind(id, null, cleanAccountEmail(b.email), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
+    return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: 100, currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: cleanAccountEmail(b.email), name: nm.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
 
   if (req.method === "POST" && p === "/api/payments/verify") {
