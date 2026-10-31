@@ -138,7 +138,7 @@ export function layoutReport(d: ReportData): Uint8Array {
     ["Participants' names and mobile numbers, seats, invite links", istFull(d.personalDeleteAtMs, d.tz)],
     ["Organizer / host / co-host details and the winners record", `00:00 hours IST, ${istDate(d.fullDeleteAtMs)}`],
   ]);
-  pdf.para("You can ask us to delete everything sooner: press 'Erase' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail us from your registered address.", { size: 9 });
+  pdf.para("You can ask us to delete everything sooner: press 'Delete all participant data' in your console, ask your AI assistant to request it (you confirm in your console), or e-mail us from your registered address.", { size: 9 });
 
   pdf.h1("8. Our commitment to your data");
   pdf.box("All of it is deleted. Here is exactly what, and when.", [

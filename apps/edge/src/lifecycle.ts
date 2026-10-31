@@ -27,7 +27,7 @@ export const GENESIS = 1692803367;
 export const roundMs = (r: number) => (GENESIS + (r - 1) * 3) * 1000;
 import { PURGE_AFTER_MS, REPORT_LINK_MS, REPORT_AFTER_MS } from "./lifetimes"; // the three clocks of a finished game live in lifetimes.ts, so the words people read use the same numbers
 export { PURGE_AFTER_MS, REPORT_LINK_MS, REPORT_AFTER_MS };
-export const UNPLAYED_WARN_MS = 6 * 3_600_000;       // the heads-up e-mail for a game that did not start goes out this long before its guests' data is erased
+export const UNPLAYED_WARN_MS = 6 * 3_600_000;       // the heads-up e-mail for a game that did not start goes out this long before its guests' data is auto-deleted
 export const SETTINGS_KEEP_MS = 30 * 86_400_000;      // the settings of a game that did not start (occasion, prizes, brand...) stay this long after it closed, so the Organizer can reuse them
 export const PAID_WINDOW_MS = 365 * 86_400_000;      // a PAID game can be set to any date within this long from the day of payment
 export const MAX_AHEAD_MS = 30 * 86_400_000;          // a game time can be set at most this far ahead
@@ -239,7 +239,7 @@ const bodyFor = (eid: string, d: ReportData, link: string) => [
   `- Everything about this game is deleted at 00:00 hours IST on ${istDate(d.fullDeleteAtMs)} (the end of the 365th day). We keep billing data for audit and tax reasons.`,
   ``,
   `The winners were worked out by the software from the public numbers and accepted only when several different phones agreed. You cannot choose or change a winner or a number, and neither can we.`, ``,
-  `You can ask us to delete everything sooner: press Erase in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
+  `You can ask us to delete everything sooner: press Delete all participant data in your console, ask your AI assistant to request it (you confirm in your console), or reply to this e-mail from your registered address.`, ``,
   `Corporate Tic Tac Toe is built to follow India's DPDP Act, the EU and UK GDPR and US privacy laws (including CCPA / CPRA): we collect only what is needed to run your game, protect it with encryption, keep it for the shortest time we can, never sell it, and honour every request to see, correct or delete data.`, ``,
   `Sent on ${istFull(d.sentAtMs)} to ${d.organizerEmail}.`,
 ].join("\n");
@@ -334,10 +334,10 @@ async function remindReport(env: LifeEnv, e: any, life: any, now: number) {
 
 // ------------------------------------------------------------------------------------------------ games that did not start
 /**
- * A game that was never paid for (so its first number was never called). Its guests' names and numbers, people lists, waiting requests, personal links and Co-host details are erased
+ * A game that was never paid for (so its first number was never called). Its guests' names and numbers, people lists, waiting requests, personal links and Co-host details are auto-deleted
  * 23 hours after its scheduled END (the same end estimate a played game uses), following the NEWEST schedule: a reschedule moves the clock. Organizer and Host data, payments and invoices stay.
  * A published game is then CLOSED (`unplayed_ms`): nobody can join or pay. Six hours before, the Organizer and Hosts get a heads-up (once per erasure time); right after, an "it did not start" mail.
- * A draft nobody published is erased the same way but is not "closed" (it is forgotten after 30 days as before). Safe to repeat.
+ * A draft nobody published is auto-deleted the same way but is not "closed" (it is forgotten after 30 days as before). Safe to repeat.
  */
 export async function unplayedPass(env: LifeEnv, now: number): Promise<number> {
   let purged = 0;

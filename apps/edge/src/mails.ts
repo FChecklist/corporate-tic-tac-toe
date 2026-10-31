@@ -15,7 +15,7 @@ export interface BuiltMail { subject: string; text: string; html: string }
 import { BRAND, esc, footerText, pageHtml } from "./brand";
 
 const AI_CAN = "It can do what you do in the console.";
-const AI_STAYS = "You keep payment, publishing, erasing data, and pause or stop.";
+const AI_STAYS = "You keep payment, publishing, deleting data, and pause or stop.";
 const HOST_CAN = "Watch the game, message every guest, tick prizes as given.";
 const HOST_STAYS = "Nothing else. It cannot change settings, people, payment or data.";
 
@@ -42,7 +42,8 @@ function shell(opts: { origin: string; warning: string; title: string; intro: st
 <tr><td style="padding:12px 22px 0;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8a4b00;margin-bottom:4px;">WHAT STAYS WITH YOU</div><div style="font-size:14px;line-height:1.5;">${esc(opts.stays)}</div></td></tr>
 <tr><td style="padding:12px 22px 0;"><div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#555;margin-bottom:4px;">LOST IT?</div><div style="font-size:14px;line-height:1.5;">${esc(opts.replace)}</div></td></tr>
 ${opts.footer ? `<tr><td style="padding:12px 22px 6px;font-size:12px;color:#666;line-height:1.5;">${esc(opts.footer)}</td></tr>` : ""}
-${warn("8px 22px 20px")}`, opts.origin);
+${warn("8px 22px 20px")}
+`, opts.origin);
   return { text, html };
 }
 

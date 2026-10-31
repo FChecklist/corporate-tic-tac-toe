@@ -27,7 +27,8 @@ export const MSG: Record<string, string> = {
 export const say = (code: string, vars: Record<string, string | number> = {}): string =>
   (MSG[code] ?? MSG["generic"]!).replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 /** Wording guard (Tambola wording-guard.test.ts): words that never appear in anything a player reads. */
-export const BANNED_PLAYER_WORDS: RegExp[] = [/\bengagements?\b/i, /\bprivate\b/i];
+/** Words that never appear in customer text. "erase" in any form is out: say "auto-deleted" when the system deletes by timer and "deleted" when a person deletes. */
+export const BANNED_PLAYER_WORDS: RegExp[] = [/\bengagements?\b/i, /\bprivate\b/i, /\bera(se|sed|ses|sing|sure)\b/i];
 export const GROUP_WORD = "close group";
 export const guardOk = (text: string): boolean => !BANNED_PLAYER_WORDS.some((r) => r.test(text));
 

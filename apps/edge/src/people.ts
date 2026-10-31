@@ -229,7 +229,7 @@ export async function peopleRoute(c: Ctx): Promise<Response> {
   const got = await callerOf(c, bodyObj?.me, bodyObj?.device);
   if ("res" in got) return got.res;
   const who = got.who;
-  if (c.e.unplayed_ms && method !== "GET") return c.json({ error: "This game did not start. Your details have been erased.", code: "did-not-start", didNotStart: true }, 409);
+  if (c.e.unplayed_ms && method !== "GET") return c.json({ error: "This game did not start. Your details have been auto-deleted.", code: "did-not-start", didNotStart: true }, 409);
   if (c.cancelled && method !== "GET") return c.json({ error: "This game was cancelled by the organizer.", code: "cancelled", cancelled: true }, 409);
 
   if (parts[0] === "waiting") {

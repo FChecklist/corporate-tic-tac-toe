@@ -382,7 +382,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     return json({ serverNow: now, matches: await matchRecs(env, eid, rows.map((r) => r.mid)), pauses: await pausesOf(env, eid) });
   }
   // ------------------------------------------------------------------ the new flow (stages): the server only STORES and RELAYS. No pairing, no clock, no ranking here: every phone computes them from the start time and this public log.
-  // The log is append-only (an entry is never changed), keyed by game id and slot key, and it is erased with the other participant data. Reachable only when the Organizer or a Host switched the new flow on for this game before it started.
+  // The log is append-only (an entry is never changed), keyed by game id and slot key, and it is auto-deleted with the other participant data. Reachable only when the Organizer or a Host switched the new flow on for this game before it started.
   if ((sub === "stageon" || sub === "stagego") && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can do this." }, 403);
     if (t.state !== "open") return json({ error: "The tournament has already started.", code: "started" }, 409);

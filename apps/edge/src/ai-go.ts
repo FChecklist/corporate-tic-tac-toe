@@ -166,7 +166,7 @@ async function gameStep(ctx: GoCtx, step: string, q: URLSearchParams): Promise<S
   const rows: [string, string, boolean?][] = [["Change the day or time", `${ctx.base}/go/gtime?id=${id}`], ["Show the links", `${ctx.base}/go/links?id=${id}`], ["How many have joined", `${ctx.base}/go/who?id=${id}`], ["Create a Host link", `${ctx.base}/go/helper?id=${id}`]];
   if (published) rows.splice(2, 0, ["Send a message to every guest", `${ctx.base}/go/say?id=${id}`]);
   if (draft) rows.unshift(["Publish (free): the organizer taps once", consoleOf(ctx, id, "publish"), true]);
-  rows.push(["Erase all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["Pause or stop: the organizer taps once", consoleOf(ctx, id, "pause")]);
+  rows.push(["Delete all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["Pause or stop: the organizer taps once", consoleOf(ctx, id, "pause")]);
   return { say: [`Game ${id}: ${s.status}. Starts ${s.startsAtIST}. Up to ${s.limit} people, ${s.participants} joined.`, ...(unpaid && s.payBefore ? [`Payment is due before ${s.payBefore} (the organizer pays; I never do).`] : []), "What would you like to do?"].join("\n"), choices: choices(rows), ifWrong: WRONG };
 }
 
