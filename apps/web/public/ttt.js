@@ -171,13 +171,35 @@
   const engineOn = (() => { try { return /[?&]flow=new\b/.test(location.search) || localStorage.getItem("ct-flow") === "new"; } catch { return /[?&]flow=new\b/.test(location.search); } })();
   if (engineOn) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "/reactions.css?v=1"; document.head.appendChild(l); const sc = document.createElement("script"); sc.src = "/tttengine.js?v=1"; sc.async = true; document.head.appendChild(sc); }
   let rxPrev = null, rxPaused = false;
+  // The core reaction scheduler decides what shows (2 to 3 s, gaps, at most 15 in 10 minutes); the top strip never covers the board.
+  let rxs = null;
+  const rx = (id, high) => { try { const R = window.TTTENG; if (!R) return; if (!rxs) rxs = R.createReactions(pid || null); rxs.react(id, { now: Date.now(), priority: high ? "high" : "normal", game: "tictactoe" }); } catch (e) {} };
+  // Stage clock (new flow only): the waiting room, then three stages. Pure functions of the start time; every phone shows the same.
+  const stagePanel = () => {
+    if (!engineOn) return;
+    let box = document.getElementById("tstage");
+    if (!box) { box = document.createElement("div"); box.id = "tstage"; box.className = "zcard"; box.setAttribute("role", "status"); box.hidden = true; $app.parentNode.insertBefore(box, $app); }
+    let info = null, got = 0;
+    const load = async () => { try { const j = await api("GET", `/api/z/${EID}/ttt/setup`); info = { startedMs: j.startedMs, pauses: j.pauses || [], skew: (j.serverNow || Date.now()) - Date.now() }; } catch (e) {} got = Date.now(); };
+    const mmss = (n) => Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0");
+    const paint = () => {
+      const R = window.TTTENG;
+      if (!R || !info || !info.startedMs) { box.hidden = true; return; }
+      const now = Date.now() + info.skew; let paused = 0; for (const [a, b] of info.pauses) paused += Math.max(0, Math.min(b == null ? now : b, now) - a);
+      const c = R.clockAt(info.startedMs, now, paused), stillPaused = info.pauses.some(([, b]) => b == null);
+      box.hidden = false;
+      box.textContent = stillPaused ? "Paused" : c.phase === "waiting" ? "Waiting room. The first stage starts in " + mmss(c.secondsToStart) : c.phase === "done" ? "The stages are over." : "Stage " + c.stage + " of " + R.STAGES + ", slot " + c.slot + " of " + R.SLOTS_PER_STAGE + ". " + mmss(c.secondsLeftInStage) + " left in this stage.";
+    };
+    load(); setInterval(() => { if (Date.now() - got > 20000) load(); paint(); }, 1000);
+  };
+  stagePanel();
   const reactTo = (s) => {
     const R = window.TTTENG; if (!engineOn || !R) { rxPrev = s.phase; return; }
     const paused = !!s.paused, ph = s.phase;
-    if (paused !== rxPaused) { R.react(paused ? "pause" : "resume"); rxPaused = paused; }
+    if (paused !== rxPaused) { rx(paused ? "pause" : "resume"); rxPaused = paused; }
     else if (rxPrev !== null && ph !== rxPrev) {
-      if (ph === "champion") R.react("win"); else if (ph === "out") R.react("out");
-      else if (ph === "next") R.react("round_end"); else if (ph === "playing" && rxPrev !== "playing") R.react(rxPrev === "waiting" ? "go" : "round_start");
+      if (ph === "champion") rx("win", true); else if (ph === "out") rx("out", true);
+      else if (ph === "next") rx("round_end"); else if (ph === "playing" && rxPrev !== "playing") rx(rxPrev === "waiting" ? "go" : "round_start");
     }
     rxPrev = ph;
   };
