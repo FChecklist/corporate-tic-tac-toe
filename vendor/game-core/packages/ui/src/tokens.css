@@ -1,0 +1,11 @@
+/* Corporate Games look, extracted from Tambola 1.9.0 (app.css :root, z.css retro/modern). Two looks: modern (default) and retro (html[data-pt=retro]). */
+:root{--wine:#5A1426;--wine2:#7A1C33;--deep:#2E0812;--gold:#E0B872;--gold2:#F3D9A4;--goldd:#B8894D;--golddt:#8A6228;--ivory:#FBF6EC;--bg:#F6F1E7;--surface:#fff;--sunk:#F3ECE0;--ink:#1C1014;--ink2:#3B2E33;--muted:#6F6166;--faint:#A0949A;--line:#E8DDCC;--line2:#F1EADF;
+  --ok:#1F7A55;--okbg:#E4F3EC;--warn:#8A5A00;--warnbg:#FBF0D9;--bad:#B3261E;--badbg:#FBE7E4;--info:#1F4E8C;--infobg:#E6EEF9;
+  --serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(28,16,20,.05),0 14px 34px -22px rgba(28,16,20,.45);--tap:44px}
+html[data-pt=retro]{--ink:#FBF1DC;--ink2:#EBDDBE;--muted:#D9C7A0;--faint:#B9A57C;--surface:transparent;--line:rgba(224,184,114,.28);--golddt:#E0B872;--wine:#F3D9A4;--info:#CFE0FF;--infobg:rgba(255,255,255,.08);--warn:#FFE3A1;--warnbg:rgba(255,255,255,.08);--ok:#BFF0D6;--okbg:rgba(255,255,255,.08);--bad:#FFC9C4;--badbg:rgba(255,255,255,.08)}
+html[data-pt=retro] body{background:radial-gradient(120% 80% at 50% 0,#6B1429 0,#3E0A1A 60%,#2A0711 100%) fixed}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--goldd);outline-offset:2px}
