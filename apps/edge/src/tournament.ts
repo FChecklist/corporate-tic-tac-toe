@@ -146,7 +146,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (t.state === "starting" && !c.allowed) return json(head); // the seed and the list are shown to everybody when the clocks start (the Organizer's page needs them one moment earlier to send the draw)
     const roster = ((await env.DB.prepare("SELECT pid, name FROM ttt_p WHERE eid=? ORDER BY pid").bind(eid).all<{ pid: string; name: string }>()).results ?? []);
     const o = optsOf(t);
-    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
+    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs, stages: !!o.stages }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
   }
 
   if (sub === "reveal" && method === "GET") {
@@ -421,8 +421,8 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not on for this game." }, 404);
     const q = c.url.searchParams, after = Math.max(0, Number(q.get("after") ?? 0) || 0), slot = q.get("slot");
     let rows;
-    if (slot !== null) { if (!STAGE_SLOT.test(slot)) return json({ error: "Bad slot." }, 400); rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body FROM ttt_sl WHERE eid=? AND slot=? AND kind<>'flag' AND id>? ORDER BY id LIMIT 200").bind(eid, slot, after).all<any>(); }
-    else rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body FROM ttt_sl WHERE eid=? AND kind='result' AND id>? ORDER BY id LIMIT 1000").bind(eid, after).all<any>();
+    if (slot !== null) { if (!STAGE_SLOT.test(slot)) return json({ error: "Bad slot." }, 400); rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND slot=? AND kind<>'flag' AND id>? ORDER BY id LIMIT 200").bind(eid, slot, after).all<any>(); }
+    else rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND kind='result' AND id>? ORDER BY id LIMIT 1000").bind(eid, after).all<any>();
     return new Response(JSON.stringify({ serverNow: now, entries: rows.results ?? [] }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=2" } });
   }
 

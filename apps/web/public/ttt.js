@@ -169,6 +169,8 @@
   const render = (s) => { try { render0(s); } finally { countUps(); } };
   // The common engine's text reactions: only on the new flow (?flow=new or ct-flow=new on this device); the live game is unchanged without it.
   const engineOn = (() => { try { return /[?&]flow=new\b/.test(location.search) || localStorage.getItem("ct-flow") === "new"; } catch { return /[?&]flow=new\b/.test(location.search); } })();
+  let stage = null;
+  if (engineOn) { const sg = document.createElement("script"); sg.src = "/tttstage.js?v=1"; sg.async = true; document.head.appendChild(sg); }
   if (engineOn) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "/reactions.css?v=1"; document.head.appendChild(l); const sc = document.createElement("script"); sc.src = "/tttengine.js?v=1"; sc.async = true; document.head.appendChild(sc); }
   let rxPrev = null, rxPaused = false;
   // The core reaction scheduler decides what shows (2 to 3 s, gaps, at most 15 in 10 minutes); the top strip never covers the board.
@@ -222,6 +224,11 @@
   const tick = async () => {
     clearTimeout(timer);
     try {
+      if (engineOn && window.TTTSTAGE && window.TTTENG) {
+        if (!stage) stage = window.TTTSTAGE({ api, EID, pid: () => pid, device: () => device, rx });
+        const html = await stage.look();
+        if (html) { set(`${top()}${html}`); timer = setTimeout(tick, 1000); return; }
+      }
       const s = await thePhone().tick();
       if ((s.phase === "waiting" || s.phase === "watching" || ((s.phase === "playing" || s.phase === "next") && rmLook++ % 2 === 0)) && (await isRemoved(s.state === "open" || s.state === "starting"))) { removedView(); return; }
       render(s);

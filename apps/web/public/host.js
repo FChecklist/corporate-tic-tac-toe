@@ -11,6 +11,7 @@
   const ss = { get: (k) => { try { return window.CTK ? window.CTK.get(k) : sessionStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { if (window.CTK) window.CTK.set(k, v); else sessionStorage.setItem(k, v); } catch (e) { /* blocked */ } } };
   let key = ss.get("cbz-org") || "";
   { const k = q.get("k"); if (k && /^cb[a-z]_[0-9a-f]{48}$/.test(k)) { key = k; ss.set("cbz-org", k); history.replaceState(null, "", location.pathname + "?e=" + encodeURIComponent(EID)); } }
+  const NEWFLOW = (() => { try { return /[?&]flow=new\b/.test(location.search) || localStorage.getItem("ct-flow") === "new"; } catch (e) { return false; } })();
   const S = { format: "solo", teamSize: 3, moveSecs: 20, msg: "", view: null, disputed: [] };
   const call = async (method, path, body) => {
     const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", "x-organizer": key }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
@@ -31,6 +32,7 @@
         <h2>Move clock</h2>${chips("moveSecs", [[10, "10 s"], [20, "20 s"], [30, "30 s"], [60, "60 s"]], S.moveSecs)}
         <p class="zsmall">If a player's clock runs out, a square is played for them. Two clock-outs in a row lose the board. A drawn game is replayed with the marks swapped, up to 3 games, then fate decides.</p>
         <button class="zbtn" id="start">Start the tournament</button></div>`;
+      if (NEWFLOW) body += `<div class="zcard"><h2>Stage game (new flow)</h2><p class="zsmall">A waiting room of 2 minutes, then three stages of 5 minutes. Quick one-board games, half go out after stage 1 and again after stage 2, the top five win. The list closes when you press Start.</p><button class="zbtn" id="stagego">Start the stage game</button></div>`;
     } else {
       body = `<div class="zcard"><h2>${v.state === "done" ? (v.endedEarly ? "Ended" : "Finished") : v.paused ? "Paused" : "Running"}</h2><p>${esc(v.players || v.joined)} players &middot; ${esc(v.rounds || "")} ${Number(v.rounds) === 1 ? "round" : "rounds"}</p>${v.champion ? `<p>Champion: <b>${esc(v.champion)}</b></p>` : ""}${links()}
         ${v.state === "running" ? `<div class="hrow">${v.paused ? `<button class="zbtn" id="resume">Resume</button>` : `<button class="zbtn" id="pause">Pause for everyone</button>`}</div><p class="zsmall">While paused no clock runs and nobody can move. After Resume every clock has the same time left.</p><div class="hrow"><button class="zbtn" id="end">End the tournament</button></div><p class="zsmall">Ends it for everybody now. Nobody is ranked and this cannot be undone.</p>` : ""}</div>
@@ -41,6 +43,7 @@
     document.querySelectorAll(".hchip").forEach((b) => b.addEventListener("click", () => { const k = b.dataset.k, val = b.dataset.v; S[k] = k === "format" ? val : Number(val); paint(); }));
     const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
     on("start", async () => { if (!confirm("Start now? The list of players closes and cannot be changed.")) return; try { await call("POST", `/api/z/${EID}/ttt/start`, { format: S.format, teamSize: S.teamSize, moveSecs: S.moveSecs }); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
+    on("stagego", async () => { if (!confirm("Start the stage game now? The list of players closes and cannot be changed.")) return; try { await call("POST", `/api/z/${EID}/ttt/stageon`, {}); await call("POST", `/api/z/${EID}/ttt/stagego`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
     document.querySelectorAll("[data-settle]").forEach((b) => b.addEventListener("click", async () => { const [mid, j, winner] = b.dataset.settle.split("|"); try { await call("POST", `/api/z/${EID}/ttt/settle`, { mid, j: Number(j), winner }); S.msg = ""; } catch (e) { S.msg = e.message; } load(); }));
     on("pause", async () => { try { await call("POST", `/api/z/${EID}/ttt/pause`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
     on("resume", async () => { try { await call("POST", `/api/z/${EID}/ttt/resume`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
