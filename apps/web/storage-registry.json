@@ -167,6 +167,14 @@
         "ct-theme",
         "cg-theme"
       ]
+    },
+    {
+      "id": "site-flow",
+      "store": "localStorage",
+      "say": "On the player page and the tournament page, on this device: whether you chose to try the new screens, so the same screens show next time.",
+      "keys": [
+        "ct-flow"
+      ]
     }
   ],
   "cookies": [

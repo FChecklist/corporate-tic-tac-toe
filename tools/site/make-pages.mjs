@@ -68,7 +68,7 @@ out["how-it-works"] = page({ file: "how-it-works", title: "How it works | Corpor
     ["2. Share one link", "Send it by e-mail, Teams, Slack or WhatsApp. Only the people you invite can join. No app to install."],
     ["3. Players join", "Each colleague types a name and is in. Players never pay."],
     ["4. The bracket plays itself", "Colleagues play one against one, each move on a clock. Winners move up on their own. A drawn game is replayed at once with the marks swapped."],
-    ["5. Winners and report", "The software names the winners. You get a report by e-mail. Player details are erased within 24 hours."]])) + sec("Fair play", "Who decides the winners?", `<p class="ck-lead">${FAIR}</p>${cta}`, "ck-alt") });
+    ["5. Winners and report", "The software names the winners. You get a report by e-mail. Player details are auto-deleted within 24 hours."]])) + sec("Fair play", "Who decides the winners?", `<p class="ck-lead">${FAIR}</p>${cta}`, "ck-alt") });
 
 out.guide = page({ file: "guide", title: "Guide for organizers | Corporate Tic Tac Toe",
   desc: "A short guide for organizers of a Corporate Tic Tac Toe game: the ten steps, the move clock, the tournament shapes, running the game day and what you get afterwards.",
@@ -83,7 +83,7 @@ out.guide = page({ file: "guide", title: "Guide for organizers | Corporate Tic T
     ["Pause", "You can pause. While the game is paused the clocks wait."],
     ["Big screen", "Show the bracket on a projector or a shared video call."],
     ["If someone drops", "They open the link again and see the board as it is."]]), "ck-alt") +
-    sec("Afterwards", "Winners and report", `<p class="ck-lead">The software names the winners and the order has no ties. You get a report by e-mail a few minutes after the game ends. Player details are erased within 24 hours.</p>${cta}`) });
+    sec("Afterwards", "Winners and report", `<p class="ck-lead">The software names the winners and the order has no ties. You get a report by e-mail a few minutes after the game ends. Player details are auto-deleted within 24 hours.</p>${cta}`) });
 
 out.brochure = page({ file: "brochure", title: "Brochure | Corporate Tic Tac Toe",
   desc: "The Corporate Tic Tac Toe brochure: a tournament for your whole company, played one against one on each person's phone, with a clock on every move and winners named by the software.",
@@ -92,7 +92,7 @@ out.brochure = page({ file: "brochure", title: "Brochure | Corporate Tic Tac Toe
     ["For whom", "HR teams and managers who want one fun event for the whole company, in the room or remote."],
     ["What colleagues do", "Play one against one on their own phone. Every move has a clock."],
     ["What you do", "Set up in ten short steps, share one link, press Start."],
-    ["What you can count on", "Players never pay. Only invited people join. No app. Player details erased within 24 hours."]]) + cta) });
+    ["What you can count on", "Players never pay. Only invited people join. No app. Player details auto-deleted within 24 hours."]]) + cta) });
 
 out.refer = page({ file: "refer", title: "Refer and earn | Corporate Tic Tac Toe",
   desc: "Refer and earn with Corporate Tic Tac Toe: tell another company about close group online games for company events and see how the partner programme works.",
