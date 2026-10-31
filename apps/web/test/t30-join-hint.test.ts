@@ -16,12 +16,16 @@ describe("the employee ID box and its hint line", () => {
   test("symbols only show no hint (nothing to read)", async () => { const p = await openJoin({ verify: "id" }); await p.type("---//"); expect(p.hint()).toBe(""); await p.type("😀"); expect(p.hint()).toBe(""); });
   test("the box accepts up to 60 typed characters (maxlength 60), more than the 30 that remain after cleaning", async () => {
     const p = await openJoin({ verify: "id" }); expect(p.emp().getAttribute("maxlength")).toBe("60");
-    const sixty = "1B-".repeat(20); expect(sixty.length).toBe(60); await p.type(sixty); expect(p.emp().value.length).toBe(60); expect(p.hint()).toBe("The system will read this as " + "1B".repeat(20));
+    const sixty = "1B-".repeat(20); expect(sixty.length).toBe(60); await p.type(sixty); expect(p.emp().value.length).toBe(60);
+    expect(p.hint()).toBe(""); // 1.4.1: the server REFUSES more than 30 after cleaning (here 40), so the page does not promise a reading
+    const ten = "1B-".repeat(10); await p.type(ten); expect(p.hint()).toBe("The system will read this as " + "1B".repeat(10)); // 20 left after cleaning: still promised
   });
   test("the mobile box (shown with the ID box for outsiders) has its own limit of 20 and no hint", async () => { const p = await openJoin({ verify: "id", employeesOnly: false }); expect(p.d.getElementById("mob")!.getAttribute("maxlength")).toBe("20"); });
-  test("the page cleans exactly like the server: 40 probes, hint text == 'The system will read this as ' + ids.ts cleanEmpId", async () => {
+  test("the page cleans exactly like the server: 40 probes, hint text == 'The system will read this as ' + ids.ts cleanEmpId, only where the server cleans and the cleaning changes the text", async () => {
     const p = await openJoin({ verify: "id" });
     const probes = ["1B-678", "1b-678", "1B/678", "1B 678", "1b.678", "１Ｂ６७８", "1B😀678", "1B\u200B678", "1B\u200D678", "\uFEFF1B678", "é1", "१B678", "ﬁ9", "a_b", "A-B-C-D", " x ", "ab#12", "E-101", "e101", "ＡＢ-１２", "zoë", "1B\t678", "(1B)678", "N/A", "0042", "007", "Ⅷ9", "²3", "①A", "AB\u00ADCD", "ǅ1", "ß5", "İ1", "ı1", "ſ2", "K9", "ℌ1", "⒈A", "áb", "x".repeat(30)];
-    for (const t of probes) { await p.type(t); const want = cleanEmpId(t); expect([t, p.hint()]).toEqual([t, want ? "The system will read this as " + want : ""]); }
+    // the hint is promised only where the server really cleans (1 to 30 characters left, no "@") and only when cleaning changes what is typed
+    const wantHint = (t: string) => { const c = cleanEmpId(t); return c && c.length <= 30 && !t.normalize("NFKC").includes("@") && c !== t.trim() ? "The system will read this as " + c : ""; };
+    for (const t of probes) { await p.type(t); expect([t, p.hint()]).toEqual([t, wantHint(t)]); }
   });
 });

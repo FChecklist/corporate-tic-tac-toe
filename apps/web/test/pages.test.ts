@@ -6,13 +6,14 @@ setDefaultTimeout(30_000);
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { newWorld, openPage, roundAt, roundMs, T, type Page } from "./harness";
+import { friendlyDay, istDate, newWorld, openPage, roundAt, roundMs, T, type Page } from "./harness";
 import { publicKeyFromSecret } from "../../../packages/beacon/src/control";
 import { PRIZE_HOUSES } from "../../../packages/beacon/src/config";
 
 const HOUR = 3_600_000;
 const START = roundAt(T) + 1200; // one hour after T
 const START_MS = roundMs(START);
+const DAY4 = istDate(4), DAY2 = istDate(2); // relative to the test clock, never a fixed calendar date
 const rnd = (r: number) => createHash("sha256").update("fake" + r).digest("hex");
 let open: Page[] = [];
 afterEach(async () => { for (const p of open) await p.close(); open = []; });
@@ -313,18 +314,18 @@ describe("console (organizer page)", () => {
     const p = await consolePage(o, "UI-OCC"); await p.waitFor((x) => /Hello/.test(x));
     const chips = [...p.win.document.querySelectorAll('[data-ck="occ"]')].map((e: any) => e.textContent.trim());
     expect(chips).toEqual(["Team event", "Holiday party", "All-hands opener", "New-hire welcome", "Customer event", "Friday team break", "Family day", "Diwali party", "Other"]);
-    p.click('[data-ck="occ"][data-v="Holiday party"]'); p.click('[data-ck="day"][data-v="other"]'); setField(p, "#f-dayo", "2026-10-05"); p.click('[data-ck="time"][data-v="other"]'); setField(p, "#f-timeo", "18:30");
+    p.click('[data-ck="occ"][data-v="Holiday party"]'); p.click('[data-ck="day"][data-v="other"]'); setField(p, "#f-dayo", DAY4); p.click('[data-ck="time"][data-v="other"]'); setField(p, "#f-timeo", "18:30");
     p.click('[data-save="1"]'); await p.waitFor((x) => /Saved\./.test(x));
     expect((await o.json(await o.api("GET", "/api/z/UI-OCC/summary", undefined, o.aiKey))).name).toBe("Holiday party");
   });
   test("Your game: occasion, day and time are chips; saving sets the name and the exact start in India time; a past time is refused politely", async () => {
     const o = await organizer(); await make(o, "UI-WHEN");
     const p = await consolePage(o, "UI-WHEN"); await p.waitFor((x) => /Hello/.test(x));
-    p.click('[data-ck="occ"][data-v="Team event"]'); p.click('[data-ck="day"][data-v="other"]'); setField(p, "#f-dayo", "2026-10-05"); p.click('[data-ck="time"][data-v="other"]'); setField(p, "#f-timeo", "18:30");
+    p.click('[data-ck="occ"][data-v="Team event"]'); p.click('[data-ck="day"][data-v="other"]'); setField(p, "#f-dayo", DAY4); p.click('[data-ck="time"][data-v="other"]'); setField(p, "#f-timeo", "18:30");
     p.click('[data-save="1"]'); await p.waitFor((x) => /Saved\./.test(x));
-    const sm = await o.json(await o.api("GET", "/api/z/UI-WHEN/summary", undefined, o.aiKey)); expect(sm.name).toBe("Team event"); expect(sm.startMs).toBe(Date.parse("2026-10-05T18:30:00+05:30"));
+    const sm = await o.json(await o.api("GET", "/api/z/UI-WHEN/summary", undefined, o.aiKey)); expect(sm.name).toBe("Team event"); expect(sm.startMs).toBe(Date.parse(`${DAY4}T18:30:00+05:30`));
     openStep(p, 1); setField(p, "#f-dayo", "2020-01-01"); p.click('[data-save="1"]'); await p.waitFor((x) => /start time in the future/.test(x));
-    expect((await o.json(await o.api("GET", "/api/z/UI-WHEN/summary", undefined, o.aiKey))).startMs).toBe(Date.parse("2026-10-05T18:30:00+05:30")); // nothing changed
+    expect((await o.json(await o.api("GET", "/api/z/UI-WHEN/summary", undefined, o.aiKey))).startMs).toBe(Date.parse(`${DAY4}T18:30:00+05:30`)); // nothing changed
   });
   test("Help: pre-answered questions (including Who can do what? and the big-screen link), Back to your steps, Back to top; and the progress bar moves as steps are saved", async () => {
     const o = await organizer(); await make(o, "UI-HELP");
@@ -636,7 +637,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     await p.waitFor(() => syn()[4].includes("1 Host, 1 Co-host")); expect(syn()[4]).not.toMatch(/1 Hosts|1 Co-hosts/);
     expect(syn()[8]).not.toMatch(/After the game\s*After the game/);
     for (let n = 1; n <= 10; n++) { openStep(p, n); expect([n, /ngagement/.test(p.text())]).toEqual([n, false]); }
-    openStep(p, 10); const t = await p.waitFor((x) => /Within 24 hours of the game ending/.test(x));
+    openStep(p, 10); const t = await p.waitFor((x) => /names and numbers are deleted at 20 hours \(we promise within 24\)/.test(x));
     expect(t).toMatch(/Your details as Organizer and Host, and the winners record, are kept for 365 days\. Co-host details are erased with the guests\./);
     expect(t).not.toMatch(/\d{4}-\d\d-\d\d|\bIST\b/); expect(t).toMatch(/deleted by \d{1,2} \w{3} \d{4}, \d{1,2}:\d\d (am|pm)/); expect(t).toMatch(/kept until \d{1,2} \w{3} \d{4}/);
     openStep(p, 7); expect(p.text()).toMatch(/Continue/); expect(p.text()).not.toMatch(/Save and continue/); openStep(p, 3); expect(p.$('[data-save="3"]')!.textContent).toBe("Save and continue");
@@ -1065,10 +1066,10 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
   });
 
   test("a game that waits: the Organizer sees when guest data will be erased; the Co-host sees 'Waiting for the Organizer or Host to start the game.'; a game that did not start says so with the new-game button (and no way to pay)", async () => {
-    const o = await organizer(); await make(o, "UI-WAITS"); await publish(o, "UI-WAITS"); const erase = Date.parse("2026-10-03T21:30:00+05:30");
+    const o = await organizer(); await make(o, "UI-WAITS"); await publish(o, "UI-WAITS"); const erase = Date.parse(`${DAY2}T21:30:00+05:30`);
     const p = await consolePage(o, "UI-WAITS", o.token, {}, { afterLoad: spy({ "GET /api/z/UI-WAITS/summary": async (_m, _b, _u, real) => ({ ...(await real()), waitingFor: "organizer", erasureMs: erase }) }).hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));
-    await p.waitFor(() => !!p.$("#erasurestrip")); expect(p.$("#paynote")!.textContent).toMatch(/A payment is pending for this game/); expect(p.$("#erasurestrip")!.textContent).toBe("Guest data will be erased on 3 Oct 2026, 9:30 pm if the game does not start.");
-    openStep(p, 8); expect(p.$("#erasureline")!.textContent).toMatch(/erased on 3 Oct 2026, 9:30 pm/);
+    await p.waitFor(() => !!p.$("#erasurestrip")); expect(p.$("#paynote")!.textContent).toMatch(/A payment is pending for this game/); expect(p.$("#erasurestrip")!.textContent).toBe(`Guest data will be erased on ${friendlyDay(DAY2)}, 9:30 pm if the game does not start.`);
+    openStep(p, 8); expect(p.$("#erasureline")!.textContent).toMatch(new RegExp(`erased on ${friendlyDay(DAY2)}, 9:30 pm`));
     const c = await consolePage(o, "UI-WAITS", await cohostKey(o, "UI-WAITS"), {}, { afterLoad: spy({ "GET /api/z/UI-WAITS/cohost": async (_m, _b, _u, real) => ({ ...(await real()), waitingFor: "organizer" }) }).hook }); await c.waitFor((x) => /Hi\. Here is the game/.test(x));
     await c.waitFor(() => !!c.$("#cohwaiting")); expect(c.$("#cohwaiting")!.textContent).toBe("Waiting for the Organizer or Host to start the game."); expect(c.$("[data-clonebtn]")).toBeNull();
     const d = await consolePage(o, "UI-WAITS", o.token, {}, { afterLoad: spy({ "GET /api/z/UI-WAITS/summary": async (_m, _b, _u, real) => ({ ...(await real()), didNotStart: true }), "GET /api/z/UI-WAITS/info": async (_m, _b, _u, real) => ({ ...(await real()), didNotStart: true }) }).hook });
