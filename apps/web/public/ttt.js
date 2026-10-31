@@ -74,6 +74,7 @@
       <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Tick the boxes</span></li><li><b>2</b><span>Type your name</span></li><li><b>3</b><span>Press Join</span></li></ol>
       <p class="tlead">Win your board to reach the next round. The last player standing is the champion.</p>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask your name only. Your organizer sees it and other players see it on the bracket.</p>${planned()}
+      <p class="zsmall">No personal details needed. All participant information is deleted within 24 hours of the game.</p>
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your name</label><input id="nm" autocomplete="name" maxlength="40" disabled>
@@ -175,7 +176,7 @@
   let rxPrev = null, rxPaused = false;
   // The core reaction scheduler decides what shows (2 to 3 s, gaps, at most 15 in 10 minutes); the top strip never covers the board.
   let rxs = null;
-  const rx = (id, high) => { try { const R = window.TTTENG; if (!R) return; if (!rxs) rxs = R.createReactions(pid || null); rxs.react(id, { now: Date.now(), priority: high ? "high" : "normal", game: "tictactoe" }); } catch (e) {} };
+  const rx = (id, high) => { try { const R = window.TTTENG; if (!R || window.__tttPaused) return; if (!rxs) rxs = R.createReactions(pid || null); rxs.react(id, { now: Date.now() - (window.__tttPausedMs || 0), who: pid || undefined, priority: high ? "high" : "normal", game: "tictactoe" }); } catch (e) {} }; // game time: the time paused is taken out, so a pause neither uses up the gap nor the window; nothing is offered while paused
   // Stage clock (new flow only): the waiting room, then three stages. Pure functions of the start time; every phone shows the same.
   const stagePanel = () => {
     if (!engineOn) return;
@@ -198,10 +199,10 @@
   const reactTo = (s) => {
     const R = window.TTTENG; if (!engineOn || !R) { rxPrev = s.phase; return; }
     const paused = !!s.paused, ph = s.phase;
-    if (paused !== rxPaused) { rx(paused ? "pause" : "resume"); rxPaused = paused; }
+    if (paused !== rxPaused) { rx(paused ? "hang_on" : "lets_go"); rxPaused = paused; }
     else if (rxPrev !== null && ph !== rxPrev) {
-      if (ph === "champion") rx("win", true); else if (ph === "out") rx("out", true);
-      else if (ph === "next") rx("round_end"); else if (ph === "playing" && rxPrev !== "playing") rx(rxPrev === "waiting" ? "go" : "round_start");
+      if (ph === "champion") rx("champion", true); else if (ph === "out") rx("poof_gone", true);
+      else if (ph === "playing" && rxPrev !== "playing") rx("ready_set_go");
     }
     rxPrev = ph;
   };

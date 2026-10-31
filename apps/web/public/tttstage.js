@@ -33,6 +33,7 @@
       const now = Date.now() + skew, pid = ctx.pid(), pauses = setup.pauses || [];
       let paused = 0; for (const [a, b] of pauses) paused += Math.max(0, Math.min(b == null ? now : b, now) - a);
       const stillPaused = pauses.some(([, b]) => b == null);
+      window.__tttPaused = stillPaused; window.__tttPausedMs = paused; // read by the reaction hook in ttt.js (game time)
       const roster = (setup.roster || []).map((r) => r.pid), fate = {}; for (const p of roster) fate[p] = R.fateOf(setup.seed, p);
       const clock = R.clockAt(setup.startedMs, now, paused);
       const st = R.settleStages({ gameId: EID, startMs: setup.startedMs, nowMs: now, pausedMs: paused, players: roster, fate, results: R.agreed(results) });
@@ -42,11 +43,11 @@
       if (v.place > 0) place = st.over ? `You finished ${v.place} of ${v.of}.` : v.isOut ? `You are out. You finished this stage in place ${v.place}.` : v.safe ? `You are ${v.place} of ${v.of}. ${v.placesToLine} place${v.placesToLine === 1 ? "" : "s"} above the cut line.` : `You are ${v.place} of ${v.of}. ${v.placesToLine} place${v.placesToLine === 1 ? "" : "s"} below the cut line.`;
       else if (v.isOut) place = "You are out. You can follow the standing here.";
       // reactions at fitting moments (the scheduler decides what really shows)
-      if (v.isOut && !prevOut && prevPlace) ctx.rx("out", true);
-      else if (prevPlace && v.place && v.place !== prevPlace && !st.over && clock.phase === "slot") { if (v.safe && v.place < prevPlace && prevPlace - v.place >= 3) ctx.rx("comeback"); else if (!v.safe && v.placesToLine <= 2) ctx.rx("close_call"); }
+      if (v.isOut && !prevOut && prevPlace) ctx.rx("poof_gone", true);
+      else if (prevPlace && v.place && v.place !== prevPlace && !st.over && clock.phase === "slot") { if (v.safe && v.place < prevPlace && prevPlace - v.place >= 3) ctx.rx("comeback_time"); else if (!v.safe && v.placesToLine <= 2) ctx.rx("so_close"); }
       prevOut = v.isOut; if (v.place) prevPlace = v.place;
       if (st.over) {
-        if (st.winners && st.winners.includes(pid) && prevSlotWon !== "final") { prevSlotWon = "final"; ctx.rx("win", true); }
+        if (st.winners && st.winners.includes(pid) && prevSlotWon !== "final") { prevSlotWon = "final"; ctx.rx("champion", true); }
         const top = (st.winners || []).map((p, i) => `<li><b>${esc(nm[p] || "Player")}</b> <small>${["1st", "2nd", "3rd", "4th", "5th"][i]}</small></li>`).join("");
         const won = st.winners && st.winners.includes(pid) ? `<div class="zcard tchamp" role="status"><h2>You won</h2><p>${esc(["1st", "2nd", "3rd", "4th", "5th"][st.winners.indexOf(pid)])} place.</p></div>` : "";
         return `${won}<div class="zcard" role="status"><h2>Final result</h2><ol class="trank">${top}</ol><p class="zsmall">${esc(place)}</p></div>`;
@@ -61,7 +62,7 @@
           const dl = R.deadlineOf(g, clock.slotStartMs, pauses, now);
           if (now > dl) post(key, "move", g.entries, "-"); // the clock ran out for whoever was to move: a missed move, the turn goes to the opponent
         }
-        if (g.done) { post(key, "result", 0, g.winner); if (prevSlotWon !== key) { prevSlotWon = key; const mine = g.winner === (a === pid ? "a" : "b"); ctx.rx(g.winner === "draw" ? "tie" : mine ? "yay" : "ouch"); } }
+        if (g.done) { post(key, "result", 0, g.winner); if (prevSlotWon !== key) { prevSlotWon = key; const mine = g.winner === (a === pid ? "a" : "b"); if (g.winner !== "draw") ctx.rx(mine ? "yeah" : "ouch"); } }
         else if (clock.secondsLeftInStage >= 0 && now >= clock.slotEndMs - 500) post(key, "result", 0, "draw"); // still running at the end of its slot: a draw
         const turn = g.done ? (g.winner === "draw" ? "Draw." : g.winner === (a === pid ? "a" : "b") ? "You won this game (2 points)." : "You lost this game.") : g.next === pid ? "Your move." : "Waiting for " + esc(nm[opp] || "the other player") + ".";
         body = `<div class="zcard" role="status"><h2>You play ${esc(myMark)} against ${esc(nm[opp] || "a player")}</h2>${boardHtml(g, g.next === pid && !stillPaused, g.done)}<p class="zsmall" id="tturn" data-key="${esc(key)}" data-seq="${g.entries}">${turn}</p></div>`;

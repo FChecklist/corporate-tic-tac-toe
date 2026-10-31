@@ -146,7 +146,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (t.state === "starting" && !c.allowed) return json(head); // the seed and the list are shown to everybody when the clocks start (the Organizer's page needs them one moment earlier to send the draw)
     const roster = ((await env.DB.prepare("SELECT pid, name FROM ttt_p WHERE eid=? ORDER BY pid").bind(eid).all<{ pid: string; name: string }>()).results ?? []);
     const o = optsOf(t);
-    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs, stages: !!o.stages }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
+    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs, ...(o.stages ? { stages: true } : {}) }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
   }
 
   if (sub === "reveal" && method === "GET") {
@@ -406,6 +406,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
   if (sub === "stagelog" && method === "POST") {
     if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not on for this game." }, 404);
     if (t.state !== "running") return json({ error: "The game is not running.", code: "not-running" }, 409);
+    if (t.pause_at) return json({ error: "The host paused the game. Your clock waits.", code: "paused" }, 409);
     const b = (await c.body(req, 1024)) ?? {};
     const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
     const slot = String(b.slot ?? ""), kind = String(b.kind ?? ""), seq = Number(b.seq), body = typeof b.body === "string" ? b.body : "";
