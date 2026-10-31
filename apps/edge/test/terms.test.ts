@@ -22,7 +22,7 @@ const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked fro
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We erase Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "We keep billing data for audit and tax reasons."],
+    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We auto-delete Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "We keep billing data for audit and tax reasons."],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube", "IT Services payment service", "itservices-rajat-agarwal.pages.dev", "GitHub"],
     "privacy.html": ["Privacy notice", "Version 2026-10-15", "Hindi on request", "Grievance Officer", "Rajat Agarwal, IT Services by Rajat Agarwal", "We keep billing data for audit and tax reasons.", "18 or older", "name another person", "itservices-rajat-agarwal.pages.dev", "GitHub", "kept 90 days", "plain text"],

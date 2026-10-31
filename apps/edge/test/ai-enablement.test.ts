@@ -83,7 +83,7 @@ describe("the guided path, followed like an outside AI", () => {
     let g = await pick(start, /Change a game that has not started/); expect(g).toMatch(/DIWALI-1002/); expect(g).toMatch(/\(draft\)/);
     g = await pick(g, /DIWALI-1002/); expect(g).toMatch(/Game DIWALI-1002: draft/); expect(g).toMatch(/Publish \(free\)/);
     const menu = g; expect(menu).not.toMatch(/Send a message to every guest/); // nobody can see a draft
-    expect(choicesOf(menu).find((c) => /Erase all guest data/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=erase`);
+    expect(choicesOf(menu).find((c) => /Delete all guest data/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=erase`);
     expect(choicesOf(menu).find((c) => /Pause or stop/.test(c.label))!.url).toBe(`${ORIGIN}/zc.html?e=DIWALI-1002&do=pause`);
     const links = await pick(menu, /Show the links/); expect(links).toContain(`${ORIGIN}/zc.html?e=DIWALI-1002`); expect(links).toMatch(/appear after you publish/);
     expect(await pick(menu, /How many have joined/)).toMatch(/0 people have joined DIWALI-1002/);
