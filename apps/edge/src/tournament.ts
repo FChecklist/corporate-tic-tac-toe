@@ -120,7 +120,7 @@ const PID = /^[A-Za-z0-9_-]{4,40}$/;
 /** Limits of the new flow's log (the free Cloudflare tier): entries per game, bytes per entry, writes per player per second, players per game. */
 const STAGE_MAX_ENTRIES = 250_000, STAGE_ENTRY_BYTES = 200, STAGE_WRITES_PER_SECOND = 5, STAGE_MAX_PLAYERS = 2000;
 const STAGE_SLOT = /^[0-9]-[0-9]-[A-Za-z0-9_-]{4,40}-[A-Za-z0-9_-]{4,40}$/;
-const stagesOn = async (env: Env, eid: string): Promise<boolean> => !!(await env.DB.prepare("SELECT 1 AS x FROM ttt_sl WHERE eid=? AND kind='flag' LIMIT 1").bind(eid).first());
+const stagesOn = async (env: Env, eid: string): Promise<boolean> => { try { return !!(await env.DB.prepare("SELECT 1 AS x FROM ttt_sl WHERE eid=? AND kind='flag' LIMIT 1").bind(eid).first()); } catch { return false; } }; // no table yet (migration 0030 not applied): the new flow is simply off
 async function playerOf(c: TttCtx, pid: unknown, device: unknown): Promise<{ pid: string } | Response> {
   if (typeof pid !== "string" || typeof device !== "string" || !/^[0-9a-f]{16,64}$/.test(device)) return json({ error: "Open the game link on your own phone." }, 400);
   const seat = await c.env.DB.prepare("SELECT s.dev AS dev, s.blocked AS blocked FROM seat s WHERE s.eid=? AND s.pid=?").bind(c.eid, pid).first<{ dev: string | null; blocked: number | null }>();
@@ -389,7 +389,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
   if ((sub === "stageon" || sub === "stagego") && method === "POST") {
     if (!c.allowed) return json({ error: "Only the Organizer or a Host can do this." }, 403);
     if (t.state !== "open") return json({ error: "The tournament has already started.", code: "started" }, 409);
-    if (sub === "stageon") { await env.DB.prepare("INSERT OR IGNORE INTO ttt_sl(eid,slot,kind,pid,seq,body,at_ms) VALUES(?,?,?,?,?,?,?)").bind(eid, "_", "flag", "_", 0, "stages", now).run(); return json({ ok: true, stages: true }); }
+    if (sub === "stageon") { try { await env.DB.prepare("INSERT OR IGNORE INTO ttt_sl(eid,slot,kind,pid,seq,body,at_ms) VALUES(?,?,?,?,?,?,?)").bind(eid, "_", "flag", "_", 0, "stages", now).run(); } catch { return json({ error: "The new flow is not switched on for this game.", code: "no-stages" }, 409); } return json({ ok: true, stages: true }); }
     if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not switched on for this game.", code: "no-stages" }, 409);
     const b = (await c.body(req, 1024)) ?? {};
     const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=?").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
