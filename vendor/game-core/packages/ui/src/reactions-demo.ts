@@ -5,10 +5,10 @@ export interface SimRow { t: number; id: string; who: string; priority?: "high";
 const ME = "p7", OTHER = "p3";
 // [seconds, reaction id, who it happened to, high priority]
 const EVENTS: [number, string, string, boolean?][] = [
-  [5, "ready", ""], [12, "go", ""], [24, "six", ME], [45, "snake_bite", OTHER], [52, "snake_bite", ME], [75, "extra_throw", ME], [100, "upgrade", ME], [112, "ouch", ME],
-  [150, "round_end", ""], [160, "ladder", OTHER], [180, "missed_turn", ME], [182, "oops", ME], [240, "pause", ""], [250, "resume", ""], [300, "round_end", ""],
-  [330, "ladder", ME], [331, "yay", ME], [380, "snake_bite", ME], [410, "close_call", ME], [460, "ahead", ME], [480, "time_up", ""],
-  [540, "finish", ME, true], [541, "win", ME, true], [545, "nice", ME], [560, "out", OTHER, true], [575, "last_one", ""],
+  [5, "good_luck", ""], [12, "lets_go", ""], [24, "yeah", ME], [45, "aaah_bitten", OTHER], [52, "aaah_bitten", ME], [75, "extra_throws", ME], [100, "up_you_go", ME], [112, "ouch", ME],
+  [150, "ready_set_go", ""], [160, "climb_on", OTHER], [180, "oops", ME], [240, "hang_on", ""], [250, "lets_go", ""], [300, "ready_set_go", ""],
+  [330, "climb_on", ME], [380, "not_again", ME], [410, "so_close", ME], [460, "youre_ahead", ME], 
+  [540, "bullseye", ME, true], [541, "champion", ME, true], [545, "nice_one", ME], [560, "poof_gone", OTHER, true], [575, "last_chance", ""],
 ];
 export function simulateTenMinutes(): { rows: SimRow[]; shown: string[] } {
   const shown: string[] = [], rx = new ReactionScheduler(ME, (r) => shown.push(r.id));

@@ -6,7 +6,7 @@ const claimGame = (id: "tambola" | "bingo", title: string): Manifest => ({
 });
 const eliminationGame = (id: "tictactoe" | "snakes" | "luck", title: string): Manifest => ({
   id, title, labels: ["Elimination"], caps: { auto: 2_000 }, startModes: [...both], playModes: ["start-only"],
-  goldenButton: "You won", name: id, pauseSupport: true, claimType: "auto", prizePositions: ["1st", "2nd", "3rd"],
+  goldenButton: "You won", name: id, pauseSupport: true, claimType: "auto", prizePositions: ["1st", "2nd", "3rd", "4th", "5th"],
   prizeModes: [...both], rehearsalMax: 10, lateJoin: { kind: "none-after-round-1" }, organizerFinalSay: false,
 });
 export const MANIFESTS: Record<GameId, Manifest> = {

@@ -1,46 +1,54 @@
 // The Reaction pack: about 50 short text-only reactions a game offers by name at fitting events (rx.react("snake_bite", {who, now})). No faces, no images, no dependency.
 // The pack is code and CSS only, so it is bundled with the web app and cached by the service worker (add reactions.css and the bundle to the precache list): it plays offline with no request.
-// Style is in reactions.css: a corner strip at most 25% of the screen width, pointer-events none, 2 to 3 s each, never over the golden button or the board.
+// All of it is our own work (shapes, colours, lettering, words, motions: docs/REACTIONS_ORIGINAL.md). Style is in reactions.css: a corner strip at most 25% of the screen width, pointer-events none, 2 to 3 s each, never over the golden button or the board.
 import type { GameId } from "../../manifest/src";
 export type Anim = "pop" | "shake" | "wobble" | "slidel" | "slider" | "drop" | "zoom" | "spin" | "bounce" | "flip";
-export type Tone = "gold" | "red" | "blue" | "green" | "plain";
-export interface Reaction { id: string; text: string; event: string; games: GameId[]; anim: Anim; tone: Tone; burst: boolean; ms: number; personal: boolean }
+/** Our eight original shapes (drawn as polygons by tools/shapes.ts): spiky burst, round pop, cloud puff, jagged zigzag, wobbly bubble, ribbon, starburst, drip. */
+export type Shape = "burst" | "pop" | "puff" | "zigzag" | "wobble" | "ribbon" | "star" | "drip";
+/** Our eight colour pairs (fill, ink, line) are in reactions.css as p1..p8: 1 sun, 2 coral, 3 mint, 4 sky, 5 grape, 6 lime, 7 pink, 8 night. */
+export type Pal = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export interface Reaction { id: string; text: string; event: string; events: string[]; games: GameId[]; anim: Anim; shape: Shape; pal: Pal; tilt: number; ms: number; personal: boolean }
 const A: GameId[] = ["tambola", "bingo", "tictactoe", "snakes", "luck", "luckydraw"], S: GameId[] = ["snakes"], SL: GameId[] = ["snakes", "luck"], E: GameId[] = ["tictactoe", "snakes", "luck"],
   C: GameId[] = ["tambola", "bingo"], D: GameId[] = ["luckydraw"], LD: GameId[] = ["luck", "luckydraw"];
-// id, text, event, games, anim, tone, burst
-type Row = [string, string, string, GameId[], Anim, Tone, 0 | 1];
+// id, text, event(s) separated by |, games, motion, shape, palette, tilt in degrees. Each reaction is one choice of all four, made for this pack (see docs/REACTIONS_ORIGINAL.md).
+type Row = [string, string, string, GameId[], Anim, Shape, Pal, number];
 const ROWS: Row[] = [
-  ["snake_bite", "Aaahaa, bitten!", "snake_bite", S, "shake", "red", 1], ["snake_bite_again", "Oh my, again!", "snake_bite_again", S, "wobble", "red", 1],
-  ["ladder", "Lucky! Ladder!", "ladder", S, "bounce", "green", 1], ["upgrade", "Level up!", "upgrade", S, "slidel", "green", 0], ["downgrade", "Down we go", "downgrade", S, "drop", "red", 0],
-  ["reward", "Reward!", "reward", A, "pop", "gold", 1], ["punishment", "Penalty!", "punishment", E, "shake", "red", 0], ["extra_throw", "Throw again!", "extra_throw", SL, "spin", "blue", 1],
-  ["missed_turn", "Oops!", "missed_turn", SL, "wobble", "plain", 0], ["dice_roll", "Roll!", "dice_roll", SL, "spin", "blue", 0], ["six", "Six!", "six", SL, "zoom", "gold", 1],
-  ["finish", "Finished!", "finish", S, "pop", "gold", 1], ["win", "You won!", "win", A, "pop", "gold", 1], ["out", "Out!", "out", E, "drop", "red", 0],
-  ["close_call", "So close!", "close_call", E, "shake", "blue", 0], ["comeback", "Comeback!", "comeback", E, "slider", "green", 0], ["streak", "On a roll!", "streak", E, "bounce", "gold", 0],
-  ["ahead", "In front!", "ahead", E, "slidel", "green", 0], ["behind", "Catch up!", "behind", E, "slider", "blue", 0], ["tie", "Tie!", "tie", E, "flip", "plain", 0],
-  ["round_start", "Round starts!", "round_start", E, "zoom", "blue", 0], ["round_end", "Round over", "round_end", E, "flip", "plain", 0], ["pause", "Paused", "pause", A, "flip", "plain", 0],
-  ["resume", "Back on!", "resume", A, "pop", "green", 0], ["countdown", "3 2 1", "countdown", A, "zoom", "blue", 0], ["time_up", "Time is up!", "time_up", A, "shake", "red", 0],
-  ["dishoom", "Dishoom!", "hit", E, "zoom", "red", 1], ["boom", "Boom!", "big", A, "zoom", "gold", 1], ["zap", "Zap!", "quick", E, "slidel", "blue", 1],
-  ["oops", "Oops!", "mistake", A, "wobble", "plain", 0], ["not_again", "Not again", "bad_repeat", E, "drop", "red", 0], ["yay", "Yay!", "good", A, "bounce", "green", 1],
-  ["wow", "Wow!", "surprise", A, "pop", "gold", 1], ["phew", "Phew!", "relief", E, "drop", "blue", 0], ["ouch", "Ouch!", "pain", E, "shake", "red", 1],
-  ["whoosh", "Whoosh!", "move", E, "slider", "blue", 0], ["ta_da", "Ta-da!", "reveal", A, "flip", "gold", 1], ["bingo", "Bingo!", "bingo", ["bingo"], "pop", "gold", 1],
-  ["housie", "Housie!", "housie", ["tambola"], "pop", "gold", 1], ["draw", "Draw!", "draw", D, "spin", "gold", 1], ["claim", "Claim!", "claim", C, "bounce", "gold", 1],
-  ["your_turn", "Your turn!", "your_turn", E, "slidel", "blue", 0], ["ready", "Ready?", "ready", A, "flip", "plain", 0], ["go", "Go!", "go", A, "zoom", "green", 1],
-  ["good_luck", "Good luck!", "good_luck", A, "wobble", "gold", 0], ["jackpot", "Jackpot!", "jackpot", LD, "spin", "gold", 1], ["nice", "Nice one!", "nice", A, "pop", "green", 0],
-  ["winners_drawn", "Winners drawn!", "draw_done", D, "flip", "gold", 1], ["next_round", "Next round!", "next_round", E, "slider", "blue", 0], ["last_one", "Last one!", "last", A, "zoom", "red", 0],
-  ["great", "Great!", "great", A, "bounce", "green", 0], ["full_house", "Full house!", "full", C, "pop", "gold", 1],
+  // join and start
+  ["hello", "Hello!", "join", A, "pop", "puff", 3, -3], ["hi_there", "Hi there!", "join", A, "bounce", "pop", 7, 3], ["good_luck", "Good luck!", "game_start", A, "wobble", "puff", 6, 2],
+  ["lets_go", "Let's go!", "game_start|resume", A, "zoom", "pop", 3, -3], ["ready_set_go", "Ready, set, go!", "round_start|countdown", A, "zoom", "burst", 4, -2],
+  // good
+  ["yeah", "Yeah!", "good", A, "bounce", "pop", 6, -3], ["yes", "Yes!", "good", A, "pop", "wobble", 3, 3], ["super", "Super!", "good", A, "slidel", "ribbon", 1, 2], ["cool", "Cool!", "good", A, "flip", "pop", 4, -2],
+  ["wow", "Wow!", "surprise", A, "pop", "star", 7, 3], ["nice_one", "Nice one!", "good_move", A, "pop", "wobble", 3, 3], ["bam", "Bam!", "hit", E, "zoom", "burst", 2, -4], ["pow", "Pow!", "hit", E, "pop", "burst", 1, 4],
+  ["zap", "Zap!", "hit|quick", E, "slidel", "zigzag", 4, -3], ["boom", "Boom!", "big_win", A, "zoom", "star", 1, 4], ["ta_da", "Ta-da!", "reveal|draw_done", A, "flip", "star", 7, 3], ["hurray", "Hurray!", "round_win", A, "bounce", "burst", 6, -3],
+  ["lucky_you", "Lucky you!", "lucky", A, "wobble", "puff", 1, 3], ["jackpot", "Jackpot!", "jackpot", LD, "spin", "star", 1, -4], ["spot_on", "Spot on!", "exact", A, "pop", "pop", 3, 2],
+  // ladder and reward
+  ["climb_on", "Climb on!", "ladder", S, "bounce", "ribbon", 3, -3], ["up_you_go", "Up you go!", "upgrade", S, "slidel", "ribbon", 6, 2], ["big_jump", "Big jump!", "ladder_big", S, "bounce", "star", 3, -3],
+  ["extra_throws", "Extra throws!", "extra_throw|reward", SL, "spin", "burst", 4, 3], ["bonus_time", "Bonus time!", "bonus|reward", A, "pop", "pop", 1, 4], ["bullseye", "Bullseye!", "finish", A, "pop", "burst", 3, -2],
+  // bad luck, snake, penalty
+  ["oh", "Oh!", "bad_luck", E, "wobble", "wobble", 5, 3], ["no", "No!", "bad_luck", E, "shake", "zigzag", 2, 3], ["why_me", "Why me?", "bad_luck", E, "drop", "wobble", 8, -2],
+  ["oops", "Oops!", "mistake|missed_turn", A, "wobble", "puff", 7, -4], ["ouch", "Ouch!", "pain|penalty", E, "shake", "burst", 2, -4], ["aaah_bitten", "Aaah, bitten!", "snake_bite", S, "shake", "drip", 2, -4],
+  ["not_again", "Not again!", "snake_bite_again|bad_repeat", E, "drop", "drip", 5, -2], ["slip_slide", "Slip slide!", "downgrade", S, "drop", "drip", 8, -2], ["oh_my", "Oh my!", "bad_repeat", E, "wobble", "wobble", 5, 3],
+  ["crash", "Crash!", "snake_far", S, "drop", "zigzag", 2, -3],
+  // near miss and timing
+  ["yikes", "Yikes!", "danger", E, "shake", "burst", 2, -3], ["phew", "Phew!", "relief", E, "drop", "puff", 4, 2], ["so_close", "So close!", "close_call", E, "shake", "wobble", 4, -2],
+  ["missed_it", "Missed it!", "missed_turn|time_up", E, "drop", "zigzag", 8, 2], ["hurry_up", "Hurry up!", "time_warning", A, "shake", "zigzag", 2, 2], ["tick_tock", "Tick tock!", "countdown", A, "flip", "pop", 4, 0],
+  ["last_chance", "Last chance!", "last|time_warning", A, "zoom", "zigzag", 2, -2], ["hang_on", "Hang on!", "pause|wait", A, "flip", "pop", 8, 0],
+  // standing and end
+  ["comeback_time", "Comeback time!", "comeback", E, "slider", "ribbon", 3, 2], ["youre_ahead", "You're ahead!", "ahead|streak", E, "slidel", "ribbon", 3, 1], ["catch_up", "Catch up!", "behind", E, "slider", "zigzag", 4, -1],
+  ["poof_gone", "Poof, gone!", "out|drop_out", E, "drop", "puff", 8, 2], ["kapow", "Kapow!", "big_hit", E, "zoom", "burst", 5, -5], ["champion", "Champion!", "win", A, "pop", "star", 1, 3],
 ];
-export const DEFAULT_MS = 2200, BURST_MS = 2400;
+export const DEFAULT_MS = 2200, BIG_MS = 2600;
 /** Events that concern everybody in the game; every other reaction is personal and shows only to the participant it happened to. */
-const SHARED = new Set(["round_start", "round_end", "pause", "resume", "countdown", "time_up", "ready", "go", "good_luck", "next_round", "last", "draw_done", "draw", "reveal", "big", "surprise"]);
-export const REACTIONS: Reaction[] = ROWS.map(([id, text, event, games, anim, tone, b]) => ({ id, text, event, games, anim, tone, burst: !!b, ms: b ? BURST_MS : DEFAULT_MS, personal: !SHARED.has(event) }));
+const SHARED = new Set(["game_start", "resume", "round_start", "countdown", "pause", "wait", "time_warning", "last", "reveal", "draw_done"]);
+export const REACTIONS: Reaction[] = ROWS.map(([id, text, event, games, anim, shape, pal, tilt]) => ({ id, text, event: event.split("|")[0]!, events: event.split("|"), games, anim, shape, pal, tilt, ms: id === "champion" || id === "bullseye" ? BIG_MS : DEFAULT_MS, personal: !event.split("|").some((e) => SHARED.has(e)) }));
 export const reactionsFor = (game: GameId): Reaction[] => REACTIONS.filter((r) => r.games.includes(game));
 /** The reactions a game can show for an event (e.g. "hit"); the game picks one. */
-export const reactionsForEvent = (event: string): Reaction[] => REACTIONS.filter((r) => r.event === event);
+export const reactionsForEvent = (event: string): Reaction[] => REACTIONS.filter((r) => r.events.includes(event));
 /** The Organizer's setting for the game: full, reduced (the word shows still, same time) or off (nothing is shown). */
 export type ReactionMode = "full" | "reduced" | "off";
 export const REACTION_MODES: ReactionMode[] = ["full", "reduced", "off"];
 /** Only these may jump the 15 s gap (they still count toward the maximum). */
-export const HIGH_PRIORITY = ["win", "finish", "out"];
+export const HIGH_PRIORITY = ["champion", "bullseye", "poof_gone"];
 export const MIN_GAP_MS = 15_000, MAX_PER_WINDOW = 15, WINDOW_MS = 600_000;
 export type Priority = "normal" | "high";
 /** `who`: the participant the event happened to (needed for personal reactions). `now`: game time in ms (gameNow), so a pause freezes the throttle too. */
@@ -48,7 +56,7 @@ export interface Offer { priority?: Priority; who?: string; now: number; game?: 
 export type Verdict = "show" | "queued" | "off" | "unknown" | "wrong-game" | "not-yours" | "throttled" | "max" | "busy";
 /**
  * The scheduler: one reaction at a time, a queue of one, at least 15 s between two reactions for this participant and at most 15 per 10 minutes of game time.
- * A high-priority reaction (win, finish, out) may jump the 15 s gap but still counts toward the 15. It never makes a reaction up: the game offers one at a fitting event.
+ * A high-priority reaction (champion, bullseye, poof_gone: win, finish, out) may jump the 15 s gap but still counts toward the 15. It never makes a reaction up: the game offers one at a fitting event.
  */
 export class ReactionScheduler {
   mode: ReactionMode = "full";
@@ -89,7 +97,7 @@ const domShow = (r: Reaction, mode: ReactionMode, doc: Document = document): voi
   if (!layer) { layer = doc.createElement("div"); layer.id = "rx-layer"; layer.setAttribute("aria-hidden", "true"); doc.body.appendChild(layer); }
   layer.replaceChildren();
   const el = doc.createElement("span");
-  el.className = `rx ${r.tone}${r.burst ? " b" : ""}`;
+  el.className = `rx p${r.pal} sh-${r.shape}`; el.style.setProperty("--rxt", `${r.tilt}deg`);
   el.textContent = r.text;
   el.style.setProperty("--rxa", `rx-${r.anim}`); el.style.setProperty("--rxd", `${r.ms}ms`);
   if (mode === "reduced") el.style.animationName = "rx-fade"; // a static word for the same time (also the prefers-reduced-motion rule in the CSS)

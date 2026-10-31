@@ -5,6 +5,8 @@ import type { Outcome, RulesModule, SetupField } from "../../core/src";
 export type Mark = "X" | "O";
 export type Board = (Mark | null)[];
 const WINS = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+/** Book rule 7: X and O alternate between a player's games. Side "a" has X in game 0 (or O if the site's coin says `bHasX`), then they swap every game; side "b" always has the other mark. */
+export const markFor = (player: "a" | "b", gameIndex: number, bHasX = false): Mark => ((player === "a") !== bHasX) === (gameIndex % 2 === 0) ? "X" : "O";
 /** R01-R06: nine squares; returns the winner, "draw" for a full board, or null while play goes on. */
 export const boardResult = (b: Board): Mark | "draw" | null => {
   for (const [a, c, d] of WINS) if (b[a!] && b[a!] === b[c!] && b[a!] === b[d!]) return b[a!]!;
