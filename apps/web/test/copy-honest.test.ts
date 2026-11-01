@@ -66,7 +66,7 @@ describe("TT-16: the hours named for the report link and the erasure are the rea
   });
   test("the organizer guide says when the report link closes and when the data is auto-deleted, with the real numbers", () => {
     const t = textOf("organizer-guide.html");
-    expect(t).toContain(`Your report link works for ${LINK_H} hours`); expect(t).toContain(`within 24 hours after the game (we do it at ${PURGE_H} hours)`);
+    expect(t).toContain(`Your report link works for ${LINK_H} hours`); expect(t).toContain(`within 24 hours after the game (it is done at ${PURGE_H} hours)`);
   });
   test("the console's After the game step says the same", () => {
     const js = read("zc.js"); expect(js).toContain(`The report link works for ${LINK_H} hours`); expect(js).toContain(`names and numbers are deleted at ${PURGE_H} hours`);
