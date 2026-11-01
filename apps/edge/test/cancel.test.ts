@@ -152,7 +152,7 @@ describe("cancel e-mails", () => {
     const paid = paymentRow().amount;
     for (const to of ["boss@acme.com", "priya@acme.com"]) {
       const m = mailsTo(to).find((x) => /^\[Tic Tac Toe\] Game cancelled/.test(x.subject))!; expect(m).toBeTruthy();
-      expect(m.body).toContain("cancelled by a Host"); expect(m.body).toContain("stays as credit until"); expect(m.body).toContain(paid.toLocaleString("en-IN")); expect(m.body).toContain("We do not give refunds.");
+      expect(m.body).toContain("cancelled by a Host"); expect(m.body).toContain("stays as credit until"); expect(m.body).toContain(paid.toLocaleString("en-IN")); expect(m.body).toContain("stays with the organizer as credit");
       expect(m.body).not.toMatch(/refund of|2\.36|credit note/i);
     }
     expect(mailsTo("payer@acme.com").some((x) => /^\[Tic Tac Toe\] Game cancelled/.test(x.subject))).toBe(false);

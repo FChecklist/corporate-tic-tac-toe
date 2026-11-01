@@ -121,7 +121,7 @@ export const INVOICE_KEEP_NOTE = "We keep billing data for audit and tax reasons
 /** Page 2 of every invoice. Kept in step with the Terms page of the service (no refunds; cancelled paid game becomes credit). */
 export const INVOICE_TERMS: string[] = [
   "This invoice is issued by IT Services by Rajat Agarwal for the service named on page 1. Online payments are processed by Razorpay.",
-  "We do not give refunds. If a paid game is cancelled before it starts, the payment stays as credit on the organizer's account and can be used for another game. Credit lapses 365 days after the payment date. No credit note is raised for credit that lapses.",
+  "If a paid game is cancelled before it starts, the payment stays as credit on the organizer's account and can be used for another game. Credit lapses 365 days after the payment date. No credit note is raised for credit that lapses.",
   "A payment buys one game for up to the number of participants named on the invoice. Participants never pay; rewards are given by the organizer. Unused places are not credited once the game has started.",
   "Prices are in the currency shown. Payments from India are in Indian rupees (INR); payments from outside India are in US dollars (USD). Bank, card and currency-conversion charges of the payer's own bank are the payer's own.",
   "Where GST applies it is shown on page 1. Where it is not charged, the invoice says so. The payer is responsible for any withholding tax, VAT or duty that applies in the payer's own country.",

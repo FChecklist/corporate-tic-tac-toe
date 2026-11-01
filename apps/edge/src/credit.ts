@@ -64,7 +64,7 @@ export async function mailTeam(env: PayEnv, org: string | null, eid: string | nu
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "A paid game cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**

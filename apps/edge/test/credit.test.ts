@@ -114,7 +114,7 @@ describe("cancel: a paid game becomes credit, never a refund", () => {
     const t = await team(); await paidWithMoney(t.master, "GAME-1"); await cancelIt(t.host, "GAME-1");
     for (const to of ["boss@acme.com", "priya@acme.com"]) {
       const m = mailsLike(to, /^\[Tic Tac Toe\] Game cancelled/)[0]!;
-      expect(m.body).toContain("stays as credit until 1 Oct 2027"); expect(m.body).toContain("We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.");
+      expect(m.body).toContain("stays as credit until 1 Oct 2027"); expect(m.body).toContain("A paid game cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.");
     }
     expect(mailsLike("payer@acme.com", /^\[Tic Tac Toe\] Game cancelled/)).toHaveLength(0);
   });
