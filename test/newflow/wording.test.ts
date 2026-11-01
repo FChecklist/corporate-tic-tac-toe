@@ -1,6 +1,6 @@
 // W*: wording guard. No 'private' in anything a player reads, English only, and the retention line exactly as the owner wrote it.
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { MSG, NO_PERSONAL_DETAILS, guardOk } from "../../vendor/game-core/packages/wording/src";
 import { REACTIONS } from "../../vendor/game-core/packages/ui/src/reactions";
 
@@ -27,7 +27,7 @@ describe("W1 no 'private'", () => {
     for (const f of PLAYER_PAGES) expect([f, /\bprivate\b/i.test(visible(pub(f)))]).toEqual([f, false]);
   });
   test("W1e: no page of the site says 'private' to a reader (the legal page too: say 'close group')", () => {
-    const bad: string[] = []; for (const f of new Bun.Glob("*.html").scanSync({ cwd: new URL("../../apps/web/public/", import.meta.url).pathname })) if (/\bprivate\b/i.test(visible(pub(f)))) bad.push(f);
+    const bad: string[] = []; for (const f of readdirSync(new URL("../../apps/web/public/", import.meta.url)).filter((n) => n.endsWith(".html"))) if (/\bprivate\b/i.test(visible(pub(f)))) bad.push(f);
     expect(bad).toEqual([]);
   });
   test("W1f: the new flow's own strings never use the word 'engagement'", () => { expect(/\bengagements?\b/i.test(strings(pub("tttstage.js")))).toBe(false); });
@@ -56,7 +56,7 @@ describe("W3 the retention line", () => {
     for (const t of texts) for (const m of t.matchAll(/[^.\n]*deleted within 24 hours[^.\n]*\./g)) expect(`No personal details needed. ${m[0].trim()}`.includes(LINE) || m[0].trim() === LINE.split(". ")[1] + ".").toBe(true);
   });
   test("W3d: the line has no variant spelling anywhere in the core wording (one source)", () => {
-    const src = readFileSync(new URL("../../vendor/game-core/packages/wording/src/index.ts", import.meta.url), "utf8");
+    const src = readFileSync(new URL("../../vendor/game-core/packages/wording/src/lines.ts", import.meta.url), "utf8");
     expect(src.split(LINE).length - 1).toBe(1);
   });
 });

@@ -4,8 +4,7 @@
 import { AUTO_DELETE_LINE, DETAILS_LINE, ID_ONLY_LINE, TERMS_RETENTION } from "./lines";
 export const NAVIGATION_LINE = "Navigation data is collected to improve the games.";
 export const REPORT_LINE = "The game report is e-mailed to the Organizer and the Hosts within 3 hours after the game and is not stored.";
-/** To be confirmed by the owner before the text goes live. */
-export const GRIEVANCE_EMAIL = "grievance@corporatetambola.com";
+export const GRIEVANCE_EMAIL = "hello@corporatetambola.com"; // subject: Grievance (the address Tambola already publishes)
 export type LegalKind = "privacy" | "terms" | "cookies" | "grievance";
 export interface LegalSection { id: LegalKind; title: string; paragraphs: string[] }
 export const LEGAL: LegalSection[] = [
@@ -18,7 +17,7 @@ export const LEGAL: LegalSection[] = [
   { id: "terms", title: "Terms and Conditions", paragraphs: [
     "These terms apply to the home page and to every game.",
     "Games are played for entertainment. The game software decides the winners from the rules of the game.",
-    "The Organizer sets the game, the prizes and the people who may join. Prizes are given by the Organizer.",
+    "The Organizer sets the game and the prizes, and chooses and invites the people who play. Prizes are given by the Organizer.",
     "Game details (settings, prizes, time and a result summary without personal details) are auto-deleted after 365 days.",
     "Invoices and the payment ledger are kept as tax records.",
     "A game report that cannot be delivered is held in encrypted form and sent again after 24, 36 and 72 hours. It is deleted on delivery or after the last try.",
