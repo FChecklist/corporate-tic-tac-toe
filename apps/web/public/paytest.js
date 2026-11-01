@@ -1,5 +1,6 @@
 /* Corporate Tic Tac Toe: Payment testing. A real payment of Rs 1 (India) or US$ 1 (abroad) that buys nothing, so anyone can see that paying and the invoice work. Any number of times. */
 (function () {
+  const OWN = (() => { const m = location.hash.match(/key=([A-Za-z0-9_-]{8,128})/); return m ? { headers: { "x-organizer": m[1] } } : {}; })(); // the owner key travels in the address fragment (never sent to the server by the browser) and only as a header
   const TB = window.TB, esc = TB.esc, $app = document.getElementById("app");
   const S = { country: "IN", pcode: "91", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })() };
   const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Payment testing</b><a class="zsnd" href="/" style="text-decoration:none">Home</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
@@ -44,7 +45,7 @@
     const t0 = Date.now();
     while (Date.now() - t0 < 300000) {
       await new Promise((ok) => setTimeout(ok, 4000));
-      try { const r = await TB.api("GET", "/api/payments/paytest/" + paymentId); if (r && !r.confirming) return r; } catch (e) { if (e.status && e.status < 500) throw e; }
+      try { const r = await TB.api("GET", "/api/payments/paytest/" + paymentId, undefined, OWN); if (r && !r.confirming) return r; } catch (e) { if (e.status && e.status < 500) throw e; }
     }
     throw new Error("Razorpay has not confirmed yet. If money was taken, your invoice will be e-mailed to you once it is.");
   }
@@ -62,7 +63,7 @@
       TB.payer.save(S);
       S.busy = true; draw();
       try {
-        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
+        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode }, OWN);
         let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
         if (res && res.confirming) res = await waitForConfirm(r.paymentId);
         S.done = res;

@@ -396,6 +396,9 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: toMinor(pr.total), currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: payerName.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name, participants: String(pack) }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
   }
 
+  // Rs 1 payment test, owner only (switch PAYTEST_OWNER_ONLY=on, off by default so the public test page keeps working until the owner decides): without the owner key the two test routes do not exist
+  const ownerKey = (req.headers.get("x-organizer") ?? (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")).trim();
+  if ((env as any).PAYTEST_OWNER_ONLY === "on" && /^\/api\/payments\/paytest(\/|$)/.test(p) && !((env as any).ORGANIZER_SECRET && ownerKey.length === String((env as any).ORGANIZER_SECRET).length && ownerKey === (env as any).ORGANIZER_SECRET)) return json({ error: "Not found" }, 404);
   const ptm = p.match(/^\/api\/payments\/paytest\/(pay_[0-9a-f]{16})$/); // the test page asks while Razorpay is still confirming
   if (req.method === "GET" && ptm) {
     const row = await db.prepare("SELECT status, result, meta FROM payment WHERE id=?").bind(ptm[1]).first<any>();

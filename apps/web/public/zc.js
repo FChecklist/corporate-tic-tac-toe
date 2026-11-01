@@ -1317,7 +1317,7 @@
 
   // ---------- quick setup: make the draft ----------
   async function makeDraft(r, id, hasName) {
-    const res = await call("POST", "/api/z", { id, ...(r.name ? { name: r.name } : {}), startRound: ZG.roundAt(r.startMs), callSeconds: r.speed, cap: r.cap, tickets: r.tickets, mark: r.mark, join: r.join, tz: r.tz, rounds: r.rounds, rewards: r.rewards, whoCanJoin: r.who });
+    const res = await call("POST", "/api/z", { id, ...(r.name ? { name: r.name } : {}), ...(NEWDEMO ? { demo: true } : {}), startRound: ZG.roundAt(r.startMs), callSeconds: r.speed, cap: r.cap, tickets: r.tickets, mark: r.mark, join: r.join, tz: r.tz, rounds: r.rounds, rewards: r.rewards, whoCanJoin: r.who });
     return res;
   }
   async function afterCreate(id, r) {

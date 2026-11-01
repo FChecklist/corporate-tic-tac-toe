@@ -64,7 +64,7 @@ export interface R2Like { put(key: string, value: string, opts?: unknown): Promi
 export interface Env {
   DB: D1; ORGANIZER_SECRET?: string; DAILY_WRITE_BUDGET?: string; PHONE_SALT?: string;
   /** The secret that seals names and mobile numbers at rest (AES-256-GCM). Never stored in the database. */
-  DATA_KEY?: string;
+  DATA_KEY?: string; DEMO_GAME?: string; PAYTEST_OWNER_ONLY?: string;
   /** Optional: the key that hashes network addresses for the public-page visit tracking (visits.ts); when absent it is derived from DATA_KEY. VISIT_DAILY_WRITES caps that tracking's share of the daily write allowance (default 20,000). */
   VISIT_KEY?: string; VISIT_DAILY_WRITES?: string;
   /** Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion). */
@@ -327,6 +327,18 @@ async function useHeldPass(env: Env, org: string, eh: string, now: number): Prom
     await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`loginpass/${eh}`).run();
     const x = JSON.parse(row.v); if (now - Number(x.at) <= 2 * 3_600_000) await redeemDemoPass(env, org, String(x.t), now);
   } catch { /* the pass is only a gift: sign-in never fails because of it */ }
+}
+const DEMO_PER_DAY = 3;
+const demoOn = (env: Env) => (env as any).DEMO_GAME === "on";
+const isDemo = async (env: Env, eid: string) => !!(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`demo/${eid}`).first());
+/** the two daily counters of a demo: one per organizer account (its e-mail or employee ID), one per network; only fingerprints, no address is kept */
+async function demoKeys(env: Env, req: Request, org: string, now: number) {
+  const d = day(now), ip = (await sha("demoip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16);
+  return [`democ/${d}/o/${org}`, `democ/${d}/ip/${ip}`];
+}
+const demoUsed = async (env: Env, ks: string[]) => { let m = 0; for (const k of ks) m = Math.max(m, Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0)); return m; };
+async function demoNote(env: Env, ks: string[], eid: string, org: string, now: number) {
+  await env.DB.batch([...ks.map((k) => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,'1') ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+1").bind(k)), env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`demo/${eid}`, org)]);
 }
 async function ownerTestGrant(env: Env, org: string, cap: number, now: number): Promise<boolean> {
   for (const t of OWNER_TEST_FREE) {
@@ -1376,11 +1388,15 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (roundMs(b.startRound) > now + MAX_AHEAD_MS) return json({ error: TOO_FAR, code: "too-far" }, 400);
     const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz, verify: b.verify, employeesOnly: b.employeesOnly, idKind: b.idKind });
     if (!vc.ok) return json({ error: vc.error }, 400);
+    const demo = b.demo === true && demoOn(env) && !!a.org; // the free Demo game (flag DEMO_GAME, off until audited; while off, "demo" is ignored and the game is an ordinary Rs 0 one): up to 10 people, labelled Demo, never a bought pack, 3 a day per organizer and per network
+    if (demo && b.cap > FREE_GAME_CAP) return json({ error: `A demo game is for up to ${FREE_GAME_CAP} people.` }, 400);
     const have = await env.DB.prepare("SELECT org FROM engagement WHERE id=?").bind(b.id).first<{ org: string | null }>();
     if (have) return json({ ok: true, existed: true }); // creating twice never overwrites (and never reveals whose it is)
     // an organizer needs a purchased engagement (entitlement) big enough for the limit they ask for; we (platform) do not. A demo game never uses up a bought pack.
-    if (!a.plat && a.org) { try { await ownerTestGrant(env, a.org, b.cap, now); } catch { /* no grant: the game is a draft as for everybody */ } }
-    const ent = a.plat ? null : await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string; pack: number }>();
+    const dk = demo ? await demoKeys(env, req, a.org!, now) : null;
+    if (dk && (await demoUsed(env, dk)) >= DEMO_PER_DAY) return json({ error: `You can start ${DEMO_PER_DAY} demo games a day from one account or one network. Please try again tomorrow.` }, 429);
+    if (!demo && !a.plat && a.org) { try { await ownerTestGrant(env, a.org, b.cap, now); } catch { /* no grant: the game is a draft as for everybody */ } }
+    const ent = a.plat || demo ? null : await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string; pack: number }>();
     // no payment is needed to BUILD an engagement: without a purchased pack it is saved as a draft (pack 0) that participants cannot see or join;
     // payment is asked only when the organizer publishes it (POST /api/z/:id/publish)
     const draft = !a.plat && !ent;
@@ -1392,10 +1408,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const isTestEng = (await testFlag(env)) === 1 || (await orgIsTest(env, a.org)) ? 1 : 0; // made in TEST mode, or by a test account
     await env.DB.prepare("INSERT OR IGNORE INTO engagement(id,start_round,call_seconds,cap,created_ms,org,closed,pack,tickets,config,is_test) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(b.id, b.startRound, b.callSeconds, b.cap, now, a.org, b.whoCanJoin === "list" || (b.whoCanJoin === undefined && b.closed) || vc.cfg.employeesOnly ? 1 : 0, draft ? 0 : ent?.pack ?? b.cap, vc.cfg.tickets, cfgJson(vc.cfg), isTestEng).run(); // the console sends whoCanJoin "list"; the API default stays "anyone"
     if (ent) await env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(b.id, ent.id).run();
-    await recordFun(env as any, b.id, "game_created", now, { test: !!isTestEng, size: b.cap }); // sales funnel (funnel.ts)
+    if (dk) await demoNote(env, dk, b.id, a.org!, now);
+    await recordFun(env as any, b.id, "game_created", now, { test: !!isTestEng || demo, size: b.cap }); // sales funnel (funnel.ts); a demo is never a sale
     if (a.kind === "ai" && a.org) await noteHelperGame(env.DB, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), a.org, b.id, now); // a game made with a Help Desk helper's key is recorded as theirs
     if (a.org) await recordTerms(env, a.org, now, "engagement");
-    return json({ ok: true, draft, openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
+    return json({ ok: true, draft, ...(demo ? { demo: true } : {}), openUrl: `${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/zc.html?e=${b.id}` });
   }
   if (req.method === "GET" && p === "/api/history") {
     if (!a.plat && !a.org) return deny(a);
@@ -1504,6 +1521,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
 
   if (a.kind === "host" && req.headers.get("x-cb-link") === "1" && !HOST_ACTIONS.has(action!)) return deny(a); // a Host's AI work link keeps its narrow rights; the Host in the console may do everything inside a game
   const unpaid = e.pack === 0;
+  const demoGame = demoOn(env) && (await isDemo(env, e.id));
   const freeGame = !unpaid && e.pack <= FREE_GAME_CAP; // the Rs 0 game for up to 10 people: a real game, nothing to pay
   const isDraft = unpaid && !(await isPublished(env, e));
   const payment = await paymentOf(env, e, unpaid, now);
@@ -1545,7 +1563,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
     const pk = unpaid ? PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null : PACKS.some((x) => x[0] === e.pack) ? e.pack : null; // a Rs 0 (or free-launch) game is "paid" with its own size, which is no price list entry
     const lockedC = unpaid && !isDraft && !cancelled && !e.unplayed_ms && roundMs(e.start_round) - LOCK_LEAD_MS <= now;
-    return json({ name: c.name || e.id, ...(freeGame ? { rs0: true } : {}), startMs: roundMs(e.start_round), cap: e.cap, joined, brought: await broughtBy(env, e.org, kid), price: pk ? price(pk, "INR").total : null, payment, ...(cancelled ? { cancelled: true } : {}), waitingFor: lockedC ? "organizer" : null, didNotStart: !!e.unplayed_ms, erasureMs: await erasureOf(env, e), ...(await creditFields(env, a, e, unpaid && !cancelled && !e.unplayed_ms, now)), inviteLink: kid && !isDraft && !cancelled ? `${origin}/z.html?e=${e.id}&from=${COHOST_FROM + parseInt(kid, 16)}` : null });
+    return json({ name: c.name || e.id, ...(freeGame ? { rs0: true } : {}), ...(demoGame ? { demo: true } : {}), startMs: roundMs(e.start_round), cap: e.cap, joined, brought: await broughtBy(env, e.org, kid), price: pk ? price(pk, "INR").total : null, payment, ...(cancelled ? { cancelled: true } : {}), waitingFor: lockedC ? "organizer" : null, didNotStart: !!e.unplayed_ms, erasureMs: await erasureOf(env, e), ...(await creditFields(env, a, e, unpaid && !cancelled && !e.unplayed_ms, now)), inviteLink: kid && !isDraft && !cancelled ? `${origin}/z.html?e=${e.id}&from=${COHOST_FROM + parseInt(kid, 16)}` : null });
   }
   const locked = unpaid && !isDraft && !cancelled && !didNotStart && roundMs(e.start_round) - LOCK_LEAD_MS <= now; // published but not paid by its start time: it does not begin
   if (isDraft && (((action === "join" || action === "who") && req.method === "POST") || (action === "info" && !can(a, e)))) return json({ error: "This game is not open yet." }, 403);
@@ -1799,7 +1817,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     // public: counts only, no ids. The exceptions are a lucky draw and Unlucky, whose winners are shown by their opaque card ids so each phone can tell whether it won
     return json({ results: (r.results ?? []).map((x: any) => ({ pattern: x.pattern, ordinal: x.ordinal, round: x.round, idx: x.idx, count: JSON.parse(x.pids).length, ...(JSON.parse(x.pids).length ? { winners: JSON.parse(x.pids) } : {}) })) });
   }
-  if (action === "info" && req.method === "GET") return json({ ...(cancelled ? { cancelled: true, message: "This game was cancelled by the organizer.", cancelledMs: e.cancelled_ms } : {}), ...(didNotStart ? { message: DNS_MSG } : {}), ...(isDraft ? { draft: true } : {}), ...(freeGame ? { rs0: true } : {}), ...(unpaid && !isDraft ? { ...(can(a, e) ? { unpaid: true } : {}), locked } : {}),
+  if (action === "info" && req.method === "GET") return json({ ...(cancelled ? { cancelled: true, message: "This game was cancelled by the organizer.", cancelledMs: e.cancelled_ms } : {}), ...(didNotStart ? { message: DNS_MSG } : {}), ...(isDraft ? { draft: true } : {}), ...(freeGame ? { rs0: true } : {}), ...(demoGame ? { demo: true } : {}), ...(unpaid && !isDraft ? { ...(can(a, e) ? { unpaid: true } : {}), locked } : {}),
     waitingFor: locked ? "organizer" : null, didNotStart, erasureMs: await erasureOf(env, e), ...(await creditFields(env, a, e, unpaid && !cancelled && !didNotStart, now)), startMs: roundMs(e.start_round), cap: e.cap, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), controlUrl: controlUrl(env, e.id), whoCanJoin: e.closed ? "list" : "anyone", ...pub(e, true) });
 
   // everything below is for the organizer (or their AI, where allowed)
@@ -1838,7 +1856,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       status: didNotStart ? "did not start (closed)" : cancelled ? "cancelled by the organizer" : isDraft ? "draft" : unpaid ? (locked ? "published, NOT PAID, held because the start time passed" : "published, payment due before the start") : "published and paid",
       startsAtIST: istTime(roundMs(e.start_round), tzOfRow(e)), tz: tzOfRow(e), startMs: roundMs(e.start_round), startRound: e.start_round, callSeconds: e.call_seconds, limit: e.cap, closed: !!e.closed, whoCanJoin: e.closed ? "list" : "anyone", coHostLimit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: cfgOf(e).invites, verify: c.verify ?? "mobile", employeesOnly: !!c.employeesOnly, idKind: c.idKind === "email" ? "email" : "emp",
       tickets: c.tickets, rounds: c.rounds, rewards: c.rewards, breaks: c.breaks, opening: c.opening, closing: c.closing, invites: c.invites, brandMomentsAllowed: brandMomentsFor(c.tickets), participants: n, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}),
-      paid: !unpaid, ...(freeGame ? { rs0: true } : {}), payment, ...(unpaid ? { pack: PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null, priceInr: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "INR").total : null, priceUsd: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "USD").total : null, startsAt: istTime(roundMs(e.start_round), tzOfRow(e)), payUntil: istTime(await erasureOf(env, e), tzOfRow(e)) } : { pack: e.pack }),
+      paid: !unpaid, ...(freeGame ? { rs0: true } : {}), ...(demoGame ? { demo: true } : {}), payment, ...(unpaid ? { pack: PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null, priceInr: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "INR").total : null, priceUsd: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "USD").total : null, startsAt: istTime(roundMs(e.start_round), tzOfRow(e)), payUntil: istTime(await erasureOf(env, e), tzOfRow(e)) } : { pack: e.pack }),
       gameMinutes: Math.round((75 * e.call_seconds * c.rounds + c.breaks.reduce((t: number, b: any) => t + b.seconds, 0) + (c.rounds - 1) * 90) / 60),
       links, nextSteps, consoleUrl: `${origin}/zc.html?e=${e.id}`, ...(isDraft ? {} : { shareUrl: `${origin}/z.html?e=${e.id}` }), ...(unpaid && !isDraft ? { payUrl: `${origin}/pay.html?e=${e.id}` } : {}) });
   }
@@ -1875,7 +1893,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     ]);
     const paid = !!(ent || free), startMs = roundMs(e.start_round);
     await recordFunnelForOrg(env as VisitEnv, e.org, "published", now);
-    { const fo = { test: !!e.is_test, size: e.cap }; await recordFun(env as any, eid!, "game_published", now, fo); if (!paid) await recordFun(env as any, eid!, "payment_page_reached", now, fo); } // sales funnel (funnel.ts)
+    { const fo = { test: !!e.is_test || demoGame, size: e.cap }; await recordFun(env as any, eid!, "game_published", now, fo); if (!paid) await recordFun(env as any, eid!, "payment_page_reached", now, fo); } // sales funnel (funnel.ts)
     await sendMail(env as PayEnv, env.DB, cEmail, rs0 ? `Your game ${eid} is published (Rs 0, it starts ${istTime(startMs)})` : paid ? `Your game ${eid} is published and paid` : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
       `Your game ${eid} is live.${rs0 ? " It is for up to " + e.cap + " people at Rs 0: nothing to pay." : ""}\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is auto-deleted; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`, now);
     return json({ ok: true, published: true, paid, startMs, payUrl, shareUrl, confirmed: { email: cEmail, phone: cPhone.slice(-10) } });
@@ -2083,6 +2101,8 @@ export async function purgeOld(env: Env, now: number): Promise<number> {
   // an engagement goes at 00:00 IST at the end of the 365th day after its game ended (created + 365 days if it never ran), and a draft nobody published after DRAFT_DAYS
   const loose = now - (RETENTION_DAYS - 2) * 86_400_000;
   const old = await env.DB.prepare("SELECT e.id AS id, e.created_ms AS created_ms, e.pack AS pack, e.unplayed_ms AS unplayed_ms, l.end_ms AS end_ms FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE e.created_ms < ? OR (e.pack=0 AND e.created_ms < ?) OR (e.unplayed_ms IS NOT NULL AND e.unplayed_ms < ?)").bind(loose, now - DRAFT_DAYS * 86_400_000, now - SETTINGS_KEEP_MS).all<{ id: string; created_ms: number; pack: number; unplayed_ms: number | null; end_ms: number | null }>();
+  await env.DB.prepare("DELETE FROM kv WHERE k LIKE 'democ/%' AND k < ?").bind("democ/" + day(now - 3 * 86_400_000)).run().catch(() => undefined); // demo day counters
+  await env.DB.prepare("DELETE FROM kv WHERE k LIKE 'demo/%' AND substr(k,6) NOT IN (SELECT id FROM engagement)").run().catch(() => undefined);
   await env.DB.prepare("DELETE FROM ai_audit WHERE at_ms < ?").bind(now - RETENTION_DAYS * 86_400_000).run().catch(() => undefined);
   await sweepAudit(env.DB, now, RETENTION_DAYS); // the AI's audit trail is kept as long as the organizer's own details
   let n = 0;

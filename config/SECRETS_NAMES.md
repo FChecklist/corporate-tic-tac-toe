@@ -19,6 +19,8 @@ Where things are set:
 | `INBOUND_SECRET` | Shared secret of the mail service's inbound webhook (e-mail to us asking for a deletion) | Pages secret | secret |
 | `VISIT_KEY` | Key that hashes network addresses for first-party public-page visit counts | Pages secret | secret |
 | `FUNNEL_EVENTS` | Switch for the sales funnel statistics: `on` turns it on, anything else is off | Optional Pages variable | setting |
+| `DEMO_GAME` | Switch for the free Demo game: `on` turns it on, anything else is off | Optional Pages variable | setting |
+| `PAYTEST_OWNER_ONLY` | `on` makes the Rs 1 payment test reachable only with the owner key; anything else leaves the public test page open | Optional Pages variable | setting |
 | `VISIT_DAILY_WRITES` | Most visit-count writes per day (a cap) | Optional Pages variable | setting |
 | `REPORT_KEY` | Key to read the first-party error and speed reports (`/api/telemetry`) | Pages secret | secret |
 | `RESEND_API_KEY` | Sends e-mail through the mail service (sign-in codes, invoices, reports, notes to the owner) | Pages secret | secret |
