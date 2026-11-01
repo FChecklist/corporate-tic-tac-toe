@@ -26,7 +26,7 @@
         <div id="tbSlot" class="tbslot"></div>
         ${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open.</div>` : ""}
         <button class="zbtn" id="go" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
-        <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Your name, e-mail and payment details are kept for invoice purposes. A test payment stays as a test: it buys nothing and is not credited.</p></div>`;
+        <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Your name, e-mail and payment details are kept for invoice purposes. A test payment is only for trying the payment and its invoice; it is not returned.</p></div>`;
   }
   const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
   // The K3 consent box (termsbox.js, the same as pay.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws, so the tick is kept in S.k3 and put back.

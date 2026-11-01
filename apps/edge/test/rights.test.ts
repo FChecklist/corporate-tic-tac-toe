@@ -184,7 +184,7 @@ describe("the answer time the pages promise is the one constant", () => {
     for (const f of ["apps/web/public/legal.html", "apps/web/public/privacy.html"]) {
       const file = Bun.file(new URL(f, root)); if (!(await file.exists())) continue;
       const t = plain(await file.text()); if (!/A player can leave/.test(t)) continue; // the page that carries the player's rights sentence
-      expect([f, t.includes(`We answer within ${PROMISE_DAYS} days.`)]).toEqual([f, true]);
+      expect([f, t.includes(`Every request is answered within ${PROMISE_DAYS} days.`)]).toEqual([f, true]);
     }
     const doc = await Bun.file(new URL("docs/PRIVACY_AND_LIFECYCLE.md", root)).text();
     expect(doc).toContain(`(\`PROMISE_DAYS = ${PROMISE_DAYS}\``);

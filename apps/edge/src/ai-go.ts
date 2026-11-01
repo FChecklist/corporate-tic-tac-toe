@@ -101,7 +101,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       const lines = `Here is how it will play: a knockout tournament, one against one or in teams (you choose the format and the move clock on the day). ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Guests may invite up to ${v} more people each.` : "Guests may not invite others."}`;
       return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Guests may not invite others" : "Let each guest invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
-    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; we only provide the software. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
+    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; the software is all that is provided. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
     case "extras": return goScreen(ctx, "review", q); // an old link from the days of the lucky draw step
     case "review": {
       if (!validDay(q.get("d")) || !validTime(q.get("t")) || !q.get("c")) return goScreen(ctx, "new", q);

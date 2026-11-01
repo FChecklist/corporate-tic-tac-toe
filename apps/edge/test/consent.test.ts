@@ -131,7 +131,7 @@ describe("tests 1-4 at every point", () => {
   test("K4 adults only: box B says only that the person is 18 or older (no parent's-device alternative); box A says what is kept; neither is ticked for the person; a join with only A is refused; the exact wording is hashed with the row", async () => {
     const [a, b] = boxesOf("K4").map((x) => x[1]); expect(b).toBe("I am 18 or older.");
     expect(wordingOf("K4")).not.toMatch(/parent|guardian|device with/i);
-    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "results are kept for 365 days, without names", "We keep billing data for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
+    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "results are kept for 365 days, without names", "Billing data is kept for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
     expect(a).not.toMatch(/forever|for ever|permanent/i);
     await published("CON-A18"); const body = { name: "Maya Lopez", device: dev(1) };
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["A"] } })).status).toBe(400); // the age box is required by the server

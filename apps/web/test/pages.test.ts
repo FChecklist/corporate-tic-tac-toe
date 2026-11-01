@@ -1022,7 +1022,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     });
     const p = await consolePage(o, "UI-CRD", o.token, {}, { afterLoad: w.hook }); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x)); openStep(p, 7);
     p.click("#cancelopen"); await p.waitFor((x) => /1st confirmation/.test(x));
-    expect(p.$("#norefund")!.textContent).toBe("Your payment stays with you as credit for your next game, valid for 365 days."); expect(p.$("#cancelresched")!.textContent).toBe("Change the date instead");
+    expect(p.$("#norefund")!.textContent).toBe("Your payment stays as credit for your next game, valid for 365 days."); expect(p.$("#cancelresched")!.textContent).toBe("Change the date instead");
     p.click("#cancelresched"); await p.waitFor(() => /open/.test(p.$("#sec1")!.className)); expect(p.$("#cancelpanel")).toBeNull(); expect(posts.length).toBe(0); // it goes to step 1 and sends nothing
     openStep(p, 7); p.click("#cancelopen"); await p.waitFor((x) => /1st confirmation/.test(x)); p.click("#cancel1"); await p.waitFor((x) => /2nd confirmation/.test(x));
     expect(p.$("#cancelwhat")!.textContent).toBe("Your credit: Rs 2,399.00, valid until 14 Jun 2027. Guests will be told. Their names and numbers will be auto-deleted. You cannot undo this.");
@@ -1062,7 +1062,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
       { id: "c3", amountInr: 500, remainingInr: 500, createdMs: Date.parse("2025-01-10T12:00:00+05:30"), expiresMs: Date.parse("2026-01-10T12:00:00+05:30"), status: "expired", sourceGame: "OLD-3", uses: [] }] }) });
     const p = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": o.token, "cbz-aimsg": o.aiMessage }, { afterLoad: w.hook }); await p.waitFor((x) => /Your credit/.test(x));
     const t = p.$("#creditsblock")!.textContent as string; expect(t).toMatch(/Rs 1,000\.00 of Rs 2,399\.00/); expect(t).toMatch(/valid until 14 Jun 2027/); expect(t).toMatch(/Active/); expect(t).toMatch(/used 1 Mar 2026 for NEW-1/); expect(t).toMatch(/Used/); expect(t).toMatch(/lapsed on 10 Jan 2026/); expect(t).toMatch(/Lapsed/);
-    expect(t).toMatch(/A paid game cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days\. Unused credit lapses at the end of day 365\./);
+    expect(t).toMatch(/A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days\. Unused credit lapses at the end of day 365\./);
   });
 
   test("a game that waits: the Organizer sees when guest data will be auto-deleted; the Co-host sees 'Waiting for the Organizer or Host to start the game.'; a game that did not start says so with the new-game button (and no way to pay)", async () => {
@@ -1117,7 +1117,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     const o = await organizer(); await make(o, "UI-WORDS2"); await publish(o, "UI-WORDS2"); const p = await consolePage(o, "UI-WORDS2"); await p.waitFor((x) => /Last step|Your game|Hello/i.test(x));
     openStep(p, 7); expect(p.$("#sec7 .zc-about")!.textContent).toMatch(/a paid game stays with you as credit for your next game for 365 days/); openStep(p, 8); expect(p.$("#sec8 .zc-about")!.textContent).toMatch(/your payment stays as credit for 365 days/);
     p.click('[data-act="help"]'); const q = Array.from(p.win.document.querySelectorAll(".zc-qh")).findIndex((e: any) => /Can I get a refund\?/.test(e.textContent)); expect(q).toBeGreaterThanOrEqual(0); p.click(`[data-q="${q}"]`);
-    expect(p.$(".zc-qa")!.textContent).toBe("A paid game cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.");
+    expect(p.$(".zc-qa")!.textContent).toBe("A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.");
   });
 });
 

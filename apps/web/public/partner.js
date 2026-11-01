@@ -115,7 +115,7 @@
       try { const r = await api("POST", "/api/partner/signin/link", { token: S.linkToken }); ls.set("cbz-pkey", r.partnerKey); history.replaceState(null, "", location.pathname); S.linkToken = ""; await load(); }
       catch (e) { S.err = e.message; draw(linkView()); }
     };
-    if ($("pclose")) $("pclose").onclick = async (e) => { e.preventDefault(); if (!confirm("Close your partner account? Your details are deleted. We keep billing data for audit and tax reasons.")) return; try { await api("POST", "/api/partner/close", {}, ls.get("cbz-pkey")); } catch (er) { S.err = er.message; return; } ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };
+    if ($("pclose")) $("pclose").onclick = async (e) => { e.preventDefault(); if (!confirm("Close your partner account? Your details are deleted. Billing data is kept for audit and tax reasons.")) return; try { await api("POST", "/api/partner/close", {}, ls.get("cbz-pkey")); } catch (er) { S.err = er.message; return; } ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };
     if ($("out")) $("out").onclick = () => { ls.del("cbz-pkey"); S.me = null; S.fresh = null; $dash.innerHTML = ""; draw(enrollView()); };
   }
   async function load() {
