@@ -34,7 +34,7 @@
     if (!S.info) return `${head}<p class="zmsg">${S.err ? esc(S.err) : "Loading…"}</p>`;
     const pack = packFor(S.info.cap);
     if (!S.info.draft && !S.info.unpaid) return `${head}<div class="zcard"><h2>This game is already paid and published</h2><a class="zbtn" href="/zc.html?e=${encodeURIComponent(eid)}" style="text-decoration:none;display:inline-block">Open my game</a></div>`;
-    if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">A game for more than 10,000 participants is arranged with us directly. Please write to us from the contact page.</p></div>`;
+    if (!pack) return `${head}<div class="zcard"><h2>A custom arrangement is needed</h2><p class="zsmall" style="margin-top:0">A game is for up to 2,000 participants. Please choose 2,000 or fewer.</p></div>`;
     const x = TB.price(pack, S.cur);
     const applied = S.cur === "INR" ? Math.max(Number(S.credited) || 0, Number(S.info.creditApplied) || 0) : 0; // credit already put on this game (by you, or by a Host); it comes off what you pay
     const toPay = Math.max(0, Math.round((x.total - applied) * 100) / 100);
