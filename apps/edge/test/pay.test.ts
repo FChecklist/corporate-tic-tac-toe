@@ -420,8 +420,8 @@ describe("paying to publish a draft", () => {
   });
   test("a draft that is too big for any pack needs a custom arrangement", async () => {
     const key = await start("big@acme.com", "3.3.3.3");
-    await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 100000 }, { "x-organizer": key });
-    expect((await pay(key, "PAYD-3")).status).toBe(400);
+    expect((await call("POST", "/api/z", { id: "PAYD-3", startRound: FAR_START, callSeconds: 9, cap: 2001 }, { "x-organizer": key })).status).toBe(400); // above 2000 people a game cannot be created at all
+    expect((await pay(key, "PAYD-3")).status).toBe(404);
   });
 });
 

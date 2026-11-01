@@ -58,14 +58,14 @@ describe("the free Demo game", () => {
   });
   test("at most 3 a day per organizer, then a calm refusal; a new day starts again", async () => {
     const k = await organizer();
-    for (const id of ["A-1", "A-2", "A-3"]) expect((await demo(k, id, `9.9.9.${id.length}${id.charCodeAt(2)}`)).status).toBe(200);
-    const no = await demo(k, "A-4", "9.9.8.8"); expect(no.status).toBe(429); expect((await j(no)).error).toMatch(/3 demo games a day/);
-    expect(raw.query("SELECT COUNT(*) c FROM engagement WHERE id='A-4'").get()).toEqual({ c: 0 });
+    for (const id of ["DA-1", "DA-2", "DA-3"]) expect((await demo(k, id, `9.9.9.${id.length}${id.charCodeAt(2)}`)).status).toBe(200);
+    const no = await demo(k, "DA-4", "9.9.8.8"); expect(no.status).toBe(429); expect((await j(no)).error).toMatch(/3 demo games a day/);
+    expect(raw.query("SELECT COUNT(*) c FROM engagement WHERE id='DA-4'").get()).toEqual({ c: 0 });
   });
   test("at most 3 a day per network, even from different organizers", async () => {
-    for (let i = 1; i <= 3; i++) expect((await demo(await organizer(), `N-${i}`, "5.5.5.5")).status).toBe(200);
-    expect((await demo(await organizer(), "N-4", "5.5.5.5")).status).toBe(429);
-    expect((await demo(await organizer(), "N-5", "6.6.6.6")).status).toBe(200);
+    for (let i = 1; i <= 3; i++) expect((await demo(await organizer(), `DN-${i}`, "5.5.5.5")).status).toBe(200);
+    expect((await demo(await organizer(), "DN-4", "5.5.5.5")).status).toBe(429);
+    expect((await demo(await organizer(), "DN-5", "6.6.6.6")).status).toBe(200);
   });
 });
 

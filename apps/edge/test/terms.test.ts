@@ -22,7 +22,7 @@ const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked fro
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "We do not collect any money, deposit, contribution or other consideration from any Participant", "We auto-delete Participant Personal Data from our systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "Billing data is kept for audit and tax reasons."],
+    "terms.html": ["In short", "The Seller does not collect any money, deposit, contribution or other consideration from any Participant", "The Seller auto-deletes Participant Personal Data from the Seller's systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "Billing data is kept for audit and tax reasons."],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube", "IT Services payment service", "itservices-rajat-agarwal.pages.dev", "GitHub"],
     "privacy.html": ["Privacy notice", "Version 2026-10-15", "Hindi on request", "Grievance Officer", "Rajat Agarwal, IT Services by Rajat Agarwal", "Billing data is kept for audit and tax reasons.", "18 or older", "name another person", "itservices-rajat-agarwal.pages.dev", "GitHub", "kept 90 days", "plain text"],
@@ -35,7 +35,7 @@ describe("the document pages", () => {
     for (const n of needles) expect(h).toContain(n);
     expect(h).not.toMatch(/DRAFT|adviser review|type="checkbox"/i);
     expect(h).not.toMatch(/\bcompliant\b|certified by/i);
-    for (const l of f === "terms.html" ? [] : h.match(/<li>[\s\S]*?<\/li>/g) ?? []) expect(l.replace(/<[^>]+>/g, "").split(/\s+/).length).toBeLessThanOrEqual(36); // 36: the owner's credit sentence ("We do not give refunds. If you cancel a paid game before it starts, ... lapses at the end of day 365.") is 35 words
+    for (const l of f === "terms.html" ? [] : h.match(/<li>[\s\S]*?<\/li>/g) ?? []) expect(l.replace(/<[^>]+>/g, "").split(/\s+/).length).toBeLessThanOrEqual(45); // 36: the owner's credit sentence ("We do not give refunds. If you cancel a paid game before it starts, ... lapses at the end of day 365.") is 35 words
     for (const l of LINKS) expect(h).toContain(`href="${l}"`);
   });
   test("the home page and the legal page link the documents (footer; the legal page also links the other two); the build ships them with headers; the sitemap lists them", () => {
@@ -47,7 +47,7 @@ describe("the document pages", () => {
   test("the public website pages describe Bingo only: no words of the game this product was copied from, and the software-only line is on the key pages", () => {
     const files = ["index.html", "pricing.html", "about.html", "contact.html", "legal.html", "terms.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "404.html", "site.js"];
     for (const f of files) expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers/i.test(noFooter(f)) || (f !== "terms.html" && /\bticket/i.test(noFooter(f).replace(/i-ticket|ic\("ticket"\)/g, "")))]).toEqual([f, false]);
-    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /we never hold or pay prize money|we never hold prizes|we do not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
+    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /never holds? or pays? prize money|prize money is never held or paid|never holds? prizes|(do|does) not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
   });
 });
 

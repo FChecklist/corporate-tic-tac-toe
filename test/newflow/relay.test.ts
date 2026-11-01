@@ -185,7 +185,7 @@ describe("R8 start, cap 2000, pause, erase", () => {
     expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='CAP-1'")[0].c).toBe(2000);
   });
   test("R9b: cap 2000: a game of 2001 cannot be started with the new flow, 2000 can", async () => {
-    const mk = async (id: string, n: number) => { const h = await makeGame(w, call, id, { cap: 5000 }); await call("POST", "/api/z/" + id + "/ttt/stageon", {}, h); await join(call, id, 2);
+    const mk = async (id: string, n: number) => { const h = await makeGame(w, call, id, { cap: 2000 }); await call("POST", "/api/z/" + id + "/ttt/stageon", {}, h); await join(call, id, 2);
       w.raw.run(`WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x<${n - 2}) INSERT INTO participant(eid,pid,phone_hash,joined_ms) SELECT '${id}','fill'||x,'h'||x,1 FROM c`); return h; };
     const h1 = await mk("CAP-2", 2001); const r1 = await call("POST", "/api/z/CAP-2/ttt/stagego", {}, h1); expect(r1.status).toBe(409); expect((await j(r1)).code).toBe("too-many");
     const h2 = await mk("CAP-3", 2000); const r2 = await call("POST", "/api/z/CAP-3/ttt/stagego", {}, h2); expect(r2.status).toBe(200); expect((await j(r2)).players).toBe(2000);

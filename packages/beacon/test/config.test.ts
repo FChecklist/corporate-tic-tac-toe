@@ -13,10 +13,10 @@ const ok = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); i
 const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); expect(v.ok).toBe(false); return (v as any).error as string; };
 
 describe("engagement settings", () => {
-  test("nothing set gives one card, the three default places with no text, auto marking and no breaks", () => {
+  test("nothing set gives one card, the five default places with no text, auto marking and no breaks", () => {
     const c = ok({});
     expect(c.tickets).toBe(1);
-    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third"]);
+    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third", "fourth", "fifth"]);
     expect(c.rewards.every((r) => r.ordinal === 1 && r.scope === "ticket" && r.text === "")).toBe(true);
     expect(c.mark).toBeUndefined();
     expect(c.breaks).toEqual([]);

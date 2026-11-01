@@ -12,7 +12,7 @@ afterEach(restore);
 
 // ---------------------------------------------------------------------------------------------------------- packs and prices
 describe("packs x price (packages/shared pricing is the single source)", () => {
-  const caps: [number, number][] = [[100, 100], [101, 250], [250, 250], [251, 500], [500, 500], [501, 750], [750, 750], [751, 1000], [1000, 1000], [1001, 2500], [2500, 2500], [2501, 5000], [5000, 5000], [5001, 10000], [10000, 10000]];
+  const caps: [number, number][] = [[100, 100], [101, 250], [250, 250], [251, 500], [500, 500], [501, 750], [750, 750], [751, 1000], [1000, 1000], [1001, 2500], [2000, 2500]];
   for (const [cap, pack] of caps) {
     test(`a game of ${cap} players is sold as the ${pack} pack, charged in paise exactly as pricing.ts says`, async () => {
       const o = await organizer(); const id = uid();
