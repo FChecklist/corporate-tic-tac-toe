@@ -26,9 +26,7 @@ describe("packs x price (packages/shared pricing is the single source)", () => {
   }
   test("a game bigger than the biggest pack cannot be checked out", async () => {
     const o = await organizer(); const id = uid();
-    expect((await create(o.key, id, { cap: 10001 })).status).toBe(200);
-    expect((await publish(o.key, id)).status).toBe(200);
-    expect((await checkout(o.key, { eid: id })).status).toBe(400);
+    expect((await create(o.key, id, { cap: 10001 })).status).toBe(400); // the limit is now 2000 people, below the biggest pack; a bigger game cannot even be created
     expect(W.orders.length).toBe(0);
   });
   for (const [pack, inr, usd] of PACKS) {
@@ -144,7 +142,7 @@ describe("speeds, rounds, tickets per person, names", () => {
   for (const [tickets, ok] of [[1, true], [2, true], [0, false], [3, false], ["2", false], [1.5, false]] as [unknown, boolean][]) {
     test(`${JSON.stringify(tickets)} card(s) per person is ${ok ? "accepted" : "refused"}`, async () => { expect((await mk({ tickets })).r.status).toBe(ok ? 200 : 400); });
   }
-  for (const [cap, ok] of [[1, true], [100000, true], [0, false], [100001, false], [-5, false], [10.5, false]] as [number, boolean][]) {
+  for (const [cap, ok] of [[1, true], [2000, true], [0, false], [2001, false], [-5, false], [10.5, false]] as [number, boolean][]) {
     test(`a limit of ${cap} players is ${ok ? "accepted" : "refused"} when building a game`, async () => { expect((await mk({ cap })).r.status).toBe(ok ? 200 : 400); });
   }
   for (const id of ["abc", "a b c d", "ab/cd", "x".repeat(41), "ok-id_1", "A-1234", "../etc"]) {

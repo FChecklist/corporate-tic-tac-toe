@@ -217,7 +217,7 @@ describe("the report and the deletion", () => {
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0);
   });
   test("a big game: one link, the report page reads the people in pieces and lays out the parts on the device, which together list every person once", async () => {
-    await create("PRV-BIG", { cap: 5000 }); await setContact("PRV-BIG");
+    await create("PRV-BIG", { cap: 2000 }); await setContact("PRV-BIG");
     const N = 1620;
     for (let i = 1; i <= N; i++) {
       const pii = await sealPii(env as any, { phone: "9876" + String(100000 + i), name: "Person " + i });

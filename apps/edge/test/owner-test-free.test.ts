@@ -17,7 +17,7 @@ describe("owner test accounts", () => {
     expect(one("SELECT payment_id, eid FROM entitlement WHERE org=?", one("SELECT org FROM engagement WHERE id=?", a).org)).toMatchObject({ payment_id: "owner-test", eid: a });
     const r2 = await j(await create(other.key, b, { cap: 250 })); expect(r2.draft).toBe(true);
     const real = await organizer("raajat.agarwal@gmail.com"); expect((await j(await create(real.key, uid("OT"), { cap: 250 }))).draft).toBe(true); // the owner's real account sees the real unpaid flow
-    const r3 = await j(await create(owner.key, c, { cap: 5000 })); expect(r3.draft).toBe(true); // above the owner's allowed size
+    const r3 = await j(await create(owner.key, c, { cap: 2000 })); expect(r3.draft).toBe(true); // above the owner's allowed size (1000)
   });
   test("the list holds only the named accounts, with an end date", () => {
     expect(OWNER_TEST_FREE.map((x) => x.email)).toEqual(["demo1@xyz.in"]); // the owner's real addresses see the real flow

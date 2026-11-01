@@ -9,15 +9,15 @@ export type PatternKey = HouseId;
 export interface RewardLine { pattern: HouseId; scope: Scope; ordinal: number; text: string }
 /**
  * THE one table of reward places: id, label, a short plain "how to win", and the most winners (always 1: the ranking has no ties, see docs/RULES.md R24). The server validates with it, the pages
- * read it (window.ZG.PRIZE_HOUSES), the AI manual lists it. `dflt` places make up the default reward set of a new game: 1st, 2nd and 3rd.
+ * read it (window.ZG.PRIZE_HOUSES), the AI manual lists it. `dflt` places make up the default reward set of a new game: the top five places.
  */
 export interface PrizeHouse { id: PatternKey; label: string; how: string; max: number; kind: "set" | "lines"; dflt?: true; squares: string }
 export const PRIZE_HOUSES: readonly PrizeHouse[] = [
   { id: "first", label: "Champion (1st)", how: "Wins the final.", max: 1, kind: "set", dflt: true, squares: "1st" },
   { id: "second", label: "Runner-up (2nd)", how: "Loses the final.", max: 1, kind: "set", dflt: true, squares: "2nd" },
   { id: "third", label: "3rd place", how: "Best of the two semi-final losers (round reached, then points, then points in the last match, then fate).", max: 1, kind: "set", dflt: true, squares: "3rd" },
-  { id: "fourth", label: "4th place", how: "The other semi-final loser.", max: 1, kind: "set", squares: "4th" },
-  { id: "fifth", label: "5th place", how: "Best of the quarter-final losers by the same order.", max: 1, kind: "set", squares: "5th" },
+  { id: "fourth", label: "4th place", how: "The other semi-final loser.", max: 1, kind: "set", dflt: true, squares: "4th" },
+  { id: "fifth", label: "5th place", how: "Best of the quarter-final losers by the same order.", max: 1, kind: "set", dflt: true, squares: "5th" },
 ];
 /** One plain line naming every house and its maximum winners, for the AI manual and the choices list. */
 export const HOUSES_LINE: string = PRIZE_HOUSES.map((h) => `${h.id} = ${h.label} (${h.max === 1 ? "1 winner" : `up to ${h.max} winners`})`).join(", ");
