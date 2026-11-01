@@ -76,16 +76,16 @@ describe("sitemap and robots", () => {
   });
 });
 
-describe("headers from a real build (pages/build.mjs): thank-you and game-completed are noindex, the others are not", () => {
+describe("headers from a real build (pages/build.mjs): every page is noindex (the site is hidden from search, 1 Nov 2026)", () => {
   let headers = "";
   beforeAll(() => {
     const r = spawnSync(process.execPath, ["pages/build.mjs"], { cwd: fileURLToPath(new URL("../../../", import.meta.url)), encoding: "utf8" });
     expect(r.status).toBe(0); headers = readFileSync(new URL("../../../pages/public/_headers", import.meta.url), "utf8");
-  }, 60_000);
+  }, 120_000);
   const block = (path: string) => { const i = headers.split("\n").findIndex((l) => l === path); if (i < 0) return null; const out: string[] = []; for (let k = i + 1; k < headers.split("\n").length && /^\s/.test(headers.split("\n")[k]!); k++) out.push(headers.split("\n")[k]!.trim()); return out.join("\n"); };
-  for (const p of PAGES) for (const path of [`/${p}.html`, `/${p}`]) test(`${path}: ${p === "thank-you" || p === "game-completed" ? "X-Robots-Tag has noindex" : "no noindex header"}`, () => {
+  for (const p of PAGES) for (const path of [`/${p}.html`, `/${p}`]) test(`${path}: X-Robots-Tag has noindex`, () => {
     const b = block(path); expect(b).not.toBeNull(); const x = /X-Robots-Tag: (.*)/.exec(b!)?.[1] ?? "";
-    expect(/noindex/.test(x)).toBe(p === "thank-you" || p === "game-completed"); expect(b).toContain("Content-Security-Policy:"); expect(b).toContain("X-Frame-Options: DENY");
+    expect(/noindex/.test(x)).toBe(true); expect(b).toContain("Content-Security-Policy:"); expect(b).toContain("X-Frame-Options: DENY");
   });
   test("the built site serves every new page and a version.json with a build time", () => {
     for (const p of PAGES) expect(existsSync(new URL(`../../../pages/public/${p}.html`, import.meta.url))).toBe(true);

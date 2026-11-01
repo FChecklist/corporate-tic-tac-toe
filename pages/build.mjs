@@ -39,7 +39,7 @@ rules += "/*\n  Strict-Transport-Security: max-age=31536000" + PRIVATE_ROBOTS_HE
 rules += "/version.json\n  Cache-Control: no-store\n";
 rules += "/*.js\n  Cache-Control: no-cache\n  X-Robots-Tag: noindex, noai, noimageai\n/img/*\n  Cache-Control: public, max-age=604800\n/*.css\n  Cache-Control: no-cache\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n/vendor/*\n  Cache-Control: public, max-age=604800\n  X-Robots-Tag: noindex, noai, noimageai\n";
 versionRefs(OUT, STAMP.commit); // every local script and stylesheet address in the pages carries ?v=<commit> (pages/cache-bust.mjs): a returning visitor never runs an old script on a new page, whatever cache time the zone adds (the zone setting Browser Cache TTL replaces a no-cache header on the custom domain, so the address itself must change)
-hideFromSearch(OUT); // owner order 1 Nov 2026: noindex meta on every page, robots.txt Disallow all, no sitemap
+hideFromSearch(OUT); // 1 Nov 2026: noindex meta on every page, robots.txt Disallow all, no sitemap
 writeFileSync(join(OUT, "_headers"), rules);
 writeFileSync(join(OUT, "version.json"), JSON.stringify(STAMP) + "\n"); // what is live (P12): served at /version.json
 writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/vendor/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/*.txt", "/*.xml", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));

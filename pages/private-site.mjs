@@ -1,4 +1,4 @@
-// Private game site (owner order 1 Nov 2026): home.corporatetambola.com is the one public face; this site is reached by link only and is never listed by a search engine.
+// Private game site (1 Nov 2026): home.corporatetambola.com is the one public face; this site is reached by link only and is never listed by a search engine.
 // Applied to the BUILT folder only (the sources and their older public-SEO tests stay as they were). Four parts:
 //   1. every shipped HTML page says <meta name="robots" content="noindex, nofollow"> (any older robots meta is replaced);
 //   2. robots.txt disallows everything for everyone;
