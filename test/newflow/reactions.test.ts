@@ -58,8 +58,8 @@ describe("X4 none while paused", () => {
     expect(/rx\(\s*paused\s*\?\s*["']pause["']/.test(code) || /rx\(\s*["'](pause|resume)["']/.test(code)).toBe(false);
   });
   test("X4d: the page gives the scheduler game time (clock minus pauses), not the wall clock", () => {
-    const code = stripC(pub("ttt.js")); const call = code.match(/\.react\([^)]*\)/)?.[0] ?? "";
-    expect(/now:\s*Date\.now\(\)/.test(call)).toBe(false);
+    const code = stripC(pub("ttt.js")); const call = code.match(/\.react\([^{]*\{[^}]*\}/)?.[0] ?? "";
+    expect(call.includes("__tttPausedMs")).toBe(true); expect(/now:\s*Date\.now\(\)\s*[,}]/.test(call)).toBe(false); // game time: the paused time is taken out
   });
 });
 
