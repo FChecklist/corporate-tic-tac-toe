@@ -14,7 +14,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const rd = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-const noFooter = (f: string) => rd(f).replace(/<footer class="uf"[\s\S]*?<\/footer>/, "").replace(/corporatetambola\.com/g, ""); // the uniform footer links the sister games on purpose
+const noFooter = (f: string) => rd(f).replace(/<footer class="(?:uf|ck-foot)"[\s\S]*?<\/footer>|<div class="ck-choose">[\s\S]*?<\/ul>|<svg class="ck-sprite"[\s\S]*?<\/svg>/g, "").replace(/corporatetambola\.com/g, ""); // the footer, the "Choose a game" row and the badge sprite name the sister games on purpose
 const rows = () => raw.prepare("SELECT org, version, via, at_ms FROM organizer_terms ORDER BY at_ms, via").all() as { org: string; version: string; via: string; at_ms: number }[];
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
 const LINKS = ["/terms.html", "/dpa.html", "/organizer-guide.html", "/privacy.html"]; // the uniform footer (games-ops/footer/ufooter.py) links these documents
@@ -31,7 +31,7 @@ describe("the document pages", () => {
   };
   for (const [f, needles] of Object.entries(DOCS)) test(`${f}: brand header and footer, title pattern, the right statements, no draft mark, no tick box, short lines`, () => {
     const h = rd(f);
-    expect(h).toMatch(/<title>[^<]+ \| Corporate Tic Tac Toe<\/title>/); expect(h).toContain('class="legaltop"'); expect(h).toContain('<footer class="uf"'); expect(h).toContain('rel="icon"');
+    expect(h).toMatch(/<title>[^<]+ \| Corporate Tic Tac Toe<\/title>/); expect(h).toContain('class="ck-top"'); expect(h).toContain('<footer class="ck-foot"'); expect(h).toContain('rel="icon"');
     for (const n of needles) expect(h).toContain(n);
     expect(h).not.toMatch(/DRAFT|adviser review|type="checkbox"/i);
     expect(h).not.toMatch(/\bcompliant\b|certified by/i);

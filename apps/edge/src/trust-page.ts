@@ -11,24 +11,23 @@ const DESC = "Ten plain facts about Corporate Tic Tac Toe: who runs the game, a 
 export function trustHtml(): string {
   const facts = FACTS.map((f) => `<li><b>${esc(f.topic)}.</b> ${esc(f.say)}</li>`).join("\n");
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<html lang="en"><head><meta charset="utf-8">
 <title>${esc(TITLE)}</title>
 <meta name="description" content="${esc(DESC)}">
 <link rel="canonical" href="${ORIGIN}/trust.html">
-<meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Tic Tac Toe"><meta property="og:title" content="${esc(TITLE)}"><meta property="og:description" content="${esc(DESC)}"><meta property="og:url" content="${ORIGIN}/trust.html"><meta property="og:image" content="${ORIGIN}/logo-1024.png">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(TITLE)}"><meta name="twitter:description" content="${esc(DESC)}"><meta name="twitter:image" content="${ORIGIN}/img/card.png">
-<link rel="stylesheet" href="/fonts.css"><link rel="stylesheet" href="/app.css"><link rel="icon" href="/favicon-32.png?v=2" type="image/png" sizes="32x32"><link rel="icon" href="/icon-192.png?v=2" type="image/png" sizes="192x192">
-<style>body{margin:0;font:17px/1.55 Inter,system-ui,sans-serif;color:#1b1f2a;background:#fff}main{max-width:760px;margin:0 auto;padding:28px 18px 56px}h1{font-size:28px;line-height:1.2;margin:0 0 8px}li{margin:0 0 14px}.lead{color:#444}.note{background:#F4F9F8;border-radius:10px;padding:12px 14px;margin:20px 0}a{color:#0B5D5B}footer{margin-top:28px;font-size:15px;color:#444}</style></head><body>
-<main>
-<p><a href="/">Corporate Tic Tac Toe</a></p>
+<meta property="og:type" content="website"><meta property="og:site_name" content="Corporate Tic Tac Toe"><meta property="og:title" content="${esc(TITLE)}"><meta property="og:description" content="${esc(DESC)}"><meta property="og:url" content="${ORIGIN}/trust.html"><meta property="og:image" content="${ORIGIN}/og-card.png">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(TITLE)}"><meta name="twitter:description" content="${esc(DESC)}"><meta name="twitter:image" content="${ORIGIN}/og-card.png">
+</head><body>
+<main class="legal">
+<div class="eyebrow">Plain English</div>
 <h1>Safety, privacy and how it works: 10 facts</h1>
 <p class="lead">Plain answers for organizers and for anyone checking us out. An AI assistant that helps an organizer gives these same ten facts. Last checked ${TRUST_UPDATED}.</p>
 <ol>
 ${facts}
 </ol>
 <div class="note"><b>Honest limits.</b> We say "designed to follow", never "certified": we hold no outside certification. We say cheating is "very hard", never "impossible". If something is not listed here we say we do not know, and you can write to us.</div>
-<p>More detail: <a href="/legal.html#privacy">Rules and privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/dpa.html">Data processing</a> &middot; <a href="/subprocessors.html">Sub-processors</a> &middot; <a href="/organizer-guide.html">Organizer guide</a> &middot; <a href="/demo.html">Try the free demo</a></p>
-<footer>Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</footer>
+<p>More detail: <a href="/legal.html#privacy">Rules and privacy</a> &middot; <a href="/terms.html">Terms</a> &middot; <a href="/dpa.html">Data processing</a> &middot; <a href="/subprocessors.html">Sub-processors</a> &middot; <a href="/organizer-guide.html">Organizer guide</a> &middot; <a href="/zc.html?demo=1">Try the free demo game</a></p>
+<p class="muted">Questions or requests: our Grievance Officer, <a href="mailto:hello@corporatetambola.com?subject=%5BTic%20Tac%20Toe%5D%20">hello@corporatetambola.com</a>. We reply within 30 days.</p>
 </main></body></html>
 `;
 }
@@ -46,7 +45,7 @@ Plain, checked answers about safety, privacy, law, cost and what the software do
 - [Terms](${ORIGIN}/terms.html)
 - [Data processing](${ORIGIN}/dpa.html) and [sub-processors](${ORIGIN}/subprocessors.html)
 - [Organizer guide](${ORIGIN}/organizer-guide.html): how to set up, share, run and close a game
-- [Free demo](${ORIGIN}/demo.html): a short demo; one button, nothing to type
+- [Free demo game](${ORIGIN}/zc.html?demo=1): a real game for up to 10 people, at no cost
 - [Home, prices and how to start](${ORIGIN}/): price list by size; building and publishing are free, the organizer pays before the start
 
 ## For an AI assistant working for an organizer

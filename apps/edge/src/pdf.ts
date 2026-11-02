@@ -2,7 +2,7 @@
 // report stays a few hundred KB and builds in a few milliseconds). Text is Latin-1: letters outside it (for example Devanagari names) print as "?",
 // which the report says in its notes. Pure functions only, so it runs in a Worker, in Bun and in a browser.
 export type Rgb = [number, number, number];
-export const NAVY: Rgb = [0.043, 0.239, 0.569], GOLD: Rgb = [0.788, 0.635, 0.29], INK: Rgb = [0.11, 0.14, 0.2], GREY: Rgb = [0.4, 0.43, 0.48], LIGHT: Rgb = [0.955, 0.945, 0.92], WHITE: Rgb = [1, 1, 1], RED: Rgb = [0.62, 0.12, 0.12];
+export const NAVY: Rgb = [0.043, 0.239, 0.569], GOLD: Rgb = [1, 0.788, 0.235], /* marigold #FFC93C, the brand kit gold */ INK: Rgb = [0.11, 0.14, 0.2], GREY: Rgb = [0.4, 0.43, 0.48], LIGHT: Rgb = [0.955, 0.945, 0.92], WHITE: Rgb = [1, 1, 1], RED: Rgb = [0.62, 0.12, 0.12];
 type Font = "F1" | "F2" | "F3" | "F4"; // Helvetica, Helvetica-Bold, Courier, Courier-Bold
 const BASE: Record<Font, string> = { F1: "Helvetica", F2: "Helvetica-Bold", F3: "Courier", F4: "Courier-Bold" };
 const CHAR_W: Record<Font, number> = { F1: 0.49, F2: 0.55, F3: 0.6, F4: 0.6 }; // average glyph width in em, used for wrapping and alignment
@@ -69,6 +69,17 @@ export class PdfDoc {
     this.img = px; const k = Math.min((w - 6) / px.w, (h - 6) / px.h), dw = px.w * k, dh = px.h * k;
     this.cur.push(`1 1 1 rg ${num(x)} ${num(top - h)} ${num(w)} ${num(h)} re f`);
     this.cur.push(`q ${num(dw)} 0 0 ${num(dh)} ${num(x + (w - dw) / 2)} ${num(top - h + (h - dh) / 2)} cm /Im1 Do Q`);
+  }
+  /** The Corporate Tic Tac Toe badge of the brand kit, drawn with lines and curves (no image file): a green rounded square with the board, crosses and rings. Its top-left corner is (x, top). */
+  badge(x: number, top: number, size: number) {
+    const k = size / 64, X = (v: number) => x + v * k, Y = (v: number) => top - v * k, c = this.cur, K = 0.5523;
+    const rr = (r: number) => `${num(X(r))} ${num(Y(0))} m ${num(X(64 - r))} ${num(Y(0))} l ${num(X(64 - r + K * r))} ${num(Y(0))} ${num(X(64))} ${num(Y(r - K * r))} ${num(X(64))} ${num(Y(r))} c ${num(X(64))} ${num(Y(64 - r))} l ${num(X(64))} ${num(Y(64 - r + K * r))} ${num(X(64 - r + K * r))} ${num(Y(64))} ${num(X(64 - r))} ${num(Y(64))} c ${num(X(r))} ${num(Y(64))} l ${num(X(r - K * r))} ${num(Y(64))} ${num(X(0))} ${num(Y(64 - r + K * r))} ${num(X(0))} ${num(Y(64 - r))} c ${num(X(0))} ${num(Y(r))} l ${num(X(0))} ${num(Y(r - K * r))} ${num(X(r - K * r))} ${num(Y(0))} ${num(X(r))} ${num(Y(0))} c h f`;
+    c.push(`0.09 0.47 0.29 rg ${rr(14)}`); // #17784A
+    const stroke = (rgb: Rgb, w: number, d: string) => c.push(`q 1 J ${col(rgb)} RG ${num(w * k)} w ${d} S Q`);
+    stroke(WHITE, 3.4, [24.5, 39.5].map((v) => `${num(X(v))} ${num(Y(9))} m ${num(X(v))} ${num(Y(55))} l ${num(X(9))} ${num(Y(v))} m ${num(X(55))} ${num(Y(v))} l`).join(" "));
+    const cross: Rgb = [1, 0.541, 0.478], ring: Rgb = [1, 0.831, 0.231]; // #FF8A7A, #FFD43B
+    stroke(cross, 3.6, [[11, 11], [27, 27], [43, 43]].map(([a, b]) => `${num(X(a!))} ${num(Y(b!))} m ${num(X(a! + 10))} ${num(Y(b! + 10))} l ${num(X(a! + 10))} ${num(Y(b!))} m ${num(X(a!))} ${num(Y(b! + 10))} l`).join(" "));
+    for (const [cx, cy] of [[47, 16], [16, 47], [32, 47]] as const) { const r = 5.4, h = K * r; stroke(ring, 3.4, `${num(X(cx + r))} ${num(Y(cy))} m ${num(X(cx + r))} ${num(Y(cy - h))} ${num(X(cx + h))} ${num(Y(cy - r))} ${num(X(cx))} ${num(Y(cy - r))} c ${num(X(cx - h))} ${num(Y(cy - r))} ${num(X(cx - r))} ${num(Y(cy - h))} ${num(X(cx - r))} ${num(Y(cy))} c ${num(X(cx - r))} ${num(Y(cy + h))} ${num(X(cx - h))} ${num(Y(cy + r))} ${num(X(cx))} ${num(Y(cy + r))} c ${num(X(cx + h))} ${num(Y(cy + r))} ${num(X(cx + r))} ${num(Y(cy + h))} ${num(X(cx + r))} ${num(Y(cy))} c`); }
   }
   h1(text: string) { this.need(40); this.gap(8); this.y -= 18; this.put(text, this.M, this.y, { font: "F2", size: 15, color: NAVY }); this.line(this.M, this.y - 5, this.W - this.M, this.y - 5, GOLD, 1.2); this.y -= 12; }
   h2(text: string) { this.need(28); this.gap(4); this.y -= 14; this.put(text, this.M, this.y, { font: "F2", size: 11, color: INK }); this.y -= 4; }

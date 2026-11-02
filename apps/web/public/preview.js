@@ -8,7 +8,7 @@
   let key = ""; try { key = CTK.get("cbz-org") || ""; } catch (e) { key = ""; }
   const paint = () => document.querySelectorAll(".zbrand").forEach((el) => { el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });
   const strip = (b) => (!b || (!b.name && !b.logo)
-    ? `<div class="zbrand" data-bg="#0B5D5B" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`
+    ? `<div class="zbrand" data-bg="#0B3D91" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`
     : `<div class="zbrand" id="pvbrand" data-bg="${esc(b.color)}" data-fg="${esc(b.fg || "#ffffff")}">${b.logo && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(b.logo) ? `<img class="zblogo" alt="" src="${esc(b.logo)}">` : ""}${b.name ? `<b>${esc(b.name)}</b>` : ""}</div>`);
   const cells = ["X", "", "O", "", "X", "", "O", "", ""];
   const board = `<div class="tboard" role="img" aria-label="A sample tic tac toe board">${cells.map((c) => `<button type="button" class="tsq ${c === "X" ? "x" : c === "O" ? "o" : ""}" tabindex="-1" disabled>${c}</button>`).join("")}</div>`;

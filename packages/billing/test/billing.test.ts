@@ -56,6 +56,12 @@ describe("invoice rendering", () => {
     expect(html).toContain("A product of <b>IT Services by Rajat Agarwal</b>");
     expect(html).toContain("CB/2026-27/000001");
   });
+  test("the invoice carries the brand kit's badge, the kit's blue, and says who takes the payment (owner order 2026-10-29)", () => {
+    const html = renderInvoiceHtml(invoice(false)), text = renderInvoiceText(invoice(false));
+    expect(html).toContain('<svg class="bdg"'); expect(html).toContain('fill="#17784A"'); expect(html).toContain("#0B3D91"); expect(html).not.toContain("#0B5D5B"); // the badge is drawn in the page: a printed invoice and a PDF need no outside file
+    expect(html).toContain("All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.");
+    expect(text).toContain("All payments are taken only by IT Services by Rajat Agarwal, through Razorpay.");
+  });
   test("buyer text is escaped", () => { expect(renderInvoiceHtml(invoice(false))).not.toContain("<script>"); });
   test("an invoice with missing supplier details says DRAFT instead of pretending to be valid", () => {
     expect(companyGaps(DEFAULT_COMPANY, true)).toEqual(["GSTIN", "state code", "registered address", "SAC code"]);

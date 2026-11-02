@@ -1,18 +1,18 @@
 // One definition of how Corporate Tic Tac Toe presents itself in every e-mail: the same header (logo mark + wordmark) and the same footer (name, support address, legal link).
 // Every e-mail the service sends goes through sendMail / sendReportMail (pay.ts), which adds this footer and wraps plain mails in this header, so a mail without the brand cannot go out.
-// The name is always exactly "Corporate Tic Tac Toe". The palette is the site's (wine, gold, ivory).
+// The name is always exactly "Corporate Tic Tac Toe". The palette is the Corporate Games brand kit's (studio blue, marigold, warm paper).
 
 /** The version of the Terms in force (the date at the top of /terms.html). Stored with the organizer when they continue. */
 export const TERMS_VERSION = "2026-10-15"; // the one version of the Terms: terms.html, the consent boxes and the tests all read this value
 
 export const BRAND = {
   name: "Corporate Tic Tac Toe",
-  tagline: "Live games for companies",
+  tagline: "Online games for company events",
   tag: "Tic Tac Toe", // the product tag at the start of every subject sent to people
   support: "hello@corporatetambola.com", // the contact address the site's legal page publishes
   legalPath: "/legal.html",
   defaultOrigin: "https://tictactoe.corporatetambola.com",
-  wine: "#0B5D5B", gold: "#FFC93C", gold2: "#FFE08A", ivory: "#F7FBFA", line: "#D5E3E1",
+  wine: "#0B3D91", gold: "#FFC93C", gold2: "#E3ECFF", ivory: "#FFFAF2", line: "#EFDDBE", edge: "#E0B872", page: "#FFF0D6",
 } as const;
 
 /** "[Tambola] " at the start of every subject (once). */
@@ -28,22 +28,22 @@ export const footerText = (origin?: string) => `--\n${BRAND.name}\nQuestions? Wr
 export const hasFooter = (text: string) => text.includes(`Write to ${BRAND.support}`) && text.includes(BRAND.legalPath);
 export const withFooter = (text: string, origin?: string) => (hasFooter(text) ? text : `${text.replace(/\s+$/, "")}\n\n${footerText(origin)}\n`);
 
-/** The header row of every HTML e-mail: the logo mark and the wordmark. `data-brand` lets tests find it. */
+/** The header row of every HTML e-mail: the logo badge, the small CORPORATE line above the proper name. `data-brand` lets tests find it. */
 export function headerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:10px;"><img src="${o}/icon-192.png" width="34" height="34" alt="" style="display:block;border-radius:9px;"></td><td valign="middle" style="font-family:Georgia,'Times New Roman',serif;font-size:21px;font-weight:700;color:${BRAND.gold2};letter-spacing:.01em;">${BRAND.name}<span style="color:${BRAND.gold};">.</span></td></tr></table></td></tr>`;
+  return `<tr data-brand="header"><td style="background:${BRAND.wine};border-bottom:3px solid ${BRAND.edge};border-radius:10px 10px 0 0;padding:14px 22px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="padding-right:12px;"><img src="${o}/icon-192.png" width="40" height="40" alt="${BRAND.name}" style="display:block;border-radius:10px;"></td><td valign="middle"><div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:.16em;color:${BRAND.gold2};">CORPORATE</div><div style="font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:700;color:#FFFFFF;line-height:1.1;">Tic Tac Toe</div></td></tr></table></td></tr>`;
 }
 /** The footer row of every HTML e-mail: name, support address, legal link. */
 export function footerHtml(origin?: string): string {
   const o = base(origin);
-  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#5C6F6D;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>Questions? Write to <a href="mailto:${BRAND.support}?subject=${encodeURIComponent(mailTag)}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
+  return `<tr data-brand="footer"><td style="border-top:1px solid ${BRAND.line};background:${BRAND.ivory};border-radius:0 0 10px 10px;padding:14px 22px;font-size:12px;line-height:1.6;color:#4D4870;"><b style="color:${BRAND.wine};">${BRAND.name}</b> &middot; ${BRAND.tagline}<br>A product of IT Services by Rajat Agarwal<br>Questions? Write to <a href="mailto:${BRAND.support}?subject=${encodeURIComponent(mailTag)}" style="color:${BRAND.wine};">${BRAND.support}</a><br><a href="${o}${BRAND.legalPath}" style="color:${BRAND.wine};">Rules, privacy and disclaimer</a></td></tr>`;
 }
 
 /** The full HTML page around some rows. */
 export function pageHtml(title: string, rows: string, origin?: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-<body style="margin:0;background:#EEF5F4;font-family:Arial,Helvetica,sans-serif;color:#1c2433;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF5F4;"><tr><td align="center" style="padding:20px 10px;">
+<body style="margin:0;background:${BRAND.page};font-family:Arial,Helvetica,sans-serif;color:#1c2433;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.page};"><tr><td align="center" style="padding:20px 10px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;border:1px solid ${BRAND.line};">
 ${headerHtml(origin)}
 ${rows}

@@ -415,7 +415,7 @@ describe("Refer & Earn page", () => {
     expect(readFileSync(join(import.meta.dir, "../public/index.html"), "utf8")).toContain('href="/partner.html"');
     expect(readFileSync(join(import.meta.dir, "../public/sitemap.xml"), "utf8")).toContain("/partner.html");
     expect(readFileSync(join(import.meta.dir, "../../../pages/build.mjs"), "utf8")).toContain('"partner.css"');
-    expect(html()).toContain('href="/partner.css"');
+    expect(html()).toContain('href="/partner.css');
   });
 });
 
@@ -1136,7 +1136,7 @@ describe("simpler console (owner orders 2026-10-27: numbered steps, radio button
     const o = await organizer(); await make(o, "UI-RADIO");
     const p = await consolePage(o, "UI-RADIO"); await p.waitFor((x) => /Hello/.test(x));
     for (const n of [1, 2]) { openStep(p, n);
-      expect(p.win.document.querySelectorAll("select").length).toBe(0); expect(p.win.document.querySelectorAll("[aria-pressed]").length).toBe(0);
+      expect(p.win.document.querySelectorAll("select").length).toBe(0); expect(p.win.document.querySelectorAll("#app [aria-pressed]").length).toBe(0); // the colour dots in the site header (outside the console) are buttons on purpose
       for (const g of Array.from(p.win.document.querySelectorAll(`#sec${n} [role=radiogroup]`)) as any[]) expect([n, g.getAttribute("aria-labelledby"), g.querySelectorAll('[role=radio][aria-checked=true]').length]).toEqual([n, g.getAttribute("aria-labelledby"), 1]);
     }
     openStep(p, 2);

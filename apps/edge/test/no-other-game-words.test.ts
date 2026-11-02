@@ -1,6 +1,6 @@
 // Words of another game must not reach a person: the pages, the pay screen (Razorpay description), the AI link prompt and manual, the e-mails and the report of Corporate Tic Tac Toe say nothing about
 // Bingo, Tambola or Housie, and nothing about cards, numbers called, daubing, houses or lucky draws, which this game does not have.
-// (The Corporate Games bar and the uniform footer's "More from us" line name the sister games on purpose, and a few internal file names and code comments keep the old words.)
+// (The Corporate Games bar, the footer and the "Choose a game" row name the sister games on purpose, and a few internal file names and code comments keep the old words.)
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -9,7 +9,7 @@ import { layoutReport, type ReportData } from "../src/report-layout";
 const WEB = join(import.meta.dir, "../../web/public"), SRC = join(import.meta.dir, "../src");
 const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "tttgame.js", "reportgen.js"]); // the games bar lists the other games; the others are built bundles with internal names
 const WORDS = /\b(bingo|tambola|housie)\b/i;
-const UNIFORM_FOOTER = /<footer class="uf"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
+const UNIFORM_FOOTER = /<footer class="(?:uf|ck-foot)"[\s\S]*?<\/footer>|<div class="ck-choose">[\s\S]*?<\/ul>|<svg class="ck-sprite"[\s\S]*?<\/svg>/g; // the footer, the "Choose a game for your close group" row and the badge sprite of the Corporate Games brand kit name the sister games on purpose
 
 describe("no wording from another game", () => {
   for (const f of readdirSync(WEB).filter((x) => /\.(html|js)$/.test(x) && !SKIP.has(x))) {

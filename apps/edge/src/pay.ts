@@ -266,7 +266,7 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
   const keptCredit = closed ? await creditFromPayment(db, { ...p, paid_ms: now }, org, meta.eid, now, "late") : null; // a payment for a cancelled or closed game: credit, never a refund
   const lines = [
     closed ? `Thank you. Your payment was received after the game "${meta.eid}" had been cancelled or closed. We do not give refunds: it stays as credit for the organizer's next game${keptCredit ? ` until ${new Date(keptCredit.expires_ms - 1).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" })}` : ""}.` : `Thank you. Payment received for up to ${p.pack} participants.`,
-    closed ? "The organizer has been told." : published ? `Your game is live. Share the link from your console: ${origin}/zc.html?e=${published}` : organizerKey ? `Your organizer key (keep it private, it is shown only once): ${organizerKey}\nOpen ${origin}/zc.html and paste it to begin.` : `Use your existing organizer key at ${origin}/zc.html to create this game.`,
+    closed ? "The organizer has been told." : published ? `Your game is live. Share the link from your console: ${origin}/zc.html?e=${published}` : organizerKey ? `Your organizer key (keep it to yourself, it is shown only once): ${organizerKey}\nOpen ${origin}/zc.html and paste it to begin.` : `Use your existing organizer key at ${origin}/zc.html to create this game.`,
     `\nINVOICE\n${renderInvoiceText(data)}\nView or print it: ${origin}/api/invoice/${token}`,
   ];
   await sendMail(env, db, p.email, `${brand.name}: payment received, invoice ${number}`, lines.join("\n\n"), now);

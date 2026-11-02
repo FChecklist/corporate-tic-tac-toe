@@ -31,7 +31,7 @@
   const top = () => brand() + (hasBrand() ? head() : "");
   const brand = () => {
     const b = INFO && INFO.brand;
-    if (!b || (!b.name && !b.logo)) return `<div class="zbrand zdef" data-bg="#0B5D5B" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`;
+    if (!b || (!b.name && !b.logo)) return `<div class="zbrand zdef" data-bg="#0B3D91" data-fg="#ffffff"><b>CORPORATE TIC TAC TOE</b></div>`;
     return `<div class="zbrand" data-bg="${esc(b.color)}" data-fg="${esc(b.fg || "#ffffff")}">${b.logo ? `<img class="zblogo" alt="" src="${esc(b.logo)}">` : ""}${b.name ? `<b>${esc(b.name)}</b>` : ""}</div>`;
   };
   const paintBrand = () => document.querySelectorAll(".zbrand").forEach((el) => { if (!el.classList.contains("zdef")) el.style.background = el.dataset.bg; el.style.color = el.dataset.fg; });

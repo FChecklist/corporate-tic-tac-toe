@@ -1,0 +1,16 @@
+/* The organizer console (zc.html) and the tournament page (host.html) keep their own style sheets and their own logic.
+   This file only gives them the Corporate Games look: the kit's colours, the status chips (a word and a dot, never colour alone) and the page spacing. Loaded after the kit. */
+.ck{--pri:var(--action);--pri2:var(--bar-a);--deep:var(--bar-deep);--acc:var(--marigold);--accd:var(--accent);--ivory:var(--wash-gold);--surface:var(--paper);--sunk:var(--tint);--ink2:var(--ink);--line2:var(--line);--okbg:var(--ok-bg);--warnbg:var(--warn-bg);--badbg:var(--bad-bg);--info:var(--st-blue-tx);--infobg:var(--st-blue-bg)}
+body.ck{background:var(--bg);color:var(--ink);font-size:16px}
+.ck .zc{--zc-accent:var(--action);--zc-line:var(--line);--zc-ink:var(--ink);--zc-mut:var(--muted);--zc-soft:var(--tint);
+  --bg-tint-blue:var(--st-blue-bg);--text-tint-blue:var(--st-blue-tx);--bg-tint-aqua:var(--st-aqua-bg);--text-tint-aqua:var(--st-aqua-tx);--bg-tint-violet:var(--st-violet-bg);--text-tint-violet:var(--st-violet-tx);--bg-tint-magenta:var(--st-magenta-bg);--text-tint-magenta:var(--st-magenta-tx);
+  --bg-tint-green:var(--st-green-bg);--text-tint-green:var(--st-green-tx);--bg-tint-yellow:var(--st-yellow-bg);--text-tint-yellow:var(--st-yellow-tx);--bg-tint-orange:var(--st-orange-bg);--text-tint-orange:var(--st-orange-tx);--bg-tint-red:var(--st-red-bg);--text-tint-red:var(--st-red-tx);--bg-tint-lime:var(--st-lime-bg);--text-tint-lime:var(--st-lime-tx)}
+.ck .zapp.zc{max-width:1120px;padding:20px var(--gutter) 96px}
+.ck .zc-frame{border-radius:var(--r);box-shadow:var(--shadow)}
+.ck .zc-brand{color:var(--ink)}
+/* status chips: the same look as the kit's console chips (cs-chip) */
+.ck .zc-pill{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:2px 12px;border-radius:var(--r-pill);font:700 13.5px/1.2 var(--sans);white-space:nowrap}
+.ck .zc-pill:before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.ck .zc-pill-role{background:var(--st-blue-bg);color:var(--st-blue-tx)}
+.ck .zc-pill-paid{background:var(--st-green-bg);color:var(--st-green-tx)}
+.ck .zc-pill-pend{background:var(--st-yellow-bg);color:var(--st-yellow-tx)}

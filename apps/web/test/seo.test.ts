@@ -5,7 +5,7 @@ import { PACKS } from "../../../packages/shared/src/pricing";
 
 const PUB = new URL("../public/", import.meta.url), ORIGIN = "https://tictactoe.corporatetambola.com";
 const rd = (f: string) => readFileSync(new URL(f, PUB), "utf8");
-const INDEXABLE = ["index.html", "partner.html", "helpdesk.html", "legal.html", "terms.html", "legal-position.html", "dpa.html", "subprocessors.html", "privacy.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html", "refund-policy.html"];
+const INDEXABLE = ["index.html", "how-it-works.html", "partner.html", "helpdesk.html", "legal.html", "terms.html", "legal-position.html", "dpa.html", "subprocessors.html", "privacy.html", "partner-terms.html", "organizer-guide.html", "trust.html", "brochure.html", "about.html", "contact.html", "pricing.html", "refund-policy.html"];
 const NOINDEX = ["signin.html", "pay.html", "paytest.html", "ai-link.html", "helpdesk-accept.html", "helpdesk-approve.html", "report.html", "z.html", "zc.html", "big.html", "404.html", "owner-visits.html"];
 const urlOf = (f: string) => ORIGIN + (f === "index.html" ? "/" : "/" + f);
 const meta = (h: string, re: RegExp) => (h.match(re) ?? [])[1] ?? "";
@@ -43,7 +43,7 @@ describe("each indexable page", () => {
     expect(h.match(/<link rel="canonical"/g)?.length).toBe(1); expect(meta(h, /<link rel="canonical" href="([^"]+)"/)).toBe(urlOf(f));
     expect(meta(h, /<meta property="og:url" content="([^"]+)"/)).toBe(urlOf(f)); expect(h).toMatch(/<meta property="og:title" content="[^"]+"/); expect(h).toMatch(/<meta property="og:description" content="[^"]+"/); expect(h).toMatch(/<meta property="og:image" content="https:\/\/tictactoe\.corporatetambola\.com\/[^"]+"/);
     expect(h).toContain('<meta name="twitter:card" content="summary_large_image">'); expect(h).toMatch(/<meta name="twitter:title" content="[^"]+"/);
-    expect(h).not.toMatch(/name="robots" content="[^"]*noindex/); expect(h).toMatch(/<html lang="en">/); expect(h).toContain('name="viewport"');
+    expect(h).not.toMatch(/name="robots" content="[^"]*noindex/); expect(h).toMatch(/<html lang="en"/); expect(h).toContain('name="viewport"');
     for (const tag of ['name="description"', 'rel="canonical"', 'property="og:title"', 'name="twitter:card"']) expect(h.split(tag).length).toBe(2); // each exactly once
   });
   test("the home page's structured data parses and its prices equal the real packs", () => {
@@ -55,13 +55,14 @@ describe("each indexable page", () => {
   });
   test("every image has alt text and a size, and the picture at the top loads early", () => {
     for (const f of [...INDEXABLE, ...NOINDEX]) { let h = ""; try { h = rd(f); } catch { continue; } for (const img of h.match(/<img\b[^>]*>/g) ?? []) { expect([f, /\balt="[^"]+"/.test(img)]).toEqual([f, true]); expect([f, /\bwidth="\d+"/.test(img) && /\bheight="\d+"/.test(img)]).toEqual([f, true]); } }
-    expect(rd("index.html")).toMatch(/<img src="\/img\/card\.png"[^>]*fetchpriority="high"/);
+    const og = readFileSync(new URL("og-card.png", PUB)); expect([og.readUInt32BE(16), og.readUInt32BE(20)]).toEqual([1200, 630]); // the share card of the brand kit
+    for (const f of INDEXABLE) expect([f, rd(f).includes(`${ORIGIN}/og-card.png`)]).toEqual([f, true]);
   });
   test("quick loading: fonts are self-hosted and swap in, the two main fonts are preloaded, scripts do not block the page, nothing third-party is loaded on the home page", () => {
     const h = rd("index.html"), f = rd("fonts.css");
-    expect(f.match(/font-display: swap/g)!.length).toBe(f.match(/@font-face/g)!.length);
+    expect(f.match(/font-display:\s*swap/g)!.length).toBe(f.match(/@font-face/g)!.length);
     for (const w of ["Inter-normal-400.woff2", "Fraunces-normal-500-700.woff2"]) expect(h).toContain(`<link rel="preload" href="/fonts/${w}" as="font" type="font/woff2" crossorigin>`);
-    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|keep\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); /* termsbox.js is NOT deferred: site.js draws the Terms boxes at once when the page is opened as /#login */ // theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
+    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme-init\.js|keep\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); /* termsbox.js is NOT deferred: site.js draws the Terms boxes at once when the page is opened as /#login */ // theme-init.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
     expect(h).toMatch(/<script src="\/common\.js"><\/script><script src="\/google\.js"><\/script>(<script src="\/termsbox\.js"><\/script>)?<script src="\/site\.js"><\/script>\s*<\/body>/); // the page scripts sit at the very end
     expect(h).not.toMatch(/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)="https?:\/\/(?!tictactoe\.corporatetambola\.com)/); // nothing is LOADED from elsewhere; the uniform footer only links to the sister sites
     expect(rd("../../../pages/build.mjs" as any).includes("max-age=31536000, immutable")).toBe(true);
