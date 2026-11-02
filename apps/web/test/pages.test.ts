@@ -387,7 +387,7 @@ test("'Change of phone': the organizer enters a number, and the next device that
 describe("Refer & Earn page", () => {
   const html = () => readFileSync(join(import.meta.dir, "../public/partner.html"), "utf8");
   test("the page pitches 50%, lists every pack with exactly half of its price, and has a working calculator", async () => {
-    const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "partner.js"]);
+    const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "consent.js", "partner.js"]);
     const doc = p.win.document; const body = doc.body.textContent!.replace(/\s+/g, " ");
     expect(body).toMatch(/Earn up to 50% on every game you bring/); expect(body).not.toMatch(/20% more every time/); expect(body).toMatch(/random code/i); expect(body).not.toMatch(/mobile number is your code/i);
     const packs: number[][] = p.win.TB.PACKS;
@@ -400,9 +400,10 @@ describe("Refer & Earn page", () => {
     expect(doc.getElementById("calc-out")!.textContent).toBe("₹4,798 / US$ 68"); // 4 first purchases x Rs 1,199.50
   });
   test("joining takes a mobile number and an e-mailed code: the code is random, the link is /?ref=<code>, and the page switches to the partner's own dashboard", async () => {
-    const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "partner.js"]);
+    const o = await organizer(); const p = await page(o, "/partner.html", "partner.html", ["common.js", "consent.js", "partner.js"]);
     await p.waitFor((x) => /Get your link in 20 seconds/.test(x));
-    (p.$("#ph") as any).value = "+91 98765 43210"; (p.$("#em") as any).value = "partner@example.com"; (p.$("#ok") as any).checked = true; p.click("#join");
+    expect(p.$("#ok")).toBeFalsy(); expect(p.$("input[type=checkbox]")).toBeFalsy(); expect(p.text()).toMatch(/By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules/);
+    (p.$("#ph") as any).value = "+91 98765 43210"; (p.$("#em") as any).value = "partner@example.com"; p.click("#join");
     await p.waitFor((x) => /Check your e-?mail/.test(x));
     const mailed = (o.world.raw.prepare("SELECT body FROM outbox WHERE to_addr='partner@example.com' ORDER BY id DESC").get() as any).body.match(/\b\d{6}\b/)[0];
     (p.$("#cd") as any).value = mailed; p.click("#cdgo");
