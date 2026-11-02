@@ -81,3 +81,16 @@ body:has(.twait) #cb-notify{display:flex!important}
 .tplay>.tboard{grid-column:2;grid-row:1/span 8;margin:0;max-width:none}
 .tplay>h2{justify-self:start}
 }
+
+/* design pass: comfortable tap targets and contrast (look only) */
+.mkownbtn{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box}
+.rfoot a{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box;color:#433D66}
+.tcen a{display:inline-flex;align-items:center;min-height:44px}
+/* a laptop or desktop: board on the left, the status and the buttons on the right */
+@media (min-width:861px) and (min-height:521px){
+.zapp:has(.tplay){max-width:1228px;width:90%}
+.tplay{display:grid;grid-template-columns:minmax(0,520px) minmax(260px,1fr);column-gap:32px;align-items:start}
+.tplay>*{grid-column:2}
+.tplay>.tboard{grid-column:1;grid-row:1/span 8;max-width:520px;width:100%;margin:0}
+.tplay>h2{margin-top:0}
+}
