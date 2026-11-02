@@ -57,4 +57,21 @@ describe("the owner desk page", () => {
     p.win.document.getElementById("deskOrg").dispatchEvent(new p.win.Event("submit", { bubbles: true, cancelable: true })); await tick(150);
     expect(txt(p)).toMatch(/Games of boss@acme\.com/); expect(txt(p)).toMatch(/OD-2/); expect(txt(p)).toMatch(/draft/);
   });
+  test("More: the owner-only panel is drawn from data: find a game ID, set a price for that game, then remove it; a wrong key says Not found", async () => {
+    const { p, w, token } = await desk();
+    await w.api("POST", "/api/z", { id: "OD-3", startRound: START, callSeconds: 6, cap: 100 }, token);
+    expect((await w.api("POST", "/api/z/OD-3/publish", { email: "boss@acme.com", phone: "98765 43210" }, token)).status).toBe(200);
+    const doc = p.win.document, el = (id: string) => doc.getElementById(id) as any;
+    const submit = async (form: any) => { form.dispatchEvent(new p.win.Event("submit", { bubbles: true, cancelable: true })); await tick(250); };
+    el("key").value = "wrong"; await click(p, "deskPanel"); expect(txt(p)).toMatch(/Not found\. Check the key\./); expect(txt(p)).not.toMatch(/Game ID/);
+    el("key").value = "plat"; await click(p, "deskPanel"); await tick(150); expect(txt(p)).toMatch(/Find game/);
+    el("pf_q").value = "OD-3"; await submit(el("pf_q").form);
+    expect(txt(p)).toMatch(/Up to 100/); expect(txt(p)).toMatch(/Rs 2,399/); expect(txt(p)).toMatch(/published, not paid/);
+    el("pf_direction").value = "down"; el("pf_amount").value = "400"; el("pf_reason").value = "agreed on phone 2 Nov"; await submit(el("pf_amount").form);
+    expect(txt(p)).toMatch(/Reduce by Rs 400 \(agreed on phone 2 Nov\)/); expect(txt(p)).toMatch(/Organizer paysRs 1,999/); expect(txt(p)).toMatch(/Tell the organizer by phone/);
+    const fill = [...doc.querySelectorAll("#deskPanelOut button")].find((b: any) => /Rs 1 \(payment test\)/.test(b.textContent)) as any; fill.dispatchEvent(new p.win.MouseEvent("click", { bubbles: true }));
+    expect(el("pf_amount").value).toBe("2398");
+    const rm = [...doc.querySelectorAll("#deskPanelOut button")].find((b: any) => b.textContent === "Remove") as any; rm.dispatchEvent(new p.win.MouseEvent("click", { bubbles: true })); await tick(300);
+    expect(txt(p)).not.toMatch(/Reduce by/); expect(txt(p)).toMatch(/Save price/);
+  });
 });

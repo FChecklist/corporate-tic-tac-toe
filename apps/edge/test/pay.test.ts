@@ -23,7 +23,7 @@ beforeEach(() => {
   // a stand-in for Razorpay's REST API
   (globalThis as any).fetch = async (url: string, init?: any) => {
     const u = String(url);
-    if (u.startsWith("https://rzp.test/v1/orders")) { const b = JSON.parse(init.body); const o = { id: "order_" + (rz.orders.length + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, status: "created" }; rz.orders.push(o); return new Response(JSON.stringify(o), { status: 200 }); }
+    if (u.startsWith("https://rzp.test/v1/orders")) { const b = JSON.parse(init.body); const o = { id: "order_" + (rz.orders.length + 1), amount: b.amount, currency: b.currency, receipt: b.receipt, notes: b.notes, status: "created" }; rz.orders.push(o); return new Response(JSON.stringify(o), { status: 200 }); }
     const pm = u.match(/\/payments\/([^/]+)(\/capture)?$/);
     if (pm) { const p = rz.payments[pm[1]!]; if (!p) return new Response(JSON.stringify({ error: { description: "no such payment" } }), { status: 404 }); if (pm[2]) { rz.captured.push(pm[1]!); p.status = "captured"; } return new Response(JSON.stringify(p), { status: 200 }); }
     return new Response("{}", { status: 404 });
@@ -451,6 +451,13 @@ describe("Payment Testing page (Rs 1 / US$ 1, buys nothing)", () => {
   test("India pays Rs 1 with UPI first; the order is for exactly 100 paise", async () => {
     const r = (await (await start()).json()) as any;
     expect(r.razorpay.amount).toBe(100); expect(r.razorpay.currency).toBe("INR"); expect(r.razorpay.config.display.sequence[0]).toBe("block.upi"); expect(rz.orders[0].amount).toBe(100);
+  });
+  test("an optional test reference (free text, never looked up) travels in the order notes and is printed on the receipt as the Game ID of a payment test", async () => {
+    const r = (await (await start({ gameId: "  MY-TEST 01<b>  " })).json()) as any;
+    expect(rz.orders[0].notes.test_ref).toBe("MY-TEST 01b"); // cleaned: letters, digits, space, dash, underscore, dot only
+    const v = (await (await payIt(r)).json()) as any; expect(v.ok).toBe(true);
+    const html = await (await call("GET", v.invoiceUrl)).text(); expect(html).toContain("Game ID"); expect(html).toContain("MY-TEST 01b"); expect(html).toContain("payment test");
+    const none = (await (await start()).json()) as any; expect(none.razorpay.amount).toBe(100); expect(rz.orders[1].notes.test_ref).toBeUndefined(); // empty: as before
   });
   test("abroad pays US$ 1, only once international is on", async () => {
     expect((await start({ country: "US" })).status).toBe(400);

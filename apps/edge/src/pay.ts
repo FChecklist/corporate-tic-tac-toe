@@ -28,6 +28,7 @@ import { isTestLogin } from "./testlogins";
 import { lookupPayLink, packFor, payLinkPublic } from "./paylink";
 import { consentMissing } from "./consent";
 import { cleanAccountEmail } from "./ids";
+import { PRICE_LINE, adjustFor, adjustMeta, adjustNotes } from "./price-adjust";
 import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, restoreCreditUses, rs, teamEmails } from "./credit";
 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
@@ -62,17 +63,17 @@ const rzpOf = (env: PayEnv): (RazorpayConfig) | null => (env.RAZORPAY_KEY_ID && 
  * razorpay / IT Services / <website> / <stream> / <plan>. This site is the "sales" stream; the plan is the pack (pack_250) or payment_test.
  * Without PAY_SERVICE_KEY, or if the central service cannot be reached, the order is opened directly with Razorpay exactly as before (the webhook still reaches the ledger).
  */
-async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string }): Promise<CreatedOrder> {
+async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string; gameId?: string | null }): Promise<CreatedOrder> {
   const c = centralOf(env);
   if (c) {
     try {
-      const r = await fetch(`${c.url}/api/pay/order`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, product: "corporate_tic_tac_toe", plan: o.plan, amount_minor: o.amountMinor, currency: o.currency, payment_ref: o.receipt, extra_notes: o.notes, ...(o.user ? { user: o.user } : {}), ...(o.email ? { payer_email: o.email } : {}) }), signal: AbortSignal.timeout(6000) });
+      const r = await fetch(`${c.url}/api/pay/order`, { method: "POST", headers: { "content-type": "application/json", "x-site-key": c.key }, body: JSON.stringify({ site: c.site, product: "corporate_tic_tac_toe", plan: o.plan, amount_minor: o.amountMinor, currency: o.currency, payment_ref: o.receipt, extra_notes: o.notes, ...(o.gameId ? { game_id: o.gameId } : {}), ...(o.user ? { user: o.user } : {}), ...(o.email ? { payer_email: o.email } : {}) }), signal: AbortSignal.timeout(6000) });
       const d: any = await r.json().catch(() => ({}));
       if (r.ok && d.orderId) return { id: d.orderId, amount: o.amountMinor, currency: o.currency, receipt: o.receipt, status: "created" };
       console.warn("central order refused", r.status, d?.error);
     } catch (e) { console.warn("central order unreachable", String(e)); }
   }
-  return createOrder(rzp, { ...o, notes: { ...o.notes, txn_id: txnIdOf(o.receipt) } }); // opened straight with Razorpay (central service down or not set): the txn_id still travels in the order notes (A)
+  return createOrder(rzp, { ...o, notes: { ...o.notes, ...(o.gameId ? { game_id: o.gameId } : {}), txn_id: txnIdOf(o.receipt) } }); // opened straight with Razorpay (central service down or not set): the txn_id still travels in the order notes (A)
 }
 /** After a correctly signed payment: tell the central ledger (best effort, never blocks or fails the buyer; the central webhook records it too). */
 async function reportToCentral(env: PayEnv, b: any): Promise<any | null> {
@@ -164,7 +165,7 @@ async function fulfilPaytest(env: PayEnv, p: any, meta: any, now: number) {
   const tax = splitGst(p.amount, p.currency, co.stateCode, undefined);
   const data: InvoiceData = { number, issuedAt: now, brand, company: co, draft: false, buyer: { name: meta.org || meta.name, gstin: meta.taxId || undefined, email: p.email, phone: meta.phone || undefined, country: meta.country }, currency: p.currency,
     lines: [{ description: `${brand.name}: payment test (nothing was bought)`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now,
-    organizer: { name: meta.name, email: p.email, phone: meta.phone || undefined }, ...(pinfo ? { pay: pinfo } : {}), note: "This receipt is for a payment test. No game, pack or credit was bought." };
+    organizer: { name: meta.name, email: p.email, phone: meta.phone || undefined }, ...(meta.testRef ? { game: { id: meta.testRef } } : {}), ...(pinfo ? { pay: pinfo } : {}), note: "This receipt is for a payment test. No game, pack or credit was bought." };
   const token = "inv_" + randHex(16);
   await db.prepare("INSERT OR IGNORE INTO invoice(token,payment_id,brand,fy,seq,number,issued_ms,data) VALUES(?,?,?,?,?,?,?,?)").bind(token, p.id, brand.id, fy, seq, number, now, JSON.stringify(data)).run();
   const origin = env.PUBLIC_ORIGIN ?? meta.origin ?? "";
@@ -260,8 +261,10 @@ async function fulfilInner(env: PayEnv, paymentId: string, now: number, spend: (
     try { const r = await db.prepare("SELECT v FROM kv WHERE k=?").bind(`contact/${eidForInvoice}`).first<{ v: string }>(); contact = r ? JSON.parse(r.v) : {}; } catch { contact = {}; }
   }
   const organizer = { name: meta.paidBy && meta.paidBy !== "organizer" ? contact.name : meta.name ?? contact.name, org: meta.org || undefined, email: contact.email ?? p.email, phone: contact.phone ? String(contact.phone) : meta.phone };
+  const cp = meta.priceAdjust && !closed && creditTotal === 0 ? meta.priceAdjust as { listMinor: number; adjustMinor: number; netMinor: number } : null; // the owner set a price for this game: the invoice shows ONE line with the amount actually charged
+  const cpnLines = cp && Math.round(p.amount * 100) === cp.netMinor ? [{ description: `${brand.name}: up to ${p.pack} participants (one game), ${PRICE_LINE}`, quantity: 1, amount: tax.taxable }] : null;
   const data: InvoiceData = { number, issuedAt: now, brand, company: co, draft: !!test || companyGaps(co).length > 0, buyer: { name: meta.org || meta.name || "", gstin: meta.taxId || undefined, email: p.email, phone: meta.phone || undefined, country: meta.country }, currency: p.currency,
-    lines: [{ description: closed ? `${brand.name}: payment received after the game closed (kept as credit)` : `${brand.name}: up to ${p.pack} participants (one game)${creditTotal > 0 ? (p.amount > 0 ? ", balance after credit" : ", paid from credit") : ""}`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now, ...(eidForInvoice ? { game: { id: eidForInvoice, ...(gameName ? { name: gameName } : {}), ...(gameStart ? { startMs: gameStart } : {}) } } : {}), organizer, ...(pinfo ? { pay: pinfo } : {}),
+    lines: cpnLines ?? [{ description: closed ? `${brand.name}: payment received after the game closed (kept as credit)` : `${brand.name}: up to ${p.pack} participants (one game)${creditTotal > 0 ? (p.amount > 0 ? ", balance after credit" : ", paid from credit") : ""}`, quantity: 1, amount: tax.taxable }], tax, paymentRef: p.rzp_payment_id ?? undefined, orderRef: p.id, paidAtMs: pinfo?.createdAtMs ?? now, ...(eidForInvoice ? { game: { id: eidForInvoice, ...(gameName ? { name: gameName } : {}), ...(gameStart ? { startMs: gameStart } : {}) } } : {}), organizer, ...(pinfo ? { pay: pinfo } : {}),
     ...(creditTotal > 0 ? { note: `${cuses.map((u) => `Paid from credit of invoice ${u.invoice ?? u.credit_id}: ${rs(u.amount, p.currency)}`).join("; ")}.` } : {}) };
   await db.prepare("INSERT OR IGNORE INTO invoice(token,payment_id,brand,fy,seq,number,issued_ms,data) VALUES(?,?,?,?,?,?,?,?)").bind(token, p.id, brand.id, fy, seq, number, now, JSON.stringify(data)).run();
   const origin = env.PUBLIC_ORIGIN ?? meta.origin ?? "";
@@ -295,7 +298,7 @@ Download the PDF: ${origin}/api/invoice/${token}.pdf`
   await recordFunnelForOrg({ DB: db }, org, "paid", now);
   await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, p.id, "payment_succeeded", now, { test: !!p.is_test, size: p.pack }); // sales funnel (funnel.ts)
   // E9: the owner is told of every paid order, once (the claim is inside notifyOwnerOfPaidOrder), whichever path - the webhook or the verify call - got here first
-  try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
+  try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players${cpnLines ? `, owner set price: list ${rs(cp!.listMinor / 100, p.currency)}, adjustment ${cp!.adjustMinor < 0 ? "minus" : "plus"} ${rs(Math.abs(cp!.adjustMinor) / 100, p.currency)}` : ""}`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
   return { result };
 }
 
@@ -317,6 +320,8 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     let name = v.e.id; try { const c = v.e.config ? JSON.parse(v.e.config) : {}; if (typeof c.name === "string" && c.name) name = c.name; } catch { /* the id is the name */ }
     const pub = payLinkPublic(v, name, (1692803367 + (v.e.start_round - 1) * 3) * 1000, url.searchParams.get("currency") === "USD" ? "USD" : "INR");
     // the full price, unless the person who made the link had already applied credit to this game: then (and only then) the reduced amount is what gets charged. The credit itself is never shown.
+    const cpn = pub.price && v.status === "open" && pub.game.participants ? await adjustFor(db, v.e.id, pub.game.participants, pub.price.currency) : null; // a price the owner set for THIS game id: the net is simply what is charged, nothing else is said
+    if (pub.price && cpn) pub.price = { ...pub.price, total: cpn.netMinor / 100, base: cpn.netMinor / 100, gst: 0 };
     const credited = pub.price && v.status === "open" ? await creditAppliedFor(db, v.e.id) : 0;
     if (pub.price && credited > 0 && pub.price.currency === "INR") { const total = Math.max(0, Math.round((pub.price.total - credited) * 100) / 100); pub.price = { ...pub.price, total, base: Math.round((total / 1.18) * 100) / 100, gst: Math.round((total - total / 1.18) * 100) / 100 }; }
     return json(pub);
@@ -373,7 +378,9 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if ((typeof b.country !== "string" || b.country.slice(0, 2) === "IN") && typeof b.taxId === "string" && b.taxId.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(b.taxId.trim().toUpperCase())) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
     if (cur === "USD" && rzp && env.RAZORPAY_INTERNATIONAL !== "1") return json({ error: "Payments in US dollars are not switched on yet. Please pay in Indian rupees or write to us." }, 400);
     if (!(await spend(2))) return busy();
-    const full = price(pack, cur);
+    const list = price(pack, cur);
+    const cpn = await adjustFor(db, boundEid, pack, cur); // the owner's price for THIS game id (never for a bare pack, never once paid); the list price itself is untouched
+    const full = cpn ? { total: cpn.netMinor / 100, base: cpn.netMinor / 100, tax: 0 } : list;
     // credit already applied to THIS game (by the Organizer, a Host or a Co-host, before this checkout) reduces what is charged; nothing else about credit is ever shown or used here
     const credited = boundEid ? Math.round((await creditAppliedFor(db, boundEid)) * 100) / 100 : 0;
     const cash = Math.round((full.total - credited) * 100) / 100;
@@ -381,10 +388,10 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const pr = credited > 0 ? { total: cash, base: cur === "INR" ? Math.round((cash / 1.18) * 100) / 100 : cash, tax: cur === "INR" ? Math.round((cash - cash / 1.18) * 100) / 100 : 0 } : full;
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: boundOrg ?? "payer", kind: "K3", ref: id, now }); // K3: stored with the payment it was for
-    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}) };
+    const meta = { org: orgName.slice(0, 120), name: payerName.slice(0, 120), ...(contact ? { phone: contact } : {}), country: typeof b.country === "string" ? b.country.slice(0, 2) : "IN", taxId: typeof b.taxId === "string" ? b.taxId.trim().slice(0, 20) : "", origin: env.PUBLIC_ORIGIN ?? url.origin, ...(boundOrg ? { orgId: boundOrg, eid: boundEid, gameId: boundEid, paidBy, ...(credited > 0 ? { creditInr: credited } : {}) } : {}), ...adjustMeta(cpn) };
     let order: any = null;
     if (rzp) {
-      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `tictactoe_pack_${pack}`, user: boundOrg ?? null, email: cleanAccountEmail(b.email), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: `tictactoe_pack_${pack}`, variation: `tictactoe_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
+      try { order = await placeOrder(env, rzp, { amountMinor: toMinor(pr.total), currency: cur, receipt: id, plan: `tictactoe_pack_${pack}`, user: boundOrg ?? null, gameId: boundEid, email: cleanAccountEmail(b.email), notes: { ...adjustNotes(cpn), brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: `tictactoe_pack_${pack}`, variation: `tictactoe_pack_${pack}`, pack: String(pack), currency: cur, organization: (meta.org || meta.name).slice(0, 80), payment_ref: id } }); }
       catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     }
     const ref = (await helperRefFor(db, boundEid)) ?? refCode(b.ref); // a game a Help Desk helper prepared always pays its helper (helpdesk.ts); otherwise from the buyer's own browser (valid for 30 days after the link was opened); checked against real partners when the payment is fulfilled
@@ -419,12 +426,13 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!(await spend(2))) return busy();
     const id = "pay_" + randHex(8);
     await recordConsent(db, { subject: id, kind: "K3", ref: id, now }); // K3: stored with the test payment it was for
+    const testRef = typeof b.gameId === "string" ? b.gameId.trim().replace(/[^A-Za-z0-9 _.-]/g, "").slice(0, 40) : ""; // optional free text, never looked up
     let order: any;
-    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: cleanAccountEmail(b.email), notes: { brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
+    try { order = await placeOrder(env, rzp, { amountMinor: 100, currency: cur, receipt: id, plan: "payment_test", email: cleanAccountEmail(b.email), notes: { ...(testRef ? { test_ref: testRef } : {}), brand: brand.name, site: env.PAY_SITE ?? "corporate-tic-tac-toe.pages.dev", stream: "sales", product: "corporate_tic_tac_toe", plan: "payment_test", variation: "payment_test", payment_ref: id } }); }
     catch (e: any) { return json({ error: `The payment service said: ${e.message}` }, 502); }
     const taxId = typeof b.taxId === "string" ? b.taxId.trim().toUpperCase().slice(0, 20) : "";
     if (cty === "IN" && taxId && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(taxId)) return json({ error: "That GSTIN does not look right. It has 15 characters, like 27ABCDE1234F1Z5." }, 400);
-    const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
+    const meta = { paytest: true, name: nm.slice(0, 120), ...(typeof b.org === "string" && b.org.trim() ? { org: b.org.trim().slice(0, 120) } : {}), ...(taxId ? { taxId } : {}), ...(testRef ? { testRef } : {}), ...(contact ? { phone: contact } : {}), country: cty, origin: env.PUBLIC_ORIGIN ?? url.origin };
     const lf = ledgerFields(siteOf(meta.origin), "payment_test", "payment_test", null);
     await db.prepare("INSERT INTO payment(id,org,email,pack,currency,amount,tax,rzp_order_id,status,created_ms,meta,is_test,site,product,product_type,product_ref,payer_user,txn_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?)").bind(id, null, cleanAccountEmail(b.email), 0, cur, 1, 0, order.id, "created", now, JSON.stringify(meta), lf.site, lf.product, lf.productType, lf.productRef, lf.payerUser, txnIdOf(id)).run();
     return json({ mode: "razorpay", paymentId: id, ...hopOf(env), razorpay: { keyId: rzp.keyId, orderId: order.id, amount: 100, currency: cur, name: brand.name, description: "(closed-group tic tac toe software) | owned and made by IT Services by Rajat Agarwal", prefill: { email: b.email.trim(), name: nm.slice(0, 80), ...(contact ? { contact } : {}) }, notes: { brand: brand.name }, theme: { color: brand.theme }, ...(cur === "INR" ? { config: UPI_FIRST } : {}) } });
@@ -526,13 +534,13 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     if (!g || g.pack !== 0) return json({ error: "This game is not waiting for payment." }, 409);
     const pack = PACKS.find((x) => x[0] >= g.cap)?.[0]; if (!pack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
     const cur = b.currency === "USD" ? "USD" : "INR", co = company(env), fy = financialYear(new Date(now));
-    const credited = Math.round((await creditAppliedFor(db, eid)) * 100) / 100, total = Math.max(0, Math.round((price(pack, cur).total - credited) * 100) / 100);
+    const credited = Math.round((await creditAppliedFor(db, eid)) * 100) / 100, pcp = credited > 0 ? null : await adjustFor(db, eid, pack, cur), total = Math.max(0, Math.round(((pcp ? pcp.netMinor / 100 : price(pack, cur).total) - credited) * 100) / 100);
     const tax = splitGst(total, cur, co.stateCode, typeof b.taxId === "string" && b.taxId.trim() ? b.taxId.trim().toUpperCase() : undefined);
     let gameName: string | undefined; try { const c = g.config ? JSON.parse(g.config) : {}; if (typeof c.name === "string" && c.name) gameName = c.name.slice(0, 120); } catch { /* the id is the name */ }
     const s = (x: unknown, n: number) => (typeof x === "string" ? x.trim().slice(0, n) : "");
     const data: InvoiceData = { kind: "proforma", number: `PF-${fy}-${eid}`.slice(0, 60), issuedAt: now, brand, company: co, draft: false, currency: cur,
       buyer: { name: s(b.org, 120) || s(b.name, 120) || "(your name)", gstin: s(b.taxId, 20) || undefined, email: s(b.email, 120) || undefined, phone: s(b.phone, 20) || undefined, country: s(b.country, 2) || undefined },
-      lines: [{ description: `${brand.name}: up to ${pack} participants (one game)${credited > 0 ? ", balance after credit" : ""}`, quantity: 1, amount: tax.taxable }], tax, orderRef: eid,
+      lines: [{ description: `${brand.name}: up to ${pack} participants (one game)${pcp ? `, ${PRICE_LINE}` : credited > 0 ? ", balance after credit" : ""}`, quantity: 1, amount: tax.taxable }], tax, orderRef: eid,
       game: { id: eid, name: gameName, startMs: (1692803367 + (g.start_round - 1) * 3) * 1000 }, organizer: { name: s(b.name, 120) || undefined, org: s(b.org, 120) || undefined, email: s(b.email, 120) || undefined },
       note: "This is a proforma invoice. It is NOT PAID and is not a tax invoice. Pay now to receive your invoice, and the same invoice is e-mailed to you and to the organizer." };
     const full = renderInvoiceHtml(data), style = full.match(/<style>[\s\S]*?<\/style>/)?.[0] ?? "";

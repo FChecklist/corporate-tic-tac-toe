@@ -146,6 +146,7 @@ Against invoice: ${i.originalNumber}` : ""}
 Issued: ${istStamp(i.issuedAt)}${i.paidAtMs ? `
 Paid on: ${istStamp(i.paidAtMs)}` : ""}
 ${i.game ? `Paid for: ${i.game.name ? `${i.game.name} (${i.game.id})` : i.game.id}
+Game ID: ${i.game.id}
 ` : ""}Billed to: ${i.buyer.name}${i.buyer.gstin ? `  GSTIN: ${i.buyer.gstin}` : ""}${i.buyer.phone ? `  Mobile: ${i.buyer.phone}` : ""}
 
 ${rows}
@@ -164,7 +165,7 @@ function renderDetailsHtml(i: InvoiceData): string {
   const rows = (kv: [string, unknown][]) => `<table class="kv">${kv.filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>`;
   const pi = i.pay, paid = i.paidAtMs;
   const out: string[] = [];
-  out.push(`<div class="meta"><div class="box"><b>${i.kind === "proforma" ? "To be paid for" : "Paid for"}</b>${rows([["Game", i.game ? (i.game.name ? `${i.game.name} (${i.game.id})` : i.game.id) : undefined], ["Game starts", i.game?.startMs ? istStamp(i.game.startMs) : undefined], ["Service", i.lines[0]?.description]])}</div>
+  out.push(`<div class="meta"><div class="box"><b>${i.kind === "proforma" ? "To be paid for" : "Paid for"}</b>${rows([["Game", i.game ? (i.game.name ? `${i.game.name} (${i.game.id})` : i.game.id) : undefined], ["Game ID", i.game?.id], ["Game starts", i.game?.startMs ? istStamp(i.game.startMs) : undefined], ["Service", i.lines[0]?.description]])}</div>
 <div class="box"><b>${i.kind === "proforma" ? "Payment status" : "Paid on / via"}</b>${i.kind === "proforma" ? rows([["Status", "NOT PAID"], ["Amount to pay", money(i.tax.total, i.currency)], ["Pay with", "Razorpay: UPI, cards, net banking"]]) : rows([["Paid on (IST)", paid ? istStamp(paid) : undefined], ["Paid via", pi?.methodLabel ? `Razorpay: ${pi.methodLabel}` : i.paymentRef ? "Razorpay" : undefined], ["Payment details", pi?.detail], ["Amount paid", money(i.tax.total, i.currency)]])}</div></div>`);
   out.push(`<div class="meta"><div class="box"><b>${i.kind === "proforma" ? "Payer (to pay)" : "Payer (paid by)"}</b>${rows([["Name", i.buyer.name], ["E-mail", i.buyer.email], ["Mobile", i.buyer.phone], ["Country", i.buyer.country], ["Tax ID", i.buyer.gstin]])}</div>
 <div class="box"><b>Organizer</b>${rows([["Name", i.organizer?.name], ["Organization", i.organizer?.org], ["E-mail", i.organizer?.email], ["Mobile", i.organizer?.phone]])}</div></div>`);

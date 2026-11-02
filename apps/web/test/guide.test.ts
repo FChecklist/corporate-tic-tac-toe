@@ -15,10 +15,10 @@ async function page(html = "pricing.html", url = "/pricing.html") {
   const p = await openPage(w.world, { url: "http://localhost" + url, html, scripts: ["guide.js"] });
   open.push(p); return p;
 }
-/** every `error: "..."` the server can send, with the status written next to it */
+/** every `error: "..."` the server can send, with the status written next to it. price-adjust.ts is left out on purpose: its messages are owner-only and a guide entry would put them in a public script (see price-adjust-secret.test.ts) */
 function serverMessages() {
   const out: { file: string; line: number; status: number; msg: string }[] = [];
-  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts"))) {
+  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts") && x !== "price-adjust.ts")) {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);

@@ -44,6 +44,34 @@
     msg.textContent = d.found ? "Found. Mail problems on record: " + d.mailProblems + "." : "No organizer with that e-mail address." + (d.mailProblems ? " Mail problems on record: " + d.mailProblems + "." : "");
     show("Games of " + d.email, table(["Game", "State", "Starts", "Paid", "Created"], d.games.map((g) => [g.id, g.state, when(g.start), g.paid ? "yes" : "no", when(g.created)])));
   }
+  // "More": the owner-only route sends a panel as plain data (title, facts, form, buttons, history) and this draws it. Nothing about what a panel is for is written in this file; a wrong key gets Not found.
+  const pout = $("deskPanelOut");
+  async function panel(path) {
+    const v = await api("GET", path || "/api/owner/panel"); pout.textContent = ""; msg.textContent = "";
+    pout.append(el("h2", v.title)); if (v.facts) pout.append(table(["", ""], v.facts)); (v.text || []).forEach((t) => pout.append(el("p", t, "muted")));
+    if (v.form) pout.append(panelForm(v.form));
+    (v.buttons || []).forEach((b) => { const x = el("button", b.label); x.type = "button"; x.addEventListener("click", run(async () => { if (b.confirm && !confirm(b.confirm)) { msg.textContent = ""; return; } const r = await api(b.method, b.path, b.body); await panel(r.next); if (b.done) msg.textContent = b.done; })); pout.append(x, " "); });
+    if (v.table) pout.append(el("h2", v.table.title), table(v.table.head, v.table.rows));
+  }
+  function panelForm(f) {
+    const form = el("form"), ctl = {};
+    f.fields.forEach((d) => {
+      let c;
+      if (d.type === "select") { c = el("select"); d.options.forEach((o) => { const op = el("option", o.label); op.value = o.value; c.append(op); }); }
+      else { c = el("input"); c.type = d.type; if (d.min != null) c.min = d.min; if (d.step != null) c.step = d.step; if (d.type === "number") c.inputMode = "decimal"; if (d.maxLength) c.maxLength = d.maxLength; if (d.placeholder) c.placeholder = d.placeholder; c.autocomplete = "off"; }
+      c.id = "pf_" + d.id; c.value = d.value == null ? "" : d.value; c.setAttribute("aria-label", d.label); ctl[d.id] = c;
+      const p = el("p"); p.append(el("label", d.label + " "), c); form.append(p);
+    });
+    const go = el("button", f.submit); go.type = "submit"; form.append(go);
+    (f.fills || []).forEach((fl) => { const b = el("button", fl.label); b.type = "button"; b.addEventListener("click", () => { for (const k in fl.set) if (ctl[k]) ctl[k].value = fl.set[k]; }); form.append(" ", b); });
+    form.addEventListener("submit", run(async () => {
+      const vals = {}; for (const k in ctl) vals[k] = ctl[k].value.trim();
+      if (f.method === "GET") { await panel(f.path + "?" + new URLSearchParams(vals).toString()); return; }
+      const r = await api(f.method, f.path, { ...(f.fixed || {}), ...vals }); await panel(r.next); if (f.done) msg.textContent = f.done;
+    }));
+    return form;
+  }
+  $("deskPanel").addEventListener("click", run(() => panel()));
   $("deskSite").addEventListener("click", run(site)); $("deskReq").addEventListener("click", run(requests)); $("deskMailEv").addEventListener("click", run(mailEvents)); $("deskErr").addEventListener("click", run(errors));
   $("deskOrg").addEventListener("submit", run(organizer));
 })();
