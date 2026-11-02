@@ -30,7 +30,7 @@
   const parts = (ms, o) => { const r = {}; for (const p of new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", ...o }).formatToParts(new Date(ms))) r[p.type] = p.value; return r; };
   PK.istDate = (ms) => { const p = parts(ms, { weekday: "short", day: "numeric", month: "short", year: "numeric" }); return `${p.weekday}, ${p.day} ${p.month} ${p.year}`; };
   PK.istTime = (ms) => { const p = parts(ms, { hour: "numeric", minute: "2-digit", hour12: true }); return `${p.hour}:${p.minute} ${String(p.dayPeriod || "").toUpperCase()} IST`; };
-  /** j***@company.com (the Worker already sends it masked; this is for anything typed on the page) */
+  /** A masked e-mail address (the Worker already sends it masked; this is for anything typed on the page) */
   PK.maskEmail = (e) => { const s = String(e || "").trim(), at = s.lastIndexOf("@"); return at < 1 || at === s.length - 1 ? "" : Array.from(s)[0] + "***" + s.slice(at); };
 
   // ---- the country: the only thing asked before paying ----

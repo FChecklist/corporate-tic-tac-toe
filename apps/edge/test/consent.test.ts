@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { handle, type Env } from "../src/worker";
-import { CONSENT_VERSION, KINDS, boxesOf, hasConsented, wordingOf, type Kind } from "../src/consent";
+import { CONSENT_VERSION, KINDS, NOTICE_TEXT, boxesOf, hasConsented, wordingOf, type Kind } from "../src/consent";
+import { NOTICE_TEXT as CORE_NOTICE_TEXT } from "../../../vendor/game-core/packages/wording/src/consent";
 import { TERMS_VERSION } from "../src/brand";
 import TEXT from "../src/consent-text.json";
 import { makeD1 } from "./d1-sqlite";
@@ -23,6 +24,7 @@ const rows = (kind: string) => raw.query("SELECT * FROM consent_log WHERE kind=?
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const NOTICE = "By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules.";
 const hashOf = (_k: Kind) => sha(NOTICE); // no tick-boxes since 1 Nov 2026: the proof hashes the one notice line
+test("the notice line the Worker hashes is exactly the one in game-core (the Worker may not import the vendor folder, so it holds a copy)", () => { expect(NOTICE_TEXT).toBe(CORE_NOTICE_TEXT); expect(NOTICE_TEXT).toBe(NOTICE); });
 async function draft(key: Record<string, string>, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
 const JSON_FILE = "C:/Users/Dell/AppData/Local/Temp/claude/C--ct-ct/2cf843e7-2735-4b37-9fc2-d660aa06a369/scratchpad/CONSENT_TEXT.json";
 

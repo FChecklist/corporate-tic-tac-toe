@@ -8,7 +8,6 @@
 //     the boxes, a hash of the exact wording shown, and the time. Participant rows (K4) go with the other participant data after the game; organizer rows stay with the account.
 import { TERMS_VERSION } from "./brand";
 import TEXT from "./consent-text.json";
-import { NOTICE_TEXT } from "../../../vendor/game-core/packages/wording/src/consent";
 import type { D1 } from "./worker";
 
 export type Kind = "K1" | "K2" | "K3" | "K4" | "K5" | "K6";
@@ -18,6 +17,8 @@ const WORDING = TEXT as unknown as Record<string, Boxes | string>;
 /** The boxes of a point in order: [["A", "wording"], ["B", "wording"]]. */
 export const boxesOf = (kind: Kind): [string, string][] => Object.entries(WORDING[kind] as Boxes).sort((a, b) => (a[0] < b[0] ? -1 : 1));
 export const KINDS: Kind[] = ["K1", "K2", "K3", "K4", "K5", "K6"];
+/** The one line every page shows where the boxes used to be. Written out here because the Worker takes nothing from outside apps/edge/src and the packages (server-does-no-game-work.test.ts); consent.test.ts checks that it is exactly game-core's NOTICE_TEXT. */
+export const NOTICE_TEXT = "By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules.";
 
 export const CONSENT_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS consent_log (id TEXT PRIMARY KEY, subject TEXT, kind TEXT, ref TEXT, version TEXT, boxes TEXT, text_hash TEXT, at_ms INTEGER)`,
