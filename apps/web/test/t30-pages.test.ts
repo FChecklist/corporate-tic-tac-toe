@@ -16,9 +16,9 @@ const outsideFooter = (h: string) => h.replace(/<footer[\s\S]*?<\/footer>/, "");
 for (const p of PAGES) describe(`page ${p}.html`, () => {
   const h = rd(p + ".html");
   test("the header menu is the six items in this order", () => { expect(menuOf(h)).toEqual(SIX); });
-  test("Free demo game goes to /zc?demo=1; the Log in item goes to /zc", () => {
+  test("Free demo game goes to /zc?demo=1; the Log in item goes to the one sign-in page (the console)", () => {
     const nav = /<nav class="ck-nav"[^>]*>([\s\S]*?)<\/nav>/.exec(h)![1]!;
-    expect(/<a href="\/zc\?demo=1"[^>]*>Free demo game<\/a>/.test(nav)).toBe(true); expect(/<a href="\/zc"[^>]*>Log in<\/a>/.test(nav)).toBe(true);
+    expect(/<a href="\/zc\?demo=1"[^>]*>Free demo game<\/a>/.test(nav)).toBe(true); expect(/<a href="https:\/\/console\.corporatetambola\.com\/"[^>]*>Log in<\/a>/.test(nav)).toBe(true);
   });
   test("the logo uses symbol #i-ttt and the Corporate Games bar is version 3", () => { expect(h).toContain('<use href="#i-ttt"/>'); expect(h).toContain('src="/gamesbar.js?v=3"'); expect(h).not.toMatch(/gamesbar\.js\?v=[12]\b/); });
   test("canonical is the page's own address (.html; the home page is the bare site address) and the share image is og-card.png", () => {

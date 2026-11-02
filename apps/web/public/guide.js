@@ -486,4 +486,6 @@
     CTG.wrap(r); if (r.guide && r.guide.kind !== "field") CTG.dialog(r.guide);
   });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", function () { showBack(); CTG.scan(true); }); else setTimeout(function () { showBack(); CTG.scan(true); }, 0);
+  // One sign-in: this game's website has no sign-in box of its own, so a bare /#login (the Sign in buttons above, an old link or a bookmark) goes to the console, where every organizer signs in.
+  try { if (location.hash === "#login" && /^\/(index\.html)?$/.test(location.pathname)) location.replace("https://console.corporatetambola.com/"); } catch (e) {}
 })();

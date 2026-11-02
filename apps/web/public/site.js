@@ -42,7 +42,7 @@
   $("pack").addEventListener("change", (e) => { S.pack = +e.target.value; renderPrices(); });
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "pack2") { S.pack = +e.target.value; renderPrices(); const f = $("pack2"); if (f) f.focus(); } });
   $("payBtn").addEventListener("click", () => openCheckout(S.pack));
-  $("loginLink").addEventListener("click", (e) => { e.preventDefault(); openLogin(""); });
+  // The Log in link in the top bar is a plain link to the ONE sign-in page (the console); it no longer opens the sheet below.
 
   // ---------- helpers ----------
   const xbtn = `<button type="button" class="xbtn" data-close aria-label="Close">${ic("x")}</button>`;
@@ -109,7 +109,7 @@
   if (REF) TB.api("GET", "/api/partner/check?code=" + REF).then((r) => { if (!r.valid) { try { localStorage.removeItem("cbz-ref"); } catch {} } }).catch(() => {});
   let PAYMODE = "test"; // razorpay | test | off, from the server
   TB.api("GET", "/api/payments/status").then((s) => { PAYMODE = s.mode; }).catch(() => {});
-  // ---------- free launch: create an organizer account with a work email; the key arrives only through the e-mailed code ----------
+  // ---------- free launch: create an organizer account with an e-mail; the key arrives only through the e-mailed code ----------
   function openFree() {
     try { if (Number.isInteger(S.pack) && S.pack > 10) { sessionStorage.setItem("cbz-cap", String(S.pack)); } } catch {} // the size chosen on the website carries through the sign-in: Quick setup opens with it
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
@@ -256,7 +256,9 @@
     tick(); setInterval(tick, 1300);
     let bb = 0; setInterval(() => { bb = (bb + 2) % 102; const e = $("bbp"); if (e) e.style.setProperty("--p", bb + "%"); }, 200);
   }
-  const hashLogin = () => { if (location.hash === "#login") { let em = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} openLogin(em); } };
+  // The one sign-in is the console. A bare #login (an old link, a bookmark, the Guide's Sign in button) goes there; this sheet opens only for a flow that is waiting for it (a demo, a payment or the organizer console asks again and leaves cbz-next or cbz-login-email).
+  const CONSOLE_SIGNIN = "https://console.corporatetambola.com/";
+  const hashLogin = () => { if (location.hash === "#login") { let em = "", waiting = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; waiting = sessionStorage.getItem("cbz-next") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} if (!em && !waiting) { location.replace(CONSOLE_SIGNIN); return; } openLogin(em); } };
   window.addEventListener("hashchange", hashLogin); hashLogin();
   // ---------- who is signed in: the top link says it ("Organizer" or "Host") and goes to the right place ----------
   (async () => {

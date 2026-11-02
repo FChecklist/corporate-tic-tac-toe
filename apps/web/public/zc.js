@@ -1032,6 +1032,7 @@
       <div class="zc-foot"><button class="zc-btn" id="goLogin" type="button">Continue</button></div>
       ${S.gcid ? `<div class="zc-or">or</div>${googleBlock(true)}` : ""}
       <p class="zc-small zc-muted zc-lead2">Nothing to remember. Players never sign in; they join with your game link.</p>
+      ${NEWDEMO || NEWGAME ? "" : `<p class="zc-small zc-muted zc-lead2" id="toConsole">Organizers can also sign in on the <a href="https://console.corporatetambola.com/">console</a>, where all their games sit together.</p>`}
 
     </div></div>`;
   }
