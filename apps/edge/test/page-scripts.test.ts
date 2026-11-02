@@ -14,15 +14,26 @@ describe("pages that show the Terms boxes load termsbox.js first and at once", (
     if (at < 0) continue;
     test(f, () => {
       expect(list[at]!.attrs).not.toMatch(/\bdefer\b|\basync\b/);
-      const early = list.slice(0, at).filter((s) => !/\b(defer|async)\b/.test(s.attrs) && /\/(site|pay|paylink|signin|ai-link|zc|ttt)\.js$/.test(s.src));
+      const early = list.slice(0, at).filter((s) => !/\b(defer|async)\b/.test(s.attrs) && /\/(site|signin|ai-link|zc|ttt)\.js$/.test(s.src));
       expect(early.map((s) => s.src)).toEqual([]); // none of the scripts that draw the boxes runs before termsbox.js
     });
   }
   test("every page whose script draws the boxes loads termsbox.js at all", () => {
     for (const f of readdirSync(DIR).filter((x) => x.endsWith(".html"))) {
       const list = scripts(readFileSync(join(DIR, f), "utf8"));
-      const uses = list.some((s) => /\/(site|pay|paylink|signin|ai-link|zc|ttt)\.js$/.test(s.src));
+      const uses = list.some((s) => /\/(site|signin|ai-link|zc|ttt)\.js$/.test(s.src));
       if (uses) expect({ page: f, loadsTermsbox: list.some((s) => s.src.includes("termsbox.js")) }).toEqual({ page: f, loadsTermsbox: true });
     }
   });
+});
+
+// The three payment pages (pay, paylink, paytest) draw the one agreement line from consent.js (CBConsent), which must run before their script, at once.
+describe("the payment pages load consent.js first and at once", () => {
+  for (const f of ["pay.html", "paylink.html", "paytest.html"]) {
+    test(f, () => {
+      const list = scripts(readFileSync(join(DIR, f), "utf8"));
+      const at = list.findIndex((s) => s.src.includes("consent.js")), page = list.findIndex((s) => /\/(pay|paylink|paytest)\.js$/.test(s.src));
+      expect(at).toBeGreaterThanOrEqual(0); expect(page).toBeGreaterThan(at); expect(list[at]!.attrs).not.toMatch(/defer|async/);
+    });
+  }
 });

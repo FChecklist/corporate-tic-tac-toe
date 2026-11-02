@@ -146,11 +146,11 @@ describe("tests 1-4 at every point", () => {
     const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: hashOf("K3") });
     expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
   });
-  test("the payment test page draws the K3 box, unticked, with its button disabled until ticked, and sends the tick", () => {
+  test("the payment test page draws the K3 notice (nothing to tick), its button waits only for the country, and sends the version", () => {
     const web = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-    expect(web("paytest.html")).toContain('<script src="/termsbox.js"></script>');
+    expect(web("paytest.html")).toContain('<script src="/consent.js"></script>');
     const js = web("paytest.js");
-    expect(js).toContain('TermsBox.mount(slot, "K3"'); expect(js).toMatch(/id="go" disabled aria-disabled="true"/); expect(js).toMatch(/{ consent, org:/);
+    expect(js).toContain('CBConsent.html("K3")'); expect(js).toContain('CBConsent.payload($app, "K3")'); expect(js).toMatch(/disabled aria-disabled="true"/); expect(js).not.toContain("TermsBox");
   });
   async function published(id: string) { const h = await organizer(); await game(h, id); await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210", consent: tick("K1") }, h); raw.run("UPDATE engagement SET pack=100 WHERE id=?", [id]); return h; }
   test("K4 joining: no seat and no name stored without both boxes; with both the person joins and the row is tied to their seat", async () => {

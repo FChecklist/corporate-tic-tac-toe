@@ -346,7 +346,7 @@ describe("console (organizer page)", () => {
 });
 
 describe("payment page", () => {
-  const payPage = (o: O, eid: string, signedIn = true) => page(o, `/pay?e=${eid}`, "pay.html", ["common.js", "termsbox.js", "pay.js"], signedIn ? { "cbz-org": o.token, "cbz-email": "boss@acme.com", "cbz-phone": "98765 43210" } : {});
+  const payPage = (o: O, eid: string, signedIn = true, pick = "") => page(o, `/pay?e=${eid}`, "pay.html", ["common.js", "consent.js", "payfields.js", "paykit.js", "pay.js"], { ...(signedIn ? { "cbz-org": o.token } : {}), ...(pick ? { "cbz-paydraft-pay": JSON.stringify({ pick }) } : {}) }); // pick = the country already chosen in this tab
   test("UC-55 not signed in: asks to sign in instead of showing a broken page", async () => {
     const o = await organizer(); await make(o, "UI-PAY0");
     const p = await payPage(o, "UI-PAY0", false); expect(await p.waitFor((x) => /Please sign in first/.test(x))).toMatch(/Sign in with email/);
@@ -361,8 +361,8 @@ describe("payment page", () => {
   test("UC-12 / UC-55 paying while held: the page says when it will begin", async () => {
     const o = await organizer({ TEST_MODE: "1" }); await make(o, "UI-PAY3"); await publish(o, "UI-PAY3");
     o.world.now = START_MS + HOUR;
-    const p = await payPage(o, "UI-PAY3"); await p.waitFor((x) => /waiting for your payment now/i.test(x));
-    (p.$("#nm") as any).value = "Asha Rao"; p.click("#paygo");
+    const p = await payPage(o, "UI-PAY3", true, "IN"); await p.waitFor((x) => /waiting for your payment now/i.test(x) && /Pay ₹/.test(x));
+    p.click("#paygo");
     expect(await p.waitFor((x) => /Payment received/i.test(x))).toMatch(/It begins at/);
   });
   test("UC-55 an already paid engagement says so; a stranger's engagement is not shown", async () => {

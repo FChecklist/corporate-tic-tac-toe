@@ -41,7 +41,6 @@
         "cbz-aimsg",
         "cbz-email",
         "cbz-phone",
-        "cbz-name",
         "cbz-pl",
         "cbz-shield",
         "cbz-cap"
@@ -81,6 +80,14 @@
       "say": "In an organizer's browser: the name, e-mail, mobile number and invoice details typed on the payment page, so the form is filled in next time.",
       "keys": [
         "cb-payer"
+      ]
+    },
+    {
+      "id": "pay-draft",
+      "store": "sessionStorage",
+      "say": "On the screen of whoever is paying: the country chosen, the Game ID typed on the payment test and, after paying, the payment's reference and the optional invoice details typed (name, company, tax number). Kept only in this tab so nothing is lost if the page reloads, and gone when the tab closes.",
+      "keys": [
+        "cbz-paydraft-*"
       ]
     },
     {

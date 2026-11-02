@@ -51,7 +51,8 @@ export async function openPage(world: { env: Env; now: number }, o: { url: strin
   try { Object.defineProperty(win, "indexedDB", { value: undefined, configurable: true }); } catch { /* the signing-key store needs a real browser; the page treats it as unavailable */ }
   win.addEventListener("error", (e: any) => errors.push(String(e?.message ?? e)));
   win.addEventListener("unhandledrejection", (e: any) => errors.push(String(e?.reason?.message ?? e?.reason ?? e)));
-  for (const f of o.scripts.includes("keep.js") ? o.scripts : ["keep.js", ...o.scripts]) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
+  const base = o.scripts.includes("paykit.js") && !o.scripts.includes("consent.js") ? ["consent.js", ...o.scripts] : o.scripts; // the payment pages (paykit.js) draw the one agreement line from consent.js, as in the real page
+  for (const f of base.includes("keep.js") ? base : ["keep.js", ...base]) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
     const code = readFileSync(join(PUB, f), "utf8");
     try { new Function("window", `with (window) { ${code}\n}`).call(win, win); } catch (e: any) { errors.push(f + ": " + e.message); }
     o.afterLoad?.(win, f);

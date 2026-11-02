@@ -43,8 +43,8 @@ describe("the way in", () => {
     expect(rd("zc.js")).toContain("...(NEWDEMO ? { demo: true } : {})");
     expect(rd("brochure.html")).toContain("/zc?demo=1");
   });
-  test("the Rs 1 test page sends the owner key from the address fragment as a header and nowhere else", () => {
-    const js = rd("paytest.js"); expect(js).toContain("location.hash"); expect(js).toContain('"x-organizer"'); expect(js).not.toMatch(/localStorage|sessionStorage|location\.search/);
+  test("the Rs 1 test page needs no key: it sends no organizer header and reads nothing from the address", () => {
+    const js = rd("paytest.js"); expect(js).not.toContain("x-organizer"); expect(js).not.toMatch(/location\.(hash|search)|localStorage|sessionStorage/); // the Rs 1 test is open to everybody (wave 2): no key travels, nothing is read from the address
     expect(rd("common.js")).toContain("Object.assign(headers, opt.headers)");
   });
 });
