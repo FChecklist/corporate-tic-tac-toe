@@ -718,7 +718,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     const p = await consolePage(o, "UI-RS0"); await p.waitFor((x) => /Hello|Last step|Your game/i.test(x)); openStep(p, 2);
     expect(p.text()).toMatch(/A game for 10 people or fewer is Rs 0/); openStep(p, 7);
     expect(p.text()).toMatch(/costs Rs 0/); expect(p.text()).not.toMatch(/DEMO/);
-    await o.api("POST", "/api/z/UI-RS0/publish", { email: "boss@acme.com", phone: "98765 43210", consent: { v: "2026-10-15", boxes: ["A", "B"] } }, o.token);
+    await o.api("POST", "/api/z/UI-RS0/publish", { email: "boss@acme.com", phone: "98765 43210", consent: { v: "2026-11-01", boxes: ["A", "B"] } }, o.token);
     const q = await consolePage(o, "UI-RS0"); await q.waitFor((x) => /Hello|Last step|Your game/i.test(x)); expect(q.$("#paypill")!.textContent).toBe("Rs 0 · nothing to pay"); expect(q.$("#paynote")).toBeNull();
     openStep(q, 8); expect(q.text()).toMatch(/Rs 0 · up to 10 people/); expect(q.text()).toMatch(/Create a new game like this one/); expect(q.text()).not.toMatch(/DEMO/i);
   });

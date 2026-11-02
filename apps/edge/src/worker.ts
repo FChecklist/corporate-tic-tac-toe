@@ -52,7 +52,7 @@ import { AUDIT_SCHEMA, auditRequest, analyzeChain, loadRows, logAccess, setHold,
 import { recordFun, funnelBeacon, funnelReport, funnelCsv } from "./funnel";
 import { VISIT_SCHEMA, beaconRoute, linkVisitor, parseRange, recordFunnelForOrg, visitsJourney, visitsSummary, type VisitEnv } from "./visits";
 import { TTT_SCHEMA, TTT_MAILBOX_SCHEMA, STAGE_SCHEMA, tttRoute, ensureT, tournamentStarted, tttTick, endedAtOf } from "./tournament";
-import { CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentMissing, consentRequired, hasConsent, hasConsented, recordConsent, textFor, type Kind } from "./consent";
+import { STALE_PAGE_MESSAGE, CONSENT_SCHEMA, CONSENT_VERSION, KINDS, consentMissing, consentRequired, hasConsent, hasConsented, recordConsent, textFor, type Kind } from "./consent";
 import { knownDial } from "./phonekit";
 import { WINNERS_SCHEMA, acceptVotes, auditAi, confirmPrize, listAiAudit, listPrizes, markGiven, myPrizes, overridePrize } from "./winners";
 import { PAUSE_MAX_PARTICIPANTS, safetyForCap, publishControl, readPublished, registerKey, type KV } from "../../../packages/beacon/src/control";
@@ -842,7 +842,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     }
   }
   { const rm = p.match(/^\/api\/report\/([A-Za-z0-9_-]{4,40})$/); if (rm && req.method === "GET") return reportApi(env as any, rm[1]!, url, now); } // the report page; the key in the link is the only credential
-  if (a.kind === "cohost" && req.method === "POST" && (p === "/api/checkout" || /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/pay-with-credit$/.test(p) || p === "/api/proforma" || p === "/api/payments/test" || p === "/api/payments/paytest" || p === "/api/org/credit" || p.startsWith("/api/org/credit/")) && !(await hasConsent(env.DB, "c:" + (await sha("key|" + (req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")))).slice(0, 16), "K5"))) return json({ error: "Please tick the box to continue.", code: "consent-required", kind: "K5", version: CONSENT_VERSION }, 400); // a Co-host pays and uses credit only after accepting the role (these routes run before the general K5 gate below)
+  if (a.kind === "cohost" && req.method === "POST" && (p === "/api/checkout" || /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/pay-with-credit$/.test(p) || p === "/api/proforma" || p === "/api/payments/test" || p === "/api/payments/paytest" || p === "/api/org/credit" || p.startsWith("/api/org/credit/")) && !(await hasConsent(env.DB, "c:" + (await sha("key|" + (req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")))).slice(0, 16), "K5"))) return json({ error: STALE_PAGE_MESSAGE, code: "consent-required", kind: "K5", version: CONSENT_VERSION }, 400); // a Co-host pays and uses credit only after accepting the role (these routes run before the general K5 gate below)
   const paid = await payRoute(req, env as PayEnv, now, (n) => spend(env, now, n));
   if (paid) return paid;
   { const cr = await creditRoute(req, env as PayEnv, now, (n) => spend(env, now, n), a); if (cr) return cr; } // credit instead of refunds: the account's credit, and paying a game with it (credit.ts)
@@ -855,7 +855,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
         await recordConsent(env.DB, { subject: who, kind: "K5", ref: a.eid ?? null, now });
         return json({ ok: true });
       }
-      if (!(req.method === "GET" && (p === "/api/whoami" || p === "/api/consent/text")) && !(await hasConsented(env.DB, who, "K5"))) return json({ error: "Please tick the box to continue.", code: "consent-required", kind: "K5", version: CONSENT_VERSION }, 403);
+      if (!(req.method === "GET" && (p === "/api/whoami" || p === "/api/consent/text")) && !(await hasConsented(env.DB, who, "K5"))) return json({ error: STALE_PAGE_MESSAGE, code: "consent-required", kind: "K5", version: CONSENT_VERSION }, 403);
     }
   }
   if (a.kind === "cohost" && !(req.method === "GET" && (p === "/api/whoami" || p === "/api/notices" || /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/cohost$/.test(p))) && !/^\/api\/z\/[A-Za-z0-9_-]{4,40}\/(people|waiting)(\/|$)/.test(p) && !(req.method === "POST" && /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/paylink$/.test(p))) return deny(a); // a Co-host: the header, the invite link, payment (above) and nothing else

@@ -1037,7 +1037,7 @@
     </div></div>`;
   }
   /** A Co-host (or Host) who has not yet ticked the K5 box: the console shows only that box and a Continue button; once it is posted the console opens as usual. */
-  const k5View = () => `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main"><div class="zc-block" id="k5gate"><h3>One more step</h3>${small("Please read and tick the box. You only do this once.")}${tbSlot("k5", "K5", "k5go")}${S.k5msg ? `<div class="zc-toast" role="status">${esc(S.k5msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn" id="k5go" type="button" ${tbDis("k5")}>Continue</button></div></div></div></div>`;
+  const k5View = () => `<div class="zc-frame zc-login"><header class="zc-bar"><span class="zc-brand"><img src="/icon-192.png" alt="" width="22" height="22"> <b>Corporate Tic Tac Toe</b></span></header><div class="zc-main"><div class="zc-block" id="k5gate"><h3>One more step</h3>${small("Please read the line below. You only do this once.")}${tbSlot("k5", "K5", "k5go")}${S.k5msg ? `<div class="zc-toast" role="status">${esc(S.k5msg)}</div>` : ""}<div class="zc-foot"><button class="zc-btn" id="k5go" type="button" ${tbDis("k5")}>Continue</button></div></div></div></div>`;
   // ---------- home (no game open yet) ----------
   function homeView() {
     const h = S.history, last = h && h.engagements[0];

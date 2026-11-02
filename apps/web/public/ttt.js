@@ -71,7 +71,7 @@
   const askWhat = () => { if (TOKEN) return { emp: false, mob: false, only: false, v: "mobile" }; /* a personal link already says who this is */ const v = INFO && (INFO.verify === "id" || INFO.verify === "either" || INFO.verify === "both") ? INFO.verify : "mobile", only = !!(INFO && INFO.employeesOnly), ph = !!(INFO && INFO.joinPhone); return { emp: v !== "mobile", mob: v !== "mobile" || ph, only, v }; };
   const joinView = () => {
     set(`${top()}<div class="zcard zform tjoin"><h2>Join the tournament</h2>
-      <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Tick the boxes</span></li><li><b>2</b><span>Type your name</span></li><li><b>3</b><span>Press Join</span></li></ol>
+      <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Type your name</span></li><li><b>2</b><span>Press Join</span></li></ol>
       <p class="tlead">Win your board to reach the next round. The last player standing is the champion.</p>
       <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only your name is asked for. Your organizer sees it and other players see it on the bracket. A game can be played with only an employee ID or an e-mail address.</p>${planned()}
       <p class="zsmall">No personal details needed. All participant information is deleted within 24 hours of the game.</p>

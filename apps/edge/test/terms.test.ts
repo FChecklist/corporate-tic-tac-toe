@@ -22,10 +22,10 @@ const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked fro
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "The Seller does not collect any money, deposit, contribution or other consideration from any Participant", "The Seller auto-deletes Participant Personal Data from the Seller's systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-10-15", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "Billing data is kept for audit and tax reasons."],
+    "terms.html": ["In short", "The Seller does not collect any money, deposit, contribution or other consideration from any Participant", "The Seller auto-deletes Participant Personal Data from the Seller's systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-11-01", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "Billing data is kept for audit and tax reasons."],
     "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
     "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube", "IT Services payment service", "itservices-rajat-agarwal.pages.dev", "GitHub"],
-    "privacy.html": ["Privacy notice", "Version 2026-10-15", "Hindi on request", "Grievance Officer", "Rajat Agarwal, IT Services by Rajat Agarwal", "Billing data is kept for audit and tax reasons.", "18 or older", "name another person", "itservices-rajat-agarwal.pages.dev", "GitHub", "kept 90 days", "plain text"],
+    "privacy.html": ["Privacy notice", "Version 2026-11-01", "Hindi on request", "Grievance Officer", "Rajat Agarwal, IT Services by Rajat Agarwal", "Billing data is kept for audit and tax reasons.", "18 or older", "name another person", "itservices-rajat-agarwal.pages.dev", "GitHub", "kept 90 days", "plain text"],
     "partner-terms.html": ["independent partner", "No spam", "Tax may be deducted at source", "You are responsible for your own taxes", "No payment from the buyer, no commission"],
     "organizer-guide.html": ["Never ask for a fee", "Players are 18 or older", "INR 10,000", "tax deducted at source", "Check your state", "The game does not begin until it is paid for"],
   };

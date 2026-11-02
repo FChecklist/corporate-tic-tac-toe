@@ -179,7 +179,7 @@
       termsShown = true; const k = $("k2slot"); k.innerHTML = `<p class="small muted" style="margin:12px 0 4px">${intro}</p><div id="tbSlot" class="tbslot"></div>`;
       $("lgGo").disabled = true; mountTerms("K2", "tbSlot", "lgGo"); setErr("");
     };
-    const NEWTXT = "<b>New here?</b> Tick the box below and we create your organizer account at once. It is free to build and publish.", TICKTXT = "Please read and tick the box to continue.";
+    const NEWTXT = "<b>New here?</b> Press Continue and we create your organizer account at once. It is free to build and publish.", TICKTXT = "Almost there. Press Continue once more to go on.";
     $("lgForm").addEventListener("submit", async (e) => {
       e.preventDefault(); const m = $("lMail").value.trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid e-mail address.");
