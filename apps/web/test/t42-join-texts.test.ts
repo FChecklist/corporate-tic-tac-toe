@@ -3,12 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { openJoin } from "./t30-joinpage";
 const HINT = "The system will read this as ";
-const TOO_LONG = "This ID is too long. An employee ID may be up to 30 characters once cleaned.";
+const TOO_LONG = "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned.";
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const pageText = (p: any) => String(p.d.body.textContent || "");
 
 describe("hint texts on the join page (employee-ID game)", () => {
-  test("OWNER RULE: over 30 characters once cleaned, the page shows 'This ID is too long. An employee ID may be up to 30 characters once cleaned.' and not the 'read this as' hint", async () => {
+  test("OWNER RULE: over 30 characters once cleaned, the page shows 'This Employee ID is too long. An employee ID may be up to 30 characters once cleaned.' and not the 'read this as' hint", async () => {
     const p = await openJoin({ verify: "id" });
     for (const t of ["a".repeat(31), "ab-".repeat(16), "1".repeat(60)]) { await p.type(t); expect([t, pageText(p).includes(TOO_LONG), p.hint().includes(HINT)]).toEqual([t, true, false]); }
   });
@@ -34,7 +34,7 @@ describe("hint texts on the join page (employee-ID game)", () => {
 describe("guide.js has a card for each ID-lock sentence (what happened, what to do)", () => {
   const g = pub("guide.js");
   test("both lock sentences are matched by a catalogue entry that is not a dead end", () => {
-    for (const s of ["You already have people listed. Start a new game to use a different kind of ID.", "You already have people listed. Start a new game to use a different way of asking for IDs."]) {
+    for (const s of ["You already have people listed. Start a new game to use a different kind of Employee or Email ID.", "You already have people listed. Start a new game to use a different way of asking for Employee IDs."]) {
       const i = g.indexOf(s); expect([s, i > 0]).toEqual([s, true]); const line = g.slice(g.lastIndexOf("\n", i), g.indexOf("\n", i)); expect(line).toMatch(/ t: "/); expect(line).toMatch(/ w: "/); expect(line).toMatch(/ d: \[/);
     }
   });

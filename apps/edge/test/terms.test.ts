@@ -18,14 +18,13 @@ const noFooter = (f: string) => rd(f).replace(/<footer class="(?:uf|ck-foot)"[\s
 const rows = () => raw.prepare("SELECT org, version, via, at_ms FROM organizer_terms ORDER BY at_ms, via").all() as { org: string; version: string; via: string; at_ms: number }[];
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
 const LINKS = ["/terms.html", "/dpa.html", "/organizer-guide.html", "/privacy.html"]; // the uniform footer (games-ops/footer/ufooter.py) links these documents
-const OTHER_DOCS = ["/subprocessors.html", "/partner-terms.html"]; // linked from the legal page
 
 describe("the document pages", () => {
   const DOCS: Record<string, string[]> = {
-    "terms.html": ["In short", "The Seller does not collect any money, deposit, contribution or other consideration from any Participant", "The Seller auto-deletes Participant Personal Data from the Seller's systems within twenty-four (24) hours", "Every personal link records who sent it and to whom", "Grievance Officer", "Version 2026-11-01", "IT SERVICES BY RAJAT AGARWAL", "12. Adults only", "nomination, Section 14", "Billing data is kept for audit and tax reasons."],
-    "dpa.html": ["controller", "processor", "All player data is deleted within 24 hours", "365 days", "without undue delay", "/subprocessors.html"],
-    "subprocessors.html": ["Cloudflare", "Resend", "Razorpay", "Google", "drand", "YouTube", "IT Services payment service", "itservices-rajat-agarwal.pages.dev", "GitHub"],
-    "privacy.html": ["Privacy notice", "Version 2026-11-01", "Hindi on request", "Grievance Officer", "Rajat Agarwal, IT Services by Rajat Agarwal", "Billing data is kept for audit and tax reasons.", "18 or older", "name another person", "itservices-rajat-agarwal.pages.dev", "GitHub", "kept 90 days", "plain text"],
+    "terms.html": ["Terms, Policies and Game Rules", "Version 2026-11-01", "IT Services by Rajat Agarwal", "Players pay nothing", "deleted within 24 hours after the game", "Credit instead of a refund", "Grievance Officer", "Digital Personal Data Protection Act, 2023"],
+    "dpa.html": ["Companies that help run the service", 'href="/terms.html#processors"'], // only points to the one document
+    "subprocessors.html": ["Companies that help run the service", 'href="/terms.html#processors"'],
+    "privacy.html": ["Privacy and Data", 'href="/terms.html#privacy"'],
     "partner-terms.html": ["independent partner", "No spam", "Tax may be deducted at source", "You are responsible for your own taxes", "No payment from the buyer, no commission"],
     "organizer-guide.html": ["Never ask for a fee", "Players are 18 or older", "INR 10,000", "tax deducted at source", "Check your state", "The game does not begin until it is paid for"],
   };
@@ -38,16 +37,16 @@ describe("the document pages", () => {
     for (const l of f === "terms.html" ? [] : h.match(/<li>[\s\S]*?<\/li>/g) ?? []) expect(l.replace(/<[^>]+>/g, "").split(/\s+/).length).toBeLessThanOrEqual(45); // 36: the owner's credit sentence ("We do not give refunds. If you cancel a paid game before it starts, ... lapses at the end of day 365.") is 35 words
     for (const l of LINKS) expect(h).toContain(`href="${l}"`);
   });
-  test("the home page and the legal page link the documents (footer; the legal page also links the other two); the build ships them with headers; the sitemap lists them", () => {
+  test("the home page and the legal page link the documents (footer; the older legal page points to the one document); the build ships them with headers; the sitemap lists them", () => {
     for (const f of ["index.html", "legal.html"]) for (const l of LINKS) expect(rd(f)).toContain(`href="${l}"`);
-    for (const l of OTHER_DOCS) expect(rd("legal.html")).toContain(`href="${l}"`);
+    expect(rd("legal.html")).toContain('href="/terms.html#terms"'); // the older legal page only points to the one document
     const b = readFileSync(new URL("../../../pages/build.mjs", import.meta.url), "utf8");
-    for (const n of ["terms", "dpa", "subprocessors", "privacy", "partner-terms", "organizer-guide"]) { expect(b).toContain(`"${n}.html"`); expect(b).toContain(`["/${n}", PLAINCSP`); expect(rd("sitemap.xml")).toContain(`/${n}.html`); }
+    for (const n of ["terms", "dpa", "subprocessors", "privacy", "partner-terms", "organizer-guide"]) { expect(b).toContain(`"${n}.html"`); expect(b).toContain(`["/${n}", PLAINCSP`); if (!["dpa", "subprocessors", "privacy"].includes(n)) expect(rd("sitemap.xml")).toContain(`/${n}.html`); } // the pages that only point to the one document are not in the sitemap
   });
   test("the public website pages describe Bingo only: no words of the game this product was copied from, and the software-only line is on the key pages", () => {
-    const files = ["index.html", "pricing.html", "about.html", "contact.html", "legal.html", "terms.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "404.html", "site.js"];
+    const files = ["index.html", "pricing.html", "about.html", "contact.html", "legal.html", "refund-policy.html", "dpa.html", "subprocessors.html", "partner.html", "partner-terms.html", "organizer-guide.html", "brochure.html", "404.html", "site.js"];
     for (const f of files) expect([f, /tambola|housie|early five|full house|top line|\bIST\b|90 numbers/i.test(noFooter(f)) || (f !== "terms.html" && /\bticket/i.test(noFooter(f).replace(/i-ticket|ic\("ticket"\)/g, "")))]).toEqual([f, false]);
-    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /never holds? or pays? prize money|prize money is never held or paid|never holds? prizes|(do|does) not hold, pay, guarantee, transfer or deliver any prize/i.test(rd(f))]).toEqual([f, true]);
+    for (const f of ["index.html", "terms.html", "organizer-guide.html"]) expect([f, /never holds? or pays? prize money|prize money is never held or paid|never holds? prizes|(do|does) not hold, pay, guarantee, transfer or deliver any prize|does not collect, hold or give any money or prize/i.test(rd(f))]).toEqual([f, true]);
   });
 });
 

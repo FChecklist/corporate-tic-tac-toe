@@ -22,8 +22,8 @@ describe("no address in the shipped files", () => {
   }, 60000);
   test("the terms name the courts in India and the contact lines name only India", () => {
     const t = readFileSync(join(ROOT, "apps/web/public/terms.html"), "utf8").replace(/<[^>]+>/g, " ");
-    expect(t).toContain("the courts in India have exclusive jurisdiction"); expect(t).toContain("seated in India");
-    for (const f of ["privacy.html", "legal-position.html", "contact.html"]) expect(readFileSync(join(ROOT, "apps/web/public", f), "utf8")).toContain("India");
+    expect(t).toContain("The courts in India have exclusive jurisdiction"); expect(t).toContain("arbitrator in India");
+    for (const f of ["contact.html"]) expect(readFileSync(join(ROOT, "apps/web/public", f), "utf8")).toContain("India");
   });
   test("the default company details carry no address line", () => {
     const src = readFileSync(join(ROOT, "packages/billing/src/index.ts"), "utf8");

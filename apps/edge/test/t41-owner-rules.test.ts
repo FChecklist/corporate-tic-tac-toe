@@ -34,7 +34,7 @@ describe("account e-mails refuse inner spaces and full-width at-signs", () => {
 
 describe("the ID kind and the verify mode lock once anyone holding an ID hash is listed or has joined", () => {
   // OWNER RULE: refused with 409 and code id-kind-locked. Sentence: '...different kind of ID.' when the kind changes; '...different way of asking for IDs.' when only verify changes.
-  const KIND = "You already have people listed. Start a new game to use a different kind of ID.", WAY = "You already have people listed. Start a new game to use a different way of asking for IDs.";
+  const KIND = "You already have people listed. Start a new game to use a different kind of Employee or Email ID.", WAY = "You already have people listed. Start a new game to use a different way of asking for Employee IDs.";
   const patch = (key: string, body: Record<string, unknown>) => W.call("PATCH", `/api/z/${GAME}/settings`, body, key);
   const count = (t: "person" | "participant") => W.raw.prepare(`SELECT COUNT(*) c FROM ${t} WHERE eid = ?`).get(GAME).c as number;
   const shown = async (key: string) => { const s = await j(await W.call("GET", `/api/z/${GAME}/summary`, undefined, key)); return { verify: s.verify, idKind: s.idKind }; };

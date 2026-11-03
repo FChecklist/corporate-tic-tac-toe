@@ -9,7 +9,7 @@ import { world, T_NEW, dev, j, mob } from "./t30-kit";
 
 // the seven invisible characters of the owner's list, as escapes (never typed as raw characters)
 const INVISIBLE = ["\u200B", "\u200C", "\u200D", "\u2060", "\uFEFF", "\u0085", "\u2028", "\u2029"];
-const TOO_LONG = "This ID is too long. An employee ID may be up to 30 characters once cleaned.";
+const TOO_LONG = "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned.";
 const PLAIN_EMAIL_REFUSAL = "This looks like an Email ID. This game asks for an employee ID: letters and numbers only.";
 let W: ReturnType<typeof world>;
 beforeEach(() => { W = world(T_NEW); });
@@ -40,7 +40,7 @@ describe("employee ID cleaning (new rule): NFKC, upper case, A-Z and 0-9 only, 3
     const r = await W.join("T42-1", { name: "Pat Demo", empId: "dev@corp.in", device: dev(1) }); const b = await j(r);
     expect([r.status, b.code, b.error]).toEqual([400, "bad-id", PLAIN_EMAIL_REFUSAL]); expect(JSON.stringify(b).toUpperCase()).not.toContain("DEVCORPIN");
   });
-  test("OWNER RULE too long: the join page of the server says 'This ID is too long...' for 31 cleaned characters", async () => {
+  test("OWNER RULE too long: the join page of the server says 'This Employee ID is too long...' for 31 cleaned characters", async () => {
     await W.game("T42-2", { who: "list", verify: "id" });
     const r = await W.join("T42-2", { name: "Pat Demo", empId: "A".repeat(31), device: dev(2) }); const b = await j(r);
     expect(r.status).toBe(400); expect(b.error).toBe(TOO_LONG);

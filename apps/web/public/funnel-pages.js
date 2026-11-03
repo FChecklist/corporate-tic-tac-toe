@@ -1,6 +1,6 @@
 /* Sales funnel on the public pages (home, pricing, how it works, brochure, payment entry). Reports four steps to our own server (/api/f) through the common reporter (tttfunnel.js):
    viewed, size_chosen, signup_started, payment_page_opened. Only a step name, a random id made for this page load and, for a size, the number of players. No name, no mobile number,
-   no e-mail, no ID, nothing stored on the device. Global Privacy Control and Do Not Track: nothing is sent. The server drops everything unless the owner has switched the funnel on. */
+   no e-mail, no Employee ID, nothing stored on the device. Global Privacy Control and Do Not Track: nothing is sent. The server drops everything unless the owner has switched the funnel on. */
 (function () {
   var nav = navigator, path = (location.pathname || "/").toLowerCase().replace(/\.html$/, "").replace(/\/index$/, "/") || "/";
   if (",/,/pricing,/how-it-works,/brochure,/pay,".indexOf("," + path + ",") < 0) return;

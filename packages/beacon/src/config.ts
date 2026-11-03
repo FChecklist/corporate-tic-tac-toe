@@ -277,7 +277,7 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
     if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
   }
   if (input.idKind !== undefined) {
-    if (input.idKind !== "email" && input.idKind !== "emp") return { ok: false, error: "What the ID is: an employee ID or an Email ID." };
+    if (input.idKind !== "email" && input.idKind !== "emp") return { ok: false, error: "Choose an Employee ID or an Email ID." };
     if (input.idKind === "email") cfg.idKind = "email"; else delete cfg.idKind;
   }
   if (input.employeesOnly !== undefined) {
