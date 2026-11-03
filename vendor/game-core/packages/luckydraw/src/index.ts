@@ -73,7 +73,7 @@ export const luckyDrawRules: RulesModule<DrawState, DrawEvent> = {
 export function registerWhy(s: DrawState, raw: string, now: number, clock: Clock): string | null {
   const id = normId(s.idKind, raw);
   if (s.drawn) return "The draw is done.";
-  if (!id) return "That ID is not valid.";
+  if (!id) return "That Employee ID or Email ID is not valid.";
   if (gameNow(clock, now) >= s.closeAt) return "Registration is closed.";
   if (s.entries.includes(id)) return "You are already in the draw.";
   if (s.entries.length >= s.cap) return "The draw is full.";

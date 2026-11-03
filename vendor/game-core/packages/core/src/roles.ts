@@ -16,7 +16,7 @@ export interface JoinRequest { listed: boolean; closeGroup: boolean; alreadySeat
 /** One person one seat/entry. Close group: only the listed come in, the rest wait for the Organizer or Host ("Let in" / "Not now"). */
 export function admit(j: JoinRequest): { result: Admission; why?: string } {
   if (!j.open) return { result: "refused", why: "This game is not open yet." };
-  if (j.alreadySeated) return { result: "refused", why: "This ID already has a seat in this game." };
+  if (j.alreadySeated) return { result: "refused", why: "This Employee ID already has a seat in this game." };
   if (j.full) return { result: "refused", why: "This game is full." };
   if (j.closeGroup && !j.listed) return { result: "waiting" };
   return { result: "in" };
