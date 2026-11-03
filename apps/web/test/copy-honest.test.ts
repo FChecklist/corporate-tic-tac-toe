@@ -98,7 +98,7 @@ describe("TT-14: the fairness copy names the one case where a person picks a win
     expect(textOf("index.html")).not.toMatch(/No person, including the organizer and us, can change a draw or a result/);
     expect(textOf("legal.html")).not.toMatch(/no way to change a draw or a result/);
     expect(textOf("trust.html")).not.toMatch(/cannot choose, change or remove a result/);
-    for (const f of ["index.html", "legal.html", "trust.html"]) expect(textOf(f)).toMatch(EXCEPTION);
+    for (const f of ["index.html", "trust.html"]) expect(textOf(f)).toMatch(EXCEPTION); // legal.html only points to the one document now
   });
   test("the AI facts say the same as the trust page, and the report's closing note names the exception too", () => {
     const facts = readFileSync(join(EDGE, "ai-facts.ts"), "utf8"); expect(facts).not.toMatch(/cannot choose, change or remove a result/); expect(facts).toMatch(EXCEPTION);

@@ -37,7 +37,7 @@ describe("D1: the data map", () => {
     }
   });
   test("it names every processor the sub-processors page names", () => {
-    const subs = plain(pub("subprocessors.html"));
+    const subs = plain(pub("terms.html")); // the companies that help run the service are named in the one legal document
     for (const p of ["Cloudflare", "Resend", "Razorpay", "Google"]) { expect(subs).toContain(p); expect(doc).toContain(p); }
   });
 });
@@ -67,7 +67,7 @@ describe("D2: the notice and the data map agree", () => {
 
 describe("D11: where the data is, and no backup claim", () => {
   test("the legal pages say where: Cloudflare's global network for the website and its Asia-Pacific region for the database", () => {
-    for (const f of ["subprocessors.html", "legal.html"]) { const t = plain(pub(f)); expect(t).toMatch(/Asia-Pacific/); expect(t).toMatch(/global network/); }
+    { const t = plain(pub("terms.html")); expect(t).toMatch(/Asia-Pacific/); expect(t).toMatch(/Cloudflare hosts the website/); }
     expect(doc).toMatch(/Asia-Pacific/);
   });
   test("no page, e-mail, report or console text promises a backup period (no backup process exists)", () => {

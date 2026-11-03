@@ -12,7 +12,7 @@ const WORDS = /\b(bingo|tambola|housie)\b/i;
 const UNIFORM_FOOTER = /<footer class="(?:uf|ck-foot)"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
 
 describe("no wording from another game", () => {
-  for (const f of readdirSync(WEB).filter((x) => /\.(html|js)$/.test(x) && !SKIP.has(x))) {
+  for (const f of readdirSync(WEB).filter((x) => /\.(html|js)$/.test(x) && !SKIP.has(x) && x !== "terms.html")) { // terms.html is the one legal document, the same on every Corporate Games site: it names all the games on purpose
     test("page file " + f, () => expect(readFileSync(join(WEB, f), "utf8").replace(UNIFORM_FOOTER, "").match(WORDS)?.[0] ?? null).toBeNull());
   }
   for (const f of ["pay.ts", "ai-link.ts", "ai-go.ts", "ai-functions.ts", "ai-facts.ts", "mails.ts", "legal.ts", "worker.ts", "report-layout.ts", "lifecycle.ts"]) {
