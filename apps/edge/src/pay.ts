@@ -302,8 +302,8 @@ Download the PDF: ${origin}/api/invoice/${token}.pdf`
   await db.prepare("UPDATE payment SET status='paid', paid_ms=?, org=?, result=? WHERE id=?").bind(now, org, JSON.stringify(result), p.id).run();
   if (meta.eid) { try { await keepLegalParty(db, meta.eid, now); } catch { /* the deletion step copies it again */ } } // permanent record of who paid and the organizer's invoice details
   if (keptCredit && closedGame) await mailCreditCreated(env, keptCredit, closedGame, "late", now); // the Organizer and the Hosts are told once; the payer got the receipt above
-  if (published) await recordFunnelForOrg({ DB: db }, org, "published", now); // marketing funnel (visits.ts): counted once, against the visitor's first visit
-  await recordFunnelForOrg({ DB: db }, org, "paid", now);
+  if (published) await recordFunnelForOrg({ ...env, DB: db }, org, "published", now); // marketing funnel (visits.ts): counted once, against the visitor's first visit
+  await recordFunnelForOrg({ ...env, DB: db }, org, "paid", now);
   await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, p.id, "payment_succeeded", now, { test: !!p.is_test, size: p.pack }); // sales funnel (funnel.ts)
   // E9: the owner is told of every paid order, once (the claim is inside notifyOwnerOfPaidOrder), whichever path - the webhook or the verify call - got here first
   try { await notifyOwnerOfPaidOrder((subject, text) => sendMail(env, db, ownerAddress(env), subject, text, now, { owner: true }), db, { gameLabel: brand.name, paymentId: p.id, txnId: p.txn_id ?? txnIdOf(p.id), planLabel: closed ? `payment kept as credit (up to ${p.pack} players)` : `up to ${p.pack} players${cpnLines ? `, owner set price: list ${rs(cp!.listMinor / 100, p.currency)}, adjustment ${cp!.adjustMinor < 0 ? "minus" : "plus"} ${rs(Math.abs(cp!.adjustMinor) / 100, p.currency)}` : ""}`, amountText: rs(p.amount, p.currency), organizerName: String(organizer.name ?? meta.name ?? ""), organizerEmail: String(organizer.email ?? p.email), eid: eidForInvoice ?? null, test: !!test }, now); } catch { /* a note to the owner never blocks a payment */ }
@@ -339,8 +339,8 @@ async function paidFirst(env: PayEnv, p: any, meta: any, c: { org: string; organ
   await db.prepare("UPDATE payment SET status='paid', paid_ms=?, org=?, result=?, meta=? WHERE id=?").bind(now, org, JSON.stringify(result), JSON.stringify(m2), p.id).run();
   if (meta.eid) { try { await keepLegalParty(db, meta.eid, now); } catch { /* the deletion step copies it again */ } }
   if (keptCredit && closedGame) await mailCreditCreated(env, keptCredit, closedGame, "late", now);
-  if (published) await recordFunnelForOrg({ DB: db }, org, "published", now);
-  await recordFunnelForOrg({ DB: db }, org, "paid", now);
+  if (published) await recordFunnelForOrg({ ...env, DB: db }, org, "published", now);
+  await recordFunnelForOrg({ ...env, DB: db }, org, "paid", now);
   await recordFun({ DB: db, FUNNEL_EVENTS: (env as any).FUNNEL_EVENTS, PHONE_SALT: (env as any).PHONE_SALT }, p.id, "payment_succeeded", now, { test: !!p.is_test, size: p.pack }); // sales funnel (funnel.ts)
   const contact = await contactOf(db, meta.eid ?? published ?? undefined);
   const pa = meta.priceAdjust as { listMinor: number; adjustMinor: number; netMinor: number } | undefined, cp = pa && !closed && Math.round(p.amount * 100) === pa.netMinor ? pa : null; // the owner set a price for this game and it was charged as set (no credit mixed in)
