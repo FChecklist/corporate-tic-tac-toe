@@ -60,6 +60,27 @@ export function planPayload(p: Plan): { rounds: number; size: number; entrants: 
   return { rounds: p.t.rounds, size: p.t.size, entrants: p.t.entrants, digest: p.digest, matches };
 }
 
+/** The draw is sent to the mailbox in several requests, each under the mailbox's 400,000-character read limit (apps/edge/src/tournament.ts, plan route) and at most 400 matches (limit 600).
+ *  The entrants used to ride in the FIRST request together with 400 matches: from about 4,600 players on that request passed the limit and the mailbox answered "Bad draw." for good (smoke-test T-51).
+ *  Now the entrants go first, in slices of at most PLAN_ENTRANT_CHARS characters with no matches (the plan route accepts entrants in any request); the last request carries the closing facts. */
+export const PLAN_BODY_LIMIT = 400_000, PLAN_ENTRANT_CHARS = 150_000, PLAN_MATCHES_PER_REQUEST = 400;
+export function planRequests(pl: ReturnType<typeof planPayload>): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  let slice: Entrant[] = [], size = 0;
+  for (const e of pl.entrants) {
+    const n = JSON.stringify(e).length + 1;
+    if (slice.length && size + n > PLAN_ENTRANT_CHARS) { out.push({ matches: [], entrants: slice }); slice = []; size = 0; }
+    slice.push(e); size += n;
+  }
+  if (slice.length) out.push({ matches: [], entrants: slice });
+  const closing = { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length };
+  for (let i = 0; i < pl.matches.length || i === 0; i += PLAN_MATCHES_PER_REQUEST) {
+    const last = i + PLAN_MATCHES_PER_REQUEST >= pl.matches.length;
+    out.push({ matches: pl.matches.slice(i, i + PLAN_MATCHES_PER_REQUEST), ...(last ? closing : {}) });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------------------------- one match, replayed from what the mailbox stored
 const ctxAt = (p: Plan, startAt: number): MatchCtx => ({ ...ctxOf(p.t), startAt, entrant: (id) => p.E.get(id)! });
 
@@ -328,11 +349,7 @@ export class TttConsole {
     const v = await this.get("view"); const state: Setup["state"] = v.state; this.n++;
     if (state === "starting" && !this.planSent) {
       const s: Setup = await this.get("setup"); const plan = await planOf({ ...s, startedMs: s.serverNow }); const pl = planPayload(plan);
-      const total = Math.max(pl.matches.length, pl.entrants.length); // the entrants go in parts too: a solo tournament lists every player, too much for one request above about 4,400
-      for (let i = 0; i < total || i === 0; i += 400) {
-        const last = i + 400 >= total;
-        await this.post("plan", { matches: pl.matches.slice(i, i + 400), ...(i < pl.entrants.length ? { entrants: pl.entrants.slice(i, i + 400) } : {}), ...(last ? { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length } : {}) });
-      }
+      for (const body of planRequests(pl)) await this.post("plan", body); // entrants in char-bounded slices, then matches 400 at a time (T-51 / smoke fix)
       this.planSent = true; return { state: "running", sentPlan: true };
     }
     if (state !== "running") return { state };

@@ -69,7 +69,9 @@ export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "
 export type { Cleaned } from "./phonekit";
 import { cleanPhone, maskedPhone, keptFromClean, phoneDigits } from "./phonekit";
 /** A name as kept: no control or invisible characters, no markup characters, and nothing at the front that a spreadsheet would run as a formula (= + - @). Also the server's answer to a hand-made request: the page already sends only tidy names. */
-export const cleanName = (n: unknown) => (typeof n === "string" ? Array.from(n).filter((ch) => { const c = ch.charCodeAt(0); return !(c < 32 || c === 127 || (c >= 0x200b && c <= 0x200f) || c === 0x2028 || c === 0x2029 || c === 0xfeff); }).join("").replace(/[<>`]/g, "").replace(/\s+/g, " ").replace(/^[=+\-@\s]+/, "").trim().slice(0, 60) : "");
+/** A name is cut at 60 UTF-16 units AFTER the trim, so the cut can leave a trailing blank or half an emoji (a lone high surrogate breaks the CSV / PDF line). Cut, drop a lone half, then trim the end again. Smoke-test T-54. */
+export const cutName = (s: string): string => { let c = s.slice(0, 60); const k = c.charCodeAt(c.length - 1); if (k >= 0xd800 && k <= 0xdbff) c = c.slice(0, -1); return c.trimEnd(); };
+export const cleanName = (n: unknown) => (typeof n === "string" ? cutName(Array.from(n).filter((ch) => { const c = ch.charCodeAt(0); return !(c < 32 || c === 127 || (c >= 0x200b && c <= 0x200f) || c === 0x2028 || c === 0x2029 || c === 0xfeff); }).join("").replace(/[<>`]/g, "").replace(/\s+/g, " ").replace(/^[=+\-@\s]+/, "").trim()) : "");
 
 /** What a `from=` code on a common link means. */
 export type FromOwner = { kind: "org" } | { kind: "host"; hex: string } | { kind: "cohost"; hex: string } | { kind: "guest"; seq: number };
