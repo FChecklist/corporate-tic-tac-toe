@@ -195,11 +195,11 @@ describe("the owner's three test sign-ins", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(3);
     expect((await call("POST", "/api/auth/verify", { email: "demo4@xyz.in", code: "123456" })).status).toBe(400);
   });
-  test("the test sign-ins are limited per network per day, record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+  test("the test sign-ins have no daily limit (owner order 4 Nov 2026), record no Terms consent, never send mail, and keep only their latest six keys", async () => {
     await setMode(env as any, "TEST", "test sign-ins work only in TEST mode (TT-21)", T);
     const em = "demo2@xyz.in"; const fire = () => call("POST", "/api/auth/verify", { email: em, code: "123456" });
-    for (let i = 0; i < 30; i++) expect((await fire()).status).toBe(200);
-    const blocked = await fire(); expect(blocked.status).toBe(429);
+    for (let i = 0; i < 35; i++) expect((await fire()).status).toBe(200); // owner order 4 Nov 2026: no per-network daily limit any more
+    expect((await fire()).status).toBe(200);
     expect(rowsOf("SELECT COUNT(*) c FROM consent_log WHERE kind='K2'")[0].c).toBe(0);
     const org = rowsOf("SELECT org FROM organizer_email")[0].org;
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_key WHERE org=? AND kind='master'", org)[0].c).toBeLessThanOrEqual(6);
