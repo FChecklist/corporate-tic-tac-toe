@@ -12,13 +12,16 @@ export const PEOPLE_ROWS = [
 /** A Host or Co-host as stored: the ID, and for a Host whether the Organizer has approved the Host's own key yet. */
 export interface Helper { id: string; role: "host" | "cohost"; keyApproved: boolean }
 export interface Team { hosts: Helper[]; cohosts: Helper[]; log: Change[] }
+/** An Email ID must have a shape: something, one @, something, a dot, two or more letters (the server's own rule, apps/edge/src/people.ts EMAIL_ID_RE). "@@", "no-at-sign" and "a@b" are refused. Smoke-test T-53. */
+const EMAIL_ID_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const emailShapeOk = (id: string): boolean => EMAIL_ID_RE.test(id) && id.length <= 254;
 export const newTeam = (): Team => ({ hosts: [], cohosts: [], log: [] });
 export type Added = { ok: true; team: Team } | { ok: false; why: string };
 const add = (t: Team, by: Role, kind: IdKind, raw: string, role: "host" | "cohost", now: number): Added => {
   const row = PEOPLE_ROWS.find((r) => r.id === (role === "host" ? "addHost" : "addCohost"))!;
   if (!row.who.includes(by)) return { ok: false, why: role === "host" ? "Only the Organizer can add a Host." : "Only the Organizer or a Host can add a Co-host." };
   const id = normId(kind, raw);
-  if (!id) return { ok: false, why: kind === "email" ? "That e-mail does not look right." : "That employee ID does not look right." };
+  if (!id || (kind === "email" && !emailShapeOk(id))) return { ok: false, why: kind === "email" ? "That e-mail does not look right." : "That employee ID does not look right." };
   if ([...t.hosts, ...t.cohosts].some((h) => h.id === id)) return { ok: false, why: "This person already has a role in this game." };
   if (role === "host" && t.hosts.length >= MAX_HOSTS) return { ok: false, why: `A game can have up to ${MAX_HOSTS} Hosts.` };
   const h: Helper = { id, role, keyApproved: false };
