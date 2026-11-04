@@ -159,3 +159,14 @@ describe("the right guide for the right message and the right person", () => {
     expect(readFileSync(join(import.meta.dir, "../public/zgame.js"), "utf8")).toContain("The game could not be opened just now");
   });
 });
+
+describe("owner number", () => {
+  test("every page that shows the number links it to WhatsApp with the ready first line", () => {
+    const pub = new URL("../public/", import.meta.url);
+    const link = 'href="https://wa.me/919650397480?text=Hi%2C%20I%20am%20interested%20in%20corporate%20games"';
+    for (const f of readdirSync(pub).filter((n) => n.endsWith(".html"))) {
+      const h = readFileSync(new URL(f, pub), "utf8");
+      if (h.includes("96503 97480")) { expect(h).toContain(link); expect(h).not.toContain("tel:+919650397480"); }
+    }
+  });
+});

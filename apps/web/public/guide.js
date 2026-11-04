@@ -301,7 +301,7 @@
   var styled = false;
   function ensureStyle() { if (styled || !document.head) return; styled = true; var s = document.createElement("style"); s.id = "ctg-style"; s.textContent = css; document.head.appendChild(s); }
 
-  var waLink = function (g) { return "https://wa.me/" + WA + "?text=" + encodeURIComponent("Hello, I need help with Corporate Tic Tac Toe. Reference: " + g.ref); };
+  var waLink = function (g) { return "https://wa.me/" + WA + "?text=Hi%2C%20I%20am%20interested%20in%20corporate%20games"; };
   function body(g, ctx, mode) {
     var steps = g.steps.length ? "<ol>" + g.steps.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ol>" : "";
     var btns = "", go = g.go || {}, label = go.label ? esc(go.label) : "";
