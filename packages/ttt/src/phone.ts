@@ -328,9 +328,10 @@ export class TttConsole {
     const v = await this.get("view"); const state: Setup["state"] = v.state; this.n++;
     if (state === "starting" && !this.planSent) {
       const s: Setup = await this.get("setup"); const plan = await planOf({ ...s, startedMs: s.serverNow }); const pl = planPayload(plan);
-      for (let i = 0; i < pl.matches.length || i === 0; i += 400) {
-        const last = i + 400 >= pl.matches.length;
-        await this.post("plan", { matches: pl.matches.slice(i, i + 400), ...(i === 0 ? { entrants: pl.entrants } : {}), ...(last ? { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length } : {}) });
+      const total = Math.max(pl.matches.length, pl.entrants.length); // the entrants go in parts too: a solo tournament lists every player, too much for one request above about 4,400
+      for (let i = 0; i < total || i === 0; i += 400) {
+        const last = i + 400 >= total;
+        await this.post("plan", { matches: pl.matches.slice(i, i + 400), ...(i < pl.entrants.length ? { entrants: pl.entrants.slice(i, i + 400) } : {}), ...(last ? { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length } : {}) });
       }
       this.planSent = true; return { state: "running", sentPlan: true };
     }

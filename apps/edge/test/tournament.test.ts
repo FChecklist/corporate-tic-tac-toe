@@ -364,3 +364,19 @@ describe("removing a player after the host pressed Start (found by the Chrome si
     void ps;
   });
 });
+
+describe("T-51: a big draw is sent in parts", () => {
+  test("5,000 solo players: no part of the draw is bigger than the mailbox takes, and every player is sent once", async () => {
+    const roster = Array.from({ length: 5000 }, (_, i) => ({ pid: "p" + i.toString(36).padStart(8, "0"), name: "Player " + i }));
+    const setup = { eid: "TT-BIG", state: "starting", commit: "c", seed: "ab".repeat(32), roster, opts: { format: "solo", teamSize: 1, moveMs: 20_000, readyMs: 30_000 }, startedMs: null, pauses: [], serverNow: T };
+    const sent: any[] = []; const sizes: number[] = [];
+    const api = async (method: string, path: string, body?: unknown) => {
+      if (method === "GET") return path.endsWith("/view") ? { state: "starting" } : setup;
+      sizes.push(JSON.stringify(body).length); sent.push(body); return { ok: true };
+    };
+    await new TttConsole(api as any, "TT-BIG").tick();
+    expect(Math.max(...sizes)).toBeLessThan(400_000);
+    expect(sent.flatMap((b) => b.entrants ?? []).length).toBe(5000);
+    expect(sent.filter((b) => b.last).length).toBe(1); expect(sent[sent.length - 1].last).toBe(true);
+  });
+});
