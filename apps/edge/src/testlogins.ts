@@ -3,5 +3,5 @@
 // against the daily write budget and a per-network limit (worker.ts), and the keys it makes are trimmed to the latest three.
 export const TEST_LOGINS = new Set(["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]);
 export const TEST_LOGIN_CODE = "123456";
-export const TEST_LOGINS_PER_IP_DAY = 30;
+export const TEST_LOGINS_PER_IP_DAY = Number.MAX_SAFE_INTEGER; // owner order 4 Nov 2026: no daily limit on the owner test sign-in
 export const isTestLogin = (email: string): boolean => TEST_LOGINS.has(String(email ?? "").trim().toLowerCase());
