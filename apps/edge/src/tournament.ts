@@ -177,9 +177,12 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
     const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid), beacon);
     const o = { format, teamSize, moveMs: moveSecs * 1000, readyMs: 30_000 };
-    const stmts: any[] = [env.DB.prepare("UPDATE ttt_t SET state='starting', opts=?, seed=?, players=? WHERE eid=? AND state='open'").bind(JSON.stringify(o), seed, players.length, eid)];
+    // The players are written FIRST (each press starts from a clean list), the tournament is switched to "starting" LAST in its own step: if a passing database hiccup stops a big start (more than 89 players = several steps) half-way,
+    // the tournament is still "open", so the next press simply does it all again instead of finding a started tournament with missing players (5 Nov 2026 audit).
+    const stmts: any[] = [env.DB.prepare("DELETE FROM ttt_p WHERE eid=?").bind(eid)];
     for (const p of players) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO ttt_p(eid,pid,name,ent) VALUES(?,?,?,NULL)").bind(eid, p.pid, p.name));
     for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+    await env.DB.prepare("UPDATE ttt_t SET state='starting', opts=?, seed=?, players=? WHERE eid=? AND state='open'").bind(JSON.stringify(o), seed, players.length, eid).run();
     return json({ ok: true, players: players.length, commit: t.commit_hash, state: "starting", next: "The Organizer's page computes the bracket from the seed and sends it to the mailbox (plan)." });
   }
 
@@ -402,9 +405,10 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const beacon = typeof b.beacon === "string" ? b.beacon.replace(/[^A-Za-z0-9._-]/g, "").slice(0, 128) : "";
     const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid), beacon);
     const startMs = Number.isFinite(Number(b.startMs)) && Number(b.startMs) >= now && Number(b.startMs) <= now + 3_600_000 ? Math.floor(Number(b.startMs)) : now; // the published start; the room opens then
-    const stmts: any[] = [env.DB.prepare("UPDATE ttt_t SET state='running', opts=?, seed=?, players=?, started_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify({ stages: true }), seed, players.length, startMs, eid)];
+    const stmts: any[] = [env.DB.prepare("DELETE FROM ttt_p WHERE eid=?").bind(eid)]; // players first, "running" last (see the start step above)
     for (const p of players) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO ttt_p(eid,pid,name,ent) VALUES(?,?,?,NULL)").bind(eid, p.pid, p.name));
     for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+    await env.DB.prepare("UPDATE ttt_t SET state='running', opts=?, seed=?, players=?, started_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify({ stages: true }), seed, players.length, startMs, eid).run();
     return json({ ok: true, players: players.length, commit: t.commit_hash, state: "running", startedMs: startMs, seed });
   }
   if (sub === "stagelog" && method === "POST") {
