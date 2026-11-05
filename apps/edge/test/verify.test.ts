@@ -225,7 +225,8 @@ describe("the owner's three test sign-ins need the runner key, in any mode (TT-2
     await setMode(env as any, "TEST", "walk-through", T);
     const a = await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" })); expect(a.token).toMatch(/^cbk_/);
     await setMode(env as any, "LIVE", "go live", T);
-    const b = await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }); expect(b.status).toBe(400); expect((await j(b)).token).toBeUndefined();
+    const b = await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }, undefined, T, NOKEY); expect(b.status).toBe(400); expect((await j(b)).token).toBeUndefined();
+    expect((await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }))).token).toMatch(/^cbk_/); // the key opens it in LIVE too
   });
 });
 
