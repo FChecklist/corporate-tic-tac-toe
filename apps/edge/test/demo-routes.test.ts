@@ -23,7 +23,7 @@ const demo = (k: string, id: string, ip = "9.9.9.9", extra: Record<string, unkno
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat-owner-key-123", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "http://x", PHONE_SALT: "salt", DEMO_GAME: "on" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat-owner-key-123", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "http://x", PHONE_SALT: "salt", DEMO_GAME: "on" };
 });
 
 describe("the free Demo game", () => {

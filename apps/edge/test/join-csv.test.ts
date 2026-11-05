@@ -24,7 +24,7 @@ async function setup() {
   await call("POST", "/api/z/CSV-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, master);
   return master;
 }
-beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}"); });
+beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}"); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("people CSV", () => {

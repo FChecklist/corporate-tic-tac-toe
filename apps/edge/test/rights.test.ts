@@ -31,7 +31,7 @@ const leave = (id: string, pid: string, device: string) => call("POST", `/api/z/
 const ask = (id: string, pid: string, device: string, kind: string, extra: Record<string, unknown> = {}, now = T) => call("POST", `/api/z/${id}/datareq`, { pid, device, kind, ...extra }, {}, now);
 const count = (sql: string, ...a: any[]) => (raw.prepare(sql).get(...a) as any).c as number;
 
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("U5: a player can leave at any time", () => {
   test("before the game starts the seat, the name and the consent record are deleted, and the answer says so in plain words", async () => {

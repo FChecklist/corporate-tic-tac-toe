@@ -41,7 +41,7 @@ const readEnded = async (id: string, org: Record<string, string>, now: number) =
   find(await j(await call("GET", `/api/z/${id}/ttt/view`, undefined, {}, now)), "endedAtMs"),
   find(await j(await call("GET", `/api/z/${id}/summary`, undefined, org, now)), "endedAtMs"),
 ];
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; });
 
 describe("endedAtMs (OWNER RULE)", () => {
   test("OWNER RULE: absent while the game can still be live (not started, and running)", async () => {

@@ -21,7 +21,7 @@ export const roundMs = (r: number) => (GEN + (r - 1) * 3) * 1000;
 
 export function newWorld(extra: Record<string, string> = {}) {
   const d = makeD1();
-  const env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "http://localhost", PHONE_SALT: "salt", ...extra } as unknown as Env;
+  const env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "http://localhost", PHONE_SALT: "salt", ...extra } as unknown as Env;
   const world = { env, raw: d.raw, now: T };
   const api = (method: string, path: string, body?: unknown, key?: string, now = world.now) =>
     handle(new Request("http://localhost" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }), env, now);

@@ -29,7 +29,7 @@ const overAs = async (pid: string, now: number) => { let r!: Response; for (cons
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "10000000" };
+  env = { DB: d.db, ORGANIZER_SECRET: SECRET, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "10000000" };
   sentReports.length = 0;
 });
 

@@ -64,7 +64,7 @@ export interface D1Stmt { bind(...v: unknown[]): D1Stmt; run(): Promise<D1Result
 export interface D1 { prepare(sql: string): D1Stmt; batch(s: D1Stmt[]): Promise<D1Result[]> }
 export interface R2Like { put(key: string, value: string, opts?: unknown): Promise<unknown>; delete(key: string): Promise<unknown> }
 export interface Env {
-  DB: D1; ORGANIZER_SECRET?: string; DAILY_WRITE_BUDGET?: string; PHONE_SALT?: string;
+  DB: D1; ORGANIZER_SECRET?: string; DAILY_WRITE_BUDGET?: string; RUNNER_KEY?: string; PHONE_SALT?: string;
   /** The secret that seals names and mobile numbers at rest (AES-256-GCM). Never stored in the database. */
   DATA_KEY?: string; DEMO_GAME?: string; PAYTEST_OWNER_ONLY?: string;
   /** Optional: the key that hashes network addresses for the public-page visit tracking (visits.ts); when absent it is derived from DATA_KEY. VISIT_DAILY_WRITES caps that tracking's share of the daily write allowance (default 20,000). */
@@ -344,7 +344,8 @@ const demoUsed = async (env: Env, ks: string[]) => { let m = 0; for (const k of 
 async function demoNote(env: Env, ks: string[], eid: string, org: string, now: number) {
   await env.DB.batch([...ks.map((k) => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,'1') ON CONFLICT(k) DO UPDATE SET v=CAST(v AS INTEGER)+1").bind(k)), env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`demo/${eid}`, org)]);
 }
-async function ownerTestGrant(env: Env, org: string, cap: number, now: number): Promise<boolean> {
+async function ownerTestGrant(env: Env, org: string, cap: number, now: number, runner = false): Promise<boolean> {
+  if (!runner) return false; // the free owner-test packs need the runner key (RUNNER_KEY)
   for (const t of OWNER_TEST_FREE) {
     if (now > t.until || cap > t.maxCap) continue;
     const eh = await sha("email|" + t.email.trim().toLowerCase());
@@ -370,7 +371,18 @@ const CONSOLE_ONLY = () => json({ error: "Names and mobile numbers are handled b
  *  A whole office or hall sits behind ONE address, so the allowance of a PAID game never falls below its pack: one address may seat up to the pack's size in a minute (and three times that in a day).
  *  The base figures (the environment's JOIN_PER_IP_MINUTE / JOIN_PER_IP_DAY, else the defaults below) still apply to an unpaid game and to the waiting room, so a script cannot use a big free game to burn the write budget. */
 const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200, ID_MISS_PER_10MIN = 30;
-async function joinOverLimit(env: Env, req: Request, now: number, paidSeats = 0): Promise<boolean> {
+/** RUNNER_KEY (owner order 5 Nov 2026): a long secret set as a Worker secret. The owner's test programs send it as X-Runner-Key; ONLY then are the test sign-in, the free owner-test packs and the join-guard bypass honoured.
+ *  Without the header (or when no key is set) everything behaves exactly as for the public. Compared in constant time; a short key counts as no key. */
+function runnerOk(env: Env, req: Request): boolean {
+  const k = String((env as any).RUNNER_KEY ?? ""), h = req.headers.get("x-runner-key") ?? "";
+  if (k.length < 32 || h.length !== k.length) return false;
+  let d = 0; for (let i = 0; i < k.length; i++) d |= k.charCodeAt(i) ^ h.charCodeAt(i);
+  return d === 0;
+}
+/** The join guard is skipped only for the runner's own test games: a valid key AND an engagement id that starts with SMK10M- AND is_test=1. A real customer never matches. */
+const runnerTestGame = (env: Env, req: Request, e: any): boolean => !!e && String(e.id ?? "").startsWith("SMK10M-") && Number(e.is_test) === 1 && runnerOk(env, req);
+async function joinOverLimit(env: Env, req: Request, now: number, paidSeats = 0, runner = false): Promise<boolean> {
+  if (runner) return false;
   try {
     const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), perDay = Math.max(Number((env as any).JOIN_PER_IP_DAY ?? JOIN_PER_IP_DAY), paidSeats * 3), perMin = Math.max(Number((env as any).JOIN_PER_IP_MINUTE ?? JOIN_PER_IP_MINUTE), paidSeats);
     const bump = async (k: string, max: number) => { const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0); if (n >= max) return true; await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(k, String(n + 1), String(n + 1)).run(); return false; };
@@ -999,7 +1011,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const code = typeof b?.code === "string" ? b.code.replace(/\D/g, "") : "";
     if (!email || code.length !== 6) return json({ error: "Enter the 6-digit code." }, 400);
     const eh = await sha("email|" + email);
-    if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE && (await isTestMode(env))) { // TT-21: the fixed code opens an account only while the service is in TEST mode
+    if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE && runnerOk(env, req)) { // TT-21: the fixed code opens an account only while the service is in TEST mode
       { // a per-network daily limit and the write budget apply, like every other public write
         const tk = `tlg/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local") + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
         const tu = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(tk).first<{ v: string }>())?.v ?? 0);
@@ -1402,7 +1414,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     // an organizer needs a purchased engagement (entitlement) big enough for the limit they ask for; we (platform) do not. A demo game never uses up a bought pack.
     const dk = demo ? await demoKeys(env, req, a.org!, now) : null;
     if (dk && (await demoUsed(env, dk)) >= DEMO_PER_DAY) return json({ error: `You can start ${DEMO_PER_DAY} demo games a day from one account or one network. Please try again tomorrow.` }, 429);
-    if (!demo && !a.plat && a.org) { try { await ownerTestGrant(env, a.org, b.cap, now); } catch { /* no grant: the game is a draft as for everybody */ } }
+    if (!demo && !a.plat && a.org) { try { await ownerTestGrant(env, a.org, b.cap, now, runnerOk(env, req)); } catch { /* no grant: the game is a draft as for everybody */ } }
     const ent = a.plat || demo ? null : await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(a.org, b.cap).first<{ id: string; pack: number }>();
     // no payment is needed to BUILD an engagement: without a purchased pack it is saved as a draft (pack 0) that participants cannot see or join;
     // payment is asked only when the organizer publishes it (POST /api/z/:id/publish)
@@ -1708,7 +1720,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const target = owner ?? "o";
     const lateName = cleanName(b?.name);
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
-      if (await joinOverLimit(env, req, now)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
+      if (await joinOverLimit(env, req, now, 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
       const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
       if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
@@ -1728,7 +1740,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       inviter = target; if (limit !== null) { guardId = target; guardLimit = limit; }
       pii = await sealPii(env, { phone: digits ?? "", name: lateName || tokPii?.name || null, empId: vf.mode !== "mobile" && empNorm ? empNorm : null });
     }
-    if (await joinOverLimit(env, req, now, e.pack ?? 0)) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
+    if (await joinOverLimit(env, req, now, e.pack ?? 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
     if (!(await spend(env, now, JOIN_WRITES))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
     const inv = inviter.startsWith("s:") ? Number(inviter.slice(2)) : null;
     await addSeat(ph, pii, dev, lateRound, { inv, cat: inv !== null ? cat : null, src: srcOf(inviter), ownerId: inviter, guardId, guardLimit, role });

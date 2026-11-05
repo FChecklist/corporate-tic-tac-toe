@@ -60,7 +60,7 @@ async function pairs(id: string, ps: P[], count = 1) {
   const ms = Object.values(plan.t.matches).filter((m) => m.round === 1 && !m.bye).sort((a, b) => a.idx - b.idx).slice(0, count);
   return { plan, list: ms.map((m) => ({ mid: m.mid, m, a: by.get(m.boards[0]!.a)!, b: by.get(m.boards[0]!.b)! })) };
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
 
 describe("the lobby and the start (G1-G6)", () => {
   test("G5/G6: the view shows how many joined; start is refused with fewer than two players and for anyone but the Organizer or a Host", async () => {

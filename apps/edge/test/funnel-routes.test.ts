@@ -33,7 +33,7 @@ beforeEach(() => {
     if (pm) return new Response(JSON.stringify({ id: pm[1], order_id: orders[0]?.id, status: "captured", amount: orders[0]?.amount }));
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "http://x", PHONE_SALT: "salt", FUNNEL_EVENTS: "on" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "http://x", PHONE_SALT: "salt", FUNNEL_EVENTS: "on" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 

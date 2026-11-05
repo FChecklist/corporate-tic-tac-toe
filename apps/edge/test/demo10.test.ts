@@ -12,7 +12,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) }), env, T);
 const j = async (r: Response) => (await r.json()) as any;
 const dev = (i: number) => String(i).padStart(2, "0").repeat(16);
-beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt", DATA_KEY: "k" } as any; });
+beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt", DATA_KEY: "k" } as any; });
 
 describe("10-player demo game at Rs 0", () => {
   test("make, publish with no payment, 10 join by name, the 11th is refused, the same phone gets the same card", async () => {

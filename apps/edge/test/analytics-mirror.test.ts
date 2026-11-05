@@ -16,7 +16,7 @@ const central = () => { // the central database stand-in; the collector creates 
   return { raw, db: { prepare: (s: string) => stmt(s), batch: async (xs: any[]) => Promise.all(xs.map((x) => x.run())) } };
 };
 let env: Env & Record<string, any>, local: Database, cen: ReturnType<typeof central>;
-beforeEach(() => { const d = makeD1(); local = d.raw; cen = central(); resetRate(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: `https://${HOST}`, DATA_KEY: "data-key", ANALYTICS: cen.db, ANALYTICS_KEY: "k-test" } as any; });
+beforeEach(() => { const d = makeD1(); local = d.raw; cen = central(); resetRate(); env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: `https://${HOST}`, DATA_KEY: "data-key", ANALYTICS: cen.db, ANALYTICS_KEY: "k-test" } as any; });
 const beacon = (events: unknown[], o: Record<string, unknown> = {}, h: Record<string, string> = {}) => {
   const r = new Request(`https://${HOST}/api/v/b`, { method: "POST", headers: { origin: `https://${HOST}`, "content-type": "text/plain", "cf-connecting-ip": IP, "user-agent": UA, ...h }, body: JSON.stringify({ s: SID, d: VID, lp: "/", r: "www.google.com", dv: "mobile", l: "en-IN", e: events, ...o }) });
   (r as any).cf = { country: "IN", city: "Pune", asOrganization: "Example Broadband", asn: 64500 };

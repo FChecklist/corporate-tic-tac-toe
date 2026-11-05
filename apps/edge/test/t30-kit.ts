@@ -17,7 +17,7 @@ export const j = async (r: Response) => (await r.json()) as any;
 
 export function world(T: number, extra: Record<string, string> = {}) {
   const d = makeD1(); const raw = d.raw; let ipN = 0;
-  const env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt", ...extra } as unknown as PayEnv;
+  const env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt", ...extra } as unknown as PayEnv;
   const realFetch = globalThis.fetch; (globalThis as any).fetch = async () => new Response("{}", { status: 404 });
   const w: any = { env, raw, now: T, realFetch, restore: () => { globalThis.fetch = realFetch; },
     call: (method: string, path: string, body?: unknown, key?: string, now = w.now, ip?: string) =>
