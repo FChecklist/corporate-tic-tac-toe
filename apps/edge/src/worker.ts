@@ -288,7 +288,7 @@ async function body(req: Request, max = MAX_BODY): Promise<any | null> {
  * At most 3 unused free packs exist for an account at a time. No payment, invoice or mail is made. Remove an entry (or let `until` pass) to stop it.
  */
 export const OWNER_TEST_FREE: { email: string; maxCap: number; until: number }[] = [
-  { email: "demo1@xyz.in", maxCap: 1000, until: Date.UTC(2026, 10, 8) }, // the test sign-in (code always 123456, no mail): used only by the test programs; ends on 8 Nov 2026. The owner's real addresses are NOT on this list: they see the real, unpaid first-time flow.
+  { email: "demo1@xyz.in", maxCap: 1000, until: Date.UTC(2026, 11, 1) }, // the test sign-in (code always 123456, no mail): used only by the test programs; ends on 8 Nov 2026. The owner's real addresses are NOT on this list: they see the real, unpaid first-time flow.
 ];
 /**
  * Demo passes (owner order 2026-10-26): a long secret link that gives the account that opens it ONE free game (Rs 0) of up to `cap` people, for a prospect the owner chose, one to one.

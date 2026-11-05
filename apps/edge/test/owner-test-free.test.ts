@@ -21,6 +21,6 @@ describe("owner test accounts", () => {
   });
   test("the list holds only the named accounts, with an end date", () => {
     expect(OWNER_TEST_FREE.map((x) => x.email)).toEqual(["demo1@xyz.in"]); // the owner's real addresses see the real flow
-    for (const t of OWNER_TEST_FREE) expect(t.until).toBeGreaterThan(Date.now());
+    for (const t of OWNER_TEST_FREE) expect(t.until).toBeGreaterThan(Date.now()); for (const t of OWNER_TEST_FREE) expect(t.until).toBeGreaterThanOrEqual(Date.UTC(2026, 10, 30, 23, 59)); // TARGET-99 runs need it to last through 30 Nov
   });
 });
