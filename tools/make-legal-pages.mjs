@@ -49,7 +49,7 @@ const PAGES = {
     ["payment", "Payment and credit", [
       "Building and publishing are free. A game does not begin until it is paid for.",
       "You can pay at any time until the guest data is erased. A late payment starts the game 2 minutes after it is confirmed.",
-      "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.",
+      "A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.",
       "The credit belongs to your organizer account. We show the exact amount and date before you confirm.",
       "We e-mail you before it lapses. No credit note is raised for credit that lapses.",
       "Instead of cancelling, you can change the date of the game. A game time can be set at most 30 days ahead.",
@@ -115,7 +115,7 @@ const PAGES = {
       "You earn up to half of the software price on every game a company buys through your link, including repeat purchases within 12 months.",
       "Commission rates can change from time to time under our management policy. A change applies to purchases made after it and is shown on your partner page.",
       "No payment from the buyer, no commission.",
-      "A sale stays as earned if the buyer cancels the game. We do not give refunds: the payment becomes credit.",
+      "A sale stays as earned if the buyer cancels the game: the payment stays with the buyer as credit.",
       "Using credit is not a new sale and earns no new commission.",
       "We may refuse or reverse commission for self-referral or misuse.",
     ]],
@@ -154,7 +154,7 @@ const PAGES = {
       "Names and numbers are deleted within 24 hours after the game. Your report link works for 22 hours, so open it before then.",
       "To delete earlier, use your console.",
     ]],
-    ["pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is erased. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]],
+    ["pay", "Payment", ["Build and publish for free. The game does not begin until it is paid for.", "You can pay at any time until the guest data is erased. A late payment starts the game 2 minutes after it is confirmed.", "To cancel, tap Cancel this game in your console.", "A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.", "Once the start time has passed, a paid game cannot be cancelled.", "Want another game like this one? Tap Create a new game like this one. Your credit is offered first on the Pay step."]],
   ] },
 };
 

@@ -6,7 +6,6 @@ import { settleByPhones } from "./settle";
 import { layoutPeoplePart, layoutReport } from "../src/report-layout";
 import { purgeOld, type Env } from "../src/worker";
 import { handle } from "./with-terms";
-import { handle } from "./with-terms";
 import { makeD1 } from "./d1-sqlite";
 import { endBoundMs, fullDeleteAt, lifecycleTick, personalDeleteAt, PURGE_AFTER_MS } from "../src/lifecycle";
 import { sentReports } from "../src/pay";
@@ -22,7 +21,7 @@ const j = async (r: Response) => (await r.json()) as any;
 const org = { "x-organizer": SECRET };
 const tick = (now: number) => lifecycleTick(env as any, now);
 /** An engagement whose game is long over at T (it began 2 hours before). */
-const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 5000, ...over }, org);
+const create = (id = "PRV-1", over: Record<string, unknown> = {}) => call("POST", "/api/z", { id, startRound: roundOf(T - 2 * 3_600_000), callSeconds: 6, cap: 2000, ...over }, org);
 const setContact = (id: string, email = "boss@acme.com") => env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email, phone: "9811122233" })).run();
 const joinAs = (i: number, name: string, id = "PRV-1", extra: Record<string, unknown> = {}, now = T - 3 * 3_600_000) => { SEEN_DEVICES.add(String(i).padStart(32, "0")); return call("POST", `/api/z/${id}/join`, { phone: "9876" + String(500000 + i), name, device: String(i).padStart(32, "0"), ...extra }, {}, now); };
 /** A phone says the game is over: its own device id goes with the report (the one that fits the card is the one let through). */
@@ -30,7 +29,7 @@ const overAs = async (pid: string, now: number) => { let r!: Response; for (cons
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: SECRET, DAILY_WRITE_BUDGET: "10000000" };
+  env = { DB: d.db, ORGANIZER_SECRET: SECRET, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "10000000" };
   sentReports.length = 0;
 });
 
@@ -218,7 +217,7 @@ describe("the report and the deletion", () => {
     expect((raw.query("SELECT COUNT(*) c FROM participant").get() as any).c).toBe(0);
   });
   test("a big game: one link, the report page reads the people in pieces and lays out the parts on the device, which together list every person once", async () => {
-    await create("PRV-BIG", { cap: 5000 }); await setContact("PRV-BIG");
+    await create("PRV-BIG", { cap: 2000 }); await setContact("PRV-BIG");
     const N = 1620;
     for (let i = 1; i <= N; i++) {
       const pii = await sealPii(env as any, { phone: "9876" + String(100000 + i), name: "Person " + i });

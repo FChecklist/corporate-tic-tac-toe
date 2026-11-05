@@ -60,7 +60,7 @@ async function pairs(id: string, ps: P[], count = 1) {
   const ms = Object.values(plan.t.matches).filter((m) => m.round === 1 && !m.bye).sort((a, b) => a.idx - b.idx).slice(0, count);
   return { plan, list: ms.map((m) => ({ mid: m.mid, m, a: by.get(m.boards[0]!.a)!, b: by.get(m.boards[0]!.b)! })) };
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
 
 describe("the lobby and the start (G1-G6)", () => {
   test("G5/G6: the view shows how many joined; start is refused with fewer than two players and for anyone but the Organizer or a Host", async () => {
@@ -116,6 +116,19 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const m = await getM("MB-1", x!.mid, T + 8000);
     expect(m.boards[0].events.map((e: any) => [e.seq, e.sq, e.ms])).toEqual([[0, 4, T + 5000], [1, 1, T + 7000]]);
     expect((await mv("MB-1", x!.a, { mid: x!.mid, seq: 2, sq: 9 }, T + 9000)).status).toBe(400); // not a square
+  });
+  test("M1b: a passing database hiccup on the move is a gentle 503 busy (the phone asks again), NOT 'the board changed' (409); a true clash stays 409 (5 Nov 2026 audit)", async () => {
+    const h = await game("MB-1b"); const ps = await joinAll("MB-1b", 4); await begin("MB-1b", h);
+    const { list: [x] } = await pairs("MB-1b", ps);
+    const real = env.DB as any; let fails = 1;
+    const wrap = (st: any, sqlText: string): any => new Proxy(st, { get(t, k) { const v = t[k]; if (k === "bind") return (...a: any[]) => wrap(v.apply(t, a), sqlText); if (k === "run") return async (...a: any[]) => { if (fails > 0 && sqlText.startsWith("INSERT INTO ttt_mv")) { fails--; throw new Error("D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window"); } return v.apply(t, a); }; return typeof v === "function" ? v.bind(t) : v; } });
+    (env as any).DB = new Proxy(real, { get(t, k) { if (k === "prepare") return (q: string) => wrap(t.prepare(q), q); const v = t[k]; return typeof v === "function" ? v.bind(t) : v; } });
+    try {
+      const busy = await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5000);
+      expect(busy.status).toBe(503); expect((await j(busy)).code).toBe("busy"); expect(sql("SELECT * FROM ttt_mv WHERE eid='MB-1b'").length).toBe(0);
+      expect((await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5100)).status).toBe(200); // the phone asks again: it goes in
+      expect((await mv("MB-1b", x!.b, { mid: x!.mid, seq: 0, sq: 1 }, T + 6000)).status).toBe(409); // a true clash is still a 409
+    } finally { (env as any).DB = real; }
   });
   test("M2: only a player in that match can write to it, from their own phone", async () => {
     const h = await game("MB-2"); const ps = await joinAll("MB-2", 8); await begin("MB-2", h);
@@ -362,5 +375,21 @@ describe("removing a player after the host pressed Start (found by the Chrome si
     expect((await j(rm)).during).toBe(false);
     expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='TT-RM2'")[0].c).toBe(2);
     void ps;
+  });
+});
+
+describe("T-51: a big draw is sent in parts", () => {
+  test("5,000 solo players: no part of the draw is bigger than the mailbox takes, and every player is sent once", async () => {
+    const roster = Array.from({ length: 5000 }, (_, i) => ({ pid: "p" + i.toString(36).padStart(8, "0"), name: "Player " + i }));
+    const setup = { eid: "TT-BIG", state: "starting", commit: "c", seed: "ab".repeat(32), roster, opts: { format: "solo", teamSize: 1, moveMs: 20_000, readyMs: 30_000 }, startedMs: null, pauses: [], serverNow: T };
+    const sent: any[] = []; const sizes: number[] = [];
+    const api = async (method: string, path: string, body?: unknown) => {
+      if (method === "GET") return path.endsWith("/view") ? { state: "starting" } : setup;
+      sizes.push(JSON.stringify(body).length); sent.push(body); return { ok: true };
+    };
+    await new TttConsole(api as any, "TT-BIG").tick();
+    expect(Math.max(...sizes)).toBeLessThan(400_000);
+    expect(sent.flatMap((b) => b.entrants ?? []).length).toBe(5000);
+    expect(sent.filter((b) => b.last).length).toBe(1); expect(sent[sent.length - 1].last).toBe(true);
   });
 });

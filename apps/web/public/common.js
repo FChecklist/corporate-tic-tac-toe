@@ -32,6 +32,7 @@
     if (window.TBV && !window.TBV.gpc) { headers["x-cb-vs"] = window.TBV.sid; if (window.TBV.vid) headers["x-cb-vid"] = window.TBV.vid; } // visit tracking on the public pages (v.js): lets the server tie an account to the visit that led to it
     const tok = opt.org ? TB.orgToken() : null;
     if (tok) headers.authorization = "Bearer " + tok;
+    if (opt.headers) Object.assign(headers, opt.headers);
     let res;
     try { res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }); }
     catch (e) { const err = new Error("We could not reach the service. Please check your internet and try again."); err.status = 0; if (window.CTG) CTG.wrap(err, { what: method + " " + path.split("?")[0] }); throw err; }

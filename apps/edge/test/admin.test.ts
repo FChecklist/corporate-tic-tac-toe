@@ -29,7 +29,7 @@ async function game(id: string, email = `org${++n}@acme.com`) {
   expect((await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210" }, o.h)).status).toBe(200);
   return o;
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; n = 0; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://game.test", PHONE_SALT: "salt", DATA_KEY: "k" } as any; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; n = 0; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://game.test", PHONE_SALT: "salt", DATA_KEY: "k" } as any; });
 
 describe("A5: the owner's site switch", () => {
   test("only the owner can read or switch it; everybody else gets the same 404 as an unknown address, and the try is on the access log", async () => {

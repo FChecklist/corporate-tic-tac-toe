@@ -350,6 +350,7 @@ html[data-theme] .chip.on{background:#fff}
 .tb-row input[type=checkbox]{flex:0 0 22px;width:22px;height:22px;margin:0;cursor:pointer}
 .tb-row small{font-size:12px}.tb-row small a{color:var(--muted,#6b7385);text-decoration:underline}
 .tb-err{margin:8px 0;font-size:13px;color:#b3261e}
+.tb-note{margin:0;font-size:12.5px;line-height:1.45;color:var(--muted,#5b6b73)}.tb-note a{color:inherit;text-decoration:underline}
 .tbslot{margin:0}
 
 /*gb-fix*/.tdots{top:48px!important}@media (max-width:960px){.tdots{top:46px!important}}

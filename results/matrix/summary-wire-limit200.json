@@ -1,0 +1,327 @@
+{
+ "when": "2026-10-30T03:47:26.604Z",
+ "tier": "wire",
+ "limit": 200,
+ "seconds": 5,
+ "total": 184,
+ "pass": 166,
+ "fail": 18,
+ "checks": 670,
+ "tiers": {
+  "wire": {
+   "total": 184,
+   "pass": 166,
+   "fail": 18,
+   "checks": 670
+  }
+ },
+ "pureDimensions": {
+  "idFormat": 47,
+  "idBase": 2,
+  "gameEra": 2,
+  "verifyConfig": 8,
+  "emailCase": 8,
+  "emailNoise": 7,
+  "emailPath": 3,
+  "linkType": 5
+ },
+ "pureProduct": 1263360,
+ "firstFailures": [
+  {
+   "tier": "wire",
+   "id": 2,
+   "tuple": "old game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 2,
+   "tuple": "old game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 2,
+   "tuple": "old game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 2,
+   "tuple": "old game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 3,
+   "tuple": "new game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 3,
+   "tuple": "new game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 3,
+   "tuple": "new game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 3,
+   "tuple": "new game | verify id | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 4,
+   "tuple": "old game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 4,
+   "tuple": "old game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 4,
+   "tuple": "old game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 4,
+   "tuple": "old game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 5,
+   "tuple": "new game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 5,
+   "tuple": "new game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 5,
+   "tuple": "new game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 5,
+   "tuple": "new game | verify either | anyone | typed \"1B678\" (plain) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 26,
+   "tuple": "old game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 26,
+   "tuple": "old game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 26,
+   "tuple": "old game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 26,
+   "tuple": "old game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 27,
+   "tuple": "new game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 27,
+   "tuple": "new game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 27,
+   "tuple": "new game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 27,
+   "tuple": "new game | verify id | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 28,
+   "tuple": "old game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 28,
+   "tuple": "old game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 28,
+   "tuple": "old game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "same phone again is the same place",
+   "got": [
+    403,
+    null,
+    null
+   ],
+   "want": [
+    200,
+    null,
+    true
+   ]
+  },
+  {
+   "tier": "wire",
+   "id": 28,
+   "tuple": "old game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "still one participant",
+   "got": 0,
+   "want": 1
+  },
+  {
+   "tier": "wire",
+   "id": 29,
+   "tuple": "new game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "status",
+   "got": 403,
+   "want": 200
+  },
+  {
+   "tier": "wire",
+   "id": 29,
+   "tuple": "new game | verify either | anyone | typed \"1B-678\" (dash) | not on the list | paid | same phone again",
+   "check": "one participant",
+   "got": 0,
+   "want": 1
+  }
+ ]
+}

@@ -1,0 +1,192 @@
+/* The payment look, ONE file for all six games (copy it as it is; the game's own colours come from tokens.css: --bar-a, --bar-b, --bar-edge, --action).
+   Used by paytest.html, paylink.html and pay.html through paykit.js. Calm layout, three-step bar, an order summary card, trust marks, 44 px taps,
+   text never below 12.5 px, dark text on light cards (every pair is 4.5:1 or better), phone (360 px) and laptop (1280 px). Light only, like the other work pages. */
+.pk-body{margin:0;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg,#FFFAF2);color:var(--ink,#1B1442);font:400 16px/1.55 var(--sans,Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif);-webkit-font-smoothing:antialiased}
+.pk-body *,.pk-body *::before,.pk-body *::after{box-sizing:border-box}
+.pk-body :focus-visible{outline:3px solid var(--focus,#C2255C);outline-offset:2px}
+.pk-body [hidden]{display:none!important}
+.pk-body a{color:var(--link,#0B3D91)}
+
+/* header bar: the same blue bar and lockup as the other pages; fixed in the HTML so nothing shifts when the page loads */
+.pk-bar{background:linear-gradient(180deg,var(--bar-a,#1553B8),var(--bar-b,#0B3D91));border-bottom:3px solid var(--bar-edge,#E0B872);color:var(--on-bar,#fff)}
+.pk-bar-in{max-width:1080px;margin:0 auto;padding:8px var(--gutter,16px);min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pk-brand{display:flex;align-items:center;gap:10px;color:inherit!important;text-decoration:none;min-height:44px}
+.pk-brand img{width:36px;height:36px;border-radius:9px;display:block;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.pk-brand span{display:block;font:700 19px/1.1 var(--serif,Georgia,serif)}
+.pk-brand small{display:block;font:600 12.5px/1.2 var(--sans,system-ui,sans-serif);letter-spacing:.1em;text-transform:uppercase;color:var(--on-bar-muted,#E3ECFF)}
+.pk-secure{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid rgba(255,255,255,.6);border-radius:999px;font:600 13px/1.2 var(--sans,system-ui,sans-serif);color:var(--on-bar,#fff)!important;text-decoration:none;white-space:nowrap}
+.pk-secure svg{width:16px;height:16px;flex:0 0 16px}
+
+.pk-main{width:100%;max-width:1080px;margin:0 auto;padding:20px var(--gutter,16px) 36px;flex:1 0 auto}
+.pk-h1{margin:0 0 6px;font:700 clamp(25px,5.4vw,33px)/1.15 var(--serif,Georgia,serif);letter-spacing:-.01em}
+.pk-lead{margin:0;max-width:62ch;color:var(--muted,#4D4870);font-size:16px}
+/* while the game is loading the lead keeps the room its real words will take (3 lines on a laptop, 5 on a phone; 1 and 2 for w1), so nothing below it moves */
+.pk-lead.w1{min-height:1.55em}.pk-lead.w3{min-height:4.65em}
+@media (max-width:599.98px){.pk-lead.w1{min-height:3.1em}.pk-lead.w3{min-height:7.75em}}
+.pk-tag{display:inline-block;margin-left:8px;vertical-align:middle;padding:3px 10px;border-radius:999px;background:var(--tint,#FFF0D6);color:var(--accent,#9E3C00);font:700 12.5px/1.3 var(--sans,system-ui,sans-serif);letter-spacing:.04em;text-transform:uppercase}
+
+/* three steps: Details, Pay, Receipt (the words are always shown, never only colour) */
+.pk-steps{list-style:none;display:flex;margin:18px 0 22px;padding:0;counter-reset:pk}
+.pk-steps li{flex:1 1 0;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;font:600 14px/1.25 var(--sans,system-ui,sans-serif);color:var(--muted,#4D4870)}
+.pk-steps li::before{content:"";position:absolute;top:15px;right:50%;width:100%;height:3px;background:var(--line,#EFDDBE)}
+.pk-steps li:first-child::before{display:none}
+.pk-steps .n{position:relative;z-index:1;width:32px;height:32px;margin-bottom:6px;display:grid;place-items:center;border-radius:50%;background:#fff;border:2px solid var(--field-line,#8F86B5);color:var(--muted,#4D4870);font-weight:700}
+.pk-steps li.is-done::before,.pk-steps li.is-now::before{background:var(--ok,#14652F)}
+.pk-steps li.is-done .n{background:var(--ok,#14652F);border-color:var(--ok,#14652F);color:#fff}
+.pk-steps li.is-now .n{background:var(--action,#0B3D91);border-color:var(--action,#0B3D91);color:#fff;box-shadow:0 0 0 4px rgba(21,83,184,.2)}
+.pk-steps li.is-now{color:var(--ink,#1B1442)}
+
+/* a calm single card (paid, expired, cancelled ...) */
+.pk-single{max-width:560px}
+
+/* layout: one column on a phone (the DOM order is the reading order); on a laptop the form on the left and the order summary (sticky) on the right */
+.pk-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 24px;align-items:start}
+@media (max-width:899.98px){ /* phone: the order summary, then the details and the pay button, then why it is safe (the trust marks never push the form out of sight) */
+  .pk-aside{display:contents}
+  .pk-col{order:1}
+  .pk-aside>.pk-trustcard{order:2}
+  .pk-grid.ff .pk-col{order:0}
+  .pk-grid.ff .pk-aside>.pk-card{order:1}
+  .pk-grid.ff .pk-aside>.pk-trustcard{order:2}
+}
+@media (min-width:900px){
+  /* while the game is loading the frame is already as tall as a screen, so the footer waits below the fold and does not jump when the real details arrive */
+  .pk-grid.ld{min-height:calc(100vh - 140px)}
+  .pk-grid{grid-template-columns:minmax(0,1fr) 392px}
+  .pk-col{grid-column:1;grid-row:1}
+  .pk-aside{grid-column:2;grid-row:1;position:sticky;top:16px}
+}
+
+.pk-card{background:#fff;border:1px solid var(--line,#EFDDBE);border-radius:16px;padding:18px;margin:0 0 16px;box-shadow:var(--shadow,0 1px 2px rgba(27,20,66,.06),0 8px 24px rgba(27,20,66,.08))}
+.pk-card h2{margin:0 0 4px;font:700 19px/1.3 var(--serif,Georgia,serif)}
+.pk-sub{margin:0 0 14px;color:var(--muted,#4D4870);font-size:14.5px}
+.pk-card.done{border:2px solid var(--ok,#14652F)}
+.pk-note{margin:12px 0 0;color:var(--muted,#4D4870);font-size:13.5px;line-height:1.5}
+.pk-note b{color:var(--ink,#1B1442)}
+
+/* order summary */
+.pk-sum-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+.pk-card h2.pk-kicker,.pk-kicker{margin:0;font:700 12.5px/1.3 var(--sans,system-ui,sans-serif);letter-spacing:.12em;text-transform:uppercase;color:var(--accent,#9E3C00)}
+.pk-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font:700 12.5px/1.3 var(--sans,system-ui,sans-serif);letter-spacing:.06em;text-transform:uppercase}
+.pk-badge.test{background:var(--warn-bg,#FFF4D0);color:var(--warn,#7A4A00);border:1px solid #E5C36A}
+.pk-badge.paid{background:var(--ok-bg,#E5F5EA);color:var(--ok,#14652F);border:1px solid #9AD3AE}
+.pk-gname{margin:8px 0 10px;font:700 23px/1.2 var(--serif,Georgia,serif);overflow-wrap:anywhere}
+.pk-dl{margin:0;display:grid;grid-template-columns:fit-content(46%) minmax(0,1fr)}
+.pk-dl dt,.pk-dl dd{margin:0;padding:9px 0;border-top:1px solid var(--line,#EFDDBE)}
+.pk-dl dt{padding-right:14px;color:var(--muted,#4D4870);font-size:14.5px}
+.pk-dl dd{text-align:right;font-weight:600;overflow-wrap:anywhere}
+.pk-dl dd.mono,.pk-mono{font-family:var(--mono,"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace);font-variant-numeric:tabular-nums}
+.pk-dl dd small{display:block;font-weight:500;color:var(--muted,#4D4870);font-size:13px}
+.pk-price{margin:6px 0 0;padding:12px 14px;border-radius:12px;background:var(--wash-gold,#FFF0D6)}
+.pk-price .r{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:15px}
+.pk-price .r.t{margin-top:4px;padding-top:9px;border-top:1px solid #E5C98E;font:700 20px/1.3 var(--sans,system-ui,sans-serif)}
+.pk-owner{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line,#EFDDBE);font-size:13.5px;color:var(--muted,#4D4870);line-height:1.5}
+.pk-owner b{display:block;color:var(--ink,#1B1442);font-size:14.5px;letter-spacing:.03em}
+.pk-empty{padding:10px 0 2px;color:var(--muted,#4D4870);font-size:15px}
+
+/* trust marks */
+.pk-trust{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.pk-trust li{display:flex;gap:12px;align-items:flex-start}
+.pk-trust svg{flex:0 0 22px;width:22px;height:22px;margin-top:1px;color:var(--ok,#14652F)}
+.pk-trust b{display:block;font-size:15px;line-height:1.3}
+.pk-trust span{display:block;color:var(--muted,#4D4870);font-size:13.5px;line-height:1.45}
+.pk-fine{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line,#EFDDBE);color:var(--muted,#4D4870);font-size:13px;line-height:1.5}
+
+/* forms */
+.pk-f{margin:0 0 14px}
+.pk-f>label,.pk-lab{display:block;margin:0 0 6px;font:600 15px/1.3 var(--sans,system-ui,sans-serif)}
+.pk-f .opt{font-weight:500;color:var(--muted,#4D4870)}
+.pk-in,.pk-sel{display:block;width:100%;min-height:48px;padding:10px 12px;border:1.5px solid var(--field-line,#8F86B5);border-radius:10px;background:var(--field,#fff);color:var(--ink,#1B1442);font:400 16px/1.3 var(--sans,system-ui,sans-serif)}
+.pk-in[aria-invalid="true"],.pk-sel[aria-invalid="true"]{border-color:var(--bad,#A3231C);background:#FFF9F8}
+.pk-in::placeholder{color:#6B6690;opacity:1}
+.pk-in.pk-fill{color:#5D6270}
+.pk-up{text-transform:uppercase}
+.pk-hint{margin:6px 0 0;color:var(--muted,#4D4870);font-size:13.5px;line-height:1.45}
+.pk-ferr{margin:6px 0 0;color:var(--bad,#A3231C);font-size:14px;font-weight:600}
+.pk-row{display:flex;gap:8px;align-items:stretch}
+.pk-row .pk-sel{flex:0 0 120px;width:120px}
+.pk-row .pk-in{flex:1 1 auto;min-width:0}
+
+.pk-lab{display:block;margin:0 0 6px}
+
+/* the country line: the only thing asked before paying */
+.pk-cty{padding:10px 18px}
+.pk-ctytop{display:flex;align-items:center;min-height:44px}
+.pk-ctyline{margin:0;font-size:16px;line-height:1.4}
+.pk-ctyline .pk-link{padding:10px 6px}
+#ctybox{padding:4px 0 6px}
+.pk-ctylist{list-style:none;margin:10px 0 0;padding:0;max-height:232px;overflow:auto;border:1px solid var(--line,#EFDDBE);border-radius:10px;background:#fff}
+.pk-ctylist li{margin:0}
+.pk-ctylist li+li{border-top:1px solid var(--line,#EFDDBE)}
+.pk-ctyopt{display:block;width:100%;min-height:44px;padding:10px 14px;border:0;background:#fff;color:var(--ink,#1B1442);font:500 16px/1.3 var(--sans,system-ui,sans-serif);text-align:left;cursor:pointer}
+.pk-ctyopt:hover{background:var(--wash-gold,#FFF0D6)}
+.pk-ctyopt.on{font-weight:700;background:var(--ok-bg,#E5F5EA)}
+.pk-nopr{margin:0;color:var(--muted,#4D4870);font-size:15px}
+
+/* after the payment: the optional details for the invoice */
+.pk-invform{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--line,#EFDDBE)}
+.pk-invform h3{margin:0 0 4px;font:700 18px/1.3 var(--serif,Georgia,serif)}
+.pk-invform .opt{font:500 14px/1.3 var(--sans,system-ui,sans-serif);color:var(--muted,#4D4870)}
+
+/* buttons */
+.pk-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;margin:0;padding:12px 22px;border:2px solid var(--action,#0B3D91);border-radius:12px;background:var(--action,#0B3D91);color:var(--on-action,#fff)!important;font:700 17px/1.2 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;cursor:pointer;box-shadow:0 2px 0 rgba(6,27,69,.25)}
+.pk-btn:hover{filter:brightness(1.1)}
+.pk-btn:disabled,.pk-btn[aria-disabled="true"]{background:#5A6485;border-color:#5A6485;color:#fff!important;cursor:not-allowed;box-shadow:none;filter:none}
+.pk-btn.alt{background:#fff;color:var(--action,#0B3D91)!important;box-shadow:none}
+.pk-btn.alt:disabled{background:#fff;color:#5A6485!important;border-color:#5A6485}
+.pk-btn.sm{width:auto;min-height:44px;padding:8px 16px;font-size:15px}
+.pk-btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.pk-btns .pk-btn{flex:1 1 180px}
+.pk-link{min-height:44px;padding:10px 4px;border:0;background:none;color:var(--link,#0B3D91);font:inherit;text-decoration:underline;cursor:pointer}
+.pk-btn.is-busy::before{content:"";width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,.45);border-top-color:#fff;animation:pk-spin .8s linear infinite}
+@keyframes pk-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.pk-btn.is-busy::before{animation:none}.pk-skel{animation:none!important}}
+
+/* messages */
+.pk-msg{display:flex;gap:10px;align-items:flex-start;margin:12px 0;padding:12px 14px;border-radius:12px;font-size:15px;font-weight:600;line-height:1.45}
+.pk-msg svg{flex:0 0 20px;width:20px;height:20px;margin-top:1px}
+.pk-msg.bad{background:var(--bad-bg,#FCE8E8);color:var(--bad,#A3231C);border:1px solid #E7B4B1}
+.pk-msg.ok{background:var(--ok-bg,#E5F5EA);color:var(--ok,#14652F);border:1px solid #9AD3AE}
+.pk-msg.info{background:var(--st-blue-bg,#E6F1FB);color:var(--st-blue-tx,#0C447C);border:1px solid #AFCDEB}
+
+/* the receipt */
+.pk-done-head{display:flex;gap:14px;align-items:center;margin:0 0 12px}
+.pk-done-head .tick{flex:0 0 48px;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--ok,#14652F);color:#fff}
+.pk-done-head .tick svg{width:28px;height:28px}
+.pk-done-head h2{margin:0;font-size:22px}
+.pk-done-head p{margin:2px 0 0;color:var(--muted,#4D4870);font-size:14.5px}
+.pk-inv{margin:16px 0 0}
+.pk-inv h3{margin:0 0 8px;font:700 17px/1.3 var(--serif,Georgia,serif)}
+.pk-invbody{border:1px solid var(--line,#EFDDBE);border-radius:10px;max-height:460px;overflow:auto;background:#EEF5F4;min-height:120px;padding:0}
+.pk-invto{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.pk-invto label{flex:1 0 100%;font-weight:600;font-size:14.5px}
+.pk-invto .pk-in{flex:1 1 200px;width:auto}
+
+/* proforma (kept, folded away until asked for) */
+.pk-pf{margin:0 0 16px;border:1px solid var(--line,#EFDDBE);border-radius:16px;background:#fff}
+.pk-pf>summary{cursor:pointer;min-height:48px;padding:13px 18px;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pk-pf>summary::-webkit-details-marker{display:none}
+.pk-pf>summary::after{content:"+";font-size:20px;color:var(--muted,#4D4870)}
+.pk-pf[open]>summary::after{content:"\2212"}
+.pk-pf .in{padding:0 18px 18px}
+
+/* waiting for the first answer: the same frame, so nothing jumps when the real page arrives */
+.pk-skel{border-radius:8px;background:linear-gradient(90deg,#F1E8D6,#FBF5E8,#F1E8D6);background-size:200% 100%;animation:pk-sh 1.4s ease-in-out infinite}
+@keyframes pk-sh{to{background-position:-200% 0}}
+.pk-skel.l1{height:26px;width:70%;margin:10px 0}.pk-skel.l2{height:18px;margin:14px 0}.pk-skel.l3{height:84px;margin:16px 0 0;border-radius:12px}
+
+.pk-foot{margin:0;padding:16px var(--gutter,16px) 24px;text-align:center;font-size:13.5px;color:var(--muted,#4D4870)}
+.pk-foot a{color:var(--muted,#4D4870)}
+.pk-sr{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* the one small agreement line (consent.js) */
+.pk-body .cbc{margin:12px 0 0}
+.pk-body .cbc-note{font-size:13.5px;color:var(--muted,#4D4870)}
+
+@media (max-width:420px){
+  .pk-card{padding:16px 14px}
+  .pk-brand small{display:none}
+  .pk-row .pk-sel{flex-basis:104px;width:104px}
+  .pk-steps li{font-size:13.5px}
+}
+@media print{.pk-bar,.pk-foot,.pk-btn,.pk-btns{display:none!important}}

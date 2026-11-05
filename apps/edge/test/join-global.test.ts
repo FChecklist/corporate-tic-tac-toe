@@ -31,7 +31,7 @@ async function setup(opts: { publish?: boolean; verify?: string; employeesOnly?:
 }
 const add = (key: string, people: unknown[]) => call("POST", "/api/z/WHO-1/people", { people }, key);
 
-beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}"); });
+beforeEach(() => { const d = makeD1(); env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}"); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("POST /api/z/:id/who", () => {

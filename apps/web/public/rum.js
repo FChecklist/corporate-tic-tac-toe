@@ -17,6 +17,20 @@
     });
   };
 })();
+/* Opening soon (TT-01): while the service is in its test period, the three pages a stranger reads before signing in (home, sign-in, pricing) say so in one calm line,
+   so nobody waits for a sign-in code that is not e-mailed yet. Read-only call to /api/mode; no notice in LIVE, and none on the phone page, big screen or payment page. */
+(function () {
+  if (!/^\/(index\.html|signin(\.html)?|pricing(\.html)?)?$/.test(location.pathname) || !window.fetch) return;
+  function show() {
+    if (document.getElementById("opening-soon") || !document.body) return;
+    var d = document.createElement("div"); d.id = "opening-soon"; d.setAttribute("role", "status");
+    d.style.cssText = "background:#fff4d6;color:#4a3500;border-bottom:1px solid #e8c766;padding:10px 16px;text-align:center;font:15px/1.45 system-ui,sans-serif";
+    d.textContent = "Opening soon. Corporate Tic Tac Toe is still being tested, so sign-in codes are not e-mailed to guests yet. Please come back when we open.";
+    document.body.insertBefore(d, document.body.firstChild);
+  }
+  function check() { window.fetch("/api/mode", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (m) { if (m && m.mode === "TEST") show(); }, function () {}); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", check); else check();
+})();
 /* Tiny first-party monitoring: page views, speed (Core Web Vitals), JavaScript errors, failed and slow API calls.
    No cookies, no IP address, no query string, no personal data. Sent to /api/telemetry on our own domain. */
 (function () {

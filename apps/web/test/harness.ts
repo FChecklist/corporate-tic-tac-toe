@@ -9,14 +9,19 @@ import { handle } from "../../edge/test/with-terms";
 import { makeD1 } from "../../edge/test/d1-sqlite";
 
 const PUB = join(import.meta.dir, "../public");
-export const T = Date.UTC(2026, 9, 1, 10, 0, 0);
+/** The test clock starts at the real hour, so pages (which read the real clock) and the Worker (which reads this one) agree that "now" is now. Never a fixed date: a fixed date goes stale and every game starts "in the past". */
+export const T = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+/** The calendar date (YYYY-MM-DD) in India time, `days` after T. */
+export const istDate = (days: number, from = T) => new Date(from + days * 86_400_000 + 5.5 * 3_600_000).toISOString().slice(0, 10);
+/** "3 Oct 2026" for a YYYY-MM-DD date, written the way the console writes it. */
+export const friendlyDay = (ymd: string) => { const [y, m, d] = ymd.split("-").map(Number); return `${d} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m! - 1]} ${y}`; };
 export const GEN = 1692803367;
 export const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
 export const roundMs = (r: number) => (GEN + (r - 1) * 3) * 1000;
 
 export function newWorld(extra: Record<string, string> = {}) {
   const d = makeD1();
-  const env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "http://localhost", PHONE_SALT: "salt", ...extra } as unknown as Env;
+  const env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "http://localhost", PHONE_SALT: "salt", ...extra } as unknown as Env;
   const world = { env, raw: d.raw, now: T };
   const api = (method: string, path: string, body?: unknown, key?: string, now = world.now) =>
     handle(new Request("http://localhost" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }), env, now);
@@ -46,7 +51,8 @@ export async function openPage(world: { env: Env; now: number }, o: { url: strin
   try { Object.defineProperty(win, "indexedDB", { value: undefined, configurable: true }); } catch { /* the signing-key store needs a real browser; the page treats it as unavailable */ }
   win.addEventListener("error", (e: any) => errors.push(String(e?.message ?? e)));
   win.addEventListener("unhandledrejection", (e: any) => errors.push(String(e?.reason?.message ?? e?.reason ?? e)));
-  for (const f of o.scripts.includes("keep.js") ? o.scripts : ["keep.js", ...o.scripts]) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
+  const base = o.scripts.includes("paykit.js") && !o.scripts.includes("consent.js") ? ["consent.js", ...o.scripts] : o.scripts; // the payment pages (paykit.js) draw the one agreement line from consent.js, as in the real page
+  for (const f of base.includes("keep.js") ? base : ["keep.js", ...base]) { // keep.js (staying signed in) is the first script of every real page that has a sign-in
     const code = readFileSync(join(PUB, f), "utf8");
     try { new Function("window", `with (window) { ${code}\n}`).call(win, win); } catch (e: any) { errors.push(f + ": " + e.message); }
     o.afterLoad?.(win, f);

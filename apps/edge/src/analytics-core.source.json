@@ -1,0 +1,9 @@
+{
+  "from": "site-analytics (C:/ct/test-sites/site-analytics)",
+  "commit": "3e26da5",
+  "privateSitesLeftOut": true,
+  "note": "The collector copy leaves out the entries of the sites that must not be linked to our other products; every other line is the canonical source. Byte-for-byte copy (line endings ignored). Change the canonical source and run tools/sync.mjs game <repo>, never edit the copy.",
+  "files": {
+    "apps/edge/src/analytics-core.ts": "fe1365c0125ac1b0498bad732d3445e7288ef7536ae8212d296ab2f31e2fdc31"
+  }
+}

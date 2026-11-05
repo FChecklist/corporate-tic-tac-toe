@@ -19,7 +19,7 @@ const mailsTo = (to: string) => raw.prepare("SELECT subject, body FROM outbox WH
 beforeEach(async () => {
   const d = makeD1(); raw = d.raw; googleCalls = 0; idp = await makeIdp(); trust(idp);
   (globalThis as any).fetch = async (u: string) => { if (/google/i.test(String(u))) googleCalls++; return new Response("{}", { status: 404 }); };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x", GOOGLE_CLIENT_ID: CLIENT_ID } as PayEnv;
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x", GOOGLE_CLIENT_ID: CLIENT_ID } as PayEnv;
 });
 afterEach(() => { globalThis.fetch = realFetch; setGoogleKeyProvider(); });
 

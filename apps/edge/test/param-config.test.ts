@@ -12,7 +12,7 @@ afterEach(restore);
 
 // ---------------------------------------------------------------------------------------------------------- packs and prices
 describe("packs x price (packages/shared pricing is the single source)", () => {
-  const caps: [number, number][] = [[100, 100], [101, 250], [250, 250], [251, 500], [500, 500], [501, 750], [750, 750], [751, 1000], [1000, 1000], [1001, 2500], [2500, 2500], [2501, 5000], [5000, 5000], [5001, 10000], [10000, 10000]];
+  const caps: [number, number][] = [[100, 100], [101, 250], [250, 250], [251, 500], [500, 500], [501, 750], [750, 750], [751, 1000], [1000, 1000], [1001, 2500], [2000, 2500]];
   for (const [cap, pack] of caps) {
     test(`a game of ${cap} players is sold as the ${pack} pack, charged in paise exactly as pricing.ts says`, async () => {
       const o = await organizer(); const id = uid();
@@ -26,9 +26,7 @@ describe("packs x price (packages/shared pricing is the single source)", () => {
   }
   test("a game bigger than the biggest pack cannot be checked out", async () => {
     const o = await organizer(); const id = uid();
-    expect((await create(o.key, id, { cap: 10001 })).status).toBe(200);
-    expect((await publish(o.key, id)).status).toBe(200);
-    expect((await checkout(o.key, { eid: id })).status).toBe(400);
+    expect((await create(o.key, id, { cap: 10001 })).status).toBe(400); // the limit is now 2000 people, below the biggest pack; a bigger game cannot even be created
     expect(W.orders.length).toBe(0);
   });
   for (const [pack, inr, usd] of PACKS) {
@@ -144,7 +142,7 @@ describe("speeds, rounds, tickets per person, names", () => {
   for (const [tickets, ok] of [[1, true], [2, true], [0, false], [3, false], ["2", false], [1.5, false]] as [unknown, boolean][]) {
     test(`${JSON.stringify(tickets)} card(s) per person is ${ok ? "accepted" : "refused"}`, async () => { expect((await mk({ tickets })).r.status).toBe(ok ? 200 : 400); });
   }
-  for (const [cap, ok] of [[1, true], [100000, true], [0, false], [100001, false], [-5, false], [10.5, false]] as [number, boolean][]) {
+  for (const [cap, ok] of [[1, true], [2000, true], [0, false], [2001, false], [-5, false], [10.5, false]] as [number, boolean][]) {
     test(`a limit of ${cap} players is ${ok ? "accepted" : "refused"} when building a game`, async () => { expect((await mk({ cap })).r.status).toBe(ok ? 200 : 400); });
   }
   for (const id of ["abc", "a b c d", "ab/cd", "x".repeat(41), "ok-id_1", "A-1234", "../etc"]) {
@@ -181,14 +179,14 @@ describe("speeds, rounds, tickets per person, names", () => {
 // ---------------------------------------------------------------------------------------------------------- prize houses
 describe("prize house combinations", () => {
   const mk = async (rewards: unknown, extra: Record<string, unknown> = {}) => { const o = await organizer(); const id = uid(); const r = await create(o.key, id, { rewards, ...extra }); return { r, body: await j(r) }; };
-  for (const h of PRIZE_HOUSES.filter((x) => x.id !== "full2")) {
+  for (const h of PRIZE_HOUSES.filter((x) => (x.id as string) !== "full2")) {
     test(`house ${h.id} alone: first winner accepted, winner ${h.max + 1} refused`, async () => {
       expect((await mk([{ pattern: h.id, ordinal: 1, text: "Prize" }])).r.status).toBe(200);
       const many = Array.from({ length: h.max + 1 }, (_, i) => ({ pattern: h.id, ordinal: i + 1, text: "P" + i }));
       const r = await mk(many); expect(r.r.status).toBe(400); expect(r.body.error).toMatch(/at most|only 1/);
     });
   }
-  test("every house at once (one winner each) is accepted", async () => { expect((await mk(PRIZE_HOUSES.filter((x) => x.id !== "full2").map((h) => ({ pattern: h.id, ordinal: 1 })))).r.status).toBe(200); });
+  test("every house at once (one winner each) is accepted", async () => { expect((await mk(PRIZE_HOUSES.filter((x) => (x.id as string) !== "full2").map((h) => ({ pattern: h.id, ordinal: 1 })))).r.status).toBe(200); });
   test("the same reward twice is refused", async () => { expect((await mk([{ pattern: "line", ordinal: 1 }, { pattern: "line", ordinal: 1 }])).r.status).toBe(400); });
   test("an unknown house, an empty list, a non-list and zero or fractional ordinals are refused", async () => {
     for (const bad of [[{ pattern: "nonsense" }], [], "line", [{ pattern: "line", ordinal: 0 }], [{ pattern: "line", ordinal: 1.5 }], [null], [{ pattern: "full2" }]]) expect((await mk(bad)).r.status).toBe(400);

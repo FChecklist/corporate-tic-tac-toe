@@ -15,10 +15,10 @@ async function page(html = "pricing.html", url = "/pricing.html") {
   const p = await openPage(w.world, { url: "http://localhost" + url, html, scripts: ["guide.js"] });
   open.push(p); return p;
 }
-/** every `error: "..."` the server can send, with the status written next to it */
+/** every `error: "..."` the server can send, with the status written next to it. price-adjust.ts is left out on purpose: its messages are owner-only and a guide entry would put them in a public script (see price-adjust-secret.test.ts) */
 function serverMessages() {
   const out: { file: string; line: number; status: number; msg: string }[] = [];
-  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts"))) {
+  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts") && x !== "price-adjust.ts")) {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);
@@ -157,5 +157,16 @@ describe("the right guide for the right message and the right person", () => {
     const rt = readFileSync(join(import.meta.dir, "../../../packages/beacon/src/phone-runtime.ts"), "utf8");
     expect(rt).toContain('st === 403 || st === 410 ? String(e?.message');
     expect(readFileSync(join(import.meta.dir, "../public/zgame.js"), "utf8")).toContain("The game could not be opened just now");
+  });
+});
+
+describe("owner number", () => {
+  test("every page that shows the number links it to WhatsApp with the ready first line", () => {
+    const pub = new URL("../public/", import.meta.url);
+    const link = 'href="https://wa.me/919650397480?text=Hi%2C%20I%20am%20interested%20in%20corporate%20games"';
+    for (const f of readdirSync(pub).filter((n) => n.endsWith(".html"))) {
+      const h = readFileSync(new URL(f, pub), "utf8");
+      if (h.includes("96503 97480")) { expect(h).toContain(link); expect(h).not.toContain("tel:+919650397480"); }
+    }
   });
 });

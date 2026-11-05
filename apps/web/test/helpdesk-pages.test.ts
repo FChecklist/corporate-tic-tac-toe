@@ -56,7 +56,7 @@ describe("Help Desk pages", () => {
     await p.waitFor((x) => /Asha asks to prepare games for you/.test(x));
     expect(p.text()).toMatch(/Only you publish/); expect(p.text()).toMatch(/b\*\*\*@acme\.com/);
     expect(p.win.location.search).toBe(""); // the token left the address bar
-    await p.waitFor(() => !!p.$(".tb input")); (p.$("#em") as any).value = "boss@acme.com"; p.click("#go"); // the Terms box (K2) is drawn from the server wording first
+    await p.waitFor(() => !!p.$(".tb-note")); (p.$("#em") as any).value = "boss@acme.com"; p.click("#go"); // the agreement notice (K2) is drawn first, nothing to tick
     await p.waitFor((x) => /6-digit code sent to boss@acme.com/.test(x));
     const code = [...s.mails()].reverse().find((m) => m.to_addr === "boss@acme.com" && /sign-in|Sign in/i.test(m.subject))!.body.match(/\b\d{6}\b/)![0];
     (p.$("#cd") as any).value = code; p.click("#go");
@@ -78,7 +78,7 @@ describe("Help Desk pages", () => {
     await none.waitFor((x) => /incomplete/.test(x));
     expect(s.world.raw.prepare("SELECT COUNT(*) c FROM helpdesk_link").get()).toEqual({ c: 0 });
   });
-  test("the one-tap publish page: summary, confirm e-mail and mobile, Terms boxes, Publish; the game is published by the Organizer and the link is used up", async () => {
+  test("the one-tap publish page: summary, confirm e-mail and mobile, the agreement notice, Publish; the game is published by the Organizer and the link is used up", async () => {
     const s = await setup();
     const hp = { "x-partner": s.partnerKey };
     await fetchWith(s, "POST", "/api/helpdesk/join", { email: "asha@partner.example" }, hp);
@@ -94,7 +94,7 @@ describe("Help Desk pages", () => {
     await p.waitFor((x) => /Asha asks you to publish this game/.test(x));
     expect(p.text()).toMatch(/Annual Day/); expect(p.text()).toMatch(/Up to 300 people/); expect(p.text()).toMatch(/Only you publish and pay/);
     expect(p.win.location.search).toBe("");
-    await p.waitFor(() => !!p.$(".tb input")); (p.$("#em") as any).value = "boss@acme.com"; (p.$("#ph") as any).value = "98765 00009"; p.click("#pub");
+    await p.waitFor(() => !!p.$(".tb-note")); (p.$("#em") as any).value = "boss@acme.com"; (p.$("#ph") as any).value = "98765 00009"; p.click("#pub");
     await p.waitFor((x) => /Your game is live/.test(x));
     expect(s.world.raw.prepare("SELECT COUNT(*) c FROM kv WHERE k='pub/PG-1'").get()).toEqual({ c: 1 });
     expect((s.world.raw.prepare("SELECT used_ms FROM helpdesk_pub").get() as any).used_ms).not.toBeNull();

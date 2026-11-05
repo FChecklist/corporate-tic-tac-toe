@@ -18,7 +18,7 @@ export async function notifyOwnerOfPaidOrder(send: (subject: string, text: strin
   const text = [
     `A paid order arrived on ${o.gameLabel}${o.test ? " (TEST mode)" : ""}.`, "",
     `Game: ${o.gameLabel}`, `Plan: ${o.planLabel}`, `Amount: ${o.amountText}`, `Transaction: ${o.txnId}`,
-    `Organizer: ${o.organizerName || "(no name given)"} <${o.organizerEmail}>`, ...(o.eid ? [`Engagement: ${o.eid}`] : []),
+    `Organizer: ${o.organizerName || "(no name given)"} <${o.organizerEmail}>`, ...(o.eid ? [`Game ID: ${o.eid}`] : []),
   ].join("\n");
   try { return await send(`Paid order: ${o.gameLabel}, ${o.planLabel}, ${o.amountText}`, text); } catch { return false; }
 }

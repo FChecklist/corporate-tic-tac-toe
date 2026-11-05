@@ -27,7 +27,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" } as PayEnv;
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" } as PayEnv;
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -92,9 +92,10 @@ describe("what the link shows: the game's name, start and price, and nothing els
     const t = await team(); const tok = tokenOf((await link(t.master)).body.url);
     const v = await view(tok); const p = price(500, "INR"); // 300 places need the 500 pack
     expect(Object.keys(v).sort()).toEqual(["game", "price", "status"]);
-    expect(v.game).toEqual({ name: "Diwali Bingo", participants: 500, startMs: (1692803367 + (START - 1) * 3) * 1000 }); expect(Object.keys(v.game).sort()).toEqual(["name", "participants", "startMs"]); // the pack is shown so the payer sees what is being paid for; the game ID stays private to a link holder
+    // Payment pages redesign (2 Nov 2026, owner's order): the payer sees the game ID and who organizes it, with the organizer's e-mail MASKED (b***@acme.com). Nothing else about the account.
+    expect(v.game).toEqual({ id: "PL-1", name: "Diwali Bingo", participants: 500, startMs: (1692803367 + (START - 1) * 3) * 1000, organizer: { email: expect.stringMatching(/^b\*\*\*@acme\.com$/) } }); expect(Object.keys(v.game).sort()).toEqual(["id", "name", "organizer", "participants", "startMs"]); // the pack is shown so the payer sees what is being paid for
     expect(v.price).toEqual({ base: p.base, gst: p.tax, total: p.total, currency: "INR" }); expect(v.status).toBe("open");
-    const text = JSON.stringify(v); for (const secret of ["PL-1", "boss", "acme", "cap", "300", t.master, "org"]) expect([secret, text.includes(secret)]).toEqual([secret, false]);
+    const text = JSON.stringify(v); for (const secret of ["boss", "cap", "300", t.master, String((raw.prepare("SELECT org FROM engagement WHERE id='PL-1'").get() as any).org)]) expect([secret, text.includes(secret)]).toEqual([secret, false]);
     expect((await j(await call("GET", `/api/paylink/${tok}?currency=USD`))).price).toEqual({ base: 67, gst: 0, total: 67, currency: "USD" });
   });
   test("a wrong, short or made-up token is the same plain 404", async () => {

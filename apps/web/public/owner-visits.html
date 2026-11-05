@@ -13,9 +13,10 @@
 <p class="muted">Uses the same platform key as above.</p>
 <p><button type="button" id="deskSite">Site switch</button> <input id="deskNote" autocomplete="off" placeholder="Note (optional)" aria-label="Note for the switch" size="24"></p>
 <p><button type="button" id="deskReq">Data requests</button> <select id="deskStatus" aria-label="Which requests"><option value="open">open</option><option value="done">closed</option><option value="all">all</option></select></p>
-<p><button type="button" id="deskMailEv">Mail events</button> <select id="deskEvent" aria-label="Which mail events"><option value="">all</option><option value="bounced">bounced</option><option value="complained">complained</option><option value="delivered">delivered</option></select> <button type="button" id="deskErr">Errors</button></p>
+<p><button type="button" id="deskMailEv">Mail events</button> <select id="deskEvent" aria-label="Which mail events"><option value="">all</option><option value="bounced">bounced</option><option value="complained">complained</option><option value="delivered">delivered</option></select> <button type="button" id="deskErr">Errors</button> <button type="button" id="deskPanel">More</button></p>
 <form id="deskOrg"><input id="deskMail" type="email" autocomplete="off" placeholder="Organizer e-mail" aria-label="Organizer e-mail" size="30"><button type="submit">Find games</button></form>
 <p id="deskmsg" class="muted" role="status"></p><div id="deskout"></div>
+<div id="deskPanelOut"></div>
 <script src="/owner-visits.js"></script>
 <script src="/owner-desk.js"></script>
 </body></html>

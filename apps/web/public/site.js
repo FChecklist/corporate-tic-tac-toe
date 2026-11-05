@@ -22,7 +22,7 @@
     { // one price card: the organizer picks the size, then sees the festive price (never a list of every pack)
       const n = S.pack, x = TB.price(n, S.cur), shown = S.cur === "INR" ? x.base : x.total, was = S.cur === "INR" ? shown * 2 + 1 : shown * 2; // "was" is the regular price that applies after the festive offer
       const opts = TB.PACKS.map(([k]) => `<option value="${k}" ${k === n ? "selected" : ""}>Up to ${nf(k)} players</option>`).join("");
-      const perks = ["All features included", "Free AI assistant to build your game", "Tic tac toe knockouts for your whole team, wherever they are", "Your company name and logo on every player's page", "Build it free, pay just before the game starts", "No fee to create or edit your game", "Player names erased within 24 hours of the tournament", "One payment per game, no yearly plan"];
+      const perks = ["All features included", "Free AI assistant to build your game", "Tic tac toe knockouts for your whole team, wherever they are", "Your company name and logo on every player's page", "Build it free, pay just before the game starts", "No fee to create or edit your game", "Player names auto-deleted within 24 hours of the tournament", "One payment per game, no yearly plan"];
       $("packs").innerHTML = `<div class="pcard"><div class="pwho"><label for="pack2">How many players?</label><div class="selwrap"><select id="pack2" aria-label="Number of players">${opts}</select><svg class="ic chev"><use href="#i-chev"/></svg></div></div>` +
         `<div class="pmain"><div class="pburst" title="Festive offer: 50% off"><b>50% OFF</b><span>Festive offer</span><span class="sr">Festive offer: 50% off</span></div>` +
         `<div class="pamt"><span class="was" title="Regular price after the festive offer"><span class="sr">Regular price after the festive offer </span>${TB.money(was, S.cur)}</span>` +
@@ -42,7 +42,7 @@
   $("pack").addEventListener("change", (e) => { S.pack = +e.target.value; renderPrices(); });
   document.addEventListener("change", (e) => { if (e.target && e.target.id === "pack2") { S.pack = +e.target.value; renderPrices(); const f = $("pack2"); if (f) f.focus(); } });
   $("payBtn").addEventListener("click", () => openCheckout(S.pack));
-  $("loginLink").addEventListener("click", (e) => { e.preventDefault(); openLogin(""); });
+  // The Log in link in the top bar is a plain link to the ONE sign-in page (the console); it no longer opens the sheet below.
 
   // ---------- helpers ----------
   const xbtn = `<button type="button" class="xbtn" data-close aria-label="Close">${ic("x")}</button>`;
@@ -79,7 +79,7 @@
     ORDER = { pack };
     const def = TB.guessCountry();
     TB.sheet(`${xbtn}<div class="eyebrow">Your order</div><h2>Up to ${nf(pack)} players</h2>
-      <ul class="facts"><li>${ic("ticket")}Every player plays on their own phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A private game for your closed group, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
+      <ul class="facts"><li>${ic("ticket")}Every player plays on their own phone</li><li>${ic("phone")}Name only. No app to download, no password for guests</li><li>${ic("users")}A game for your closed group, in any country</li><li>${ic("gift")}Players never pay. You give the prizes</li></ul>
       <div class="sum" id="ordSum"></div>
       <form id="coForm" novalidate>
         <label class="lb" for="oName">Organization name</label><input class="inp" id="oName" autocomplete="organization" placeholder="e.g. Acme Industries">
@@ -89,7 +89,7 @@
         <div id="taxBox"></div><div id="fErr"></div><div id="tbSlot" class="tbslot"></div>
         <button class="btn block" style="margin-top:16px" type="submit" id="payGo" disabled>${ic("lock")} ${PAYMODE === "razorpay" ? "Pay securely with Razorpay" : PAYMODE === "off" ? "Payments are not switched on yet" : "Pay (local test payment)"}</button>
       </form>
-      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. Once it has started, a paid game cannot be cancelled. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is emailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
+      <p class="proto">${PAYMODE === "razorpay" ? "Secure payment by Razorpay. A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365. The organizer keeps the credit in their account. Once it has started, a paid game cannot be cancelled. Payment to <a href='https://itservices-rajat-agarwal.pages.dev/' rel='noopener' target='_blank'>IT Services by Rajat Agarwal</a>. An invoice is emailed to you." : "Local test payment: no real money is taken. Unused places are not credited."}</p>`);
     $("oCty").addEventListener("change", taxField);
     $("coForm").addEventListener("submit", (e) => { e.preventDefault(); pay(); });
     mountTerms("K3", "tbSlot", "payGo");
@@ -109,13 +109,13 @@
   if (REF) TB.api("GET", "/api/partner/check?code=" + REF).then((r) => { if (!r.valid) { try { localStorage.removeItem("cbz-ref"); } catch {} } }).catch(() => {});
   let PAYMODE = "test"; // razorpay | test | off, from the server
   TB.api("GET", "/api/payments/status").then((s) => { PAYMODE = s.mode; }).catch(() => {});
-  // ---------- free launch: create an organizer account with a work email; the key arrives only through the e-mailed code ----------
+  // ---------- free launch: create an organizer account with an e-mail; the key arrives only through the e-mailed code ----------
   function openFree() {
     try { if (Number.isInteger(S.pack) && S.pack > 10) { sessionStorage.setItem("cbz-cap", String(S.pack)); } } catch {} // the size chosen on the website carries through the sign-in: Quick setup opens with it
     TB.sheet(`${xbtn}<div class="openfree" role="group" aria-labelledby="ofTitle">
       <div class="sheethead"><span class="rolepill">For the organizer or host</span><span class="sbrand" role="img" aria-label="Corporate Tic Tac Toe"><span class="mark"><img src="/logo-mark.svg" alt="" width="26" height="26"></span><span class="word">Corporate Tic Tac Toe<i>.</i></span></span></div>
       <div class="eyebrow ofeye">Build it and publish it free.</div><h2 id="ofTitle">Create your game</h2>
-      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>One against one, or teams of 3 or 5: a knockout with one champion</span></li><li><span class="bico">${ic("trophy")}</span><span>Name the top places and give your own prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group tic tac toe tournament for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>A drawn game is replayed with the marks swapped, then fate decides: always one champion</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are erased within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
+      <ul class="bgrid"><li><span class="bico">${ic("play")}</span><span>One against one, or teams of 3 or 5: a knockout with one champion</span></li><li><span class="bico">${ic("trophy")}</span><span>Name the top places and give your own prizes</span></li><li><span class="bico">${ic("users")}</span><span>A closed-group tic tac toe tournament for your company</span></li><li><span class="bico">${ic("ticket")}</span><span>A drawn game is replayed with the marks swapped, then fate decides: always one champion</span></li><li><span class="bico">${ic("phone")}</span><span>Each player plays on their own phone</span></li><li><span class="bico">${ic("star")}</span><span>A free AI assistant sets it up for you</span></li><li><span class="bico">${ic("gift")}</span><span>Players never pay. You provide the prizes</span></li><li><span class="bico">${ic("trash")}</span><span>Guest names are auto-deleted within 24 hours of the game ending</span></li><li><span class="bico">${ic("shield")}</span><span>Designed to follow DPDP Act, GDPR and CCPA</span></li></ul>
       ${gBox}<form id="frForm" novalidate><label class="lb" for="fMail">Your email</label><input class="inp big" id="fMail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your e-mail" aria-describedby="fErr"><div id="fErr" role="alert"></div>
       <div id="tbSlot" class="tbslot"></div>
       <button class="btn block big" style="margin-top:14px" type="submit" id="frGo" disabled>Create my game ${ic("arrow")}</button></form>
@@ -179,7 +179,7 @@
       termsShown = true; const k = $("k2slot"); k.innerHTML = `<p class="small muted" style="margin:12px 0 4px">${intro}</p><div id="tbSlot" class="tbslot"></div>`;
       $("lgGo").disabled = true; mountTerms("K2", "tbSlot", "lgGo"); setErr("");
     };
-    const NEWTXT = "<b>New here?</b> Tick the box below and we create your organizer account at once. It is free to build and publish.", TICKTXT = "Please read and tick the box to continue.";
+    const NEWTXT = "<b>New here?</b> Press Continue and we create your organizer account at once. It is free to build and publish.", TICKTXT = "Almost there. Press Continue once more to go on.";
     $("lgForm").addEventListener("submit", async (e) => {
       e.preventDefault(); const m = $("lMail").value.trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m)) return setErr("Please enter a valid e-mail address.");
@@ -256,7 +256,9 @@
     tick(); setInterval(tick, 1300);
     let bb = 0; setInterval(() => { bb = (bb + 2) % 102; const e = $("bbp"); if (e) e.style.setProperty("--p", bb + "%"); }, 200);
   }
-  const hashLogin = () => { if (location.hash === "#login") { let em = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} openLogin(em); } };
+  // The one sign-in is the console. A bare #login (an old link, a bookmark, the Guide's Sign in button) goes there; this sheet opens only for a flow that is waiting for it (a demo, a payment or the organizer console asks again and leaves cbz-next or cbz-login-email).
+  const CONSOLE_SIGNIN = "https://console.corporatetambola.com/";
+  const hashLogin = () => { if (location.hash === "#login") { let em = "", waiting = ""; try { em = sessionStorage.getItem("cbz-login-email") || ""; waiting = sessionStorage.getItem("cbz-next") || ""; sessionStorage.removeItem("cbz-login-email"); } catch {} if (!em && !waiting) { location.replace(CONSOLE_SIGNIN); return; } openLogin(em); } };
   window.addEventListener("hashchange", hashLogin); hashLogin();
   // ---------- who is signed in: the top link says it ("Organizer" or "Host") and goes to the right place ----------
   (async () => {

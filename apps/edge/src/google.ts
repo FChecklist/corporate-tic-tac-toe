@@ -1,3 +1,4 @@
+import { cleanAccountEmail } from "./ids";
 // "Continue with Google" (Phase 4, docs/ROLES_AND_CONSOLE_SPEC_4.md section C). This file only PROVES who a Google ID token belongs to; what happens next
 // (sign in, sign up, Host first open) is decided in worker.ts / hostsetup.ts and is exactly what the e-mail code does.
 //
@@ -43,7 +44,7 @@ const b64u = (s: string): Uint8Array<ArrayBuffer> => {
 };
 const jsonPart = (s: string): any => JSON.parse(new TextDecoder().decode(b64u(s)));
 const ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 
 export type GoogleResult = { ok: true; email: string } | { ok: false; why: "config" | "format" | "key" | "signature" | "claims" | "expired" | "unverified" };
 
@@ -66,7 +67,7 @@ export async function verifyGoogleCredential(env: GoogleEnv, credential: unknown
     if (typeof c.exp !== "number" || c.exp * 1000 <= now) return { ok: false, why: "expired" };
     if (typeof c.iat === "number" && c.iat * 1000 > now + SKEW_MS) return { ok: false, why: "claims" };
     if (c.email_verified !== true && c.email_verified !== "true") return { ok: false, why: "unverified" };
-    const email = typeof c.email === "string" ? c.email.trim().toLowerCase() : "";
+    const email = typeof c.email === "string" ? cleanAccountEmail(c.email) : "";
     if (!EMAIL_RE.test(email)) return { ok: false, why: "claims" };
     return { ok: true, email };
   } catch { return { ok: false, why: "format" }; }

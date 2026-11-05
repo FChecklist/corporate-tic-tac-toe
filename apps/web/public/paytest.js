@@ -1,74 +1,93 @@
-/* Corporate Tic Tac Toe: Payment testing. A real payment of Rs 1 (India) or US$ 1 (abroad) that buys nothing, so anyone can see that paying and the invoice work. Any number of times. */
+/* Corporate Tic Tac Toe: "Test our payment". A real payment of ₹ 1 (India) or US$ 1 (any other country) that buys nothing, so anybody can see that paying and the invoice work. Any number of times.
+   Open to everybody: no key, no sign-in. A Game ID may be typed; it is plain text and is never looked up, so nothing about any game is shown here.
+   The look and the behaviour are the shared payment kit (paykit.js), the same in all six games. Only the country is asked (it decides the currency); Razorpay asks for the e-mail and the mobile.
+   Kept for this tab as it is typed (paykit.js draft): the Game ID, the chosen country and the payment already made; put back after a failed or closed Razorpay window or a reload. */
 (function () {
-  const TB = window.TB, esc = TB.esc, $app = document.getElementById("app");
-  const S = { country: "IN", pcode: "91", err: "", busy: false, done: null, ...(() => { const v = TB.payer.load(); return { name: v.name || "", email: v.email || "", phone: v.phone || "", org: v.org || "", tax: v.tax || "" }; })() };
-  const head = `<div class="zhead"><b>Corporate Tic Tac Toe · Payment testing</b><a class="zsnd" href="/" style="text-decoration:none">Home</a></div>${TB.payBrand ? TB.payBrand() : ""}`;
+  const TB = window.TB, PK = window.PK, F = window.PAYFIELDS, esc = TB.esc, $app = document.getElementById("app");
+  const KEYS = ["gameId", "pick", "paid"];
+  const draft = PK.draft("paytest");
+  const S = { gameId: "", pick: "", auto: "", paid: "", whereDone: false, ctyOpen: false, err: "", busy: false, done: null };
+  const save = PK.persist($app, S, draft, KEYS);
+  const GAME_ID = /^[A-Za-z0-9_-]{4,40}$/;
+  const cur = () => PK.cur(S);
+  const label = () => (cur() ? "Pay " + TB.money(1, cur()) + " (test)" : "Choose your country first");
+
+  const asideHtml = () => PK.summary({
+    game: null, test: true, paid: !!S.done, noPrice: !cur(), price: { total: 1, base: 1, gst: 0, currency: cur() || "INR" }, priceLabel: "Payment test (nothing is bought)", totalLabel: S.done ? "Paid" : "Total to pay",
+    emptyTitle: "Payment test", emptyText: "Nothing is bought. A receipt is sent to the e-mail you give Razorpay.",
+  }) + PK.trust();
+
+  function formHtml() {
+    return `${PK.countryLine(S)}
+      <section class="pk-card"><h2>Game ID <span class="opt">(optional)</span></h2><p class="pk-sub">Type a Game ID only if you want it noted with this test. It is not looked up.</p>
+        <div class="pk-f"><label for="gid">Game ID</label><input class="pk-in pk-mono" id="gid" data-f="gameId" value="${esc(S.gameId)}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="For example ACME-DIWALI" aria-describedby="gid-h gid-e"><p class="pk-hint" id="gid-h" hidden></p><p class="pk-ferr" id="gid-e" hidden></p></div>
+        ${PK.errBox()}${PK.busyBox("Confirming your payment with Razorpay. Please keep this page open.")}
+        <button class="pk-btn" id="go" type="button" ${cur() ? 'aria-disabled="false"' : 'disabled aria-disabled="true"'}>${label()}</button>
+        ${CBConsent.html("K3")}
+        <p class="pk-note">Secure payment by Razorpay to ${esc(PK.BRAND.payee)}. Billing data is kept for audit and tax reasons. A test payment is only for trying the payment, and stays as that record.</p></section>${PK.live()}`;
+  }
+  function doneHtml() {
+    const d = S.done, gid = (S.gameId || "").trim();
+    return PK.layout({
+      title: "Payment received", tag: "Test", step: 3, finished: true, formFirst: true, aside: asideHtml(),
+      col: PK.receipt(d, {
+        title: "Payment received. The test worked.", lead: `You paid <b>${esc(TB.money(d.total, d.currency))}</b>. Nothing was bought and nothing else will happen.`,
+        forLabel: gid ? `Payment test (game ID ${gid})` : "Payment test",
+        after: '<div class="pk-btns"><button class="pk-btn" id="again" type="button">Test again</button></div>',
+      }),
+    });
+  }
   function view() {
-    if (S.done) {
-      const d = S.done;
-      return `${head}<div class="zcard" style="border:2px solid #2e7d4f"><h2>Payment received. The test worked.</h2>${TB.payReceipt ? TB.payReceipt(d, "Payment test (no game)") : ""}
-        <p style="margin:0 0 10px">You paid <b>${esc(TB.money(d.total, d.currency))}</b>. Nothing was bought and nothing else will happen.</p>
-        ${TB.invoiceBox ? TB.invoiceBox(d, S.email) : ""}<p class="zsmall">We also e-mailed it to you.</p>
-        <button class="zbtn" id="again">Test again</button></div>`;
-    }
-    const cur = S.country === "IN" ? "INR" : "USD", amt = TB.money(1, cur);
-    return `${head}<div class="zcard"><h2>Test our payment</h2>
-      <p class="zsmall" style="margin-top:0">This is a real payment of <b>${esc(amt)}</b> (Rs 1 if you are in India, US$ 1 if you are abroad). It buys nothing. You get an invoice, so you can see the whole experience. Anyone can test it, any number of times.</p></div>
-      <div class="zcard zform"><h2>Details</h2>
-        <label for="nm">Name</label><input id="nm" autocomplete="name" value="${esc(S.name)}" placeholder="Full name">
-        <label for="em">Email (your invoice comes here)</label><input id="em" type="email" autocomplete="email" value="${esc(S.email)}" placeholder="Email">
-        <label for="ph">Mobile <span class="zsmall" style="display:inline">(optional)</span></label>
-        <div style="display:flex;gap:8px"><select id="pcode" aria-label="Country code" style="flex:0 0 112px">${TB.COUNTRIES.map(([c, n, d]) => `<option value="${d}" ${String(d) === String(S.pcode) ? "selected" : ""}>${c} +${d}</option>`).join("")}</select><input id="ph" type="tel" autocomplete="tel-national" value="${esc(S.phone)}" placeholder="Mobile number" style="flex:1"></div>
-        <label for="org">Company name <span class="zsmall" style="display:inline">(optional)</span></label><input id="org" autocomplete="organization" value="${esc(S.org || "")}" placeholder="Company name">
-        <label for="tax">GST / Tax number <span class="zsmall" style="display:inline">(optional)</span></label><input id="tax" autocomplete="off" maxlength="30" value="${esc(S.tax || "")}" placeholder="GST / Tax number" style="text-transform:uppercase">
-        <label for="cty">Your country</label><select id="cty">${TB.countryOpts(S.country)}</select>
-        <div id="tbSlot" class="tbslot"></div>
-        ${S.err ? `<div class="zbanner bad">${esc(S.err)}</div>` : ""}${S.busy ? `<div class="zbanner info" role="status">Confirming your payment with Razorpay. Please keep this page open.</div>` : ""}
-        <button class="zbtn" id="go" disabled aria-disabled="true" ${S.busy ? 'data-hold="1"' : ""}>${S.busy ? "Confirming your payment…" : "Pay " + esc(amt) + " (test)"}</button>
-        <p class="zsmall">Secure payment by Razorpay to IT Services by Rajat Agarwal. Your name, e-mail and payment details are kept for invoice purposes. No refunds are given for test payments.</p></div>`;
+    if (S.done) return doneHtml();
+    return PK.layout({
+      title: "Test our payment", step: 1, formFirst: true, aside: asideHtml(), col: formHtml(),
+      lead: `Pay <b>${esc(cur() ? TB.money(1, cur()) : "₹ 1 or US$ 1")}</b> (₹ 1 in India, US$ 1 in any other country) to see how paying works. Nothing is bought, and you get a receipt.`,
+    });
   }
-  const keep = () => { const g = (id) => { const e = document.getElementById(id); return e ? e.value : undefined; }; const v = { name: g("nm"), email: g("em"), phone: g("ph"), pcode: g("pcode"), org: g("org"), tax: g("tax") }; for (const k in v) if (v[k] !== undefined) S[k] = v[k]; };
-  // The K3 consent box (termsbox.js, the same as pay.js): wording from the server, never pre-ticked, the pay button stays disabled until it is ticked. The page redraws, so the tick is kept in S.k3 and put back.
-  let TBK = null;
-  function mountK3() {
-    TBK = null; const slot = document.getElementById("tbSlot"); if (!slot || !window.TermsBox) return;
-    const sync = () => { const g = document.getElementById("go"); if (g) { const off = !(TBK && TBK.ok()) || !!S.busy; g.disabled = off; g.setAttribute("aria-disabled", off ? "true" : "false"); } };
-    window.TermsBox.mount(slot, "K3", { base: "" }).then((t) => {
-      if (!slot.isConnected) return; TBK = t; const saved = S.k3 || [];
-      slot.querySelectorAll("input[data-box]").forEach((c) => { if (saved.includes(c.dataset.box)) c.checked = true; c.addEventListener("change", () => { S.k3 = t.terms().boxes; sync(); }); });
-      sync();
-    }).catch(() => {});
-  }
-  const draw = () => { $app.innerHTML = view(); bind(); mountK3(); TB.payer.mark($app); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };
+  const draw = (focus) => { PK.page($app, view(), focus); bind(); if (S.done && TB.invoiceWire) TB.invoiceWire(S.done); };
+
   async function waitForConfirm(paymentId) {
     const t0 = Date.now();
     while (Date.now() - t0 < 300000) {
       await new Promise((ok) => setTimeout(ok, 4000));
       try { const r = await TB.api("GET", "/api/payments/paytest/" + paymentId); if (r && !r.confirming) return r; } catch (e) { if (e.status && e.status < 500) throw e; }
     }
-    throw new Error("Razorpay has not confirmed yet. If money was taken, your invoice will be e-mailed to you once it is.");
+    throw new Error("Razorpay has not confirmed yet. If money was taken, your receipt will be e-mailed to you once it is.");
+  }
+  const paidNow = (res, pid) => { S.done = res; S.paid = (res && res.orderId) || pid || ""; S.busy = false; save(); draw(true); };
+  async function pay() {
+    PK.setError($app, "");
+    PK.sync($app, S, KEYS);
+    if (!PK.cty(S)) return PK.setError($app, "Please choose your country first.");
+    const gid = (S.gameId || "").trim();
+    if (gid && !GAME_ID.test(gid)) return PK.setError($app, "A game ID has 4 to 40 letters, digits, - or _.", "gid");
+    S.busy = true; PK.busy($app, true, "go", { on: "Confirming your payment…", off: label() });
+    let pid = "";
+    try {
+      const body = Object.assign(PK.orderBody(S), { consent: CBConsent.payload($app, "K3") });
+      if (gid) body[F.gameId] = gid;
+      const r = await TB.api("POST", "/api/payments/paytest", body);
+      pid = r.paymentId;
+      let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
+      if (res && res.confirming) res = await waitForConfirm(r.paymentId);
+      return paidNow(res, pid);
+    } catch (e) {
+      if (e && e.maybePaid && pid) { try { return paidNow(await waitForConfirm(pid), pid); } catch (e2) { e = e2; } }
+      S.busy = false;
+      PK.busy($app, false, "go", { on: "", off: label() });
+      PK.setError($app, PK.friendly(e));
+    }
   }
   function bind() {
     const $ = (id) => document.getElementById(id);
-    if ($("cty")) $("cty").onchange = () => { keep(); S.country = $("cty").value; draw(); };
-    if ($("again")) $("again").onclick = () => { S.done = null; S.err = ""; draw(); };
-    if ($("go")) $("go").onclick = async () => {
-      keep(); S.err = "";
-      const consent = TBK && TBK.ok() ? TBK.terms() : null; if (!consent) { S.err = "Please tick the box to continue."; return draw(); }
-      if ((S.name || "").trim().length < 2) { S.err = "Please enter your name."; return draw(); }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((S.email || "").trim())) { S.err = "Please enter a valid email."; return draw(); }
-      const taxId = (S.tax || "").trim().toUpperCase();
-      if (S.country === "IN" && taxId && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(taxId)) { S.err = "Please enter a valid 15-character GSTIN, like 27ABCDE1234F1Z5."; return draw(); }
-      TB.payer.save(S);
-      S.busy = true; draw();
-      try {
-        const r = await TB.api("POST", "/api/payments/paytest", { consent, org: (S.org || "").trim(), taxId, name: S.name.trim(), email: S.email.trim().toLowerCase(), country: S.country, phone: S.phone, phoneCode: S.pcode });
-        let res = await TB.pay(r.razorpay, r.paymentId, r.hop); // opens Razorpay Checkout; the server verifies the payment
-        if (res && res.confirming) res = await waitForConfirm(r.paymentId);
-        S.done = res;
-      } catch (e) { S.err = e.message; }
-      S.busy = false; draw();
-    };
+    if ($("go")) $("go").onclick = pay;
+    if ($("again")) $("again").onclick = () => { S.done = null; S.paid = ""; S.err = ""; save(); draw(true); };
+    PK.countryWire($app, S, save, () => draw());
+    PK.refill($app, S, KEYS); // what was typed always shows in the boxes, whatever the browser does with the markup
   }
-  draw();
+  (async () => {
+    await PK.where(S);
+    if (/^pay_[0-9a-f]{16}$/.test(S.paid)) { try { const r = await TB.api("GET", "/api/payments/paytest/" + S.paid); if (r && !r.confirming) S.done = r; } catch (e) { if (e.status === 404) { S.paid = ""; save(); } } } else S.paid = "";
+    draw();
+  })();
 })();

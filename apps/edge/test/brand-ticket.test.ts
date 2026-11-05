@@ -22,7 +22,7 @@ const PNG = pngOf(96, 96), JPG = jpgOf(96, 96), WEBP = webpOf(96, 96);
 const png = (pad = 0) => dataUrl("image/png", PNG, pad), jpeg = (pad = 0) => dataUrl("image/jpeg", JPG, pad), webp = (pad = 0) => dataUrl("image/webp", WEBP, pad);
 const C0 = BRAND_COLORS[0]!;
 
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x" } as PayEnv; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x" } as PayEnv; });
 const game = async () => {
   const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `5.5.5.${++ipN}` }, body: JSON.stringify({ email: `b${ipN}@acme.com` }) }), env as Env, T));
   await call("POST", "/api/z", { id: "BRAND-1", startRound: START, callSeconds: 6, cap: 100 }, st.token);
