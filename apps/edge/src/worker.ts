@@ -1915,6 +1915,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (pb0 && !consentMissing(pb0, "K1") && /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/.test(ce) && cp.length >= 10 && cp.length <= 15 && cleanPhone(pb0.phone).ok && !(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`contact/${eid}`).first())) {
         await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO NOTHING").bind(`contact/${eid}`, JSON.stringify({ email: ce, phone: cp.slice(-10) })).run();
       }
+      { // a Publish whose confirmation e-mail was lost to a passing database hiccup: the e-mail is still owed (recorded in the same step as the publish), so it goes out now, once
+        const owed = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`mailowed/${eid}`).first<{ v: string }>();
+        if (owed) { const m = JSON.parse(owed.v) as { to: string; subject: string; text: string }; await sendMail(env as PayEnv, env.DB, m.to, m.subject, m.text, now); await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`mailowed/${eid}`).run(); }
+      }
       return json({ ok: true, published: true, already: true, paid: !unpaid, startMs: roundMs(e.start_round), payUrl, shareUrl });
     }
     // the organizer confirms (and may correct) their email and mobile number
@@ -1927,17 +1931,20 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const ent = rs0 ? null : await env.DB.prepare("SELECT id, pack FROM entitlement WHERE org=? AND eid IS NULL AND pack>=? ORDER BY pack, created_ms LIMIT 1").bind(e.org, e.cap).first<{ id: string; pack: number }>();
     const free = rs0 || (!ent && freeLaunch(env as PayEnv) && e.cap <= FREE_CAP); // optional switch: small engagements free while the gateway is off
     if (!(await spend(env, now, 4))) return BUSY();
+    const paid = !!(ent || free), startMs = roundMs(e.start_round);
+    const mailSubject = rs0 ? `Your game ${eid} is published (Rs 0, it starts ${istTime(startMs)})` : paid ? `Your game ${eid} is published and paid` : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
+      mailText = `Your game ${eid} is live.${rs0 ? " It is for up to " + e.cap + " people at Rs 0: nothing to pay." : ""}\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is auto-deleted; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`;
     await env.DB.batch([
       env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`contact/${eid}`, JSON.stringify({ email: cEmail, phone: cPhone.slice(-10) })),
       env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`pub/${eid}`, String(now)),
+      env.DB.prepare("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)").bind(`mailowed/${eid}`, JSON.stringify({ to: cEmail, subject: mailSubject, text: mailText })), // "e-mail owed": same all-or-nothing step as the publish, deleted once the mail is handed over
       ...(ent || free ? [env.DB.prepare("UPDATE engagement SET pack=? WHERE id=? AND pack=0").bind(ent?.pack ?? e.cap, eid)] : []),
       ...(ent ? [env.DB.prepare("UPDATE entitlement SET eid=? WHERE id=? AND eid IS NULL").bind(eid, ent.id)] : []),
     ]);
-    const paid = !!(ent || free), startMs = roundMs(e.start_round);
     await recordFunnelForOrg(env as VisitEnv, e.org, "published", now);
     { const fo = { test: !!e.is_test || demoGame, size: e.cap }; await recordFun(env as any, eid!, "game_published", now, fo); if (!paid) await recordFun(env as any, eid!, "payment_page_reached", now, fo); } // sales funnel (funnel.ts)
-    await sendMail(env as PayEnv, env.DB, cEmail, rs0 ? `Your game ${eid} is published (Rs 0, it starts ${istTime(startMs)})` : paid ? `Your game ${eid} is published and paid` : `Your game ${eid} is published: payment pending (it starts ${istTime(startMs)})`,
-      `Your game ${eid} is live.${rs0 ? " It is for up to " + e.cap + " people at Rs 0: nothing to pay." : ""}\n\nShare this link: ${shareUrl}\n\n${paid ? "" : `Payment pending: the game does not begin until it is paid for. You can pay at any time until the guest data is auto-deleted; if you pay late, the game opens 2 minutes after the payment is confirmed (about 2 minutes to pay): ${payUrl}\n\n`}Big screen for the room: ${origin}/big.html?e=${eid}`, now);
+    await sendMail(env as PayEnv, env.DB, cEmail, mailSubject, mailText, now);
+    await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`mailowed/${eid}`).run(); // sent: nothing is owed any more
     return json({ ok: true, published: true, paid, startMs, payUrl, shareUrl, confirmed: { email: cEmail, phone: cPhone.slice(-10) } });
   }
   if (action === "claims" && req.method === "GET") {
