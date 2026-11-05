@@ -13,8 +13,9 @@ const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
 const START = roundAt(T) + 1200; // one hour after T
 let env: PayEnv; let raw: ReturnType<typeof makeD1>["raw"]; let ipN = 0;
 const realFetch = globalThis.fetch;
-const call = (method: string, path: string, body?: unknown, key?: string, now = T) =>
-  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, now);
+const NOKEY = { "x-runner-key": "" }; // "no runner key" (the test preload otherwise adds the right one)
+const call = (method: string, path: string, body?: unknown, key?: string, now = T, h: Record<string, string> = {}) =>
+  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}), ...h }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i);
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
@@ -208,19 +209,19 @@ describe("the owner's three test sign-ins", () => {
   });
 });
 
-describe("the owner's three test sign-ins are for TEST mode only (TT-21, WP-17)", () => {
-  test("in LIVE mode (the default) demo1/2/3@xyz.in with 123456 open nothing: no token, no organizer account made, and the request-a-code call gives no hint", async () => {
+describe("the owner's three test sign-ins need the runner key, in any mode (TT-21, WP-17; RUNNER_KEY, 5 Nov 2026)", () => {
+  test("without the runner key demo1/2/3@xyz.in with 123456 open nothing: no token, no organizer account made, and the request-a-code call gives no hint", async () => {
     for (const em of ["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]) {
-      const r = await call("POST", "/api/auth/verify", { email: em, code: "123456" });
+      const r = await call("POST", "/api/auth/verify", { email: em, code: "123456" }, undefined, T, NOKEY);
       expect(r.status).toBe(400); expect((await j(r)).token).toBeUndefined();
       expect((await call("POST", "/api/auth/email", { email: em })).status).toBe(200); // same plain answer as for any address; no code is made or mailed for these
-      expect((await call("POST", "/api/auth/verify", { email: em, code: "123456" })).status).toBe(400);
+      expect((await call("POST", "/api/auth/verify", { email: em, code: "123456" }, undefined, T, NOKEY)).status).toBe(400);
     }
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(0);
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_key")[0].c).toBe(0);
     expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
   });
-  test("switching the service to LIVE closes them again at once, even for an account made earlier in TEST", async () => {
+  test("without the key they stay closed in LIVE even for an account made earlier in TEST; with the key they open in LIVE too", async () => {
     await setMode(env as any, "TEST", "walk-through", T);
     const a = await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" })); expect(a.token).toMatch(/^cbk_/);
     await setMode(env as any, "LIVE", "go live", T);
