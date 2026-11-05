@@ -7,6 +7,7 @@
 import { tzOfRow } from "./tz";
 import { checkinRequired, deviceMatches, keepWinnerEvidence, prefixEnd } from "./checkin";
 import { restoreCreditUses } from "./credit";
+import { transientDb } from "./transient";
 import { keepLegalParty } from "./legal";
 import { ensureGameRecordTable, keepGameRecord } from "./gamerecord";
 import { sweepVisits } from "./visits";
@@ -83,7 +84,7 @@ export async function erasureOf(env: Env, e: any): Promise<number> {
 const lineLabel = (cfg: EngagementCfg, key: PatternKey, ordinal: number) => (linesFor(cfg.rewards, key).length > 1 ? ord(ordinal) + " " : "") + (NAMES[key] ?? key);
 
 /** Called when the organizer's console publishes results: the winners record gets one row per winning seat (never a name or a number). */
-export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console"): Promise<void> {
+export async function recordWinners(env: Env, e: any, eid: string, results: { pattern: string; ordinal?: number; round?: number; idx: number; pids: string[] }[], now: number, src = "console", strict = false): Promise<void> {
   try {
     const sch = await schedule(env, e);
     for (const x of results) {
@@ -101,7 +102,7 @@ export async function recordWinners(env: Env, e: any, eid: string, results: { pa
     const still = new Set(((await env.DB.prepare("SELECT DISTINCT seat FROM winner WHERE eid=?").bind(eid).all<{ seat: number }>()).results ?? []).map((r) => Number(r.seat)));
     const evid = (await env.DB.prepare("SELECT k FROM kv WHERE k >= ? AND k < ?").bind(`wev/${eid}/`, prefixEnd(`wev/${eid}/`)).all<{ k: string }>()).results ?? [];
     for (const r of evid) if (!still.has(Number(r.k.split("/")[2]))) await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(r.k).run();
-  } catch { /* the winners record is best effort here: phones report their own wins too */ }
+  } catch (err) { if (strict && transientDb(err)) throw err; /* the winners record is best effort here: phones report their own wins too; strict (the phones' vote) lets a passing database hiccup out so the vote is not marked settled over a missing record */ }
 }
 
 /** A phone reporting a win of its own (so a game without an open console still has a winners record). Console-checked results always win over these. */

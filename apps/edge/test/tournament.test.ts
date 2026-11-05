@@ -117,6 +117,19 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     expect(m.boards[0].events.map((e: any) => [e.seq, e.sq, e.ms])).toEqual([[0, 4, T + 5000], [1, 1, T + 7000]]);
     expect((await mv("MB-1", x!.a, { mid: x!.mid, seq: 2, sq: 9 }, T + 9000)).status).toBe(400); // not a square
   });
+  test("M1b: a passing database hiccup on the move is a gentle 503 busy (the phone asks again), NOT 'the board changed' (409); a true clash stays 409 (5 Nov 2026 audit)", async () => {
+    const h = await game("MB-1b"); const ps = await joinAll("MB-1b", 4); await begin("MB-1b", h);
+    const { list: [x] } = await pairs("MB-1b", ps);
+    const real = env.DB as any; let fails = 1;
+    const wrap = (st: any, sqlText: string): any => new Proxy(st, { get(t, k) { const v = t[k]; if (k === "bind") return (...a: any[]) => wrap(v.apply(t, a), sqlText); if (k === "run") return async (...a: any[]) => { if (fails > 0 && sqlText.startsWith("INSERT INTO ttt_mv")) { fails--; throw new Error("D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window"); } return v.apply(t, a); }; return typeof v === "function" ? v.bind(t) : v; } });
+    (env as any).DB = new Proxy(real, { get(t, k) { if (k === "prepare") return (q: string) => wrap(t.prepare(q), q); const v = t[k]; return typeof v === "function" ? v.bind(t) : v; } });
+    try {
+      const busy = await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5000);
+      expect(busy.status).toBe(503); expect((await j(busy)).code).toBe("busy"); expect(sql("SELECT * FROM ttt_mv WHERE eid='MB-1b'").length).toBe(0);
+      expect((await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5100)).status).toBe(200); // the phone asks again: it goes in
+      expect((await mv("MB-1b", x!.b, { mid: x!.mid, seq: 0, sq: 1 }, T + 6000)).status).toBe(409); // a true clash is still a 409
+    } finally { (env as any).DB = real; }
+  });
   test("M2: only a player in that match can write to it, from their own phone", async () => {
     const h = await game("MB-2"); const ps = await joinAll("MB-2", 8); await begin("MB-2", h);
     const { list: [x, y] } = await pairs("MB-2", ps, 2);

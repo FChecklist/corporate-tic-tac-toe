@@ -13,6 +13,7 @@
 //   open (a player)         registers a later-round match: who plays on which board, and the two finished matches it came from
 //   finish (a player or the Organizer)  the ranking two phones computed; kept when two different phones sent the same thing
 //   view / all / rank (public), flag (a player), tick (scheduled job)
+import { transientDb } from "./transient";
 import { commitOf, newSecret, seedOf } from "../../../packages/ttt/src/seal";
 import type { Env } from "./worker";
 
@@ -268,7 +269,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const next = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ c: number }>())?.c ?? 0;
     if (b.seq !== next) return json({ error: "The board changed. Look again.", code: "seq", next }, 409);
     try { await env.DB.prepare("INSERT INTO ttt_mv(eid,mid,j,seq,pid,sq,client_ms,at_ms) VALUES(?,?,?,?,?,?,?,?)").bind(eid, b.mid, j, b.seq, who.pid, sq, Number.isFinite(b.client_ms) ? Math.trunc(b.client_ms) : null, now).run(); }
-    catch { return json({ error: "The board changed. Look again.", code: "seq", next: next + 1 }, 409); }
+    catch (err) { if (transientDb(err)) throw err; /* a passing database hiccup is not a clash: it becomes the gentle 503 busy and the phone asks again */ return json({ error: "The board changed. Look again.", code: "seq", next: next + 1 }, 409); }
     return json({ ok: true, seq: b.seq, at: now });
   }
 
