@@ -531,11 +531,31 @@ async function signInResult(env: Env, req: Request, acct: { org: string } | null
   return { ok: true, token, kind, roles, ...(alt ? { alt } : {}), ...(kind === "host" ? { ready } : {}) };
 }
 
+/** Errors that pass by themselves: the database's own 10-second overload limit, a dropped connection, a timeout. Anything else (a bug, a bad row) is NOT retried. */
+export const transientDb = (e: unknown): boolean => /overloaded|too many resources|network connection lost|connection (?:reset|closed)|timed out|timeout|internal error|temporarily unavailable|storage operation exceeded|D1_ERROR: .*(?:reset|unavailable)/i.test(String((e as any)?.message ?? e));
+/** Retry settings of a join; the tests set baseMs to 0 so they do not wait. */
+export const joinRetry = { tries: 3, baseMs: 250, sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)) };
+const busyReply = (): Response => new Response(JSON.stringify({ error: "The doors are very busy just now, with many guests arriving at the very same moment. Please wait a few seconds; the seat is still waiting, and the page will try again by itself.", code: "busy", retryAfter: 3 }), { status: 503, headers: { "content-type": "application/json", "cache-control": "no-store", "retry-after": "3" } });
 export async function handle(req: Request, env: Env, now = Date.now(), waitUntil?: (p: Promise<unknown>) => void): Promise<Response> {
   const off = await maintenanceGate(req, env, now).catch(() => null);
   if (off) return off;
   let res: Response;
-  try { res = await handleCore(req, env, now, waitUntil); } catch (e) { await countError(env.DB, now); const p = recordServerError(env.DB, req, e, 500, now); if (waitUntil) waitUntil(p); else await p; return json({ error: "Something went wrong. Please try again.", code: "server-error" }, 500); }
+  // A join that meets a passing database overload ("D1 DB is overloaded ... 10 second window", a lost connection, a timeout) is tried again a few times with a short, random pause,
+  // because everything a join writes goes in ONE batch and the same person joining twice is the same participant, so trying again can never seat anyone twice.
+  // If the database is still busy after that, the guest gets a gentle "please wait a moment" with a retry-after, never a bare server error.
+  const joinTry = req.method === "POST" && /^\/api\/z\/[A-Za-z0-9_-]{4,40}\/join$/.test(new URL(req.url).pathname);
+  const master = joinTry ? req.clone() : null;
+  try {
+    let attempt = 0;
+    for (;;) {
+      try { res = await handleCore(attempt === 0 || !master ? req : master.clone(), env, now, waitUntil); break; }
+      catch (e) {
+        if (!joinTry || !transientDb(e)) throw e;
+        if (attempt >= joinRetry.tries) { await countError(env.DB, now).catch(() => {}); const p0 = recordServerError(env.DB, req, e, 503, now); if (waitUntil) waitUntil(p0); else await p0.catch(() => {}); return busyReply(); }
+        attempt++; await joinRetry.sleep(Math.round(joinRetry.baseMs * attempt * (0.6 + Math.random() * 0.8)));
+      }
+    }
+  } catch (e) { await countError(env.DB, now); const p = recordServerError(env.DB, req, e, 500, now); if (waitUntil) waitUntil(p); else await p; return json({ error: "Something went wrong. Please try again.", code: "server-error" }, 500); }
   if (res.status >= 500) { await countError(env.DB, now); const p = recordServerError(env.DB, req, undefined, res.status, now); if (waitUntil) waitUntil(p); else await p; }
   return res;
 }
@@ -1529,8 +1549,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   const addSeat = async (ph: string, pii: string, dev: string | null, jr: number, o: { inv?: number | null; cat?: string | null; src: string; guardId?: string | null; guardLimit?: number | null; ownerId?: string | null; role?: string | null; joinedMs?: number }) => {
     const tail = (await pidOf(ph)).slice(0, 12);
     await env.DB.batch([
-      env.DB.prepare("INSERT OR IGNORE INTO seat(eid,seq,pid,ph,dev,jr,inv,cat,src,role) SELECT ?, s, s || 'x' || ?, ?, ?, ?, ?, ?, ?, ? FROM (SELECT COALESCE(MAX(seq),0)+1 AS s FROM seat WHERE eid=?) WHERE (SELECT COUNT(*) FROM participant WHERE eid=?) < ? AND (EXISTS (SELECT 1 FROM person WHERE eid=? AND ph=? AND status='invited') OR (SELECT COUNT(*) FROM participant WHERE eid=?) + (SELECT COUNT(*) FROM person p WHERE p.eid=? AND p.status='invited' AND NOT EXISTS (SELECT 1 FROM seat s2 WHERE s2.eid=p.eid AND s2.ph=p.ph)) < ?) AND (? IS NULL OR (SELECT COUNT(*) FROM person WHERE eid=? AND inviter=? AND status<>'removed' AND role IS NULL) < ?) AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM seat WHERE eid=? AND dev=?))")
-        .bind(eid, tail, ph, dev, jr, o.inv ?? null, o.cat ?? null, o.src, o.role ?? null, eid, eid, e.cap, eid, ph, eid, eid, e.cap, o.guardId ?? null, eid, o.guardId ?? null, o.guardLimit ?? 0, dev, eid, dev),
+      env.DB.prepare("WITH c AS MATERIALIZED (SELECT COUNT(*) AS n FROM participant WHERE eid=?) INSERT OR IGNORE INTO seat(eid,seq,pid,ph,dev,jr,inv,cat,src,role) SELECT ?, s, s || 'x' || ?, ?, ?, ?, ?, ?, ?, ? FROM (SELECT COALESCE(MAX(seq),0)+1 AS s FROM seat WHERE eid=?), c WHERE c.n < ? AND (EXISTS (SELECT 1 FROM person WHERE eid=? AND ph=? AND status='invited') OR c.n + (SELECT COUNT(*) FROM person p WHERE p.eid=? AND p.status='invited' AND NOT EXISTS (SELECT 1 FROM seat s2 WHERE s2.eid=p.eid AND s2.ph=p.ph)) < ?) AND (? IS NULL OR (SELECT COUNT(*) FROM person WHERE eid=? AND inviter=? AND status<>'removed' AND role IS NULL) < ?) AND (? IS NULL OR NOT EXISTS (SELECT 1 FROM seat WHERE eid=? AND dev=?))")
+        .bind(eid, eid, tail, ph, dev, jr, o.inv ?? null, o.cat ?? null, o.src, o.role ?? null, eid, e.cap, eid, ph, eid, e.cap, o.guardId ?? null, eid, o.guardId ?? null, o.guardLimit ?? 0, dev, eid, dev),
       env.DB.prepare("INSERT OR IGNORE INTO participant(eid,pid,phone_hash,name,pii,joined_ms) SELECT eid, pid, ph, NULL, ?, ? FROM seat WHERE eid=? AND ph=?").bind(pii, o.joinedMs ?? now, eid, ph),
       env.DB.prepare("UPDATE person SET status='joined', joined_ms=? WHERE eid=? AND ph=? AND status='invited' AND EXISTS (SELECT 1 FROM seat WHERE eid=? AND ph=?)").bind(now, eid, ph, eid, ph),
       env.DB.prepare("INSERT OR IGNORE INTO person(eid,id,ph,pii,inviter,role,status,added_ms,joined_ms) SELECT ?, ?, ph, ?, ?, ?, 'joined', ?, ? FROM seat WHERE eid=? AND ph=? AND ? IS NOT NULL").bind(eid, randHex(6), pii, o.ownerId ?? null, o.role ?? null, now, now, eid, ph, o.ownerId ?? null),
