@@ -7,7 +7,6 @@ import { join } from "node:path";
 import { withDevice } from "./device";
 import { type Env } from "../src/worker";
 import { handle } from "./with-terms";
-import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { makeD1 } from "./d1-sqlite";
 import { FACTS } from "../src/ai-facts";

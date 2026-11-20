@@ -59,10 +59,11 @@ describe("each indexable page", () => {
   });
   test("quick loading: fonts are self-hosted and swap in, the two main fonts are preloaded, scripts do not block the page, nothing third-party is loaded on the home page", () => {
     const h = rd("index.html"), f = rd("fonts.css");
-    expect(f.match(/font-display: swap/g)!.length).toBe(f.match(/@font-face/g)!.length);
+    expect(f.match(/font-display:\s*swap/g)!.length).toBe(f.match(/@font-face/g)!.length); // the shared kit fonts.css is a checksummed copy that writes it without a space
     for (const w of ["Inter-normal-400.woff2", "Fraunces-normal-500-700.woff2"]) expect(h).toContain(`<link rel="preload" href="/fonts/${w}" as="font" type="font/woff2" crossorigin>`);
-    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme\.js|keep\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); /* termsbox.js is NOT deferred: site.js draws the Terms boxes at once when the page is opened as /#login */ // theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
-    expect(h).toMatch(/<script src="\/common\.js"><\/script><script src="\/google\.js"><\/script>(<script src="\/termsbox\.js"><\/script>)?<script src="\/site\.js"><\/script>\s*<\/body>/); // the page scripts sit at the very end
+    for (const s of h.match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) ?? []) if (!/theme-init\.js|theme\.js|keep\.js|common\.js|google\.js|termsbox\.js|site\.js/.test(s)) expect(s).toMatch(/\bdefer\b/); /* termsbox.js is NOT deferred: site.js draws the Terms boxes at once when the page is opened as /#login */ // theme.js must run first (no flash of the wrong colours); common.js and site.js are the last thing in the body
+    /* theme-init.js is the one script that must run before the page is drawn (it sets the saved colour and light/dark); it stays tiny and in the head */ expect(readFileSync(new URL("../public/theme-init.js", import.meta.url), "utf8").length).toBeLessThan(2000); expect(h.indexOf("/theme-init.js")).toBeLessThan(h.indexOf("</head>"));
+    expect(h).toMatch(/<script src="\/brandkit\.js\?v=\d+" defer><\/script><script src="\/gamesbar\.js\?v=\d+" defer><\/script><script src="\/siteversion\.js\?v=\d+" defer><\/script><script src="\/guide\.js" defer><\/script><script src="\/blackbox\.js" defer><\/script><script src="\/rum\.js" defer><\/script><script src="\/v\.js" defer><\/script><script src="\/pwa\.js" defer><\/script>\s*<\/body>/); // the page scripts (all deferred, guide.js before blackbox.js) sit at the very end
     expect(h).not.toMatch(/<(script|link|img|iframe|source|video|audio)\b[^>]*\b(src|href)="https?:\/\/(?!tictactoe\.corporatetambola\.com)/); // nothing is LOADED from elsewhere; the uniform footer only links to the sister sites
     expect(rd("../../../pages/build.mjs" as any).includes("max-age=31536000, immutable")).toBe(true);
   });

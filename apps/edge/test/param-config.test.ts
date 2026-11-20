@@ -181,14 +181,14 @@ describe("speeds, rounds, tickets per person, names", () => {
 // ---------------------------------------------------------------------------------------------------------- prize houses
 describe("prize house combinations", () => {
   const mk = async (rewards: unknown, extra: Record<string, unknown> = {}) => { const o = await organizer(); const id = uid(); const r = await create(o.key, id, { rewards, ...extra }); return { r, body: await j(r) }; };
-  for (const h of PRIZE_HOUSES.filter((x) => x.id !== "full2")) {
+  for (const h of PRIZE_HOUSES.filter((x) => (x.id as string) !== "full2")) {
     test(`house ${h.id} alone: first winner accepted, winner ${h.max + 1} refused`, async () => {
       expect((await mk([{ pattern: h.id, ordinal: 1, text: "Prize" }])).r.status).toBe(200);
       const many = Array.from({ length: h.max + 1 }, (_, i) => ({ pattern: h.id, ordinal: i + 1, text: "P" + i }));
       const r = await mk(many); expect(r.r.status).toBe(400); expect(r.body.error).toMatch(/at most|only 1/);
     });
   }
-  test("every house at once (one winner each) is accepted", async () => { expect((await mk(PRIZE_HOUSES.filter((x) => x.id !== "full2").map((h) => ({ pattern: h.id, ordinal: 1 })))).r.status).toBe(200); });
+  test("every house at once (one winner each) is accepted", async () => { expect((await mk(PRIZE_HOUSES.filter((x) => (x.id as string) !== "full2").map((h) => ({ pattern: h.id, ordinal: 1 })))).r.status).toBe(200); });
   test("the same reward twice is refused", async () => { expect((await mk([{ pattern: "line", ordinal: 1 }, { pattern: "line", ordinal: 1 }])).r.status).toBe(400); });
   test("an unknown house, an empty list, a non-list and zero or fractional ordinals are refused", async () => {
     for (const bad of [[{ pattern: "nonsense" }], [], "line", [{ pattern: "line", ordinal: 0 }], [{ pattern: "line", ordinal: 1.5 }], [null], [{ pattern: "full2" }]]) expect((await mk(bad)).r.status).toBe(400);
