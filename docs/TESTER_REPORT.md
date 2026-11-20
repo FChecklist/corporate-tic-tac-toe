@@ -1,3 +1,95 @@
+# Tester report v3, Tic Tac Toe 1.4.1 (31 Oct 2026)
+
+Test branch `tests/ttt-1.4.1-v3-2026-10-31` = product branch `fix/ttt-1.4.1-2026-10-30` (head 8c02dc8) + the test files of `tests/ttt-1.4.1-2026-10-30` (b0b0b98), + my new and corrected tests. Test author replacing the silent one. Bun 1.4.4.
+**No product file was changed.** `git diff origin/fix/ttt-1.4.1-2026-10-30 -- apps/edge/src apps/web/public packages/*/src tools pages` is empty (checked after the break checks). The merge had no conflicts: the product moved only in src files and docs/TEST_HANDOFF.md, the test branch only in test files.
+
+## Verdict
+**NOT green. 13 tests are RED ON PURPOSE: each one is a PRODUCT DEFECT against the owner rules (below). I did not bend any of them.** Everything else is green. Typecheck 0 errors. Matrix 1,300,000 distinct inputs, 0 mismatches.
+
+## Counts (last summary line of one run per folder, `bun test --isolate <folder>`)
+| Folder | Pass | Fail | Todo | Files |
+|---|---|---|---|---|
+| packages/shared | - | - | - | no test files exist (bun: "filters did not match any test files") |
+| packages/beacon | 87 | 0 | | 6 |
+| packages/billing | 26 | 0 | | 1 |
+| apps/edge | 1465 | **12** | | 84 |
+| apps/web | 401 | **1** | 1 | 34 |
+| tools/control-worker | 1 | 0 | | 1 |
+| `bun run typecheck` | | **0 errors** | | |
+
+The 13 red tests are exactly the "OWNER RULE" tests listed under PRODUCT DEFECTS (edge: 3 endedAtMs + 4 lock + 2 too-long + 3 account doors; web: 1 too-long hint). The `todo` is the earlier author's test.todo for the EMP_CLEAN_FROM_MS hint mismatch (D-6).
+Note: `tsconfig.json` does not include `apps/web/test`, so the typecheck does not cover web tests. Raw logs: scratchpad only (not committed); counts above are from the last run, after all edits.
+
+## PRODUCT DEFECTS (not fixed by me; tests stay red)
+**D-1 ID lock answers the wrong status and code.** `apps/edge/src/worker.ts:2003`, PATCH `/api/z/:id/settings`.
+- Input: game `verify: "id"`, one person listed with `empId: "1B-678"`; PATCH `{ "idKind": "email" }` (also `{verify:"both"}`, `{verify:"either"}`, `{verify:"mobile"}`, `{idKind,verify}`); same with a joined participant only; same Email ID -> `{idKind:"emp"}`.
+- Expected: HTTP 409, `code: "id-kind-locked"`. Actual: HTTP 400, `code: "ids-locked"`.
+- The sentences are right (kind sentence for an idKind change; "...different way of asking for IDs." for verify only) and nothing changes: those tests are green.
+- Tests: `t41-owner-rules.test.ts` "OWNER RULE status and code: a LISTED person", "...a JOINED person", "an Email ID game locks the other way too". The previous author's tests encoded 400/ids-locked (they followed the product); I changed them to the rule.
+
+**D-2 The lock counts every listed or joined person, not only people holding an ID hash.** `worker.ts:2003` counts all `person` + `participant` rows.
+- Input: game `verify: "mobile"`, one person listed by mobile number only (no ID hash); PATCH `{ "idKind": "email" }`. Expected 200 (nobody holds an ID hash). Actual 400 `ids-locked`.
+- Test: "OWNER RULE: only someone HOLDING AN ID HASH locks...". This one depends on reading "holding an ID hash" literally; if the owner means "anyone at all", drop this test, D-1 stays.
+
+**D-3 The "too long" sentence does not exist.** `people.ts badIdMessage`, the join route, the list upload, and `apps/web/public/ttt.js`. The sentence `This ID is too long. An employee ID may be up to 30 characters once cleaned.` is in no file of the repo.
+- Input: employee-ID game (created at/after EMP_CLEAN_FROM_MS), ID `"A"*31` (or `"a-"*31`). Expected that sentence. Actual (server, join and list upload): `An employee ID has letters and numbers only (up to 30).`; the join page shows nothing at all above 30.
+- Tests: `t42-id-rules` "OWNER RULE too long" x2 (join; badIdMessage + list upload), `t42-join-texts` "OWNER RULE: over 30 characters once cleaned...".
+
+**D-4 ACCOUNT e-mails accept invisible characters.** The shape check `/^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/` has no invisible-character class at: `worker.ts:853` (`/api/start`), `worker.ts:866` (`/api/auth/email`), `worker.ts:1847` (publish contact e-mail, used for the receipt). `google.ts`, `helpdesk.ts`, `hostsetup.ts` do have the class; `/api/auth/verify` is correct (green).
+- Input: `{ "email": "a​b@x.com" }` (also U+200C, U+200D, U+2060, U+FEFF, U+0085, U+2028, U+2029, at the start, inside, or at the end). Expected 400 and no account. Actual: 200 and an account is made. Of the 28 spellings tried at `/api/start`, 21 returned 200 and 16 distinct accounts were made (spellings that clean to the same address share one account); the 7 refused are inner spaces, the full-width @ and the characters the shape check already treats as white space. `cleanAccountEmail` itself is right; the doors do not use it.
+- Same regex without the class, NOT driven by me (suspects for the coder): `mode.ts:92`, `admin.ts:173`, `pay.ts:50`, `partners.ts:97`, `worker.ts:1054` and `:1091` (become-organizer / host e-mail).
+- Tests: `t42-id-rules` "OWNER RULE: the sign-up door", "...the sign-in e-mail door", "...the organizer's contact e-mail at publish time".
+
+**D-5 `endedAtMs` does not exist.** No file under `apps/edge/src` returns it. The public tournament view has `endedMs` (and `endedEarly`); `life.end_ms` is internal only.
+- Input: Organizer ends a running game (`POST /ttt/end`); tournament marked done by the phones; a game that ran past its end bound; read `/ttt/view` and the Organizer `/summary`. Expected `endedAtMs` = the end instant (organizer / phones: whatever the clock; scheduled: only once now >= `endBoundMs`; never moves). Actual: field absent everywhere.
+- Tests (red): `t42-ended-at` Organizer end, phones end, scheduled end.
+- Tests that are **green only because the field is absent, i.e. they prove nothing yet**: "absent while the game can be live", "erasing is not an end", "cancelling is not an end". They will start to bite when the field exists.
+- Related, not testable through the API: erase writes `life(end_ms=now, end_src='organizer')` (worker erase, `lifecycle.ts:142`), so the data layer treats an erase as an end (it drives the report and deletion clocks). The rule says erase is not an end; the coder should make sure `endedAtMs` does not read that row.
+
+**D-6 (carried over, open release gate) `EMP_CLEAN_FROM_MS` is the 2099 placeholder.** Until the release session sets it, every game keeps the OLD employee-ID rule on the server (`1b-678` -> `1B-678`, dashes kept) while the join page already says "The system will read this as 1B678". Against the rule "keep A-Z0-9" this is wrong for every game today. The handoff (docs/TEST_HANDOFF.md) calls it intended, so the owner-rules test pins the placeholder and my matrix and the new tests use a created time at/after the constant. `test.todo` kept. Release must set the constant.
+
+Smaller, for judgment: (a) people in the `waiting` table do not lock the ID kind; (b) the visit funnel steps 1-3 in v.js can never fire (no pricing/pack/Create controls on any public page); (c) footer says "Version 1.5.0" while the branch says 1.4.1.
+Resolved since the last report (fix passes 2 and 3): guide.js card for the lock sentences (checked, green), the `game.ts` typecheck error, NEL / U+2028 / U+2029 in `cleanEmail` and the page hint, `cleanAccountEmail` refusing invisible characters (helper only, see D-4).
+
+## Failing tests I fixed because the TEST was wrong (old behaviour)
+- `t41-join-rules` "the file text has the backslashes...": the coder added `\u0085` to the page's cleaning class; expectation now lists U+0085 first.
+- `t41-id-oracle` `oracleAccount` + matrix: an account e-mail with an invisible character is now REFUSED (""), per the rule; the old oracle kept it. Added oracle tokens U+0085, U+2028, U+2029.
+- `t41-join-rules`: "hint not shown above 30" now says the "will read this as" hint is not shown (it no longer pins an empty line, because the rule puts the too-long sentence there; see D-3).
+- `ttt-same-name`: a race, not a product bug. It failed once in the full web run (the winner's page had already moved on to "You are the champion"); alone 3/3 green. The text is now read at the moment the wait finishes. The two full web runs after the change were green on that test.
+- `t41-owner-rules` lock block: rewritten from the owner rule (D-1, D-2), splitting sentence checks (green) from status/code checks (red) so one defect does not hide the other.
+
+## New tests (gaps)
+- `apps/edge/test/t42-id-rules.test.ts` (21): employee-ID cleaning (12 spellings), empty refused, cap 30 after cleaning (30 ok, 31 refused, 60 typed that clean to 30 ok), hint text, e-mail in an employee-ID game gets the plain sentence and no letters of the address, duplicates after cleaning flagged (also across uploads, with `duplicateRows`), participant Email ID (every invisible character, anywhere; examples; shape; join and list in an Email ID game), account e-mail refusal (`cleanAccountEmail` for 8 invisible characters x 3 places; 4 doors).
+- `apps/edge/test/t42-ended-at.test.ts` (6): the `endedAtMs` rule, see D-5.
+- `apps/web/test/t42-join-texts.test.ts` (6): hint wording, too-long sentence, no hint/letters for an e-mail in an ID box, Email ID hint, guide.js lock cards.
+- All invisible characters in these files are written as `\uXXXX` escapes (re-read after writing; my first write had turned 13 of them into raw characters, now converted back, the tests give the same result).
+
+## The matrix
+`apps/edge/test/t41-id-matrix.test.ts` + oracle `t41-id-oracle.ts` (written by hand from the rules, never asked from ids.ts).
+- **1,300,000 distinct inputs**, counted by a Set; the test asserts the count equals the number checked, is >= 1,000,000, and equals the generator's own count.
+- **Skipped repeats: 27,596** (inputs that came up twice in the random stage; checked once).
+- 8 rules per input = 10,400,000 checks (cleanEmpId, empHint, cleanEmail, normEmpFor new, normId emp, normId email, normEmpFor old, cleanAccountEmail). Employee ID accepted 575,990 / refused 722,517; Email ID accepted 66,642 / refused 1,228,866; old rule accepted 30,870. 95 tokens (ASCII, full-width, `ß`, dashes, Devanagari digits, compatibility letters, Turkish i, other scripts, emoji, 9 kinds of space, all invisible characters of the owner's list, `@` in 3 forms, address pieces, runs of 29 to 255 characters).
+- Result: 0 mismatches. A sample of 150 per kind also goes through the real join endpoint.
+
+## Deliberate-break checks (product line changed, tests run, line restored with `git checkout`, tests run again)
+"Restored" is the baseline of those files, which includes the known red OWNER RULE tests.
+| # | Product rule broken | Tests run | Broken | Restored |
+|---|---|---|---|---|
+| B1 | `ids.ts` cleanEmpId loses `.toUpperCase()` | t41-id-matrix, t42-id-rules | 13 pass / **11 fail** | 19 / 5 |
+| B2 | `ids.ts` cleanEmail stops removing U+0085 and the zero-width marks | t41-id-matrix, t42-id-rules | 14 pass / **10 fail** | 19 / 5 |
+| B3 | `worker.ts:2003` ID lock switched off (`> 0` -> `> 1e9`) | t41-owner-rules, verify | 29 pass / **6 fail** | 31 / 4 |
+| B4 | `ids.ts` cleanAccountEmail stops refusing invisible characters | t41-id-matrix, t42-id-rules, t41-owner-rules | 27 pass / **11 fail** | 29 / 9 |
+Counts are the last "pass / fail" lines of each run. Every break went red (more failures than baseline) and went back to baseline after the revert. First tries of B2 and B4 did not apply (my command text had turned `​` into a raw character, so the pattern did not match; reported by the script, nothing was changed); redone with a script that builds the pattern. After the last break `git diff origin/fix/ttt-1.4.1-2026-10-30` over every non-test path is empty.
+
+## Not done
+- No browser click tests (`tools/browser-tests`), no `tools/sim2`, no `tools/breakchecks`.
+- `bun.lock` made by `bun install` is not committed.
+- The scheduled-end test uses the product's own `endBoundMs` as the bound (the "+60 s" in the rule is read as the tournament-end grace in `endBoundTtt`); if the owner means another bound, adjust that one test.
+
+---
+
+# Earlier report (30 Oct 2026, first run, kept for history)
+
 # Tester report, Corporate Tic Tac Toe (test author, 30 Oct 2026)
 
 - Branch under test: `claude/site-tictactoe-f9dd93`, head 89e8a0d. Test branch: `tests/ttt-2026-10-30` (only test directories, test helpers, tools/sim2/scenarios, tools/breakchecks, docs/TESTER_REPORT.md and docs/TEST_FINDINGS.md were added or changed; no product file).

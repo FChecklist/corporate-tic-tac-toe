@@ -34,6 +34,9 @@ async function site(url = "/", html = "index.html", o: { gpc?: boolean; scripts?
   const rows = (sql: string, ...a: unknown[]) => w.world.raw.prepare(sql).all(...a) as any[];
   return { p, w, sent, drain, see, observed, clock, rows, flush: async () => { p.win.TBV.flush(); await drain(); } };
 }
+/** The simple home page (1.4.1) has no buy block. v.js still understands the old controls (pack drop-downs, Create, currency, Log in), so those tests add them to the real page before pressing them. */
+const OLD_CONTROLS = `<div id="oldbuy"><div class="pcard"><span class="tot">₹1,000</span></div><select id="pack2"><option value="1000">1000</option><option value="2500">2500</option></select><select id="pack"><option value="1000">1000</option><option value="250">250</option></select><button class="pcta" data-buy="1000" type="button">Create</button><button data-c="INR" type="button">INR</button><button data-c="USD" type="button">USD</button><a id="loginLink" href="#">Log in</a></div>`;
+const withOldControls = (s: { p: Page }) => { s.p.win.document.body.insertAdjacentHTML("beforeend", OLD_CONTROLS); };
 const hidden = (p: Page, on = true) => { Object.defineProperty(p.win.document, "visibilityState", { configurable: true, get: () => (on ? "hidden" : "visible") }); p.win.document.dispatchEvent(new p.win.Event("visibilitychange")); };
 
 describe("v.js on the home page", () => {
@@ -44,22 +47,27 @@ describe("v.js on the home page", () => {
     expect(b.e[0]).toEqual({ k: "pv", p: "/" }); expect(b.lp).toBe("/"); expect(b.u).toEqual({ s: "Diwali", m: "email", c: "" }); expect(b.pc).toBe("ab3de4fg");
     expect(JSON.stringify(b)).not.toContain("secret"); expect(b.d).toMatch(/^[a-f0-9]{32}$/); expect(b.s).toMatch(/^[a-f0-9]{24}$/); expect(["mobile", "tablet", "desktop"]).toContain(b.dv);
     const watched = s.observed.flatMap((o) => o.els).map((e: any) => e.id);
-    for (const id of ["top", "benefits", "pricing", "faq", "how", "ai-host"]) expect(watched).toContain(id);
+    for (const id of ["top", "trust", "game-day"]) expect(watched).toContain(id);
+    expect(watched.sort()).toEqual(["game-day", "top", "trust"]); // exactly the sections the home page has
     expect(s.rows("SELECT src, landing, utm_source FROM visit_session")).toEqual([{ src: "campaign", landing: "/", utm_source: "Diwali" }]);
   });
   test("section views carry the time each section was on screen, and only what is new in each message", async () => {
-    const s = await site(); s.see("pricing", true); s.w.world.now += 7000; s.see("pricing", false);
-    s.see("faq", true); s.w.world.now += 3000;
+    const s = await site(); s.see("trust", true); s.w.world.now += 7000; s.see("trust", false);
+    s.see("game-day", true); s.w.world.now += 3000;
     await s.flush();
     const sec = (b: any) => b.e.filter((e: any) => e.k === "sec").map((e: any) => [e.n, e.m]);
-    expect(sec(s.sent[0]!.body)).toEqual([["pricing", 7000], ["faq", 3000]]);
+    expect(sec(s.sent[0]!.body)).toEqual([["trust", 7000], ["game-day", 3000]]);
     s.w.world.now += 2000; await s.flush();
-    expect(sec(s.sent[1]!.body)).toEqual([["faq", 2000]]); // pricing is not repeated
-    expect(s.rows("SELECT name, SUM(n) AS ms FROM visit_event WHERE kind='sec' GROUP BY name ORDER BY name")).toEqual([{ name: "faq", ms: 5000 }, { name: "pricing", ms: 7000 }]);
-    expect(s.rows("SELECT stage FROM visit_session")[0]!.stage).toBe(1); // pricing seen
+    expect(sec(s.sent[1]!.body)).toEqual([["game-day", 2000]]); // trust is not repeated
+    expect(s.rows("SELECT name, SUM(n) AS ms FROM visit_event WHERE kind='sec' GROUP BY name ORDER BY name")).toEqual([{ name: "game-day", ms: 5000 }, { name: "trust", ms: 7000 }]);
+    expect(s.rows("SELECT stage FROM visit_session")[0]!.stage).toBe(0); // only the "pricing" section moves the funnel to step 1, and the home page has none
   });
-  test("choosing a size in the price card (#pack2) and in the home drop-down (#pack) each tell the size and the price shown", async () => {
+  test("the home page has no buy block: none of #pack, #pack2, .pcta, [data-buy], [data-c], #loginLink, #payBtn", async () => {
     const s = await site(); await s.flush();
+    for (const sel of ["#pack", "#pack2", ".pcta", "[data-buy]", "[data-c]", "#loginLink", "#payBtn", "#pricing"]) expect([sel, s.p.$(sel) === null]).toEqual([sel, true]);
+  });
+  test("v.js still tells a size chosen in the price card (#pack2) and in a drop-down (#pack), with the size and the price shown, when a page has them", async () => {
+    const s = await site(); await s.flush(); withOldControls(s);
     const pack2 = s.p.$("#pack2"); pack2.value = "2500"; pack2.dispatchEvent(new s.p.win.Event("change", { bubbles: true }));
     await new Promise((r) => setTimeout(r, 10));
     const pack = s.p.$("#pack"); pack.value = "250"; pack.dispatchEvent(new s.p.win.Event("change", { bubbles: true }));
@@ -71,8 +79,8 @@ describe("v.js on the home page", () => {
     expect(s.rows("SELECT n, val FROM visit_event WHERE name='pack' ORDER BY id").map((r) => r.n)).toEqual([2500, 250]);
     expect(s.rows("SELECT stage FROM visit_session")[0]!.stage).toBe(2);
   });
-  test("pressing Create sends at once, with the size and the price; switching currency and opening Log in are actions too", async () => {
-    const s = await site(); await s.flush(); const before = s.sent.length;
+  test("v.js still sends Create at once, with the size and the price; switching currency and opening Log in are actions too, when a page has those controls", async () => {
+    const s = await site(); await s.flush(); withOldControls(s); const before = s.sent.length;
     s.p.click(".pcta"); await s.drain();
     expect(s.sent.length).toBe(before + 1);
     const create = s.sent[s.sent.length - 1]!.body.e.find((e: any) => e.n === "create"); expect(create).toMatchObject({ k: "act", n: "create", z: 1000 }); expect(create.v).toMatch(/^(INR|USD) /);
@@ -83,17 +91,17 @@ describe("v.js on the home page", () => {
     expect(s.rows("SELECT val FROM visit_event WHERE name='cur'")).toEqual([{ val: "USD" }]);
   });
   test("when the page is hidden an exit message goes with the last section seen, the time on the page and how far it was scrolled", async () => {
-    const s = await site(); s.see("pricing", true); s.w.world.now += 4000; s.see("pricing", false); s.see("faq", true); s.w.world.now += 6000;
+    const s = await site(); s.see("trust", true); s.w.world.now += 4000; s.see("trust", false); s.see("game-day", true); s.w.world.now += 6000;
     hidden(s.p); await s.drain();
     const b = s.sent[s.sent.length - 1]!.body, ex = b.e.find((e: any) => e.k === "exit");
-    expect(ex).toMatchObject({ k: "exit", p: "/", n: "faq" }); expect(ex.m).toBeGreaterThanOrEqual(10000); expect(ex.x).toBeGreaterThanOrEqual(0); expect(ex.x).toBeLessThanOrEqual(100);
-    expect(b.e.filter((e: any) => e.k === "sec").map((e: any) => e.n)).toEqual(["pricing", "faq"]);
+    expect(ex).toMatchObject({ k: "exit", p: "/", n: "game-day" }); expect(ex.m).toBeGreaterThanOrEqual(10000); expect(ex.x).toBeGreaterThanOrEqual(0); expect(ex.x).toBeLessThanOrEqual(100);
+    expect(b.e.filter((e: any) => e.k === "sec").map((e: any) => e.n)).toEqual(["trust", "game-day"]);
     const n = s.sent.length; s.p.win.dispatchEvent(new s.p.win.Event("pagehide")); await s.drain(); // hidden then pagehide: no second exit
     expect(s.sent.slice(n).flatMap((x) => x.body.e).filter((e: any) => e.k === "exit").length).toBe(0);
-    expect(s.rows("SELECT exit_path, exit_section, exit_ms FROM visit_session")[0]).toMatchObject({ exit_path: "/", exit_section: "faq" });
+    expect(s.rows("SELECT exit_path, exit_section, exit_ms FROM visit_session")[0]).toMatchObject({ exit_path: "/", exit_section: "game-day" });
   });
   test("messages hold at most 20 events", async () => {
-    const s = await site();
+    const s = await site(); withOldControls(s);
     for (let i = 0; i < 45; i++) s.p.click('[data-c="INR"]');
     await s.flush();
     expect(s.sent.length).toBeGreaterThanOrEqual(3); for (const m of s.sent) expect(m.body.e.length).toBeLessThanOrEqual(20);
@@ -116,7 +124,7 @@ describe("v.js on the home page", () => {
 describe("privacy signal", () => {
   test("with Global Privacy Control on, no visitor id is made, nothing is stored in the browser, no id header goes out, and the server keeps counts only", async () => {
     const s = await site("/", "index.html", { gpc: true });
-    s.see("pricing", true); s.w.world.now += 2000; await s.flush();
+    s.see("trust", true); s.w.world.now += 2000; await s.flush();
     expect(s.p.win.TBV.vid).toBe(""); expect(s.p.win.localStorage.getItem("cbv_id")).toBeNull(); expect(s.p.win.document.cookie).not.toContain("cbv=");
     expect(s.sent[0]!.body.g).toBe(1); expect(s.sent[0]!.body.d).toBeUndefined();
     const calls: any[] = []; s.p.win.fetch = async (u: string, init: any) => { calls.push(init.headers); return new Response("{}", { headers: { "content-type": "application/json" } }); };

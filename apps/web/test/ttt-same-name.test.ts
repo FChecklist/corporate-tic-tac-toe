@@ -46,8 +46,9 @@ describe("two players with the same name", () => {
       }
       const other = first === a ? b : a;
       await first.waitFor((t) => /You won this board/.test(t), 9000);
+      const firstText = first.text(); // read at once: a one-board game moves the winner on to the champion screen, so a later read races (seen under load)
       await other.waitFor((t) => /board is over/i.test(t), 9000);
-      expect(first.text()).toMatch(/You won this board/); expect(other.text()).not.toMatch(/You won this board/); expect(other.text()).toMatch(/This board is over/);
+      expect(firstText).toMatch(/You won this board/); expect(other.text()).not.toMatch(/You won this board/); expect(other.text()).toMatch(/This board is over/);
       expect(first.errors).toEqual([]); expect(other.errors).toEqual([]);
     } finally { await a.close(); await b.close(); }
   });

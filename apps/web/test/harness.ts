@@ -9,7 +9,12 @@ import { handle } from "../../edge/test/with-terms";
 import { makeD1 } from "../../edge/test/d1-sqlite";
 
 const PUB = join(import.meta.dir, "../public");
-export const T = Date.UTC(2026, 9, 1, 10, 0, 0);
+/** The test clock starts at the real hour, so pages (which read the real clock) and the Worker (which reads this one) agree that "now" is now. Never a fixed date: a fixed date goes stale and every game starts "in the past". */
+export const T = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+/** The calendar date (YYYY-MM-DD) in India time, `days` after T. */
+export const istDate = (days: number, from = T) => new Date(from + days * 86_400_000 + 5.5 * 3_600_000).toISOString().slice(0, 10);
+/** "3 Oct 2026" for a YYYY-MM-DD date, written the way the console writes it. */
+export const friendlyDay = (ymd: string) => { const [y, m, d] = ymd.split("-").map(Number); return `${d} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m! - 1]} ${y}`; };
 export const GEN = 1692803367;
 export const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
 export const roundMs = (r: number) => (GEN + (r - 1) * 3) * 1000;
