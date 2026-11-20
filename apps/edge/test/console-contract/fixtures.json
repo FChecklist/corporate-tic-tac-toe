@@ -809,11 +809,11 @@
     },
     {
      "path": "priceMinor",
-     "eq": 348100
+     "eq": 349900
     },
     {
      "path": "paidMinor",
-     "eq": 238700
+     "eq": 239900
     }
    ]
   },

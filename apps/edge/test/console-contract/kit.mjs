@@ -14,7 +14,7 @@ const defs = SCHEMAS.$defs;
 /** validate value against a named schema of the contract; returns problems */
 export const validate = (name, value) => { if (!defs[name]) throw new Error("no schema " + name); return check({ ...defs[name], $defs: defs }, value); };
 
-export const PEOPLE = { alice: "alice@acme.example", bob: "bob@bob.example", carol: "carol@carol.example", dave: "dave@new.example", nobody: "nobody@nowhere.example" };
+export const PEOPLE = { alice: "demo5@demo-test.invalid", bob: "demo8@demo-test.invalid", carol: "demo9@demo-test.invalid", dave: "demo14@demo-test.invalid", nobody: "demo22@demo-test.invalid" };
 
 export async function makeCtx() {
   const kp = await makeKeyPair(), other = await makeKeyPair();

@@ -2,7 +2,7 @@
 // Format:  v1.<payload>.<signature>   payload = base64url(JSON), signature = base64url(Ed25519 over the text "cgv1." + payload)
 // Only WebCrypto is used (same API in Cloudflare Workers, Bun and Node), so nothing else has to be installed in a game.
 
-export type Act = "session" | "games" | "billing" | "invited" | "role" | "handoff" | "stepup" | "purge";
+export type Act = "session" | "games" | "billing" | "invited" | "role" | "handoff" | "stepup" | "purge" | "paid" | "payable";
 export interface Payload {
   v: 1;
   kid: string;

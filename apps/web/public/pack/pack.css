@@ -1,0 +1,26 @@
+/* Game pack styles: the live control bar, the Yes / No panel, the game log. Light and dark, no inline styles, no outside files. Colours come from the game's own variables when it has them. */
+.ctp-runbar, .ctp-confirm, .ctp-page { --ctp-ink: var(--ink, #1c1014); --ctp-bg: var(--card, #fff); --ctp-line: var(--line, #e4d9c6); --ctp-accent: var(--btn, #0b3d91); --ctp-bad: var(--bad, #b3261e); color: var(--ctp-ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+@media (prefers-color-scheme: dark) { .ctp-runbar, .ctp-confirm, .ctp-page { --ctp-ink: var(--ink, #f2eee6); --ctp-bg: var(--card, #1a1f2e); --ctp-line: var(--line, #323a55); --ctp-accent: var(--btn, #2f5fc4); --ctp-bad: var(--bad, #ff8d84); } }
+.ctp-runbar { background: var(--ctp-bg); border: 1.5px solid var(--ctp-line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.ctp-story { margin: 0; font-size: 18px; font-weight: 600; }
+.ctp-people { margin: 0; color: inherit; opacity: .85; }
+.ctp-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 10px; border: 1.5px solid var(--ctp-accent); background: transparent; color: inherit; font: 600 15px/1.2 inherit; text-decoration: none; cursor: pointer; }
+.ctp-btn.ctp-primary { min-height: 60px; font-size: 20px; background: var(--ctp-accent); color: #fff; width: 100%; }
+.ctp-btn.ctp-danger { border-color: var(--ctp-bad); color: var(--ctp-bad); }
+.ctp-small { display: flex; flex-wrap: wrap; gap: 10px; }
+.ctp-paused { display: grid; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 2px solid var(--ctp-bad); }
+.ctp-paused b { font-size: 24px; letter-spacing: .08em; color: var(--ctp-bad); }
+.ctp-prizes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ctp-prizes li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 0; border-top: 1px solid var(--ctp-line); }
+.ctp-tick { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.ctp-tick input { width: 22px; height: 22px; }
+.ctp-message { display: grid; gap: 10px; padding-top: 6px; }
+.ctp-message input { min-height: 48px; padding: 0 12px; font: 16px inherit; border: 1.5px solid var(--ctp-line); border-radius: 10px; background: var(--ctp-bg); color: inherit; }
+.ctp-confirm { padding: 14px 16px; border: 2px solid var(--ctp-bad); border-radius: 12px; background: var(--ctp-bg); }
+.ctp-confirm p { margin: 0 0 10px; }
+.ctp-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.ctp-email { font-size: 14px; opacity: .85; }
+.ctp-page { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+.ctp-log { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+.ctp-log time { font-variant-numeric: tabular-nums; opacity: .8; margin-right: 6px; }
+@media print { .ctp-btn { display: none; } .ctp-page { max-width: none; } }

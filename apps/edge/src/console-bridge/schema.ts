@@ -9,6 +9,8 @@ export const BRIDGE_SCHEMA: string[] = [
   "CREATE TABLE IF NOT EXISTS console_jti (jti TEXT PRIMARY KEY, exp_s INTEGER NOT NULL)",
   // one-time handoff links from the console to the game's own screens
   "CREATE TABLE IF NOT EXISTS console_handoff (token_hash TEXT PRIMARY KEY, eid TEXT NOT NULL, kind TEXT NOT NULL, org TEXT NOT NULL, created_by TEXT NOT NULL, expires_ms INTEGER NOT NULL)",
+  // one row per Moneypenny order the console has told this game about: a game is marked paid once per order id (state marking -> paid)
+  "CREATE TABLE IF NOT EXISTS console_paid (order_ref TEXT PRIMARY KEY, eid TEXT NOT NULL, state TEXT NOT NULL, at_ms INTEGER NOT NULL)",
 ];
 
 const ready = new WeakSet<object>();
