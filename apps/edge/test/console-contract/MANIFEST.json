@@ -1,0 +1,9 @@
+{
+ "note": "Copied from the console repo (packages/bridge). Do not edit here: change it there, then run tools/vendor-bridge.mjs --game <this game>.",
+ "files": {
+  "kit.mjs": "ebe637b5657c7d15b24262e084d8a79b03bd82cd0590d942ab140a4ca7f43694",
+  "schema-check.mjs": "563dddf445a5ffe8ff0f6953ea9f93818411aeef00ca2ffea6091e56ebb987bd",
+  "schemas.json": "4fa305046259bc43c092fabcc57f4a89dfb66fe478c2fea65de68c486fdf0957",
+  "fixtures.json": "d332c85bb6487d86f022aef6da66d3266eeb68c86b775b4ec4c888d7ad58246a"
+ }
+}

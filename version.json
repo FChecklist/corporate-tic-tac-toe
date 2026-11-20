@@ -1,0 +1,14 @@
+{
+  "product": "corporate-tic-tac-toe",
+  "version": "1.4.0",
+  "commit": "02cdab1",
+  "builtAt": "2026-11-20T00:00:00Z",
+  "changes": [
+    {
+      "id": "1.4.0-console-pay-step",
+      "what": "Console Pay step: payInfo, repeatable markPaid (only unlock of the start), PAY_VIA_CONSOLE redirect (off), payment-window CSP on the organizer page, descriptor payGame/consoleOrigin; bridge and game pack re-vendored",
+      "where": "organizer page /zc (headers only); apps/edge/src/console-adapter.ts, apps/edge/src/pay-redirect.ts, apps/edge/src/worker.ts, pages/build.mjs, pages/functions/_middleware.ts, apps/web/public/zc-flow-game.js, apps/edge/src/console-bridge/, apps/web/public/pack/",
+      "pr": "9"
+    }
+  ]
+}

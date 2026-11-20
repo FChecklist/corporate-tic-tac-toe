@@ -1,0 +1,929 @@
+[
+ {
+  "name": "capabilities are public and say who the game is",
+  "route": "GET /api/console/capabilities",
+  "expect": {
+   "status": 200,
+   "schema": "Capabilities",
+   "checks": [
+    {
+     "path": "bridge",
+     "eq": 1
+    },
+    {
+     "path": "kids",
+     "lengthGte": 1
+    },
+    {
+     "path": "sizes",
+     "lengthGte": 8
+    }
+   ]
+  }
+ },
+ {
+  "name": "session: a known person gets an organizer key that lives 2 hours and is labelled console",
+  "route": "POST /api/console/session",
+  "requestSchema": "SessionRequest",
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "SessionResponse",
+   "checks": [
+    {
+     "path": "created",
+     "eq": false
+    },
+    {
+     "path": "organizer.label",
+     "eq": "console"
+    }
+   ]
+  },
+  "fakeOnly": true
+ },
+ {
+  "name": "session: Host keys come back bound to one game",
+  "route": "POST /api/console/session",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "SessionResponse",
+   "checks": [
+    {
+     "path": "scoped.0.eid",
+     "eq": "BOBS001"
+    },
+    {
+     "path": "scoped.0.role",
+     "eq": "host"
+    },
+    {
+     "path": "scoped.length",
+     "eq": 1
+    }
+   ]
+  }
+ },
+ {
+  "name": "session: an unknown person without 'create' gets nothing and nothing is made",
+  "route": "POST /api/console/session",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "nobody"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "SessionResponse",
+   "checks": [
+    {
+     "path": "created",
+     "eq": false
+    },
+    {
+     "path": "organizer",
+     "eq": null
+    },
+    {
+     "path": "scoped.length",
+     "eq": 0
+    }
+   ]
+  }
+ },
+ {
+  "name": "session: an account is made only when the assertion carries the proven e-mail AND the request asks for it",
+  "route": "POST /api/console/session",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "dave",
+     "withEm": true
+    }
+   },
+   "create": true
+  },
+  "expect": {
+   "status": 200,
+   "schema": "SessionResponse",
+   "checks": [
+    {
+     "path": "created",
+     "eq": true
+    },
+    {
+     "path": "organizer.label",
+     "eq": "console"
+    }
+   ]
+  }
+ },
+ {
+  "name": "session: 'create' without the e-mail claim makes no account",
+  "route": "POST /api/console/session",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "dave"
+    }
+   },
+   "create": true
+  },
+  "expect": {
+   "status": 200,
+   "schema": "SessionResponse",
+   "checks": [
+    {
+     "path": "created",
+     "eq": false
+    },
+    {
+     "path": "organizer",
+     "eq": null
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: assertion made for another game",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice",
+     "mutate": {
+      "aud": "https://other.corporatetambola.com"
+     }
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "wrong_audience"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: assertion older than its 60 seconds plus 30 seconds of clock difference",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice",
+     "mutate": {
+      "iatOffsetS": -200,
+      "expOffsetS": -200
+     }
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "expired"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: assertion signed by a key the game does not know",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice",
+     "mutate": {
+      "forge": true
+     }
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "bad_assertion"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: unknown key id",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice",
+     "mutate": {
+      "kid": "k9"
+     }
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "unknown_kid"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: assertion for the list used to open a session",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "games",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "wrong_act"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: the same assertion used twice",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "replay": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "replayed"
+    }
+   ]
+  }
+ },
+ {
+  "name": "refused: an assertion whose payload lost its audience is not accepted",
+  "route": "POST /api/console/session",
+  "negative": true,
+  "payloadMustBeValid": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "session",
+     "person": "alice",
+     "mutate": {
+      "drop": [
+       "aud"
+      ]
+     }
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "wrong_audience"
+    }
+   ]
+  }
+ },
+ {
+  "name": "games: the list has the standard fields",
+  "route": "POST /api/console/games",
+  "requestSchema": "ListRequest",
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "games",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "GamesResponse"
+  }
+ },
+ {
+  "name": "games: Organizer, Host and (not yet accepted) Co-host rows, one status each",
+  "route": "POST /api/console/games",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "games",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "GamesResponse",
+   "checks": [
+    {
+     "path": "games.length",
+     "eq": 9
+    },
+    {
+     "path": "games.0.role",
+     "eq": "organizer"
+    }
+   ]
+  }
+ },
+ {
+  "name": "games: a person with no games gets an empty list, not an error",
+  "route": "POST /api/console/games",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "games",
+     "person": "nobody"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "GamesResponse",
+   "checks": [
+    {
+     "path": "games.length",
+     "eq": 0
+    },
+    {
+     "path": "next",
+     "eq": null
+    }
+   ]
+  }
+ },
+ {
+  "name": "games: an assertion for billing cannot list games",
+  "route": "POST /api/console/games",
+  "negative": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "billing",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "wrong_act"
+    }
+   ]
+  }
+ },
+ {
+  "name": "billing: rows, one credit balance, rupees as whole paise",
+  "route": "POST /api/console/billing",
+  "requestSchema": "BillingRequest",
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "billing",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "BillingResponse"
+  }
+ },
+ {
+  "name": "billing: three rows newest first and the credit with its expiry",
+  "route": "POST /api/console/billing",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "billing",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "BillingResponse",
+   "checks": [
+    {
+     "path": "rows.length",
+     "eq": 3
+    },
+    {
+     "path": "credit.currency",
+     "eq": "INR"
+    },
+    {
+     "path": "rows.0.status",
+     "eq": "waiting"
+    }
+   ]
+  }
+ },
+ {
+  "name": "invited: a card shows the game name and time and a personal link, nothing else",
+  "route": "POST /api/console/invited",
+  "requestSchema": "InvitedRequest",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "invited",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "InvitedResponse",
+   "checks": [
+    {
+     "path": "cards.length",
+     "eq": 1
+    },
+    {
+     "path": "cards.0.eid",
+     "eq": "BOBS001"
+    }
+   ]
+  }
+ },
+ {
+  "name": "invited: someone nobody invited sees no cards",
+  "route": "POST /api/console/invited",
+  "fakeOnly": true,
+  "body": {
+   "assertion": {
+    "$sign": {
+     "act": "invited",
+     "person": "carol"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "InvitedResponse",
+   "checks": [
+    {
+     "path": "cards.length",
+     "eq": 0
+    }
+   ]
+  }
+ },
+ {
+  "name": "role list: the Organizer sees who helps with a game",
+  "route": "POST /api/console/role",
+  "requestSchema": "RoleListRequest",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {
+   "op": "list",
+   "eid": "READY01"
+  },
+  "expect": {
+   "status": 200,
+   "schema": "RoleListResponse",
+   "checks": [
+    {
+     "path": "roles.length",
+     "eq": 0
+    }
+   ]
+  }
+ },
+ {
+  "name": "role invite: refused without a fresh confirmation (step-up)",
+  "route": "POST /api/console/role",
+  "key": "alice/organizer",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "op": "invite",
+   "eid": "READY01",
+   "role": "cohost",
+   "email": "helper@acme.example"
+  },
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "step_up_required"
+    }
+   ]
+  }
+ },
+ {
+  "name": "role invite: a confirmation for a different action does not count",
+  "route": "POST /api/console/role",
+  "key": "alice/organizer",
+  "negative": true,
+  "fakeOnly": true,
+  "step": {
+   "act": "stepup",
+   "sa": "pay",
+   "eid": "READY01",
+   "person": "alice"
+  },
+  "body": {
+   "op": "invite",
+   "eid": "READY01",
+   "role": "cohost",
+   "email": "helper@acme.example"
+  },
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "step_up_required"
+    }
+   ]
+  }
+ },
+ {
+  "name": "role invite: with the confirmation one invitation is made",
+  "route": "POST /api/console/role",
+  "requestSchema": "RoleInviteRequest",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "step": {
+   "act": "stepup",
+   "sa": "role-add",
+   "eid": "READY01",
+   "person": "alice"
+  },
+  "body": {
+   "op": "invite",
+   "eid": "READY01",
+   "role": "cohost",
+   "email": "helper@acme.example"
+  },
+  "expect": {
+   "status": 200,
+   "schema": "RoleInviteResponse"
+  }
+ },
+ {
+  "name": "role list: a Host of a game cannot manage its roles",
+  "route": "POST /api/console/role",
+  "key": "alice/host:BOBS001",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "op": "list",
+   "eid": "BOBS001"
+  },
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "forbidden"
+    }
+   ]
+  }
+ },
+ {
+  "name": "role accept: an invitation sent to someone else cannot be accepted",
+  "route": "POST /api/console/role",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "op": "accept",
+   "eid": "CARO001",
+   "roleId": "bbbbbbbbbb",
+   "assertion": {
+    "$sign": {
+     "act": "role",
+     "eid": "CARO001",
+     "person": "bob"
+    }
+   }
+  },
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "not_yours"
+    }
+   ]
+  }
+ },
+ {
+  "name": "role accept: the invited person accepts with one tap and gets a key for that game only",
+  "route": "POST /api/console/role",
+  "requestSchema": "RoleAnswerRequest",
+  "fakeOnly": true,
+  "body": {
+   "op": "accept",
+   "eid": "CARO001",
+   "roleId": "bbbbbbbbbb",
+   "assertion": {
+    "$sign": {
+     "act": "role",
+     "eid": "CARO001",
+     "person": "alice"
+    }
+   }
+  },
+  "expect": {
+   "status": 200,
+   "schema": "RoleAcceptResponse",
+   "checks": [
+    {
+     "path": "scoped.eid",
+     "eq": "CARO001"
+    },
+    {
+     "path": "scoped.role",
+     "eq": "cohost"
+    }
+   ]
+  }
+ },
+ {
+  "name": "handoff: the Organizer gets a one-time link to the game's own screen",
+  "route": "POST /api/console/handoff",
+  "requestSchema": "HandoffRequest",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {
+   "eid": "PLAY001",
+   "target": "organizer"
+  },
+  "expect": {
+   "status": 200,
+   "schema": "HandoffResponse"
+  }
+ },
+ {
+  "name": "handoff: a Host key bound to one game cannot open another game",
+  "route": "POST /api/console/handoff",
+  "key": "alice/host:BOBS001",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "eid": "PLAY001",
+   "target": "host"
+  },
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "forbidden"
+    }
+   ]
+  }
+ },
+ {
+  "name": "handoff redeem: an unknown token is refused",
+  "route": "POST /api/console/handoff/redeem",
+  "requestSchema": "HandoffRedeemRequest",
+  "negative": true,
+  "body": {
+   "t": "0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "expect": {
+   "status": 401,
+   "schema": "Error"
+  }
+ },
+ {
+  "name": "live: counts only, no names",
+  "route": "GET /api/console/live",
+  "expect": {
+   "status": 200,
+   "schema": "LiveResponse"
+  }
+ },
+ {
+  "name": "preview: the Organizer gets a short-lived address of the player's screen view",
+  "route": "POST /api/console/preview",
+  "requestSchema": "PreviewRequest",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {
+   "eid": "READY01"
+  },
+  "expect": {
+   "status": 200,
+   "schema": "PreviewResponse"
+  }
+ },
+ {
+  "name": "upgrade quote: bigger size = price of the new size minus what was paid",
+  "route": "POST /api/z/READY01/upgrade-quote",
+  "requestSchema": "UpgradeQuoteRequest",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {
+   "toPack": 250
+  },
+  "expect": {
+   "status": 200,
+   "schema": "UpgradeQuoteResponse",
+   "checks": [
+    {
+     "path": "fromPack",
+     "eq": 100
+    },
+    {
+     "path": "priceMinor",
+     "eq": 349900
+    },
+    {
+     "path": "paidMinor",
+     "eq": 239900
+    }
+   ]
+  },
+  "gameRoute": true
+ },
+ {
+  "name": "upgrade quote: a smaller size is refused",
+  "route": "POST /api/z/READY01/upgrade-quote",
+  "key": "alice/organizer",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "toPack": 50
+  },
+  "expect": {
+   "status": 400,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "invalid"
+    }
+   ]
+  },
+  "gameRoute": true
+ },
+ {
+  "name": "upgrade quote: a game that is playing cannot be made bigger",
+  "route": "POST /api/z/PLAY001/upgrade-quote",
+  "key": "alice/organizer",
+  "negative": true,
+  "fakeOnly": true,
+  "body": {
+   "toPack": 500
+  },
+  "expect": {
+   "status": 409,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "too_late"
+    }
+   ]
+  },
+  "gameRoute": true
+ },
+ {
+  "name": "log: rows come in order with a cursor",
+  "route": "GET /api/z/PLAY001/log?since=0",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "expect": {
+   "status": 200,
+   "schema": "LogResponse",
+   "checks": [
+    {
+     "path": "rows.length",
+     "eq": 4
+    },
+    {
+     "path": "next",
+     "eq": 4
+    }
+   ]
+  },
+  "gameRoute": true
+ },
+ {
+  "name": "log: since returns only newer rows",
+  "route": "GET /api/z/PLAY001/log?since=3",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "expect": {
+   "status": 200,
+   "schema": "LogResponse",
+   "checks": [
+    {
+     "path": "rows.length",
+     "eq": 1
+    }
+   ]
+  },
+  "gameRoute": true
+ },
+ {
+  "name": "signout: a console key ends itself",
+  "route": "POST /api/console/signout",
+  "key": "alice/organizer",
+  "fakeOnly": true,
+  "body": {},
+  "expect": {
+   "status": 200,
+   "schema": "RoleDoneResponse"
+  }
+ },
+ {
+  "name": "signout: no key, nothing to end",
+  "route": "POST /api/console/signout",
+  "negative": true,
+  "body": {},
+  "expect": {
+   "status": 403,
+   "schema": "Error",
+   "checks": [
+    {
+     "path": "error",
+     "eq": "forbidden"
+    }
+   ]
+  }
+ }
+]
