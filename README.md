@@ -36,3 +36,6 @@ Contact: rajatsiroffice@gmail.com, +91 96503 97480.
 
 
 See [KNOWLEDGE-MAP.md](KNOWLEDGE-MAP.md) for what this repository is for and what the other repositories are for (updated 14 Nov 2026).
+
+
+suiteRulesVersion: 1.1 (20 Nov 2026). Owner rules copy: docs/SUITE_RULES.md. Source: marketing-ledger plans/SUITE-RULES-VERSION-2026-11-20.md.
