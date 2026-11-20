@@ -8,7 +8,7 @@
       "id": "1.4.0-console-pay-step",
       "what": "Console Pay step: payInfo, repeatable markPaid (only unlock of the start), PAY_VIA_CONSOLE redirect (off), payment-window CSP on the organizer page, descriptor payGame/consoleOrigin; bridge and game pack re-vendored",
       "where": "organizer page /zc (headers only); apps/edge/src/console-adapter.ts, apps/edge/src/pay-redirect.ts, apps/edge/src/worker.ts, pages/build.mjs, pages/functions/_middleware.ts, apps/web/public/zc-flow-game.js, apps/edge/src/console-bridge/, apps/web/public/pack/",
-      "pr": "PR_NUMBER"
+      "pr": "9"
     }
   ]
 }

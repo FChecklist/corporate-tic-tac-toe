@@ -12,4 +12,4 @@ Newest first. Each entry: what changed, where, PR, audits, rollback id.
 ### Changed
 - Bridge, contract kit and game pack re-vendored byte for byte from the console repo (`apps/edge/src/console-bridge/`, `apps/edge/test/console-contract/`, `apps/web/public/pack/`). This branch also carries the earlier, never-merged console bridge work (5 commits from the local branch `console/bridge`: the adapter, migration 0030, hand-off page).
 - The console's game list shows a game paid through the console as paid (`cpaid/` record).
-- PR: PR_LINK. Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
