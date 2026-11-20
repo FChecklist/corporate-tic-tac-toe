@@ -4,7 +4,8 @@ import type { Env } from "./worker";
 import type { Adapter, KeyAuth, RoleRow } from "./console-bridge/bridge";
 import type { D1 as BridgeD1 } from "./console-bridge/d1";
 import { PACKS } from "../../../packages/shared/src/pricing";
-import { MAX_DRAFTS, sendMail, type PayEnv, FREE_GAME_CAP } from "./pay";
+import { MAX_DRAFTS, sendMail, type PayEnv, FREE_GAME_CAP, LATE_PAY_LEAD_ROUNDS } from "./pay";
+import { GRACE_ROUNDS } from "../../../packages/beacon/src/config";
 import { openText, sealText } from "./pii";
 import { testFlag } from "./mode";
 import { hostKeyStatus } from "./hostsetup";
@@ -26,20 +27,30 @@ export const CONSOLE_KEY_LABEL = "console";
 const GAME_ROWS = "SELECT e.id, e.org, e.start_round, e.created_ms, e.cap, e.pack, e.config, e.cancelled_ms, e.unplayed_ms, " +
   "(SELECT end_ms FROM life WHERE eid=e.id) AS end_ms, " +
   "(SELECT 1 FROM kv WHERE k='pub/'||e.id) AS pub, " +
+  "(SELECT 1 FROM kv WHERE k='cpaid/'||e.id) AS cpaid, " + // paid through the console's Pay step (markPaid below): the game has no payment row of its own for it
   "(SELECT 1 FROM payment p WHERE p.status='paid' AND (p.eid=e.id OR p.id IN (SELECT payment_id FROM entitlement WHERE eid=e.id)) LIMIT 1) AS paid, " +
   "(SELECT p.amount FROM payment p WHERE p.status='paid' AND (p.eid=e.id OR p.id IN (SELECT payment_id FROM entitlement WHERE eid=e.id)) ORDER BY p.paid_ms DESC LIMIT 1) AS amount, " +
   "(SELECT p.currency FROM payment p WHERE p.status='paid' AND (p.eid=e.id OR p.id IN (SELECT payment_id FROM entitlement WHERE eid=e.id)) ORDER BY p.paid_ms DESC LIMIT 1) AS currency " +
   "FROM engagement e";
 
 /** the seven words the console uses, derived from Bingo's own state (same rule as the owner desk's organizerLookup, in the console's vocabulary) */
-export function statusOf(r: { cancelled_ms: number | null; end_ms: number | null; unplayed_ms: number | null; paid: unknown; pub: unknown; cap: number; start_round: number }, now: number) {
+export function statusOf(r: { cancelled_ms: number | null; end_ms: number | null; unplayed_ms: number | null; paid: unknown; cpaid?: unknown; pub: unknown; cap: number; start_round: number }, now: number) {
   const startMs = startMsOf(Number(r.start_round));
   const freePublished = !!r.pub && Number(r.cap) <= FREE_DEMO; // a game for up to 10 people is published at Rs 0
-  const paidish = !!r.paid || freePublished;
+  const paidish = !!r.paid || !!r.cpaid || freePublished;
   const status = r.cancelled_ms ? "cancelled" : r.end_ms && Number(r.end_ms) <= now ? "finished" : r.unplayed_ms ? "not_started" : paidish ? (startMs > now ? "ready" : "playing") : r.pub ? "waiting_payment" : "draft";
   const nextAction = status === "draft" ? "publish" : status === "waiting_payment" ? "pay" : status === "ready" ? "share" : status === "playing" ? "run" : "none";
-  const payment: any = status === "cancelled" ? { state: "none" } : r.paid ? { state: "paid" } : freePublished ? { state: "free" } : r.pub ? { state: "waiting" } : { state: "none" };
+  const payment: any = status === "cancelled" ? { state: "none" } : r.paid || r.cpaid ? { state: "paid" } : freePublished ? { state: "free" } : r.pub ? { state: "waiting" } : { state: "none" };
   return { status, nextAction, payment, startMs };
+}
+
+/** a refusal that changed nothing: the bridge answers it as "definite" */
+const refuse = (m: string) => Object.assign(new Error(m), { definite: true });
+/** the game and whether `sub` (an e-mail hash) is its ORGANIZER: an organizer account of the game's own org. A Host or Co-host (game_role) never counts, and neither does the platform key. */
+async function payGameOf(env: Env, eid: string, sub: string) {
+  const g = await env.DB.prepare("SELECT id, org, cap, pack, start_round, cancelled_ms, unplayed_ms, (SELECT end_ms FROM life WHERE eid=engagement.id) AS end_ms FROM engagement WHERE id=?").bind(eid).first<any>();
+  const who = g ? await env.DB.prepare("SELECT org FROM organizer_email WHERE email_hash=?").bind(sub).first<{ org: string }>() : null;
+  return { g, owner: !!g && !!who && who.org === g.org };
 }
 
 export function consoleAdapter(clock: number = Date.now()): Adapter<Env> {
@@ -79,6 +90,37 @@ export function consoleAdapter(clock: number = Date.now()): Adapter<Env> {
     engagement: async (env, eid) => {
       const r = await env.DB.prepare("SELECT org, config, cancelled_ms, (SELECT end_ms FROM life WHERE eid=engagement.id) AS end_ms FROM engagement WHERE id=?").bind(eid).first<any>();
       return r ? { org: r.org, name: nameOf(r.config, eid), ended: !!r.cancelled_ms || (!!r.end_ms && Number(r.end_ms) <= clock) } : null;
+    },
+
+    // The console's Pay step (docs/GAME_PAY_CONTRACT.md in the console repo). In this game "paid" means engagement.pack <> 0: while pack = 0 a published game is held when its start time comes (worker.ts locked), so
+    // setting pack is the ONLY thing that unlocks the start, and only markPaid does it for a console payment.
+    payInfo: async (env, o) => { // read-only: the organizer's own game only (a Host, a Co-host or a stranger is not the owner)
+      const { g, owner } = await payGameOf(env, o.eid, o.sub);
+      return { owner, item: owner && g ? String(g.cap) : null, paid: owner && !!g && Number(g.pack) !== 0 };
+    },
+    markPaid: async (env, o) => {
+      const { g, owner } = await payGameOf(env, o.eid, o.sub);
+      if (!g || !owner) throw refuse("This game does not belong to the person who paid.");
+      if (String(g.cap) !== o.item) throw refuse("The size paid for is not the size of this game.");
+      if (Number(g.pack) !== 0) return; // already paid (by this order or any other): success again, nothing changes, nothing is extended or reset
+      if (g.cancelled_ms || g.unplayed_ms || (g.end_ms && Number(g.end_ms) <= o.nowMs)) throw refuse("This game is closed, so it cannot be paid.");
+      const pack = Number(g.cap) > FREE_DEMO ? PACKS.find((p) => p[0] >= Number(g.cap))?.[0] : undefined; // the size bought: the smallest listed one that holds the game (the same rule as the old checkout)
+      if (!pack) throw refuse("There is no size to pay for this game.");
+      // a game that was held because it was unpaid at its start time begins 2 minutes after the payment (the same rule as fulfil() in pay.ts)
+      const restart = startMsOf(Number(g.start_round)) <= o.nowMs ? Math.floor((o.nowMs / 1000 - GENESIS_S) / 3) + 2 + LATE_PAY_LEAD_ROUNDS - GRACE_ROUNDS : null;
+      const kvIf = (k: string, v: string) => env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) SELECT ?,? WHERE EXISTS (SELECT 1 FROM engagement WHERE id=? AND pack<>0)").bind(k, v, o.eid);
+      // ONE batch (one transaction on D1): the unlock and the records about it land together or not at all, so a call that dies halfway leaves nothing half-done and a rerun starts clean
+      const res = await env.DB.batch([
+        env.DB.prepare("UPDATE engagement SET pack=?, cap=MIN(cap,?), start_round=COALESCE(?, start_round) WHERE id=? AND org=? AND pack=0 AND start_round=? AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(pack, pack, restart, o.eid, g.org, g.start_round),
+        kvIf(`pub/${o.eid}`, String(o.nowMs)), // paying also publishes a draft (as in fulfil())
+        kvIf(`cpaid/${o.eid}`, JSON.stringify({ orderRef: o.orderRef, pack, item: o.item, ms: o.nowMs })), // the order reference stays with the game record
+        kvIf(`paidby/${o.eid}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" })),
+      ]);
+      if (((res[0] as { meta?: { changes?: number } })?.meta?.changes ?? 0) === 1) return;
+      // nothing changed: somebody else paid it in the meantime (fine), or the start time moved under us (try again; the console repeats the same order)
+      const now2 = await payGameOf(env, o.eid, o.sub);
+      if (now2.g && Number(now2.g.pack) !== 0) return;
+      throw new Error("The game changed while it was being saved. It will be tried again.");
     },
 
     listGames: async (env, a) => {

@@ -22,6 +22,9 @@ const GAMECSP = CSP.replace(/ frame-src[^;]*;/, " frame-src https://www.youtube-
 const PLAINCSP = CSP.replace(/ frame-src[^;]*;/, "");
 // "Continue with Google" (Google Identity Services): its script, frame, connection and style are allowed ONLY on the pages that show the button (signin, index, zc; the Host setup lives in zc)
 const GOOGLECSP = PLAINCSP.replace("script-src 'self' https://static.cloudflareinsights.com;", "script-src 'self' https://static.cloudflareinsights.com https://accounts.google.com/gsi/client;").replace("style-src 'self' 'unsafe-inline';", "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style;").replace("connect-src 'self'", "connect-src 'self' https://accounts.google.com/gsi/").replace("frame-ancestors", "frame-src https://accounts.google.com/gsi/; frame-ancestors");
+// The console's shared Pay step is drawn on the organizer page (/zc): its secure payment window is a frame from the payment side (the value of payframeOrigins in the console's config/games.json) and the page talks to the console. Added to that one page only; no wildcard, no other address.
+const PAYFRAME_ORIGIN = "https://itservices-rajat-agarwal.pages.dev", CONSOLE_ORIGIN = "https://console.corporatetambola.com";
+const withConsolePay = (csp) => csp.replace("connect-src 'self'", `connect-src 'self' ${CONSOLE_ORIGIN}`).replace(/frame-src ([^;]*);/, (m, v) => `frame-src ${v} ${PAYFRAME_ORIGIN};`);
 // Cloudflare Pages serves "/z.html" as "/z" (a 308), so every page needs a rule for BOTH spellings or the header silently never applies (found in the 2026-10-05 audit, G-07).
 const hdr = (csp, extra = "") => `\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()${extra || "\n  X-Robots-Tag: noai, noimageai"}\n`;
 const NOINDEX = "\n  X-Robots-Tag: noindex, noai, noimageai";
@@ -30,7 +33,7 @@ const PAGES = [ // [clean path, csp, noindex]
   ["/partner", PLAINCSP, true], ["/helpdesk", PLAINCSP, false], ["/helpdesk-accept", PLAINCSP, true], ["/helpdesk-approve", PLAINCSP, true], ["/legal", PLAINCSP, false], ["/terms", PLAINCSP, false], ["/legal-position", PLAINCSP, false], ["/about", PLAINCSP, false], ["/contact", PLAINCSP, false], ["/pricing", PLAINCSP, false], ["/refund-policy", PLAINCSP, false], ["/dpa", PLAINCSP, false], ["/subprocessors", PLAINCSP, false], ["/privacy", PLAINCSP, false], ["/partner-terms", PLAINCSP, false], ["/organizer-guide", PLAINCSP, false], ["/brochure", PLAINCSP, false], ["/404", PLAINCSP, true], ["/index", GOOGLECSP, false],
 ];
 let rules = "";
-for (const [path, csp, noindex] of PAGES) { const h = hdr(csp, noindex ? NOINDEX : ""); rules += `${path}.html${h}${path}${h}`; }
+for (const [path, csp0, noindex] of PAGES) { const csp = path === "/zc" ? withConsolePay(csp0) : csp0; const h = hdr(csp, noindex ? NOINDEX : ""); rules += `${path}.html${h}${path}${h}`; }
 rules += "/" + hdr(GOOGLECSP);
 rules += "/*\n  Strict-Transport-Security: max-age=31536000\n"; // HTTPS only: a browser that has seen the site over HTTPS never tries plain HTTP again
 rules += "/version.json\n  Cache-Control: no-store\n";

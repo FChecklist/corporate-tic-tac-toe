@@ -34,6 +34,7 @@ import { acceptOver, acceptWon, endBoundMs, eraseEverything, erasePersonal, eras
 import { handleConsole } from "./console-bridge/bridge";
 import { BRIDGE_SCHEMA } from "./console-bridge/schema";
 import { consoleAdapter, CONSOLE_KEY_LABEL, keyGameEnded, scopedKeyMayCall } from "./console-adapter";
+import { payRedirect } from "./pay-redirect";
 import { PAY_SCHEMA, payRoute, retryOutbox, sendMail, freeLaunch, payMode, FREE_CAP, FREE_GAME_CAP, MAX_DRAFTS, type PayEnv } from "./pay";
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
@@ -81,6 +82,8 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   /** Master console (console-bridge/): the console's public signing keys as "k1:<key>,k2:<key>" (a plain setting, not a secret). Empty means the bridge is dark and every /api/console/ address answers 404. CONSOLE_ORIGIN: where invited helpers are sent to accept. */
   CONSOLE_PUBKEYS?: string; CONSOLE_ORIGIN?: string;
+  /** "1" = the old pay routes send people to the console (the console's one Pay step). Off or missing: the old "Pay now" works exactly as before. Only the owner turns it on (pay-redirect.ts). */
+  PAY_VIA_CONSOLE?: string;
 }
 const controlKey = (id: string) => `c/${id}.json`;
 const controlUrl = (env: Env, id: string) => (env.CONTROL_BASE && env.CONTROL_R2 ? `${env.CONTROL_BASE.replace(/\/$/, "")}/${controlKey(id)}` : null);
@@ -766,6 +769,7 @@ export const AI_MANIFEST = {
 
 /** Every call made with an organizer's AI key is written to an audit trail (when, which key, what was asked, the answer, and where it came from). */
 async function route(req: Request, env: Env, now: number): Promise<Response> {
+  { const pr = payRedirect(req, env); if (pr) return pr; } // PAY_VIA_CONSOLE = "1": the old pay routes send people to the console (off: nothing changes)
   { const cr = await handleConsole(consoleAdapter(now), req, env); if (cr) return cr; } // the master console bridge: dark (null) unless CONSOLE_PUBKEYS is set
   const a = await authOf(req, env, now);
   if (a.console && a.eid && !scopedKeyMayCall(a.eid, req.method, new URL(req.url).pathname)) return json({ error: "This sign-in is for one game only. Open the console to see your other games." }, 403);
