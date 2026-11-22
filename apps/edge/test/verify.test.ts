@@ -1,7 +1,7 @@
 // What a person must give to get in (mobile / employee ID / both) and "employees only": the organizer chooses it per game (people.ts verifyOf, worker.ts join).
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { type Env } from "../src/worker";
-import { handle } from "./with-terms";
+import { handle, consentFor } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { normEmp, empHashOf } from "../src/people";
 import { makeD1 } from "./d1-sqlite";
@@ -68,6 +68,18 @@ describe("employees only, ID alone", () => {
     expect(r.added).toBe(1); expect(r.duplicates).toBe(2); // one person, however it was typed
     for (const typed of ["A 1101", "A/1101", "a-1101", "A1101"]) expect((await joinAs("PPL-1", 5, { phone: undefined, empId: typed })).status).toBe(200);
     expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toEqual([await empHashOf(env, "A1101")]);
+  });
+  test("M1: a list made before 1.4.1 (IDs hashed with their dashes) still works: the person joins typing the ID the way the old list holds it, is not added twice, and 'Is this you?' finds them", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true });
+    await j(await add(t.master, [{ name: "Asha", empId: "E101" }]));
+    raw.run("UPDATE person SET ph=? WHERE ph=?", [await empHashOf(env, "E-101"), await empHashOf(env, "E101")]); // what an old list holds for "E-101"
+    const before = rowsOf("SELECT ph FROM person").map((x) => x.ph);
+    for (const typed of ["E-101", "e-101", " E-101 "]) expect([typed, (await joinAs("PPL-1", 5, { phone: undefined, empId: typed })).status]).toEqual([typed, 200]); // before the fix the person was put on the waiting list
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(0);
+    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toEqual(before); // still the one person, under the old hash
+    const again = await j(await add(t.master, [{ name: "Asha again", empId: "E-101" }, { name: "Asha third", empId: "e-101" }]));
+    expect(again.added).toBe(0); expect(again.duplicates).toBe(2); // adding the old list again does not make a second Asha
+    const who = await j(await call("POST", "/api/z/PPL-1/who", { empId: "e-101", consent: consentFor("K4") })); expect(who.known).toBe(true); // "Is this you?" finds the old-list person too
   });
   test("a listed employee joins with the ID only; a wrong ID waits; a missing ID is asked for; a mobile number alone is no way in", async () => {
     const t = await setup({ verify: "id", employeesOnly: true });

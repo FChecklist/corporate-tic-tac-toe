@@ -53,6 +53,12 @@ async function payGameOf(env: Env, eid: string, sub: string) {
   return { g, owner: !!g && !!who && who.org === g.org };
 }
 
+/** was this game paid through the console by exactly this order (the record markPaid keeps with the game)? */
+async function paidByOrder(env: Env, eid: string, orderRef: string) {
+  const r = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`cpaid/${eid}`).first<{ v: string }>();
+  try { return !!r && JSON.parse(r.v)?.orderRef === orderRef; } catch { return false; }
+}
+
 export function consoleAdapter(clock: number = Date.now()): Adapter<Env> {
   const db = (env: Env) => env.DB as unknown as BridgeD1;
   const ad: Adapter<Env> = {
@@ -102,24 +108,31 @@ export function consoleAdapter(clock: number = Date.now()): Adapter<Env> {
       const { g, owner } = await payGameOf(env, o.eid, o.sub);
       if (!g || !owner) throw refuse("This game does not belong to the person who paid.");
       if (String(g.cap) !== o.item) throw refuse("The size paid for is not the size of this game.");
-      if (Number(g.pack) !== 0) return; // already paid (by this order or any other): success again, nothing changes, nothing is extended or reset
+      if (Number(g.pack) !== 0) { // already paid: the SAME order again is a repeat (success, nothing changes, nothing is extended or reset); any other order is a definite refusal, so the console never records a second payment as fine
+        if (await paidByOrder(env, o.eid, o.orderRef)) return;
+        throw refuse("This game is already paid.");
+      }
       if (g.cancelled_ms || g.unplayed_ms || (g.end_ms && Number(g.end_ms) <= o.nowMs)) throw refuse("This game is closed, so it cannot be paid.");
       const pack = Number(g.cap) > FREE_DEMO ? PACKS.find((p) => p[0] >= Number(g.cap))?.[0] : undefined; // the size bought: the smallest listed one that holds the game (the same rule as the old checkout)
       if (!pack) throw refuse("There is no size to pay for this game.");
       // a game that was held because it was unpaid at its start time begins 2 minutes after the payment (the same rule as fulfil() in pay.ts)
       const restart = startMsOf(Number(g.start_round)) <= o.nowMs ? Math.floor((o.nowMs / 1000 - GENESIS_S) / 3) + 2 + LATE_PAY_LEAD_ROUNDS - GRACE_ROUNDS : null;
-      const kvIf = (k: string, v: string) => env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) SELECT ?,? WHERE EXISTS (SELECT 1 FROM engagement WHERE id=? AND pack<>0)").bind(k, v, o.eid);
+      // The records are written only when THIS statement list did the unlock: the first record needs the UPDATE to have changed a row (changes() = 1), the others need that first record to be this order's. So a game that another path (the
+      // old checkout, another order) unlocked a moment after the check above is left exactly as that path made it, with no console record on it.
+      const mine = JSON.stringify({ orderRef: o.orderRef, pack, item: o.item, ms: o.nowMs });
+      const kvIf = (k: string, v: string, cond: string, ...b: unknown[]) => env.DB.prepare(`INSERT OR IGNORE INTO kv(k,v) SELECT ?,? WHERE ${cond}`).bind(k, v, ...b);
+      const ours = "EXISTS (SELECT 1 FROM kv WHERE k=? AND v=?)";
       // ONE batch (one transaction on D1): the unlock and the records about it land together or not at all, so a call that dies halfway leaves nothing half-done and a rerun starts clean
       const res = await env.DB.batch([
         env.DB.prepare("UPDATE engagement SET pack=?, cap=MIN(cap,?), start_round=COALESCE(?, start_round) WHERE id=? AND org=? AND pack=0 AND start_round=? AND cancelled_ms IS NULL AND unplayed_ms IS NULL").bind(pack, pack, restart, o.eid, g.org, g.start_round),
-        kvIf(`pub/${o.eid}`, String(o.nowMs)), // paying also publishes a draft (as in fulfil())
-        kvIf(`cpaid/${o.eid}`, JSON.stringify({ orderRef: o.orderRef, pack, item: o.item, ms: o.nowMs })), // the order reference stays with the game record
-        kvIf(`paidby/${o.eid}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" })),
+        kvIf(`cpaid/${o.eid}`, mine, "changes() = 1"), // the order reference stays with the game record
+        kvIf(`pub/${o.eid}`, String(o.nowMs), ours, `cpaid/${o.eid}`, mine), // paying also publishes a draft (as in fulfil())
+        kvIf(`paidby/${o.eid}`, JSON.stringify({ by: "organizer", ms: o.nowMs, via: "console" }), ours, `cpaid/${o.eid}`, mine),
       ]);
       if (((res[0] as { meta?: { changes?: number } })?.meta?.changes ?? 0) === 1) return;
-      // nothing changed: somebody else paid it in the meantime (fine), or the start time moved under us (try again; the console repeats the same order)
+      // nothing changed: this same order got there first (fine), somebody else paid it in the meantime (a definite refusal, nothing was written), or the start time moved under us (try again; the console repeats the same order)
       const now2 = await payGameOf(env, o.eid, o.sub);
-      if (now2.g && Number(now2.g.pack) !== 0) return;
+      if (now2.g && Number(now2.g.pack) !== 0) { if (await paidByOrder(env, o.eid, o.orderRef)) return; throw refuse("This game is already paid."); }
       throw new Error("The game changed while it was being saved. It will be tried again.");
     },
 

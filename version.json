@@ -1,9 +1,15 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.4.1",
-  "commit": "d1c046b",
+  "version": "1.4.2",
+  "commit": "f1d18fa",
   "builtAt": "2026-11-22T00:00:00Z",
   "changes": [
+    {
+      "id": "1.4.2-audit-fixes",
+      "what": "Fixes from the two failed audits of PR 9: the one-game console key now stays in its own tab only and wins over any older saved sign-in; Sign out in that tab ends the key on the server; a payment for a game that is already paid by another order is refused; employee lists made before 1.4.1 still work; help for organizers speaks to you; help says an employee ID is matched, not proven",
+      "where": "apps/web/public/zc.js, signin.js, guide.js; apps/edge/src/console-adapter.ts, people.ts, worker.ts; tests console-handoff, console-pay-step, verify, owner-rules",
+      "pr": "9"
+    },
     {
       "id": "1.4.1-audit-fixes",
       "what": "Pre-audit fixes for the console Pay step: tests all green except two that fail on master too; migration 0031 for the console payment table; one way to read an employee ID (A-1101 = A 1101 = A/1101); organizer screens speak to you, rupee sign, one privacy line, one fairness sentence with a test; a broken address can no longer crash a one-game console key",

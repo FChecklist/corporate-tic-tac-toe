@@ -93,8 +93,32 @@ describe("markPaid", () => {
     const after1 = snapshot("PAY-ONE");
     await ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: ref, nowMs: T + 600_000 }); // same order, later
     expect(snapshot("PAY-ONE")).toBe(after1);
-    await ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: "GAME-tictactoe-OTHER", nowMs: roundMs(roundOf(T) + 5000) }); // another order, after the start time
+    expect((await definite(ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: "GAME-tictactoe-OTHER", nowMs: roundMs(roundOf(T) + 5000) })))?.definite).toBe(true); // another order, after the start time: refused for good (audit M4)
     expect(snapshot("PAY-ONE")).toBe(after1);
+  });
+  test("M4: a game paid another way (the old checkout) is not 'paid by this order': the console order is refused for good, and no console record is written on it", async () => {
+    raw.run("UPDATE engagement SET pack=100 WHERE id='PAY-ONE'");
+    const before = snapshot("PAY-ONE");
+    const e = await definite(ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: ref, nowMs: T }));
+    expect(e?.definite).toBe(true); expect(String(e?.message)).toMatch(/already paid/);
+    expect(snapshot("PAY-ONE")).toBe(before);
+    expect(raw.query("SELECT COUNT(*) c FROM kv WHERE k='cpaid/PAY-ONE'").get().c).toBe(0);
+  });
+  test("M4 (layer 1, on its own): the same order repeated stays a success after the game has since closed; a different order does not", async () => {
+    await ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: ref, nowMs: T });
+    raw.run("UPDATE engagement SET cancelled_ms=? WHERE id='PAY-ONE'", [T + 1]); // the repeat must be answered as a repeat, not as 'closed'
+    const after = snapshot("PAY-ONE");
+    await ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: ref, nowMs: T + 2 });
+    expect(snapshot("PAY-ONE")).toBe(after);
+    expect((await definite(ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: "GAME-tictactoe-OTHER", nowMs: T + 2 })))?.definite).toBe(true);
+  });
+  test("M4 (layer 2, on its own) and the race: another path unlocks the game between the check and the write: nothing is overwritten and no console record is left on it", async () => {
+    const realBatch = env.DB.batch.bind(env.DB);
+    (env.DB as any).batch = async (xs: any[]) => { raw.run("UPDATE engagement SET pack=250 WHERE id='PAY-ONE'"); return realBatch(xs); }; // the other path wins just before our batch
+    const e = await definite(ad().markPaid!(env, { eid: "PAY-ONE", sub: alice.hash, item: "100", orderRef: ref, nowMs: T }));
+    expect(e?.definite).toBe(true);
+    expect(row("PAY-ONE").pack).toBe(250); // not set to 100 by us
+    expect(raw.query("SELECT COUNT(*) c FROM kv WHERE k IN ('cpaid/PAY-ONE','paidby/PAY-ONE')").get().c).toBe(0); // the game does not look console-paid when it was not
   });
   test("a rerun after a call that did not finish is safe: the unlock and its records are one step, so nothing is ever half there", async () => {
     // a call that died before it wrote anything leaves the game exactly as it was; the rerun then does everything once

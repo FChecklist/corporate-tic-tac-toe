@@ -42,6 +42,29 @@ describe("owner rules v1.1: the organizer and host screens speak to you", () => 
   });
 });
 
+// M3 (audit of f1d18faf): the whole help file the organizer is shown speaks to "you", not only the new entries. The text a server error is MATCHED against (the m: lists) is not shown to anyone and is left as the server writes it.
+describe("owner rules v1.1: the help file (guide.js) speaks to you", () => {
+  const stripMatchers = (src: string) => src.split("\n").map((l) => l.replace(/\bm: \[[^\]]*\]/g, "m: []")).join("\n");
+  test("no first-person word in anything the help file shows (the matcher lists aside)", () => {
+    const src = stripMatchers(readFileSync(PUB("guide.js"), "utf8"));
+    const bad = [...src.matchAll(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g)].map((m) => m[0]).filter((t) => FIRST_PERSON.test(t)).map((t) => t.slice(0, 80));
+    expect(bad).toEqual([]);
+  });
+  test("the stripping works: a first-person word outside a matcher list is seen, one inside is not", () => {
+    expect(FIRST_PERSON.test(stripMatchers('{ m: ["We could not find"], t: "We could not find that" }'))).toBe(true);
+    expect(FIRST_PERSON.test(stripMatchers('{ m: ["We could not find"], t: "That could not be found" }'))).toBe(false);
+  });
+});
+
+// "ID matched, not proven" is an owner-accepted, documented decision (docs/KNOWLEDGE.md). The help must say so; it must not promise more.
+describe("owner rules v1.1: employee ID is matched, not proven", () => {
+  const js = readFileSync(PUB("zc.js"), "utf8");
+  test("the help under 'Employee ID' says the game checks the ID against the list and does not prove who typed it", () => {
+    expect(js).toMatch(/"ver:id": "[^"]*It does not prove who typed it[^"]*personal link is the strong proof/);
+    expect(js).toMatch(/"ver:both": "[^"]*does not prove who typed them[^"]*personal link is the strong proof/);
+  });
+});
+
 describe("owner rules v1.1: the rupee sign", () => {
   for (const f of SCREENS) test(`${f} writes money with the rupee sign, never Rs`, () => {
     const bad = readableText(f).filter((t) => /\bRs\.?\s?\d/.test(t) || /\bRs\.? ?0\b/.test(t)).map((t) => t.slice(0, 80));

@@ -35,6 +35,7 @@
       "say": "In an organizer's browser tab, until the tab is closed: the sign-in (and, for a person who is both Organizer and Host, the key of the other role), the e-mail and mobile number typed, and the page to open next.",
       "keys": [
         "cbz-org",
+        "cbz-game-key",
         "cbz-alt",
         "cbz-next",
         "cbz-login-email",

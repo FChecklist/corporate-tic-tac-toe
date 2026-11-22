@@ -14,7 +14,7 @@
       const r = await fetch("/api/console/handoff/redeem", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ t }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.key) throw new Error(j.message || j.error || "This link has run out.");
-      try { sessionStorage.setItem("cbz-org", j.key); } catch {} // this tab only: a 16-hour key for one game must never replace the lasting sign-in kept on the device
+      try { sessionStorage.setItem("cbz-game-key", j.key); } catch {} // this tab only, under its own name: keep.js copies "cbz-org" to the lasting store, so the one-game key never uses that name (zc.js reads it from here only)
       location.replace(go);
     } catch (e) { document.getElementById("hmsg").textContent = (e && e.name === "TypeError" ? "The service could not be reached. Please check your internet and try again." : "This link has run out. Please open the game again from your console.") + " Nothing was changed."; }
   };

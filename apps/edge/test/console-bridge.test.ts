@@ -251,7 +251,7 @@ describe("Tic Tac Toe console bridge: switched on", () => {
         const base = join(here, dir), manifest = JSON.parse(readFileSync(join(base, "MANIFEST.json"), "utf8")).files as Record<string, string>;
         const found = readdirSync(base).filter((f) => f !== "MANIFEST.json").sort();
         expect([dir, found]).toEqual([dir, Object.keys(manifest).sort()]);
-        for (const f of found) expect([dir, f, createHash("sha256").update(readFileSync(join(base, f), "utf8").replace(/\r\n/g, "\n")).digest("hex")]).toEqual([dir, f, manifest[f]]);
+        for (const f of found) expect([dir, f, createHash("sha256").update(readFileSync(join(base, f), "utf8").replace(/\r\n/g, "\n")).digest("hex")]).toEqual([dir, f, manifest[f]!]);
       }
     } finally { server.stop(true); }
   });

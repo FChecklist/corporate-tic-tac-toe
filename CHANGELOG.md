@@ -2,28 +2,45 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.4.2 - 2026-11-22
+Fixes after the two audits of PR 9 failed. Nothing is deployed and no payment switch is on.
+### Fixed
+- **A sign-in for one game now stays in its own browser tab.** When the console opens a game for you, that sign-in is kept in that tab only. Before, it could be copied onto the device for 16 hours, and a sign-in saved earlier could win over it, so the game opened as the wrong account. Now the one-game sign-in always wins in its tab, is never saved on the device, and any older saved sign-in is removed. It is not shared with other tabs.
+- **Sign out in that tab now ends the sign-in at once**, on the service as well as in the tab.
+- **A second payment for a game that is already paid is refused.** Before, a different order for a game that was already paid (for example by the old payment page) was accepted as fine. Now only a repeat of the same order is accepted. If another payment path unlocks the game a moment earlier, nothing is overwritten and no console payment record is left on it.
+- **Employee lists made before 1.4.1 still work.** A person who is on such a list and types the ID the way the list holds it (for example `E-101`) is found again, and adding the same list again does not create a second person. Known limit: a person on an old list who types the ID with the dash left out (`E101`) is not matched to the old entry. They wait for you to let them in, or you add the list again.
+- **Help for organizers speaks to you everywhere.** The whole help file now says "you" and "support" instead of "we" and "us". A test keeps it that way.
+- **Help says what an employee ID can and cannot do.** An employee ID is checked against your list. It does not prove who typed it. A personal link is the strong proof. This is the owner's accepted decision, written in `docs/KNOWLEDGE.md`. There is no limit per address on right IDs.
+- A type error in the console bridge test is fixed.
+### Tests added
+- The one-game sign-in stays in the tab, wins over a saved one, and Sign out ends it (`apps/web/test/console-handoff.test.ts`).
+- A different order on a paid game is refused; a repeat of the same order still works after the game closed; a game unlocked by another path just before the write is left alone (`apps/edge/test/console-pay-step.test.ts`). Each of the two guards is tested on its own.
+- Old employee lists still work (`apps/edge/test/verify.test.ts`).
+- The help file has no first-person words, and the employee ID help is honest (`apps/web/test/owner-rules.test.ts`).
+### Not done
+- "Invite by employee ID only" is still open. An organizer can still choose mobile number, employee ID, either or both. This needs the owner's decision in writing.
+- The vendored `pack/` folder still has first-person wording and has to be fixed in the console repo.
+- The signed payment notice is tied to the game and the person, not to the order number or size. Safe while the console calls the game directly; add both to the signature if a browser ever passes the notice on.
+- Tests: three tests fail on `master` too (two page tests and one owner test account test that use dates that have passed). One more test ("big screen: connection lost") fails now and then when the whole suite runs together and passes alone.
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+
 ## 1.4.1 - 2026-11-22
 Fixes found before the first audit of PR 9. Nothing is deployed and no payment switch is on.
 ### Fixed
-- The full test suite now passes except two page tests that also fail on `master` (they use calendar dates that have passed: "Create a new game like this one" and "Rescheduling") and one owner-test-account test that fails on `master` because its end date (8 Nov 2026) has passed. The five tests this PR had broken are fixed: a migration file for the console payment table (`apps/edge/migrations/0031_console_paid.sql`), the new setting name in `config/SECRETS_NAMES.md`, a help entry for "This sign-in is for one game only", the AI-link test list, and the "no internal notes" test (the vendored `pack/` folder is skipped; its CSS class `todo` is not a note).
-- Security: a console sign-in made for one game could make the Worker throw an error by opening an address with a broken `%` escape (`scopedKeyMayCall`). It is now simply refused. Test: `apps/edge/test/console-security.test.ts`. The same test file keeps the money switches (`PAY_VIA_CONSOLE`, `CONSOLE_PUBKEYS`) off in every shipped config.
+- Five tests that this PR had broken now pass again: the database change for console payments was added, the new payment setting was listed, a help entry was added for "This sign-in is for one game only", and two test lists were updated.
+- A console sign-in made for one game could cause an error by opening an address with a broken `%` in it. It is now simply refused. A test also keeps the console payment switches off in every shipped setting.
 ### Changed (owner rules v1.1)
-- Employee IDs: one way to read them everywhere (letters and numbers only, capitals, up to 30): `A-1101`, `A 1101`, `A/1101` and `a1101` are one person - `apps/edge/src/people.ts`. **Heads-up for games made before this version:** an ID stored with a dash, dot or slash was hashed with the old reading and no longer matches what a person types; ask those organizers to add the list again.
-- Organizer and host screens speak to "you": no I, me, my, we, us, our - `apps/web/public/zc.js`, `signin.js`. Kept by `apps/web/test/owner-rules.test.ts`.
-- Money is written with the rupee sign.
-- One privacy line and one fairness sentence on the organizer screen, each with one wording. The fairness sentence is proved by a test (the fingerprint is published first, the seed is checkable, the same seed gives the same draw).
-- No forbidden claims on those screens (checked by the same test).
-- Version 1.4.1: `version.json`, `package.json`, `apps/edge/src/releases.json`, `docs/KNOWLEDGE.md`.
-- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+- Employee IDs are read one way: letters and numbers only, in capitals, up to 30. `A-1101`, `A 1101`, `A/1101` and `a1101` are the same person. Games made before this version may hold IDs written the old way; see 1.4.2.
+- Organizer and host screens speak to "you". Money is written with the rupee sign. There is one privacy line and one fairness sentence, and the fairness sentence is proved by a test. No claims the game cannot keep.
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: failed, see 1.4.2. Deploy: not done. Rollback id: none (not deployed).
 
 ## 1.4.0 - 2026-11-20
 ### Added
-- The console's Pay step: `payInfo` (read only) and a repeatable `markPaid` (owner and size re-checked, definite refusal when wrong, no-op when already paid, unlock and records in one batch) - `apps/edge/src/console-adapter.ts`. The only unlock of the start for a console payment. Switched off until the owner turns on the console's payment.
-- Descriptor `payGame: "tictactoe"` and `consoleOrigin` - `apps/web/public/zc-flow-game.js` (not loaded by any page yet).
-- `PAY_VIA_CONSOLE`: off = the old Pay now exactly as before; `"1"` = routes that start a payment answer 302 to the console (webhook, verify, status never) - `apps/edge/src/pay-redirect.ts`, `apps/edge/src/worker.ts`, `pages/functions/_middleware.ts`.
-- Security rules: the organizer page `/zc` may frame the payment window and connect to the console, no wildcard - `pages/build.mjs`.
-- Tests: `apps/edge/test/console-pay-step.test.ts`. Doc: `docs/CONSOLE_PAY_STEP.md`.
+- The console's Pay step: the console can ask who owns a game and what it costs (read only), and tell the game that it is paid. The game then unlocks its start. It can be repeated safely. It is switched off until the owner turns it on.
+- A setting `PAY_VIA_CONSOLE`: off means the old Pay now page works exactly as before; on means the pages that start a payment send people to the console. Payment confirmations are never redirected.
+- The organizer page may show the console's payment window; no other site is allowed.
+- Tests and a short document (`docs/CONSOLE_PAY_STEP.md`).
 ### Changed
-- Bridge, contract kit and game pack re-vendored byte for byte from the console repo (`apps/edge/src/console-bridge/`, `apps/edge/test/console-contract/`, `apps/web/public/pack/`). This branch also carries the earlier, never-merged console bridge work (5 commits from the local branch `console/bridge`: the adapter, migration 0030, hand-off page).
-- The console's game list shows a game paid through the console as paid (`cpaid/` record).
-- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+- The console connection files and the game pack were copied again, unchanged, from the console repo. This branch also carries earlier console connection work that was never merged.
+- The console's game list shows a game paid through the console as paid.
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: failed, see 1.4.2. Deploy: not done. Rollback id: none (not deployed).

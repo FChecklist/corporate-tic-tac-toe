@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.4.2",
+    "date": "2026-11-22",
+    "commit": "f1d18fa",
+    "title": "Fixes from the audits: a console sign-in for one game stays in its own tab, payments cannot be counted twice, old employee lists still work",
+    "changes": [
+      "A sign-in the console opens for one game now stays in that browser tab only. It is not saved on the device, and an older saved sign-in can no longer take its place",
+      "Sign out in that tab now ends the key straight away",
+      "A second, different payment for a game that is already paid is now refused instead of being accepted",
+      "Employee lists made before version 1.4.1 still work when a person types the ID the way the list holds it",
+      "The help for organizers now speaks to you everywhere, and says plainly that an employee ID is checked against your list but does not prove who typed it",
+      "Nothing about payment is switched on"
+    ]
+  },
+  {
     "version": "1.4.1",
     "date": "2026-11-22",
     "commit": "d1c046b",

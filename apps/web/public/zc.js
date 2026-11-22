@@ -10,7 +10,15 @@
   const q = new URLSearchParams(location.search);
   const BASE = (q.get("api") || "").replace(/\/$/, "");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const ss = { get: (k) => (window.CTK ? window.CTK.get(k) : (() => { try { return sessionStorage.getItem(k); } catch { return null; } })()), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else { try { sessionStorage.setItem(k, v); } catch {} } } };
+  // A one-game key handed over by the master console (signin.js) lives in THIS TAB only (sessionStorage under its own name). It is never copied to the lasting store on the device
+  // (keep.js would do that for "cbz-org"), it is never offered to another tab, and a lasting key from an earlier sign-in is removed so it cannot override it or be mixed with it.
+  const GAME_KEY = "cbz-game-key";
+  const ONE = (() => { try { const v = sessionStorage.getItem(GAME_KEY); return v && /^cb[kch]_[0-9a-f]{48}$/.test(v) ? v : ""; } catch { return ""; } })();
+  if (ONE) { try { localStorage.removeItem("cbz-org"); localStorage.removeItem("cbz-alt"); localStorage.removeItem("tb_org_token"); } catch {} try { sessionStorage.removeItem("cbz-org"); sessionStorage.removeItem("cbz-alt"); } catch {} }
+  const tabGet = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, tabSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch {} };
+  const ss = ONE
+    ? { get: (k) => (k === "cbz-org" ? tabGet(GAME_KEY) : tabGet(k)), set: (k, v) => tabSet(k === "cbz-org" ? GAME_KEY : k, v) } // one-game session: everything stays in this tab
+    : { get: (k) => (window.CTK ? window.CTK.get(k) : tabGet(k)), set: (k, v) => { if (window.CTK) window.CTK.set(k, v); else tabSet(k, v); } };
   const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
   let secret = ss.get("cbz-org") || "";
   { const m = location.hash.match(/^#(?:host|cohost)=(cb[hc]_[0-9a-f]{48})$/); if (m) { secret = m[1]; ss.set("cbz-org", secret); history.replaceState(null, "", location.pathname + location.search); } } // a Host or Co-host link: the key leaves the address bar at once
@@ -22,7 +30,7 @@
   { const pt = (q.get("pass") || "").toLowerCase(); if (/^[0-9a-f]{32}$/.test(pt)) { ls.set("cbz-pass", JSON.stringify({ t: pt, at: Date.now() })); q.delete("pass"); try { const rest = q.toString(); history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "")); } catch { /* the address stays */ } } } // a demo link (one free game): kept here until the person is signed in as an organizer, then used (redeemPass)
   const NEWDEMO = q.get("demo") === "1"; // from the website: "Demo game": a game for 10 people at ₹0, made like any other
   // A browser AI may open this page in a new tab, and a tab holds the key only for itself: another open tab of the same browser can hand it over (same site, same browser, never stored).
-  const bc = typeof BroadcastChannel === "function" ? new BroadcastChannel("cbz-org-key") : null;
+  const bc = typeof BroadcastChannel === "function" ? new BroadcastChannel("cbz-org-key") : null; // (a one-game session neither offers nor takes a key from another tab: see ONE above)
   const OLD_HOUSES = []; // the shared table (ZG.PRIZE_HOUSES) is the only source of the houses
   const HOUSES = ZG && Array.isArray(ZG.PRIZE_HOUSES) && ZG.PRIZE_HOUSES.length ? ZG.PRIZE_HOUSES : OLD_HOUSES;
   const NAMES = Object.fromEntries(HOUSES.map((h) => [h.id, h.label]));
@@ -230,7 +238,7 @@
   // a plain sentence under an option (every option says in one line what it does)
   const OPTSAY = {
     "who:list": "Only people you add can play. Everyone else waits until you say yes.", "who:anyone": "Anyone with your link plays at once.",
-    "ver:mobile": "Players type only their name. This is the simplest.", "ver:id": "Players type their employee ID.", "ver:both": "Players type their employee ID and their mobile number.",
+    "ver:mobile": "Players type only their name. This is the simplest.", "ver:id": "Players type their employee ID. The game checks it against your list. It does not prove who typed it: anyone who knows a listed ID can use it. A personal link is the strong proof.", "ver:both": "Players type their employee ID and their mobile number. The game checks both against your list. It does not prove who typed them: a personal link is the strong proof.",
     "emp:on": "Staff only: only the people on your list play, and nobody can invite anyone.",
   };
   const optSay = (path, v) => (path === "cap" ? (Number(v) <= RS0_CAP ? "Free: nothing to pay." : "Up to " + v + " people can play. The price is shown when you pay.") : OPTSAY[path + ":" + v] || "");
@@ -1402,7 +1410,7 @@
     if ($("in")) $("in").onclick = () => { secret = $("sec").value.trim(); ss.set("cbz-org", secret); S.loginMsg = ""; bootstrap(); };
     const leaveGame = () => { eid = ""; S.cfg = null; S.info = null; S.f = null; S.fFor = ""; S.openInit = ""; S.note = ""; S.sum = null; S.store = null; S.history = null; S.team = null; S.hostN = 0; S.becomeErr = ""; history.replaceState(null, "", location.pathname + (BASE ? "?api=" + encodeURIComponent(BASE) : "")); };
     const takeKey = (key, mark) => { const me = { kind: isOrg() ? "organizer" : "host", token: secret }; ss.set("cbz-alt", JSON.stringify(me)); secret = key; ss.set("cbz-org", secret); S.kind = ""; leaveGame(); if (mark) S.note = mark; bootstrap(); };
-    if ($("signout")) $("signout").onclick = () => { if (window.CTK) window.CTK.signOut(); else { ss.set("cbz-org", ""); ss.set("cbz-alt", ""); } location.href = "/zc.html" + (BASE ? "?api=" + encodeURIComponent(BASE) : ""); }; // signing in again is the same two e-mail ways: nothing to remember
+    if ($("signout")) $("signout").onclick = async () => { if (ONE) { try { await fetch(BASE + "/api/console/signout", { method: "POST", headers: { "content-type": "application/json", "x-organizer": secret }, body: "{}" }); } catch { /* the key still ends by itself: one game, 16 hours */ } try { sessionStorage.removeItem(GAME_KEY); } catch {} } if (window.CTK) window.CTK.signOut(); else { ss.set("cbz-org", ""); ss.set("cbz-alt", ""); } location.href = "/zc.html" + (BASE ? "?api=" + encodeURIComponent(BASE) : ""); }; // signing in again is the same two e-mail ways: nothing to remember
     if ($("switchrole")) $("switchrole").onclick = () => { const a = altRole(); if (a) takeKey(a.token, a.kind === "host" ? "You are now in your Host view." : "You are now in your Organizer view."); };
     if ($("hostall")) $("hostall").onclick = () => { leaveGame(); bootstrap(); };
     if ($("hostswitchorg")) $("hostswitchorg").onclick = () => { const a = altRole(); if (a) takeKey(a.token, "You are now in your Organizer view."); };
@@ -1719,12 +1727,12 @@
     else if (QUICK) { S.screen = "quick"; S.f = quickDefault(); await loadPacks(); redraw(); }
     else refreshHome();
   }
-  if (bc) bc.onmessage = async (e) => { // another tab offers its key: use it only if it really works (an old or foreign key is ignored)
+  if (bc && !ONE) bc.onmessage = async (e) => { // another tab offers its key: use it only if it really works (an old or foreign key is ignored)
     const d = e.data || {};
     if (d.ask && secret && (S.kind === "" || S.kind === "master" || S.kind === "ai")) bc.postMessage({ key: secret });
     else if (d.key && !secret && !inited) { try { const r = await fetch(BASE + "/api/whoami", { headers: { "x-organizer": String(d.key) } }); if (r.ok && !secret && !inited) { secret = String(d.key); ss.set("cbz-org", secret); bootstrap(); } } catch { /* offline: ignore */ } }
   };
-  (async () => { if (!secret && bc) { bc.postMessage({ ask: true }); await new Promise((r) => setTimeout(r, 350)); } if (!inited) bootstrap(); })();
+  (async () => { if (!secret && bc && !ONE) { bc.postMessage({ ask: true }); await new Promise((r) => setTimeout(r, 350)); } if (!inited) bootstrap(); })();
   setInterval(() => { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return; /* never wipe what the organizer is typing */ if (!secret || document.hidden) return; if (role() === "host" && S.setup && S.setup.ready === false) return; if (eid) refreshEng(); else if (QUICK || S.screen === "quick") return; else if (isOrg()) refreshHome(); }, 5000);
   window.__zc = S;
 })();

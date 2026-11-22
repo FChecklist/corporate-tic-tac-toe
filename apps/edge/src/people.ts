@@ -54,6 +54,10 @@ export const EMP_MAX = 30;
 export const normEmp = (raw: unknown): string | null => { const typed = String(raw ?? "").trim(); if (!typed) return ""; const s = typed.normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); return s && s.length <= EMP_MAX ? s : null; };
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
+/** The reading before version 1.4.1 (spaces dropped, capitals, letters, numbers and . _ - / kept). Lists made before then were hashed with it, so "E-101" on such a list is still found when a person types "E-101" or "e 101". Null when the old reading would have refused it. */
+const legacyEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };
+/** the hash an OLD list holds for this typed ID, only when it differs from today's (otherwise null) */
+export const legacyEmpHashOf = async (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, raw: unknown): Promise<string | null> => { const old = legacyEmp(raw), now = normEmp(raw); return old && old !== now ? empHashOf(env, old) : null; };
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
 export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
 
@@ -278,6 +282,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
       if (seen.has(ph)) { duplicates++; continue; }
+      { const lh = await legacyEmpHashOf(c.env, x?.empId ?? x?.employeeId); if (lh && (seen.has(lh) || (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, lh).first()))) { duplicates++; continue; } if (lh) seen.add(lh); } // a list made before 1.4.1 already holds this person under the old spelling
       seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
     }
     const cl = cleanPhone(x?.phone);
@@ -617,6 +622,17 @@ export async function personByToken(env: Env, eid: string, token: string): Promi
 }
 export async function personByPhone(env: Env, eid: string, ph: string): Promise<PersonRow | null> {
   return (await env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND ph=?`).bind(eid, ph).first<PersonRow>()) ?? null;
+}
+/** A person on the list by employee ID as typed: today's reading first, then (for lists made before 1.4.1) the old one. The ID may also point to a person by their mobile number (idx/ record). */
+export async function personByEmp(env: Env, eid: string, typed: unknown): Promise<PersonRow | null> {
+  const id = normEmp(typed); if (!id) return null;
+  for (const eh of [await empHashOf(env, id), await legacyEmpHashOf(env, typed)]) {
+    if (!eh) continue;
+    let hit = await personByPhone(env, eid, eh);
+    if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid, al.v); }
+    if (hit) return hit;
+  }
+  return null;
 }
 export type { PersonRow };
 
