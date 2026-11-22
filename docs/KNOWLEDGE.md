@@ -1,15 +1,15 @@
-# Knowledge: Corporate Tic Tac Toe (updated 22 Nov 2026, version 1.4.2)
+# Knowledge: Corporate Tic Tac Toe (updated 22 Nov 2026, version 1.5.0)
 
 What a new session must know before touching this game. No secrets and no business figures here.
 
 ## State
-- Version 1.4.2 on PR 9 (branch `feat/ttt-console-pay-step-2026-11-20`). Not merged, not deployed. The first version (1.4.1, head f1d18faf) failed both audits; 1.4.2 fixes them. Two independent `AUDIT: PASS` on the exact new commit are required before the owner deploys.
+- Version 1.5.0 on PR 9 = version 1.4.2 plus a merge of the live production commit `fa5ab0afa895` (deployed 5 Nov 2026; before this merge the branch was 13 ahead and 108 behind it). Check any future deploy with `git merge-base --is-ancestor fa5ab0afa895 HEAD`. Version 1.4.2 on PR 9 (branch `feat/ttt-console-pay-step-2026-11-20`). Not merged, not deployed. The first version (1.4.1, head f1d18faf) failed both audits; 1.4.2 fixes them. Two independent `AUDIT: PASS` on the exact new commit are required before the owner deploys.
 - Money switches are OFF: `PAY_VIA_CONSOLE` is not set anywhere and `CONSOLE_PUBKEYS` is empty in every shipped config (kept by `apps/edge/test/console-security.test.ts`).
 
 ## The console Pay step (see `docs/CONSOLE_PAY_STEP.md`)
 - The contract itself lives in the console repository (`docs/GAME_PAY_CONTRACT.md`); it is not copied here. What is here: the vendored bridge and contract kit (`apps/edge/src/console-bridge/`, `apps/edge/test/console-contract/`) and the game's side (`apps/edge/src/console-adapter.ts`).
 - `payInfo`: read only, `owner` is true only for an organizer account of the game's own org. `markPaid`: repeatable by the SAME order (a different order on an already paid game is a definite refusal; records are written only when this call did the unlock, via `changes()`); owner and size checked again; a wrong owner, wrong size, closed game or the free size is a definite refusal; an already paid game changes nothing; unlock (`engagement.pack`) and records land in one batch.
-- A game is marked paid only through the console's signed notice (`/api/console/paid`): the signed assertion is single use (`console_jti`), lives at most 60 seconds, is tied to the game, and each order id is taken once (`console_paid`, migration 0031).
+- A game is marked paid only through the console's signed notice (`/api/console/paid`): the signed assertion is single use (`console_jti`), lives at most 60 seconds, is tied to the game, and each order id is taken once (`console_paid`, migration 0033; it was 0031 before the live merge, because live uses 0030 and 0031).
 - Known limit, for the console side: the signed assertion is bound to the game and the person, not to the order id or size; those travel in the request body. Only the console can sign, so this is not exploitable from outside, but the console may want to bind them.
 
 ## One-game console key (version 1.4.2)
@@ -32,3 +32,8 @@ What a new session must know before touching this game. No secrets and no busine
 
 ## Tests
 - `bun install`, then `bun test packages apps tools/control-worker`. Three failures are known and also fail on `master` (a fourth, "big screen: connection lost", fails now and then only when everything runs together and passes alone): two page tests that use calendar dates that have passed ("Create a new game like this one", "Rescheduling") and `owner-test-free.test.ts` (the test account's end date, 8 Nov 2026, has passed; extending it is the owner's decision).
+
+## Live merge (version 1.5.0)
+- Employee-ID reading: live's era rule (`ids.ts`, `EMP_CLEAN_FROM_MS`, games made before it keep the old reading) is the rule. The live placeholder is a far-future date, so today every game keeps the old reading until the release session sets the date. The 1.4.1 "A-1101 = A 1101" tests run on a game made after that date. `legacyEmpHashOf` and `personByEmp` now take the game's idKind and creation time.
+- Migrations: 0030 stage log and 0031 price adjust are live; 0032 game role and 0033 console paid are this PR's (optional, harmless).
+- Two rules meet in the "After the game" step: owner rules v1.1 (one privacy line) and live's TT-16 (the real hours must be written). Both are shown: the one privacy line, then the real hours.

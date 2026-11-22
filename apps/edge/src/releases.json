@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-11-22",
+    "commit": "c5ac57d",
+    "title": "The live game code is merged in: everything that is running now, plus the console Pay step",
+    "changes": [
+      "This branch had missed 108 changes that are running live (live commit fa5ab0afa895, deployed 5 Nov 2026). They are now merged in, so a deploy of this branch drops nothing that is live",
+      "The live rule for employee IDs (it depends on when the game was made) is kept, and the older-list fix from 1.4.2 still works on top of it",
+      "The live limit of 2,000 people per game, the live wording about credit, and the live report timing (link works 19 hours, names deleted at 20 hours) are kept; the screens still speak to you and use the rupee sign",
+      "The two database files added by this branch are renamed 0032 and 0033, because live already uses 0030 and 0031",
+      "Nothing about payment is switched on"
+    ]
+  },
+  {
     "version": "1.4.2",
     "date": "2026-11-22",
     "commit": "f1d18fa",

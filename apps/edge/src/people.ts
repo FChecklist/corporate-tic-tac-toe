@@ -7,6 +7,7 @@
 //   - Removing a person before the game frees the place; during the game the seat stays in the public seat list (winners must be identical on every phone) and is only blocked.
 // Names and numbers are sealed at rest (pii.ts) and never reach an AI key (every route here refuses an AI, and anything arriving through an AI work link).
 // The Worker (worker.ts) owns routing, `join` and `settings`; this file owns the schema, the cleaning of numbers and the people / waiting / me routes.
+import { normEmpFor, cleanEmail, cleanEmpId, EMP_CLEAN_FROM_MS, EMP_MAX } from "./ids";
 import { consentRequired, recordConsent } from "./consent";
 import { openPii, openText, sealPii, sealText } from "./pii";
 import { consentMissing } from "./consent";
@@ -49,23 +50,33 @@ export const tokenHash = async (token: string) => (await sha("pj|" + token.toLow
 /** Same formula as the Worker's join (worker.ts `phoneHash`): +91 98765 43210, 098765 43210 and 9876543210 are one person; one hash in every game. */
 export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, digits: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${digits.slice(-10)}`);
 
-/** An employee ID as typed (owner rule 30 Oct 2026, the same cleaning as the console's employee-id.js): full-width and look-alike characters become plain ones, CAPITAL letters, and everything that is not A-Z or 0-9 is dropped, so A-1101, A 1101, a/1101 and A1101 are ONE person. "" = nothing typed, null = not a usable ID (nothing left after cleaning, or more than 30 letters and numbers: an ID is never cut short). */
-export const EMP_MAX = 30;
-export const normEmp = (raw: unknown): string | null => { const typed = String(raw ?? "").trim(); if (!typed) return ""; const s = typed.normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); return s && s.length <= EMP_MAX ? s : null; };
+/** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
+export const normEmp = (raw: unknown, createdMs?: number): string | null => normEmpFor(raw, createdMs); // one shared cleaner: see ids.ts
+/** An Email ID shape check on the cleaned form. */
+const EMAIL_ID_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+/** The ID a person gives, by what this game asks for: an employee ID (A-Z 0-9) or an Email ID (cleanEmail). "" = nothing typed, null = not usable. */
+export const normId = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string | null => {
+  if (kind === "email") { const k = cleanEmail(raw); if (!k) return ""; return EMAIL_ID_RE.test(k) && k.length <= 254 ? k : null; }
+  return normEmp(raw, createdMs ?? undefined);
+};
+export const badIdMessage = (raw: unknown, kind: "emp" | "email", createdMs?: number | null): string => kind === "email" ? "Please check your Email ID. It looks incomplete." : (createdMs == null || createdMs >= EMP_CLEAN_FROM_MS) && String(raw ?? "").normalize("NFKC").includes("@") ? "This looks like an Email ID. This game asks for an employee ID: letters and numbers only." : (cleanEmpId(raw).length > EMP_MAX ? "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned." : "An employee ID has letters and numbers only (up to 30).");
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** The reading before version 1.4.1 (spaces dropped, capitals, letters, numbers and . _ - / kept). Lists made before then were hashed with it, so "E-101" on such a list is still found when a person types "E-101" or "e 101". Null when the old reading would have refused it. */
 const legacyEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };
 /** the hash an OLD list holds for this typed ID, only when it differs from today's (otherwise null) */
-export const legacyEmpHashOf = async (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, raw: unknown): Promise<string | null> => { const old = legacyEmp(raw), now = normEmp(raw); return old && old !== now ? empHashOf(env, old) : null; };
+/** (a game made before EMP_CLEAN_FROM_MS already reads IDs the old way, so there is nothing extra to look for) */
+export const legacyEmpHashOf = async (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, raw: unknown, createdMs?: number | null): Promise<string | null> => { const old = legacyEmp(raw), now = normEmp(raw, createdMs ?? undefined); return old && old !== now ? empHashOf(env, old) : null; };
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true }; } catch { return { mode: "mobile", employeesOnly: false }; } };
+export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; idKind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, idKind: j.idKind === "email" ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, idKind: "emp" }; } };
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
 export type { Cleaned } from "./phonekit";
 import { cleanPhone, maskedPhone, keptFromClean, phoneDigits } from "./phonekit";
 /** A name as kept: no control or invisible characters, no markup characters, and nothing at the front that a spreadsheet would run as a formula (= + - @). Also the server's answer to a hand-made request: the page already sends only tidy names. */
-export const cleanName = (n: unknown) => (typeof n === "string" ? Array.from(n).filter((ch) => { const c = ch.charCodeAt(0); return !(c < 32 || c === 127 || (c >= 0x200b && c <= 0x200f) || c === 0x2028 || c === 0x2029 || c === 0xfeff); }).join("").replace(/[<>`]/g, "").replace(/\s+/g, " ").replace(/^[=+\-@\s]+/, "").trim().slice(0, 60) : "");
+/** A name is cut at 60 UTF-16 units AFTER the trim, so the cut can leave a trailing blank or half an emoji (a lone high surrogate breaks the CSV / PDF line). Cut, drop a lone half, then trim the end again. Smoke-test T-54. */
+export const cutName = (s: string): string => { let c = s.slice(0, 60); const k = c.charCodeAt(c.length - 1); if (k >= 0xd800 && k <= 0xdbff) c = c.slice(0, -1); return c.trimEnd(); };
+export const cleanName = (n: unknown) => (typeof n === "string" ? cutName(Array.from(n).filter((ch) => { const c = ch.charCodeAt(0); return !(c < 32 || c === 127 || (c >= 0x200b && c <= 0x200f) || c === 0x2028 || c === 0x2029 || c === 0xfeff); }).join("").replace(/[<>`]/g, "").replace(/\s+/g, " ").replace(/^[=+\-@\s]+/, "").trim()) : "");
 
 /** What a `from=` code on a common link means. */
 export type FromOwner = { kind: "org" } | { kind: "host"; hex: string } | { kind: "cohost"; hex: string } | { kind: "guest"; seq: number };
@@ -225,7 +236,7 @@ export async function peopleRoute(c: Ctx): Promise<Response> {
   const got = await callerOf(c, bodyObj?.me, bodyObj?.device);
   if ("res" in got) return got.res;
   const who = got.who;
-  if (c.e.unplayed_ms && method !== "GET") return c.json({ error: "This game did not start. Your details have been erased.", code: "did-not-start", didNotStart: true }, 409);
+  if (c.e.unplayed_ms && method !== "GET") return c.json({ error: "This game did not start. Your details have been auto-deleted.", code: "did-not-start", didNotStart: true }, 409);
   if (c.cancelled && method !== "GET") return c.json({ error: "This game was cancelled by the organizer.", code: "cancelled", cancelled: true }, 409);
 
   if (parts[0] === "waiting") {
@@ -267,13 +278,13 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   { const mt = consentRequired(b, "K6"); if (mt) return mt; } // K6: "I am allowed to use these names and numbers for this game. The people have been told."
   if (b.people.length > MAX_ADD_BATCH) return c.json({ error: `Send up to ${MAX_ADD_BATCH} people at a time; the console sends a bigger list in several parts.`, code: "too-many" }, 413);
   if (c.now >= await c.endBound()) return c.json({ error: "The game has ended, so no one can be added." }, 409);
-  const invalid: { raw: string; why: string }[] = []; let duplicates = 0;
+  const invalid: { raw: string; why: string }[] = []; let duplicates = 0; const duplicateRows: { raw: string; why: string }[] = []; const dupRow = (r: string, t: string) => { duplicates++; duplicateRows.push({ raw: t.trim().slice(0, 100) || r, why: "Already on the list" }); };
   const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
-    const emp = normEmp(x?.empId ?? x?.employeeId);
-    if (emp === null) { invalid.push({ raw, why: "An employee ID has letters and numbers only (up to 30)." }); continue; }
+    const empRaw = x?.empId ?? x?.employeeId, emp = normId(empRaw, vf.idKind, (c.e as any)?.created_ms);
+    if (emp === null) { invalid.push({ raw, why: badIdMessage(empRaw, vf.idKind, (c.e as any)?.created_ms) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
     if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
     if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
@@ -281,18 +292,18 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
       let digits = "";
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
-      if (seen.has(ph)) { duplicates++; continue; }
-      { const lh = await legacyEmpHashOf(c.env, x?.empId ?? x?.employeeId); if (lh && (seen.has(lh) || (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, lh).first()))) { duplicates++; continue; } if (lh) seen.add(lh); } // a list made before 1.4.1 already holds this person under the old spelling
+      if (seen.has(ph)) { dupRow(raw, String(empRaw ?? x?.phone ?? "")); continue; }
+      if (vf.idKind === "emp") { const lh = await legacyEmpHashOf(c.env, empRaw, (c.e as any)?.created_ms); if (lh && (seen.has(lh) || (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, lh).first()))) { dupRow(raw, String(empRaw ?? "")); continue; } if (lh) seen.add(lh); } // a list made before 1.4.1 already holds this person under the old spelling
       seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
     }
     const cl = cleanPhone(x?.phone);
     if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; }
     const ph = await phoneHashOf(c.env, cl.digits);
-    if (seen.has(ph)) { duplicates++; continue; }
+    if (seen.has(ph)) { dupRow(raw, String(empRaw ?? x?.phone ?? "")); continue; }
     const idHash = vf.mode === "either" && emp ? await empHashOf(c.env, emp) : undefined; // "mobile number or employee ID": a listed person with both can come in with either, so the ID points to the mobile-number identity
     if (idHash) { // the same employee ID on two people of one list would let the second take over the first's ID: the second is a duplicate
       const al = await c.env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${c.eid}/${idHash}`).first<{ v: string }>();
-      if ((al && al.v !== ph && (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, al.v).first())) || seen.has("I" + idHash)) { duplicates++; continue; }
+      if ((al && al.v !== ph && (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, al.v).first())) || seen.has("I" + idHash)) { dupRow(raw, String(empRaw ?? "")); continue; }
       seen.add("I" + idHash);
     }
     seen.add(ph); todo.push({ name: cleanName(x?.name), digits: keptFromClean(cl.digits), ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}), ...(idHash ? { idHash } : {}) });
@@ -309,7 +320,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
     fresh.push(t);
   }
   const adds = fresh.length + revive.length;
-  if (adds === 0) return c.json({ added: 0, duplicates, invalid, people: [] });
+  if (adds === 0) return c.json({ added: 0, duplicates, duplicateRows, invalid, people: [] });
   if (who.limit !== null) {
     const used = await listCount(db, c.eid, who.id), room = Math.max(0, who.limit - used);
     if (adds > room) return c.json({ error: room === 0 ? `Your list is full: ${who.limit} people. Remove someone first, or ask the Organizer.` : `You can add ${room} more ${room === 1 ? "person" : "people"} (your limit is ${who.limit}). Nothing was added; please send fewer.`, code: "over-limit", limit: who.limit, used, room }, 409);
@@ -348,7 +359,7 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
     const token = toks.get(t.ph)!, link = `${c.origin}/j/${token}`;
     out.push({ id: ids.get(t.ph)!, name: t.name, maskedPhone: t.digits ? maskedPhone(t.digits) : "", status: "invited", ...(t.empId ? { empId: t.empId } : {}), link, waLink: t.digits ? waLinkOf(t.digits, waMessage(t.name || null, c.gameName, link)) : null, ...(who.all ? { inviter: label(who.id) } : {}) });
   }
-  return c.json({ added: done.length, duplicates, invalid, people: out });
+  return c.json({ added: done.length, duplicates, duplicateRows, invalid, people: out });
 }
 
 async function exportPeople(c: Ctx, who: Caller): Promise<Response> {
@@ -624,9 +635,9 @@ export async function personByPhone(env: Env, eid: string, ph: string): Promise<
   return (await env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND ph=?`).bind(eid, ph).first<PersonRow>()) ?? null;
 }
 /** A person on the list by employee ID as typed: today's reading first, then (for lists made before 1.4.1) the old one. The ID may also point to a person by their mobile number (idx/ record). */
-export async function personByEmp(env: Env, eid: string, typed: unknown): Promise<PersonRow | null> {
-  const id = normEmp(typed); if (!id) return null;
-  for (const eh of [await empHashOf(env, id), await legacyEmpHashOf(env, typed)]) {
+export async function personByEmp(env: Env, eid: string, typed: unknown, idKind: "emp" | "email" = "emp", createdMs?: number | null): Promise<PersonRow | null> {
+  const id = normId(typed, idKind, createdMs); if (!id) return null;
+  for (const eh of [await empHashOf(env, id), idKind === "emp" ? await legacyEmpHashOf(env, typed, createdMs) : null]) {
     if (!eh) continue;
     let hit = await personByPhone(env, eid, eh);
     if (!hit) { const al = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${eid}/${eh}`).first<{ v: string }>(); if (al) hit = await personByPhone(env, eid, al.v); }

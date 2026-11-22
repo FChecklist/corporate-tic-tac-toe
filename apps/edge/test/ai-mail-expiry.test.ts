@@ -19,7 +19,7 @@ const LEAK = /cba_[0-9a-f]|cbh_[0-9a-f]|\/ai\//;
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
 });
 async function organizer(email = "boss@acme.com", ip = "1.1.1.1") {
   const x = await j(await call("POST", "/api/start", { email }, { "cf-connecting-ip": ip }));

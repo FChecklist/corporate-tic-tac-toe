@@ -15,7 +15,7 @@
   const draw = (info) => {
     $app.innerHTML = `<div class="zcard" role="note"><b>PREVIEW</b> This is a sample of what players see. Nothing is sent to anyone and nobody joins.</div>${strip(info && info.brand)}
       <div class="zhead"><b>Corporate Tic Tac Toe</b></div>
-      <div class="zcard"><h2>Join the tournament</h2><p class="zsmall">Playing is free. No money is staked and there are no cash prizes. We ask your name only.</p><p class="zsmall">A sample board follows.</p></div>
+      <div class="zcard"><h2>Join the tournament</h2><p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only your name is asked for.</p><p class="zsmall">A sample board follows.</p></div>
       <div class="zcard"><h2>Semi-final</h2><p class="tvs"><b>Asha</b> vs <b>Ben</b></p><p class="tstat mine">Your turn <span class="tclock">12s</span></p>${board}<p class="zsmall tcen">You are <b>X</b>. X moves first.</p></div>`;
     paint();
   };

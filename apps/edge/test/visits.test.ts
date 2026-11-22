@@ -11,7 +11,7 @@ const T = Date.UTC(2026, 9, 6, 10, 0, 0);
 const UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36";
 const IP = "203.0.113.77", VID = "a1".repeat(16), SID = "b2".repeat(12);
 let env: Env & Record<string, any>; let raw: ReturnType<typeof makeD1>["raw"];
-beforeEach(() => { const d = makeD1(); raw = d.raw; resetRate(); env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "data-key", TEST_MODE: "1" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; resetRate(); env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "data-key", TEST_MODE: "1" }; });
 
 const beacon = (b: unknown, h: Record<string, string> = {}, now = T, raw_?: string) => {
   const r = new Request("https://bingo.test/api/v/b", { method: "POST", headers: { origin: "https://bingo.test", "content-type": "text/plain", "cf-connecting-ip": IP, "user-agent": UA, ...h }, body: raw_ ?? JSON.stringify(b) });

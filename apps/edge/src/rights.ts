@@ -103,7 +103,7 @@ export async function leaveRoute(c: RightsCtx): Promise<Response> {
   if (s instanceof Response) return s;
   if (!(await c.spend(4))) return c.json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 503);
   await takeOut(c, s);
-  return c.json({ ok: true, left: true, message: "You have left the game. Your name and your place were deleted from our system just now. You can close this page." });
+  return c.json({ ok: true, left: true, message: "You have left the game. Your name and your place were deleted from the system just now. You can close this page." });
 }
 
 /** What we hold about this player right now, in plain words (the answer to "what do you hold about me"). */
@@ -136,7 +136,7 @@ async function mailBoth(c: RightsCtx, id: string, kind: RequestKind, seat: Seat,
     `We promised the player an answer ${PROMISE_TEXT}, by ${istDay(due)}.`,
   ];
   const orgBody = [...base, ...(name ? [`Name the player gave: ${name}`] : []), ...(note ? [`Note from the player: ${note}`] : []), "",
-    erased ? "The player's name and place were deleted at once, as they asked. Nothing more is needed from you." : kind === "nomination" ? `The player has been asked to write to ${BRAND.support} with the name of the person they nominate. Please answer the player.` : kind === "access" ? "The player has already been shown what we hold. Please answer anything more they ask." : "You are the one who holds this name for the game. Please answer the player.",
+    erased ? "The player's name and place were deleted at once, as they asked. Nothing more is needed from you." : kind === "nomination" ? `The player has been asked to write to ${BRAND.support} with the name of the person they nominate. Please answer the player.` : kind === "access" ? "The player has already been shown what is held. Please answer anything more they ask." : "You are the one who holds this name for the game. Please answer the player.",
     `Request number: ${id}`].join("\n");
   const ownerBody = [...base, `Organizer informed: yes`, "", erased ? "Deleted at once." : "Open.", `Request number: ${id}`].join("\n");
   try { const to = await c.orgEmail(); if (to) await sendMail(c.env, c.db, to, `A player's data request: ${subjectEnd}`, orgBody, c.now); } catch { /* the request is stored; a mail is a nudge */ }

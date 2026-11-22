@@ -9,15 +9,15 @@ export type PatternKey = HouseId;
 export interface RewardLine { pattern: HouseId; scope: Scope; ordinal: number; text: string }
 /**
  * THE one table of reward places: id, label, a short plain "how to win", and the most winners (always 1: the ranking has no ties, see docs/RULES.md R24). The server validates with it, the pages
- * read it (window.ZG.PRIZE_HOUSES), the AI manual lists it. `dflt` places make up the default reward set of a new game: 1st, 2nd and 3rd.
+ * read it (window.ZG.PRIZE_HOUSES), the AI manual lists it. `dflt` places make up the default reward set of a new game: the top five places.
  */
 export interface PrizeHouse { id: PatternKey; label: string; how: string; max: number; kind: "set" | "lines"; dflt?: true; squares: string }
 export const PRIZE_HOUSES: readonly PrizeHouse[] = [
   { id: "first", label: "Champion (1st)", how: "Wins the final.", max: 1, kind: "set", dflt: true, squares: "1st" },
   { id: "second", label: "Runner-up (2nd)", how: "Loses the final.", max: 1, kind: "set", dflt: true, squares: "2nd" },
   { id: "third", label: "3rd place", how: "Best of the two semi-final losers (round reached, then points, then points in the last match, then fate).", max: 1, kind: "set", dflt: true, squares: "3rd" },
-  { id: "fourth", label: "4th place", how: "The other semi-final loser.", max: 1, kind: "set", squares: "4th" },
-  { id: "fifth", label: "5th place", how: "Best of the quarter-final losers by the same order.", max: 1, kind: "set", squares: "5th" },
+  { id: "fourth", label: "4th place", how: "The other semi-final loser.", max: 1, kind: "set", dflt: true, squares: "4th" },
+  { id: "fifth", label: "5th place", how: "Best of the quarter-final losers by the same order.", max: 1, kind: "set", dflt: true, squares: "5th" },
 ];
 /** One plain line naming every house and its maximum winners, for the AI manual and the choices list. */
 export const HOUSES_LINE: string = PRIZE_HOUSES.map((h) => `${h.id} = ${h.label} (${h.max === 1 ? "1 winner" : `up to ${h.max} winners`})`).join(", ");
@@ -94,7 +94,7 @@ export const MAX_INVITES_PER_PERSON = 10;
 export const defaultInvites = (): InviteCfg => ({ on: false, per: 4, cats: ["family", "colleagues"] });
 export type VerifyMode = "mobile" | "id" | "either" | "both";
 export const VERIFY_MODES: VerifyMode[] = ["mobile", "id", "either", "both"];
-export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
+export interface EngagementCfg { /** What a person must give to get in: their mobile number (default), their employee ID, or both. */ verify?: VerifyMode; /** Only the people on my list may play, and nobody may invite anyone. */ employeesOnly?: true; /** What the ID is: an employee ID (default) or an Email ID. One criterion for the whole game; the list decides who is in. */ idKind?: "email"; /** A friendly name the organizer gives the game (optional, up to 60 characters). */ name?: string; tickets: 1 | 2; rewards: RewardLine[]; breaks: BreakCfg[]; rounds: number; invites?: InviteCfg; /** Before the first number (at most one per ticket). Always present after validateCfg. */ opening?: BrandSlot[]; /** On the final screen (at most one per ticket). Always present after validateCfg. */ closing?: BrandSlot[]; /** The company's mark on the ticket (name, colour, optional logo). Absent = the plain ticket. */ brand?: BrandCfg; /** How the card shows called numbers: "auto" (squares light up by themselves, the default) or "tap" (the guest taps a square to daub it). Cosmetic only: the software always decides the winners. */ mark?: "auto" | "tap"; /** How a guest joins from the common link: "name" (the default: just a name) or "phone" (a mobile number is asked for as well, to match an invite list). */ join?: "name" | "phone"; /** The organizer's time zone (an IANA name such as America/New_York), used to word times in mails and the report. Absent = Asia/Kolkata. */ tz?: string }
 /**
  * Who decides the winners: the software, never a person. Every phone works out the winners from the public numbers and reports them; our store accepts a result
  * only when this many DIFFERENT phones (one ticket per phone) reported exactly the same winners. Tiny games need half their people; larger ones 5% (3 to 25).
@@ -159,8 +159,8 @@ export const SITE_MEDIA = /^\/[A-Za-z0-9._-]{1,80}\.(mp4|webm|m4a|mp3)$/i;
 export const DEFAULT_TZ = "Asia/Kolkata";
 /** True for a real IANA time zone name this runtime knows. */
 export const isTimeZone = (z: unknown): z is string => { if (typeof z !== "string" || z.length > 64 || !/^[A-Za-z][A-Za-z0-9_+-]*(\/[A-Za-z0-9_+-]+){0,2}$/.test(z)) return false; try { new Intl.DateTimeFormat("en-US", { timeZone: z }); return true; } catch { return false; } };
-export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
-  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}) };
+export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknown; tickets?: unknown; rewards?: unknown; breaks?: unknown; rounds?: unknown; invites?: unknown; opening?: unknown; closing?: unknown; name?: unknown; brand?: unknown; verify?: unknown; employeesOnly?: unknown; idKind?: unknown }, base: EngagementCfg = defaultCfg(), opts: { stored?: boolean } = {}): { ok: true; cfg: EngagementCfg } | { ok: false; error: string } {
+  const cfg: EngagementCfg & { opening: BrandSlot[]; closing: BrandSlot[] } = { tickets: base.tickets, rewards: base.rewards, breaks: base.breaks, rounds: base.rounds ?? 1, invites: base.invites ?? defaultInvites(), opening: base.opening ?? [], closing: base.closing ?? [], ...(base.name ? { name: base.name } : {}), ...(base.brand ? { brand: base.brand } : {}), ...(base.mark ? { mark: base.mark } : {}), ...(base.join ? { join: base.join } : {}), ...(base.tz ? { tz: base.tz } : {}), ...(base.verify ? { verify: base.verify } : {}), ...(base.employeesOnly ? { employeesOnly: true as const } : {}), ...(base.idKind === "email" ? { idKind: "email" as const } : {}) };
   if (input.rounds !== undefined) {
     if (!Number.isInteger(input.rounds) || (input.rounds as number) < 1 || (input.rounds as number) > MAX_ROUNDS) return { ok: false, error: `The number of rounds is a whole number from 1 to ${MAX_ROUNDS}.` };
     cfg.rounds = input.rounds as number;
@@ -275,6 +275,10 @@ export function validateCfg(input: { tz?: unknown; join?: unknown; mark?: unknow
   if (input.verify !== undefined) {
     if (!VERIFY_MODES.includes(input.verify as VerifyMode)) return { ok: false, error: "What a person must give: choose mobile number, employee ID, mobile number or employee ID, or both." };
     if (input.verify === "mobile") delete cfg.verify; else cfg.verify = input.verify as VerifyMode;
+  }
+  if (input.idKind !== undefined) {
+    if (input.idKind !== "email" && input.idKind !== "emp") return { ok: false, error: "Choose an Employee ID or an Email ID." };
+    if (input.idKind === "email") cfg.idKind = "email"; else delete cfg.idKind;
   }
   if (input.employeesOnly !== undefined) {
     if (typeof input.employeesOnly !== "boolean") return { ok: false, error: "Employees only: say yes or no." };

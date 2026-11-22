@@ -12,8 +12,9 @@
 import { parseUa } from "./audit";
 import { isTestMode, orgIsTest } from "./mode";
 import type { D1, Env } from "./worker";
+import { mirrorBeacon, mirrorFunnel, mirrorLink, type D1Like } from "./analytics-core"; // the central visitor database (see analytics-core.ts); everything below is a no-op without the ANALYTICS binding
 
-export interface VisitEnv extends Env { VISIT_KEY?: string; VISIT_DAILY_WRITES?: string; PUBLIC_ORIGIN?: string }
+export interface VisitEnv extends Env { VISIT_KEY?: string; VISIT_DAILY_WRITES?: string; PUBLIC_ORIGIN?: string; ANALYTICS?: D1Like; ANALYTICS_KEY?: string; ANALYTICS_DAILY_WRITES?: string }
 
 export const VISIT_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS visit_session (sid TEXT PRIMARY KEY, vid TEXT, iph TEXT, ipshort TEXT, first_ms INTEGER NOT NULL, last_ms INTEGER NOT NULL, landing TEXT, src TEXT, ref_host TEXT, utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, partner TEXT, device TEXT, browser TEXT, os TEXT, lang TEXT, country TEXT, city TEXT, is_bot INTEGER NOT NULL DEFAULT 0, visit_no INTEGER NOT NULL DEFAULT 1, ip_visit_no INTEGER NOT NULL DEFAULT 1, pages INTEGER NOT NULL DEFAULT 0, n_events INTEGER NOT NULL DEFAULT 0, exit_path TEXT, exit_section TEXT, exit_ms INTEGER, exit_scroll INTEGER, stage INTEGER NOT NULL DEFAULT 0, org TEXT, eh TEXT)`,
@@ -172,6 +173,7 @@ export async function beaconRoute(req: Request, env: VisitEnv, now: number, spen
   if (!b.evs.length) return none();
   const db = env.DB, cap = Number(env.VISIT_DAILY_WRITES ?? VISIT_DAILY_WRITES), cf = (req as any).cf ?? {};
   const testNow = await isTestMode(env); // TEST mode (mode.ts): visits are kept apart (is_test) and never reach the owner's reports
+  if (!testNow) await mirrorBeacon(env, req, text, now); // the same beacon, copied into the central visitor database: a no-op without the ANALYTICS binding, never throws, never waits more than 1.5 s, never for a TEST visit
   const bot = botName(ua), private_ = !bot && (b.gpc || gpcOn(req));
   const day = new Date(now).toISOString().slice(0, 10);
   const country = String(cf.country ?? req.headers.get("cf-ipcountry") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
@@ -226,6 +228,7 @@ export async function linkVisitor(env: VisitEnv, req: Request, org: string, via:
     const hdrVid = req.headers.get("x-cb-vid") ?? "", sid = /^[a-f0-9]{16,32}$/.test(req.headers.get("x-cb-vs") ?? "") ? req.headers.get("x-cb-vs")! : "";
     const vid = gpcOn(req) ? "" : /^[a-f0-9]{32}$/.test(hdrVid) ? hdrVid : cookieVid(req);
     const eh = await emailHash(env, email);
+    await mirrorLink(env, req, { org, vid, sid }); // the same link in the central database (a no-op without the binding)
     if (vid) await env.DB.prepare("UPDATE visit_session SET org=?, eh=COALESCE(?,eh) WHERE vid=? AND is_bot=0 AND (org IS NULL OR org=?)").bind(org, eh || null, vid, org).run();
     else if (sid && !gpcOn(req)) await env.DB.prepare("UPDATE visit_session SET org=?, eh=COALESCE(?,eh) WHERE sid=? AND is_bot=0 AND (org IS NULL OR org=?)").bind(org, eh || null, sid, org).run();
     if (via === "start") await recordFunnelForOrg(env, org, "account", now);
@@ -235,6 +238,7 @@ export async function linkVisitor(env: VisitEnv, req: Request, org: string, via:
 export async function recordFunnelForOrg(env: { DB: D1 }, org: string | null | undefined, step: Step, now: number): Promise<void> {
   try {
     if (!org || (await orgIsTest(env, org))) return; // a test account never counts in the funnel
+    { const e = env as Partial<VisitEnv>; let host = "tictactoe.corporatetambola.com"; try { if (e.PUBLIC_ORIGIN) host = new URL(e.PUBLIC_ORIGIN).hostname; } catch { /* keep this game's own host */ } if (e.ANALYTICS) await mirrorFunnel(e, host, org, step, now); } // the same step in the central database (a no-op without the binding)
     const db = env.DB, s = await db.prepare("SELECT sid FROM visit_session WHERE org=? AND is_bot=0 ORDER BY first_ms ASC LIMIT 1").bind(org).first<{ sid: string }>();
     if (!s) { await db.prepare("INSERT INTO visit_agg(day,dim,k,n,ms) VALUES(?,?,?,1,0) ON CONFLICT(day,dim,k) DO UPDATE SET n=n+1").bind(new Date(now).toISOString().slice(0, 10), "gpc_fun", step).run(); return; }
     if (await db.prepare("SELECT 1 AS x FROM visit_event WHERE sid=? AND kind='fun' AND name=? LIMIT 1").bind(s.sid, step).first()) return;

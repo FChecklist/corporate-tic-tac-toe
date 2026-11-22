@@ -328,7 +328,7 @@ export async function verifyChain(db: D1, chain: string): Promise<{ ok: boolean;
     if (x.pdig) { // the personal part, while it exists, must be the one the chain committed to; once shredded it is rightly gone (the chain never needed it)
       const blob = piiRows.get(x.seq);
       if (blob !== undefined && (await sha(blob)) !== x.pdig) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part was changed", headHash: head };
-      if (blob === undefined && !shredded) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part is missing without a recorded erasure", headHash: head };
+      if (blob === undefined && !shredded) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part is missing without a recorded deletion", headHash: head };
     }
     prev = x.row_hash; head = x.row_hash; expectSeq = x.seq + 1;
   }

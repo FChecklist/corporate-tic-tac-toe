@@ -1,29 +1,26 @@
-/* Consent boxes for the pages that need one. The wording is never typed on a page: it comes from the server (GET /api/consent/text?kind=K4), which also checks the ticks.
-   A box is NEVER ticked in advance. The button you pass in `btn` is disabled (and aria-disabled) until every box is ticked. Each box has a real label; the words Terms,
-   Privacy and Refund inside it are links that open our own page in a new tab.
-   Use:   const tb = await TermsBox.mount(slotElement, "K4", { base: BASE, btn: button, onChange: (ok) => {} });
-          request body:  { ..., consent: tb.terms() }      tb.ok() is true when every box is ticked.   Classes only, no inline style attributes. */
+/* The agreement notice for the pages that need one. No tick-boxes anywhere: going ahead (sign-in, publishing, joining, paying) is the act, and one small gentle line with three
+   links sits where the boxes used to be. The words come from this game's own server (GET /api/consent/text?kind=K4: the Terms version and the ids of the points), never typed on a page.
+   The request still carries the version, so the server keeps its proof of what was shown (consent.ts: version, sha256 of the notice line, time; nothing personal).
+   Use (the same call as before):   const tb = await TermsBox.mount(slotElement, "K4", { base: BASE, btn: button, onChange: (ok) => {} });
+          request body:  { ..., consent: tb.terms() }      tb.ok() is true once the version has loaded; no box is ever held back.   Classes only, no inline style attributes.
+   A button passed in `btn` is never held back by a box; a button marked data-hold="1" stays disabled for another reason. */
 (function () {
+  const DOC = "https://home.corporatetambola.com/terms";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const link = (text) => esc(text)
-    .replace(/Terms &amp; Conditions|Terms/, (m) => `<a href="/terms.html" target="_blank" rel="noopener">${m}</a>`)
-    .replace(/Privacy Policy/, (m) => `<a href="/privacy.html" target="_blank" rel="noopener">${m}</a>`)
-    .replace(/Refund Policy/, (m) => `<a href="/refund-policy.html" target="_blank" rel="noopener">${m}</a>`);
+  /** The notice, as HTML: one small line with three links. Nothing to tick. */
+  const noticeHtml = () => `<p class="tb-note" role="note">By continuing, you agree to the <a href="${DOC}#terms" target="_blank" rel="noopener">Terms and Conditions</a>, <a href="${DOC}#privacy" target="_blank" rel="noopener">Privacy and Data</a>, and <a href="${DOC}#game-rules" target="_blank" rel="noopener">Game rules</a>.</p>`;
   async function mount(el, kind, opts) {
     opts = opts || {};
     const base = (opts.base || "").replace(/\/$/, "");
     let data;
     try { data = await (await fetch(base + "/api/consent/text?kind=" + encodeURIComponent(kind), { cache: "no-store" })).json(); if (!data || !data.boxes) throw new Error("no text"); }
     catch (e) { el.innerHTML = '<p class="tb-err" role="alert">The terms could not be loaded. Please check your connection and try again.</p>'; return { ok: () => false, terms: () => ({ v: "", boxes: [] }), boxes: [] }; }
-    const wrap = document.createElement("div"); wrap.className = "tb";
-    wrap.innerHTML = data.boxes.map((b) => `<div class="tcheck tb-row"><input type="checkbox" id="tb-${esc(kind)}-${esc(b.id)}" data-box="${esc(b.id)}"><label for="tb-${esc(kind)}-${esc(b.id)}">${link(b.text)}</label></div>`).join("");
+    const wrap = document.createElement("div"); wrap.className = "tb"; wrap.setAttribute("data-tb", esc(kind));
+    wrap.innerHTML = noticeHtml();
     el.innerHTML = ""; el.appendChild(wrap);
-    const boxes = [...wrap.querySelectorAll("input[type=checkbox]")];
-    const ok = () => boxes.every((c) => c.checked);
-    const sync = () => { const good = ok(); if (opts.btn) { opts.btn.disabled = !good; opts.btn.setAttribute("aria-disabled", good ? "false" : "true"); } if (opts.onChange) opts.onChange(good); };
-    boxes.forEach((c) => c.addEventListener("change", sync));
+    const sync = () => { if (opts.btn) { const off = opts.btn.dataset && opts.btn.dataset.hold === "1"; opts.btn.disabled = off; opts.btn.setAttribute("aria-disabled", off ? "true" : "false"); } if (opts.onChange) opts.onChange(true); };
     sync();
-    return { ok, terms: () => ({ v: data.version, boxes: boxes.filter((c) => c.checked).map((c) => c.dataset.box) }), version: data.version, boxes: data.boxes };
+    return { ok: () => true, terms: () => ({ v: data.version, boxes: data.boxes.map((b) => b.id), notice: true }), version: data.version, boxes: data.boxes };
   }
   window.TermsBox = { mount };
 })();

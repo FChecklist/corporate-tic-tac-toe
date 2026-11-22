@@ -21,7 +21,7 @@ async function published(id: string, over: Record<string, unknown> = {}) {
   await call("POST", "/api/z/" + id + "/publish", { email: "boss" + id + "@acme.com", phone: "98765 43210" }, h);
   return h;
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k" }; });
 
 describe("joining from one network", () => {
   test("a network may open only so many new seats a day; the answer is friendly; other networks and the same people coming back are not affected", async () => {

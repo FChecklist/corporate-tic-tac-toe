@@ -30,7 +30,7 @@ export default [
       await tickTerms(t, x.page, { scope: ".tb", btn: "#frGo", what: "Sign-up" }); await x.page.click("#frGo");
       await x.page.waitForTimeout(500);
       const txt = await t.text(x.page);
-      t.check("a friendly e-mail message is shown", /valid work email|valid email|check the e-mail address|e-mail address is missing/i.test(txt), txt.slice(0, 160));
+      t.check("a friendly e-mail message is shown", /valid e-mail|valid email|check the e-mail address|e-mail address is missing/i.test(txt), txt.slice(0, 160));
       t.check("still on the home page", !/\/zc/.test(x.page.url()));
       await t.shot(x.page, "bad-email");
     },

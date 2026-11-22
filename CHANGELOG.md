@@ -2,6 +2,18 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.5.0 - 2026-11-22
+The live game code is merged into this branch. Nothing is deployed and no payment switch is on.
+### Why
+- This branch was built before the live game was last updated. It had missed 108 changes that are running live right now (live commit `fa5ab0afa895`, deployed 5 Nov 2026). Deploying it as it was would have quietly removed live fixes and database changes. The live commit is now inside this branch.
+### Merged by hand (both sides kept)
+- **Employee IDs.** Live decides how an ID is read by the date the game was made (`ids.ts`). That rule is kept for every game. This branch's fix for lists made before 1.4.1 is kept too, and now follows the same rule. An e-mail typed where an employee ID is asked is refused, as live does.
+- **Wording.** Where live and this branch changed the same sentence, the live meaning is kept and the words are made to follow the owner rules v1.1 (speak to "you", rupee sign, one privacy line, one fairness sentence). Live facts kept: a game is for at most 2,000 people; credit is valid for 365 days; the report link works for 19 hours and names and numbers are deleted at 20 hours (promised within 24); "personal link".
+- **Database files.** Live already uses 0030 (stage log) and 0031 (price adjust). The two files this branch adds are now `0032_game_role.sql` and `0033_console_paid.sql`. They are still optional and harmless. The migration test lists all of them.
+- **One small test fix.** `ttt-start-resume.test.ts` (live) was missing its test import, which made the type check fail. The import is added.
+### Not changed
+- Money switches stay OFF. No secrets. Not merged, not deployed.
+
 ## 1.4.2 - 2026-11-22
 Fixes after the two audits of PR 9 failed. Nothing is deployed and no payment switch is on.
 ### Fixed

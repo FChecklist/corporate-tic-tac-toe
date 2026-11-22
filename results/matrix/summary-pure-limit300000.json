@@ -1,0 +1,42 @@
+{
+ "when": "2026-10-30T03:47:18.434Z",
+ "tier": "pure",
+ "limit": 300000,
+ "seconds": 2,
+ "total": 300336,
+ "pass": 300336,
+ "fail": 0,
+ "checks": 2192692,
+ "tiers": {
+  "pure": {
+   "total": 300000,
+   "pass": 300000,
+   "fail": 0,
+   "checks": 2191732
+  },
+  "pure-pay": {
+   "total": 288,
+   "pass": 288,
+   "fail": 0,
+   "checks": 864
+  },
+  "pure-theme": {
+   "total": 48,
+   "pass": 48,
+   "fail": 0,
+   "checks": 96
+  }
+ },
+ "pureDimensions": {
+  "idFormat": 47,
+  "idBase": 2,
+  "gameEra": 2,
+  "verifyConfig": 8,
+  "emailCase": 8,
+  "emailNoise": 7,
+  "emailPath": 3,
+  "linkType": 5
+ },
+ "pureProduct": 1263360,
+ "firstFailures": []
+}

@@ -1,9 +1,15 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.4.2",
-  "commit": "f1d18fa",
+  "version": "1.5.0",
+  "commit": "c5ac57d",
   "builtAt": "2026-11-22T00:00:00Z",
   "changes": [
+    {
+      "id": "1.5.0-live-merge",
+      "what": "The live production code (commit fa5ab0afa895, deployed 5 Nov 2026) is merged into this branch, so the branch now holds everything live plus this PR's console Pay step. Where both changed the same words, the live hardening and this PR's owner rules v1.1 are both kept. The PR's two new database files are renumbered 0032 and 0033 because live already uses 0030 and 0031",
+      "where": "apps/edge/src/people.ts, worker.ts, migrations 0032_game_role.sql and 0033_console_paid.sql, apps/web/public/zc.js, guide.js, tests verify / migrations / pages / ttt-start-resume",
+      "pr": "9"
+    },
     {
       "id": "1.4.2-audit-fixes",
       "what": "Fixes from the two failed audits of PR 9: the one-game console key now stays in its own tab only and wins over any older saved sign-in; Sign out in that tab ends the key on the server; a payment for a game that is already paid by another order is refused; employee lists made before 1.4.1 still work; help for organizers speaks to you; help says an employee ID is matched, not proven",

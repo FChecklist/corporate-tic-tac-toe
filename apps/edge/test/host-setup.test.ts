@@ -21,7 +21,7 @@ const one = (sql: string, ...v: unknown[]) => raw.prepare(sql).get(...(v as any[
 
 beforeEach(async () => {
   const d = makeD1({ strictHosts: true }); raw = d.raw; idp = await makeIdp(); trust(idp);
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x", TEST_MODE: "1", GOOGLE_CLIENT_ID: CLIENT_ID } as PayEnv;
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: "http://x", TEST_MODE: "1", GOOGLE_CLIENT_ID: CLIENT_ID } as PayEnv;
 });
 afterEach(() => setGoogleKeyProvider());
 
