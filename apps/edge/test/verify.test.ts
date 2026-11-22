@@ -37,7 +37,7 @@ afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("employee ID", () => {
   test("an ID is trimmed and upper-cased; rubbish is refused; blank is blank", () => {
-    expect(normEmp(" ab 123 ")).toBe("AB123"); expect(normEmp("")).toBe(""); expect(normEmp(undefined)).toBe(""); expect(normEmp("a<b>")).toBeNull(); expect(normEmp("x".repeat(31))).toBeNull();
+    expect(normEmp(" ab 123 ")).toBe("AB123"); expect(normEmp("")).toBe(""); expect(normEmp(undefined)).toBe(""); expect(normEmp("a<b>")).toBe("AB"); expect(normEmp("---")).toBeNull(); expect(normEmp("A-1101")).toBe("A1101"); expect(normEmp("A 1101")).toBe("A1101"); expect(normEmp("a/1101")).toBe("A1101"); expect(normEmp("Ａ－１１０１")).toBe("A1101"); expect(normEmp("x".repeat(31))).toBeNull();
   });
 });
 
@@ -62,18 +62,25 @@ describe("the settings", () => {
 });
 
 describe("employees only, ID alone", () => {
+  test("owner rule: A-1101, A 1101 and A/1101 are the same person (invited by one spelling, joined with another)", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true });
+    const r = await j(await add(t.master, [{ name: "Asha", empId: "A-1101" }, { name: "Again", empId: "A 1101" }, { name: "Slash", empId: "a/1101" }]));
+    expect(r.added).toBe(1); expect(r.duplicates).toBe(2); // one person, however it was typed
+    for (const typed of ["A 1101", "A/1101", "a-1101", "A1101"]) expect((await joinAs("PPL-1", 5, { phone: undefined, empId: typed })).status).toBe(200);
+    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toEqual([await empHashOf(env, "A1101")]);
+  });
   test("a listed employee joins with the ID only; a wrong ID waits; a missing ID is asked for; a mobile number alone is no way in", async () => {
     const t = await setup({ verify: "id", employeesOnly: true });
     const r = await j(await add(t.master, [{ name: "Asha", empId: "e-101" }, { name: "Ravi", empId: "E102", phone: mob(2) }, { name: "NoId", phone: mob(3) }, { name: "Dup", empId: "E-101" }]));
     expect(r.added).toBe(2); expect(r.duplicates).toBe(1); expect(r.invalid.length).toBe(1);
-    expect(r.people.find((p: any) => p.name === "Asha")).toMatchObject({ empId: "E-101", maskedPhone: "", waLink: null });
+    expect(r.people.find((p: any) => p.name === "Asha")).toMatchObject({ empId: "E101", maskedPhone: "", waLink: null });
     const ok = await joinAs("PPL-1", 5, { phone: undefined, empId: " e-101 " }); expect(ok.status).toBe(200);
     expect((await joinAs("PPL-1", 5, { phone: undefined, empId: "E-101" })).status).toBe(200); // the same ID again is the same person
     const wrong = await joinAs("PPL-1", 6, { phone: undefined, empId: "E999" }); expect(wrong.status).toBe(403); expect((await j(wrong)).code).toBe("waiting");
     const none = await joinAs("PPL-1", 7, { phone: undefined }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id");
     expect((await joinAs("PPL-1", 8, {})).status).toBe(400);
     expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(1);
-    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toContain(await empHashOf(env, "E-101"));
+    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toContain(await empHashOf(env, "E101"));
   });
 });
 

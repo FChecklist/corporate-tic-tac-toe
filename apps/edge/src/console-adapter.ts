@@ -209,6 +209,6 @@ export function scopedKeyMayCall(eid: string, method: string, path: string): boo
   if (path.startsWith("/api/invoice/") || path.startsWith("/api/paylink/")) return true;
   if (path === "/api/checkout" || path === "/api/payments/status" || path.startsWith("/api/payments/")) return true; // the payer is checked again against the game inside pay.ts
   const m = /^\/api\/z\/([^/]+)(\/.*)?$/.exec(path);
-  if (m) return decodeURIComponent(m[1] as string) === eid;
+  if (m) { try { return decodeURIComponent(m[1] as string) === eid; } catch { return false; } } // a broken %-escape is simply "not this game" (it used to throw out of the Worker)
   return false;
 }

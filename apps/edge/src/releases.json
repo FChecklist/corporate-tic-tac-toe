@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.4.1",
+    "date": "2026-11-22",
+    "commit": "d1c046b",
+    "title": "Checked before the audit: employee IDs, plain wording for organizers, safer console keys",
+    "changes": [
+      "An employee ID is now read one way everywhere: A-1101, A 1101 and A/1101 are the same person",
+      "The organizer and host screens now speak to you, show money with the rupee sign, and carry one privacy line and one fairness sentence",
+      "A console sign-in made for one game can no longer cause an error by opening a broken address; it is simply refused",
+      "Nothing about payment is switched on: the console's Pay step and the old-link redirect stay off"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-11-20",
     "commit": "02cdab1",

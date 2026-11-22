@@ -16,14 +16,14 @@
       if (!r.ok || !j.key) throw new Error(j.message || j.error || "This link has run out.");
       try { sessionStorage.setItem("cbz-org", j.key); } catch {} // this tab only: a 16-hour key for one game must never replace the lasting sign-in kept on the device
       location.replace(go);
-    } catch (e) { document.getElementById("hmsg").textContent = (e && e.name === "TypeError" ? "We could not reach the service. Please check your internet and try again." : "This link has run out. Please open the game again from your console.") + " Nothing was changed."; }
+    } catch (e) { document.getElementById("hmsg").textContent = (e && e.name === "TypeError" ? "The service could not be reached. Please check your internet and try again." : "This link has run out. Please open the game again from your console.") + " Nothing was changed."; }
   };
   const draw = (msg) => {
     if (consoleEid && t) { if (!handedOff) { handedOff = true; handoff(); } return; } // once only: the page may be drawn again (for example after the terms load), the one-time link may not
     app.innerHTML = `<div class="zhead"><b>Corporate Tic Tac Toe</b></div><div class="zcard zform"><h2>${t ? "Press the button to sign in" : "This sign-in page needs its link"}</h2>
       ${t ? `<p class="zsmall" style="margin-top:0">This is Option 2 from your e-mail. It works once, for 10 minutes.</p>` : ""}
       ${msg ? `<div class="zbanner bad" role="alert">${esc(msg)}</div>` : ""}
-      ${t ? `<button class="zbtn" id="go">Sign me in</button>` : `<div class="zbanner bad" role="alert">This page lost your sign-in link, which can happen when it is reloaded or opened in another app. Open your e-mail and tap the button again, or type the 6-digit code from the same e-mail on the sign-in page. Both still work for 10 minutes.</div>`}
+      ${t ? `<button class="zbtn" id="go">Sign in</button>` : `<div class="zbanner bad" role="alert">This page lost your sign-in link, which can happen when it is reloaded or opened in another app. Open your e-mail and tap the button again, or type the 6-digit code from the same e-mail on the sign-in page. Both still work for 10 minutes.</div>`}
       <p id="gOr" class="gor" hidden>or</p><div id="tbSlot" class="tbslot" hidden></div><div id="gWrap" class="gwrap" hidden></div>
       <p class="zsmall">Something wrong? <a href="/#login">Go back to the sign-in page</a> and ask for a new e-mail.</p></div>`;
     const gw = document.getElementById("gWrap"); // "Continue with Google" shows only when the server has a Google client id; it signs in exactly like the e-mail does
@@ -38,7 +38,7 @@
         if (!r.ok) throw new Error(j.error || "Something went wrong. Please try again.");
         try { CTK.set("cbz-org", j.token); } catch {}
         location.replace(go);
-      } catch (e) { draw(e && e.name === "TypeError" ? "We could not reach the service. Please check your internet and try again." : e && e.message ? e.message : "Something went wrong. Please try again."); }
+      } catch (e) { draw(e && e.name === "TypeError" ? "The service could not be reached. Please check your internet and try again." : e && e.message ? e.message : "Something went wrong. Please try again."); }
     };
   };
   draw("");

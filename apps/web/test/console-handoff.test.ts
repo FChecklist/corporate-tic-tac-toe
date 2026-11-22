@@ -51,7 +51,7 @@ test("hand-off: opening the link twice, or after a minute, opens nothing and say
   expect(late.win.sessionStorage.getItem("cbz-org")).toBeFalsy();
 });
 
-test("the ordinary sign-in page is unchanged: without go=console it still shows the 'Sign me in' button and redeems nothing by itself", async () => {
+test("the ordinary sign-in page is unchanged: without go=console it still shows the 'Sign in' button and redeems nothing by itself", async () => {
   const { w } = await setup();
   const p = await visit(w, "/signin?t=" + "0".repeat(48));
   await p.waitFor((x: string) => /Press the button to sign in/.test(x));

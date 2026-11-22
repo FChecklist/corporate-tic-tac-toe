@@ -49,8 +49,9 @@ export const tokenHash = async (token: string) => (await sha("pj|" + token.toLow
 /** Same formula as the Worker's join (worker.ts `phoneHash`): +91 98765 43210, 098765 43210 and 9876543210 are one person; one hash in every game. */
 export const phoneHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, digits: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|${digits.slice(-10)}`);
 
-/** An employee ID as typed: spaces dropped, upper case. "" = nothing typed, null = not a usable ID. */
-export const normEmp = (raw: unknown): string | null => { const s = String(raw ?? "").replace(/\s+/g, "").toUpperCase(); if (!s) return ""; return /^[A-Z0-9][A-Z0-9._\-/]{0,29}$/.test(s) ? s : null; };
+/** An employee ID as typed (owner rule 30 Oct 2026, the same cleaning as the console's employee-id.js): full-width and look-alike characters become plain ones, CAPITAL letters, and everything that is not A-Z or 0-9 is dropped, so A-1101, A 1101, a/1101 and A1101 are ONE person. "" = nothing typed, null = not a usable ID (nothing left after cleaning, or more than 30 letters and numbers: an ID is never cut short). */
+export const EMP_MAX = 30;
+export const normEmp = (raw: unknown): string | null => { const typed = String(raw ?? "").trim(); if (!typed) return ""; const s = typed.normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); return s && s.length <= EMP_MAX ? s : null; };
 /** The identity of a person who is known by employee ID alone (no mobile number needed). One hash for the same ID in every game, like the phone hash. */
 export const empHashOf = (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, id: string) => sha(`${env.PHONE_SALT ?? env.ORGANIZER_SECRET ?? "unset"}|emp|${id}`);
 /** What the organizer asked people to give to get in, read from the game's stored settings. */
