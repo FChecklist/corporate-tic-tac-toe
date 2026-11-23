@@ -4,6 +4,7 @@
 //   AFTER paying the payer may add a name, a company and a GST / Tax ID to the invoice, or skip. The tax invoice is issued when they send or skip, or by itself 15 minutes after capture.
 // The routes and the fulfilment live in pay.ts (they need its helpers); everything that can be written without them is here.
 import type { D1 } from "./worker";
+import { netKeyOf } from "./netkey";
 
 /** What a payment's e-mail holds between the order and the capture: nobody's address, and never the same for two payments (so no two payers can ever be taken for one organizer). */
 const PENDING_DOMAIN = "payer.invalid";
@@ -58,7 +59,7 @@ const stamp = (now: number) => new Date(now).toISOString().replace(/[-:T]/g, "")
 /** One more test order for this visitor: true = allowed, false = over the hourly or the daily allowance (nothing is counted then). Keyed by network address, never by e-mail. */
 export async function paytestAllowed(db: D1, req: Request, now: number): Promise<boolean> {
   try {
-    const who = (await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), h = stamp(now), d = h.slice(0, 8);
+    const who = (await sha("ip|" + netKeyOf(req))).slice(0, 16), h = stamp(now), d = h.slice(0, 8);
     const kh = `ptl/h/${h}/${who}`, kd = `ptl/d/${d}/${who}`;
     const get = async (k: string) => Number((await db.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
     const [nh, nd] = [await get(kh), await get(kd)];

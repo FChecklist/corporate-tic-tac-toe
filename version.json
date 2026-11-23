@@ -1,9 +1,15 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.5.0",
-  "commit": "c5ac57d",
-  "builtAt": "2026-11-22T00:00:00Z",
+  "version": "1.5.1",
+  "commit": "50efacd",
+  "builtAt": "2026-11-23T00:00:00Z",
   "changes": [
+    {
+      "id": "1.5.1-audit-round-3",
+      "what": "Fixes from the third audit round of PR 9: wrong-ID limits and the other per-address limits now count an IPv6 visitor by their /64 (first 64 bits), not by every single address; erasing a game also deletes its console Host / Co-host roles (with the sealed e-mail), console keys and unopened hand-off links; help says that opening a game from your console signs you out of other saved sign-ins on this device; the flaky tests are named correctly",
+      "where": "apps/edge/src/netkey.ts (new), worker.ts, pay.ts, payfirst.ts, partners.ts, lifecycle.ts; apps/web/public/guide.js; tests netkey, ipv6-guess-limit, stage-log-erase, owner-rules",
+      "pr": "9"
+    },
     {
       "id": "1.5.0-live-merge",
       "what": "The live production code (commit fa5ab0afa895, deployed 5 Nov 2026) is merged into this branch, so the branch now holds everything live plus this PR's console Pay step. Where both changed the same words, the live hardening and this PR's owner rules v1.1 are both kept. The PR's two new database files are renumbered 0032 and 0033 because live already uses 0030 and 0031",

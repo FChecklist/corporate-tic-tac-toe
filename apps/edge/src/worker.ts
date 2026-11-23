@@ -13,6 +13,7 @@
 //   nobody        - phones: join, send claims, read results counts, read the engagement info and the signed control file.
 
 import { cleanAccountEmail } from "./ids";
+import { netKeyOf } from "./netkey";
 import { zoneTime, tzOfRow } from "./tz";
 import { BRAND_COLORS, GRACE_ROUNDS, HOUSE_ORDER, isTimeZone, PRIZE_HOUSES, brandMomentsFor, defaultCfg, validateCfg, type EngagementCfg } from "../../../packages/beacon/src/config";
 import { openPii, openText, sealPii, sealText } from "./pii";
@@ -347,7 +348,7 @@ const demoOn = (env: Env) => (env as any).DEMO_GAME === "on";
 const isDemo = async (env: Env, eid: string) => !!(await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`demo/${eid}`).first());
 /** the two daily counters of a demo: one per organizer account (its e-mail or employee ID), one per network; only fingerprints, no address is kept */
 async function demoKeys(env: Env, req: Request, org: string, now: number) {
-  const d = day(now), ip = (await sha("demoip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16);
+  const d = day(now), ip = (await sha("demoip|" + netKeyOf(req))).slice(0, 16);
   return [`democ/${d}/o/${org}`, `democ/${d}/ip/${ip}`];
 }
 const demoUsed = async (env: Env, ks: string[]) => { let m = 0; for (const k of ks) m = Math.max(m, Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0)); return m; };
@@ -394,7 +395,7 @@ const runnerTestGame = (env: Env, req: Request, e: any): boolean => !!e && Strin
 async function joinOverLimit(env: Env, req: Request, now: number, paidSeats = 0, runner = false): Promise<boolean> {
   if (runner) return false;
   try {
-    const ip = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), perDay = Math.max(Number((env as any).JOIN_PER_IP_DAY ?? JOIN_PER_IP_DAY), paidSeats * 3), perMin = Math.max(Number((env as any).JOIN_PER_IP_MINUTE ?? JOIN_PER_IP_MINUTE), paidSeats);
+    const ip = (await sha("jip|" + netKeyOf(req))).slice(0, 16), perDay = Math.max(Number((env as any).JOIN_PER_IP_DAY ?? JOIN_PER_IP_DAY), paidSeats * 3), perMin = Math.max(Number((env as any).JOIN_PER_IP_MINUTE ?? JOIN_PER_IP_MINUTE), paidSeats);
     const bump = async (k: string, max: number) => { const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0); if (n >= max) return true; await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(k, String(n + 1), String(n + 1)).run(); return false; };
     const iso = new Date(now).toISOString();
     return (await bump(`jbm/${iso.slice(0, 16)}/${ip}`, perMin)) || (await bump(`jlim/${iso.slice(0, 10)}/${ip}`, perDay));
@@ -673,7 +674,7 @@ const waLinkFor = (digits: string, name: string, link: string): string => `https
 /* AI_LINK_MAIL_AT_SIGNUP="0" (a Pages variable, set on the live site): the AI work link is not offered in the organizer console, so the welcome e-mail that carried it is not sent either. A new organizer then gets only the sign-in e-mail (the 6-digit code as option 1, the sign-in link as option 2). Any other value sends it as before. */
 async function createOrganizer(env: Env, req: Request, email: string, now: number, via: "start" | "signin-google" | "host-to-organizer", ticked = false): Promise<{ ok: true; token: string; aiKey: string; aiMessage: string } | { error: string; status: number }> {
   const eh = await sha("email|" + email);
-    const ipk = `start/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
+    const ipk = `start/${day(now)}/${(await sha("ip|" + netKeyOf(req))).slice(0, 16)}`;
     const used = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
     if (used >= STARTS_PER_DAY) return { error: "Too many new games from this network today. Please try again tomorrow.", status: 429 };
     if (!(await spend(env, now, 6))) return { error: "busy", status: 503 };
@@ -987,7 +988,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const intent = b?.intent;
     if (intent !== "signup" && intent !== "signin" && intent !== "host") return json({ error: "Say whether you are signing up, signing in or finishing a Host setup." }, 400);
     { const mt = consentRequired(b, intent === "host" ? "K5" : "K2"); if (mt) return mt; } // the Terms box (K2), or the Host's promise (K5)
-    const fk = `linkfail/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`; // the same per-network failure allowance as the sign-in link
+    const fk = `linkfail/${day(now)}/${(await sha("ip|" + netKeyOf(req))).slice(0, 16)}`; // the same per-network failure allowance as the sign-in link
     const fails = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(fk).first<{ v: string }>())?.v ?? 0);
     if (fails >= 20) return json({ error: "Too many tries from this network. Please use an e-mail code, or try again tomorrow." }, 429);
     const bad = async (msg: string, code?: string) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: msg, ...(code ? { code } : {}) }, 400); };
@@ -1032,7 +1033,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (req.method === "POST" && p === "/api/auth/link") { // the confirm page POSTs here; opening the link (GET, a mail scanner) consumes nothing
     const b = await body(req);
     const t = typeof b?.token === "string" && /^[0-9a-f]{48}$/.test(b.token) ? b.token : "";
-    const fk = `linkfail/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
+    const fk = `linkfail/${day(now)}/${(await sha("ip|" + netKeyOf(req))).slice(0, 16)}`;
     const fails = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(fk).first<{ v: string }>())?.v ?? 0);
     if (fails >= 20) return json({ error: "Too many tries from this network. Please use the 6-digit code, or try again tomorrow." }, 429);
     const bad = async () => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(fk, String(fails + 1), String(fails + 1)).run(); return json({ error: "This sign-in link is not valid any more. Please ask for a new one from the sign-in page." }, 400); };
@@ -1057,7 +1058,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const eh = await sha("email|" + email);
     if (TEST_LOGINS.has(email) && code === TEST_LOGIN_CODE && runnerOk(env, req)) { // TT-21: the fixed code opens an account only while the service is in TEST mode
       { // a per-network daily limit and the write budget apply, like every other public write
-        const tk = `tlg/${day(now)}/${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local") + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
+        const tk = `tlg/${day(now)}/${(await sha("ip|" + netKeyOf(req) + "|" + email)).slice(0, 16)}`; // per network and per account: one account cannot lock out another
         const tu = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(tk).first<{ v: string }>())?.v ?? 0);
         if (tu >= TEST_LOGINS_PER_IP_DAY) return json({ error: "Too many sign-ins from this network today. Please try again tomorrow." }, 429);
         if (!(await spend(env, now, 3))) return BUSY();
@@ -1638,7 +1639,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading, then the old one (lists made before 1.4.1)
     if (!hit || hit.status === "removed") {
       try {
-        const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
+        const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
         const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
         if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
         await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
@@ -1726,7 +1727,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       else if (!pr) idMiss = true; // ID alone, not on the list
       if (idMiss) { // guessing IDs: only so many wrong IDs per network per game per 10 minutes
         try {
-          const ipk = (await sha("jip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
+          const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
           const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
           if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
           await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();

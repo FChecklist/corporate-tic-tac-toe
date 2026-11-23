@@ -20,6 +20,7 @@ import { seatOfPid } from "../../../packages/beacon/src/unique-ticket";
 import { openPii, openText, sealText, type PiiEnv } from "./pii";
 import { layoutReport, layoutPeoplePart, istDate, istFull, emptyAgg, type Agg, type ReportData, type ReportPerson, type ReportPrize, type ReportWinner } from "./report-layout";
 import { purgeOutbox, retryOutbox, sendReportMail, type PayEnv } from "./pay";
+import { CONSOLE_KEY_LABEL } from "./console-adapter";
 import { eraseCohostsSql, mailDataDeleted, mailErasureHeadsUp } from "./cancel";
 import { creditTick } from "./credit";
 import { endBoundTtt } from "./tournament";
@@ -145,6 +146,12 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
   ]);
   // The new flow's stage log (table ttt_sl, migration 0030). Deleted AFTER the atomic batch above and on its own, so a database that does not have the table yet can never stop the participant data from being deleted.
   try { await env.DB.prepare("DELETE FROM ttt_sl WHERE eid=?").bind(eid).run(); } catch { /* no such table yet: nothing to delete */ }
+  // Console bridge data (dark until the console is switched on): the Host and Co-host roles (their sealed e-mail address), the console keys of this game and any hand-off link nobody opened. Each on its own and after the atomic batch, so a database without the bridge tables can never stop the participant data from being deleted.
+  for (const [sql, bind] of [
+    ["UPDATE organizer_key SET revoked=1 WHERE eid=? AND label=?", [eid, CONSOLE_KEY_LABEL]],
+    ["DELETE FROM console_handoff WHERE eid=?", [eid]],
+    ["DELETE FROM game_role WHERE eid=?", [eid]],
+  ] as [string, unknown[]][]) { try { await env.DB.prepare(sql).bind(...bind).run(); } catch { /* no such table yet: nothing to delete */ } }
   await shredParticipantAudit(env as any, eid, now); // best effort inside: a held engagement keeps its log until the hold is lifted, then the tick shreds it
 }
 /** Everything about an engagement, at the end of its 365 days (or for a draft nobody published). */

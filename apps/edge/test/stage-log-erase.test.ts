@@ -1,4 +1,5 @@
 // The new flow's stage log (table ttt_sl, migration 0030) must never get in the way of deleting participant data, whether or not the table exists in the database yet.
+// Also here (v1.5.1): erasing a game removes the console bridge data of that game (Host / Co-host roles with their sealed e-mail, console keys, unopened hand-off links).
 // (1) a database WITHOUT ttt_sl: the 24-hour deletion (erasePersonal, here through the Organizer's delete button after the game) still deletes all participant data;
 // (2) a database WITH ttt_sl: it also clears the log of that game and leaves the log of another game alone;
 // (3) with the table missing and the new flow never switched on, switching it on answers quietly and the log routes say it is off (nothing throws).
@@ -6,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { makeD1 } from "./d1-sqlite";
+import { BRIDGE_SCHEMA } from "../src/console-bridge/schema";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0), GEN = 1692803367;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
@@ -56,5 +58,32 @@ describe("deleting participant data with and without the stage log table", () =>
     const on = await call("POST", "/api/z/SLE-3/ttt/stageon", {}, master); expect(on.status).toBe(409); expect((await j(on)).code).toBe("no-stages");
     expect((await call("GET", "/api/z/SLE-3/ttt/stagelog")).status).toBe(404);
     expect((await call("POST", "/api/z/SLE-3/ttt/stagelog", { pid: "x", device: dev(1) })).status).toBe(404);
+  });
+});
+
+describe("deleting a game also deletes its console bridge data (v1.5.1)", () => {
+  const seed = (eid: string) => {
+    for (const q of BRIDGE_SCHEMA) raw.exec(q);
+    raw.prepare("INSERT INTO game_role(role_id,eid,role,email_hash,email_sealed,state,invited_ms) VALUES(?,?,?,?,?,?,?)").run("role-" + eid, eid, "cohost", "h-" + eid, "sealed-" + eid, "active", T);
+    raw.prepare("INSERT INTO console_handoff(token_hash,eid,kind,org,created_by,expires_ms) VALUES(?,?,?,?,?,?)").run("t-" + eid, eid, "game", "org", "r:role-" + eid, T + 60_000);
+    raw.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,expires_ms,label,eid,created_by) VALUES(?,?,?,0,?,0,NULL,?,?,?)").run("k-" + eid, "org", "game", T, "console", eid, "r:role-" + eid);
+  };
+  test("the role (sealed e-mail), the hand-off link and the console key of that game are gone; another game's are not", async () => {
+    const master = await game("SLE-4");
+    seed("SLE-4"); seed("SLE-KEEP");
+    expect(count("SELECT COUNT(*) c FROM game_role WHERE eid=?", "SLE-4")).toBe(1);
+    const r = await call("POST", "/api/z/SLE-4/erase", {}, master, AFTER); expect(r.status).toBe(200);
+    expect(count("SELECT COUNT(*) c FROM game_role WHERE eid=?", "SLE-4")).toBe(0);
+    expect(count("SELECT COUNT(*) c FROM console_handoff WHERE eid=?", "SLE-4")).toBe(0);
+    expect(count("SELECT COUNT(*) c FROM organizer_key WHERE eid=? AND revoked=0", "SLE-4")).toBe(0);
+    expect(count("SELECT COUNT(*) c FROM game_role WHERE eid=?", "SLE-KEEP")).toBe(1);
+    expect(count("SELECT COUNT(*) c FROM console_handoff WHERE eid=?", "SLE-KEEP")).toBe(1);
+    expect(count("SELECT COUNT(*) c FROM organizer_key WHERE eid=? AND revoked=0", "SLE-KEEP")).toBe(1);
+  });
+  test("a database without the bridge tables still erases the participants", async () => {
+    const master = await game("SLE-5");
+    for (const t of ["game_role", "console_handoff"]) raw.exec(`DROP TABLE IF EXISTS ${t}`);
+    const r = await call("POST", "/api/z/SLE-5/erase", {}, master, AFTER); expect(r.status).toBe(200);
+    expect(count("SELECT COUNT(*) c FROM participant WHERE eid=?", "SLE-5")).toBe(0);
   });
 });

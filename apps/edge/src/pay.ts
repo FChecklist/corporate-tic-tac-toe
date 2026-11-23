@@ -6,6 +6,7 @@
 // An entitlement is what lets an organizer create one engagement of up to `pack` participants; without one, creating is refused.
 // Needs the `nodejs_compat` flag (billing uses node:crypto HMAC). Test mode (env.TEST_MODE = "1", never in production) fulfils without Razorpay.
 import { consentRequired, recordConsent } from "./consent";
+import { netKeyOf } from "./netkey";
 import { recordFunnelForOrg } from "./visits";
 import { recordFun } from "./funnel";
 import { plainToHtml, tagSubject, withFooter } from "./brand";
@@ -464,7 +465,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       if (!boundPack) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
       boundOrg = pv.link.org; boundEid = pv.link.eid; paidBy = "link";
       try { // the same free-plan guard as other public writes: a few attempts per network address per day, and a daily write budget
-        const ipk = `plim/${new Date(now).toISOString().slice(0, 10)}/pl${(await sha("ip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16)}`;
+        const ipk = `plim/${new Date(now).toISOString().slice(0, 10)}/pl${(await sha("ip|" + netKeyOf(req))).slice(0, 16)}`;
         const used = Number((await db.prepare("SELECT v FROM kv WHERE k=?").bind(ipk).first<{ v: string }>())?.v ?? 0);
         if (used >= PAYLINK_PER_IP_DAY) return json({ error: "Too many payment attempts from this network today. Please try again tomorrow." }, 429);
         await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(ipk, String(used + 1), String(used + 1)).run();

@@ -2,6 +2,24 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.5.1 - 2026-11-23
+Fixes after the third round of audits of PR 9. Nothing is deployed and no payment switch is on.
+### Fixed
+- **Wrong-ID guessing is limited per IPv6 network, not per single address.** The limit of 30 wrong employee IDs in 10 minutes counted every IPv6 address on its own, so one person could change address and start again. Now all addresses inside one IPv6 home or phone network count as one. The same goes for the other per-address limits (sign-in link failures, test sign-in, demo, game starts, joins, payment-link tries, partner and pay-first tries). IPv4 works exactly as before.
+- **Deleting a game now deletes its console helpers too.** The Host and Co-host roles made through the console (with the sealed e-mail address), the console sign-ins of that game and any unopened console link are deleted at the same time as the other people's data, so the "everything is deleted" promise stays true once the console is on. This is dark today because the console is off.
+- **Help tells you what opening a console game does.** One line: opening a game from your console signs you out of any other sign-in saved on this device.
+- **The unreliable tests are named correctly.** The tests that fail now and then only when the whole suite runs together, and pass alone, are `join-retry.test.ts`, `ttt-same-name.test.ts` and `big-lost.test.ts`.
+### Tests added
+- `apps/edge/test/netkey.test.ts`: IPv4 as it is; two addresses in one /64 give one key; another /64 does not.
+- `apps/edge/test/ipv6-guess-limit.test.ts`: 30 wrong IDs from 30 addresses in one /64 close the door for that /64 ("Join" and "Is this you?"); another /64 and IPv4 are not affected.
+- `apps/edge/test/stage-log-erase.test.ts`: erasing a game removes its role, hand-off link and console key and leaves another game's alone; a database without the bridge tables still erases.
+### Not done (needs a decision written by the owner or the BOSS on PR 9)
+- "Invite by employee ID only" is still open. An organizer can still choose mobile number, employee ID, either or both. Making the server refuse every other choice would change how live games work today, so it is not done without a decision in writing.
+- The tidy-up of the `cpaid/<game>` order note when a game is deleted is not done on purpose: it holds the order reference of a payment, which the law keeps.
+- Unchanged and accepted: the signed payment notice does not cover order number and size; the frame address `https://itservices-rajat-agarwal.pages.dev` needs the owner's confirmation; `pack/` still has first-person words (fix in the console repo).
+- The live site's `/version.json` could not be read from this build box (network block), so the live commit is taken from the earlier merge note (`fa5ab0afa895`, deployed 5 Nov 2026). It is inside this branch.
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+
 ## 1.5.0 - 2026-11-22
 The live game code is merged into this branch. Nothing is deployed and no payment switch is on.
 ### Why
@@ -33,7 +51,7 @@ Fixes after the two audits of PR 9 failed. Nothing is deployed and no payment sw
 - "Invite by employee ID only" is still open. An organizer can still choose mobile number, employee ID, either or both. This needs the owner's decision in writing.
 - The vendored `pack/` folder still has first-person wording and has to be fixed in the console repo.
 - The signed payment notice is tied to the game and the person, not to the order number or size. Safe while the console calls the game directly; add both to the signature if a browser ever passes the notice on.
-- Tests: three tests fail on `master` too (two page tests and one owner test account test that use dates that have passed). One more test ("big screen: connection lost") fails now and then when the whole suite runs together and passes alone.
+- Tests: three tests fail on `master` too (two page tests and one owner test account test that use dates that have passed). One more test fails now and then when the whole suite runs together and passes alone (a timing test: `join-retry.test.ts`; since 1.5.0 also `ttt-same-name.test.ts` and `big-lost.test.ts`).
 - PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
 
 ## 1.4.1 - 2026-11-22

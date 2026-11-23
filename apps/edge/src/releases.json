@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-11-23",
+    "commit": "50efacd",
+    "title": "Fixes after the third audit: IPv6 address limits, erasing console helper data, help line",
+    "changes": [
+      "Limits that count tries per internet address (wrong employee IDs, sign-in link failures, game starts, joins, payment-link tries) now treat all addresses inside one IPv6 home or phone network as one, so changing address no longer gives a fresh allowance. IPv4 works as before",
+      "When a game is deleted, the Host and Co-host roles made for it through the console (with the sealed e-mail address), its console sign-ins and any unopened console link are deleted too",
+      "Help now says that opening a game from your console signs you out of any other sign-in saved on this device",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-11-22",
     "commit": "c5ac57d",
