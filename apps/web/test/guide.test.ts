@@ -128,7 +128,7 @@ describe("help lines added with the invite rule and the console sign-in", () => 
   });
   test("a guest who has no ID, or whose ID is not on the list, is told kindly what to give, and that only the organizer and hosts see it", async () => {
     const p = await page();
-    for (const msg of ["That ID is not on the list. Please type your mobile number. The organizer sees it and decides whether to let you in.", "Please type your e-mail address. The organizer sees it and decides whether to let you in."]) {
+    for (const msg of ["That ID is not on the list. Please type your name. The organizer or host will decide whether to let you in.", "Please type your name. The organizer or host will decide whether to let you in."]) {
       const g = p.win.CTG.explain({ status: 400, message: msg }); expect(g.matched).toBe(true);
       expect(g.steps.join(" ")).toContain("Only your organizer and hosts see them"); expect(g.steps.join(" ")).toContain("deleted within 24 hours");
     }

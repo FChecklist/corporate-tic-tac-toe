@@ -53,7 +53,7 @@ describe("joining from one network", () => {
     (env as any).JOIN_PER_IP_DAY = "1"; const h = await published("ABUSE-4", { closed: true });
     expect((await join(1, "3.3.3.3", "ABUSE-4")).status).toBe(403);
     await call("POST", "/api/z/ABUSE-4/roster", { people: [{ phone: "9810000002", name: "Listed" }] }, h);
-    expect((await call("POST", "/api/z/ABUSE-4/join", { phone: "9810000002", name: "Listed", email: "listed@acme.test", device: dev(2) }, { "cf-connecting-ip": "3.3.3.3" })).status).toBe(200); // the roster put this person on the game already (a seat), so asking again lets them in
+    const again = await call("POST", "/api/z/ABUSE-4/join", { phone: "9810000002", name: "Listed", device: dev(2) }, { "cf-connecting-ip": "3.3.4.4" }); expect(again.status).toBe(403); expect((await again.json() as any).code).toBe("waiting"); // 1.6.1: a mobile number is not a key: a typed number never lets anybody in, even one the organizer listed; the person waits for a yes (the personal link or the ID is the way in)
   });
   test("the counters expire with the daily sweep", async () => {
     await published("ABUSE-1"); await join(1, "4.4.4.4");

@@ -2,6 +2,39 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.6.1 - 2026-11-23
+Fixes for the two failed audits of `da3e485a` (PR 9, 23 Nov 2026, 09:33 and 09:34 UTC), built on the owner's join rule of 07:16 UTC. Nothing is deployed and no payment switch is on (`PAY_VIA_CONSOLE` and `CONSOLE_PUBKEYS` are untouched).
+### Changed (the join rule, audit 1: H-1, H-2, H-3, L-2)
+- **Only the name is needed.** A guest who is not on your list (no ID, or an ID that is not on the list) gives a name. The ID, department or team, region, mobile number and e-mail are optional. The server refuses only a missing name (`need-name`); a wrong optional e-mail or mobile number is refused with a plain sentence, because it can be left empty. Before this, the server and the page demanded a mobile number and an e-mail.
+- **A mobile number is no longer a key.** A guest who is not on the list is known by their own phone (a hash of this game and the phone's random id). A typed number is only extra contact for you. An approved place can therefore not be taken by typing the approved person's number on another phone (audit 2, M2). People you added by mobile number reach their place with their personal link, as before.
+- **The two sentences, word for word, on both screens:** "Above details are optional. You can play without giving these details also." and "All the details will be deleted and erased from the system within 24 hours after the game is over." They are on the ask-to-join screen and in the new panel. The older line "No personal details needed. ..." stays on the name-only screen of a game anyone may join.
+- **A small closed panel after entry** (all optional): name, department or team, region, mobile number, e-mail. It sits outside the part of the page that redraws, so nothing typed is lost; Save goes to `POST /api/z/{id}/details` (the card id and the phone's own proof are needed). Department or team and region are kept sealed like the other details, shown in full to the Organizer and Hosts only (never to a Co-host), and deleted with everything else.
+- The waiting list in the console now says that what a person typed is not checked (audit 2, M4).
+- Waiting people no longer get in because the organizer later listed their number: a person who asked is decided by the organizer or a Host.
+### Fixed (audit 2)
+- **H1 stage log:** only the two players named in a slot may write to it (403 `not-in-slot`); a missed move ("-") is stored only after the 10 s move clock has run out, counted from the server's own stamp of the entry before it (409 `too-early`); only a square 0 to 8, "-", or "a" / "b" / "draw" is kept. A third player could burn the turns of a game that was not theirs, or end it as a draw.
+- **Missed move froze the board (found while testing H1):** after "X plays, O misses, X plays again" the board refused X's second move, because the mark was taken from the count of marks on the board. The mark now belongs to the player. The phones' file `tttengine.js` is rebuilt (only this file; the other built bundles are unchanged).
+- **H2 classic tournament:** a single report of a result is no longer kept after 30 s while the other player is still writing to that board. It is kept once that player has written nothing for 150 s (they are away). Two matching reports are kept at once, as before. The mailbox still does not look at boards: an illegal move is stored as sent and every phone ignores it when it replays (kept by test M3, by design).
+- **H3 classic tournament:** a later-round match can be opened only with players who played in the two matches it comes from (400 `not-from-feeders`); a final result that names somebody who did not play (champion, podium, ranking) is refused (400 `not-in-game`).
+- **M1:** the full player list (`setup`) goes to a seated player (with the phone's proof) and to the Organizer and Hosts; anybody else with the link sees a first name and an initial. The draw is the same for everybody.
+- **M3:** every "Is this you?" look-up counts, a right ID too: 60 per network and 600 per game in ten minutes.
+- **M4:** one network may leave 60 open requests per game (429 `waiting-net-full`).
+- **M7:** erasing a game's participant data (20 hours after its end) now also deletes the error reports and error groups that name the game, and the mail outbox rows that name it. A participant's audit row no longer keeps a country or a request id.
+- **L1:** the platform key and the inbound mail secret are compared in constant time (`safeEq`). **L4:** ten wrong deletion codes lock that deletion request until it expires. Audit counters `idmiss/` and `idlook/` are swept after two days.
+- **M-2 (audit 1):** the public `/version.json` now also holds `releasedAtIST` (UTC + 5:30 with its offset). `version.json` and `releases.json` named the commit before (`2fbafc7`), and `builtAt` was an invented time five hours ahead; both are now the real commit and time.
+- The offline cache name of the game files moved to `ttt-game-v12` (the player page and the engine changed).
+### Not changed, and why (decisions for the owner or BOSS, not guessed)
+- **M-1 / M6, the "who played" chain for 365 days:** the 07:16 brief, item 6, says the retention rules of the chain, winners, payer and invoices stay as they are in this version. Nothing was built. Today `erasePersonal` deletes the person, the seat, the invite record and the waiting room (with the approver) at end + 20 hours; only seat, prize, round and time of winners stay. A new table with five fields cleared on day 365 is the way if the owner wants it.
+- **M-3, tick boxes on the organizer console** (`cancelagree` and four more in `zc.js`): they are on the live commit too. The guest side has none. Needs one written line from the owner.
+- **M5, a Host key covers the organizer's whole account:** that is the role as the spec describes it (`docs/ROLES_AND_CONSOLE_SPEC.md`: up to 5 Hosts, everything inside a tournament). Binding a Host to one game is a product change.
+- **H2, illegal moves in the classic mailbox:** stored as sent on purpose (the mailbox "never looks at a board"); every phone ignores them when it replays.
+- **L2:** `STRICT_KEYS=1` is not set in any config, because it makes the Worker answer 503 if one secret is missing; it is now a line in `docs/GO_LIVE_CHECKLIST.md` for whoever deploys. **L3** (audit redaction as an allow-list), **L-1** (wording of the join notice) are left as they were; no route leaks guest names into the audit today.
+- The first move of a stage game (`seq` 0) has no earlier entry to count the clock from, so a "-" at `seq` 0 is limited only to the two players of the slot.
+### Tests
+- New: `apps/edge/test/audit2-privacy.test.ts` (M3, M4, M7, L1, L4), `test/newflow/audit2.test.ts` (H1, the missed-move freeze, the built engine), `apps/web/test/ttt-details-panel.test.ts` (the panel, both sentences, Save reaches the server), and more tests in `invite-rule` (name only, optional answers, a number is no key, `/details`), `tournament` (H2, H3, M1, M9), `ttt-page`, `version-stamp`, `guide`.
+- Changed to the new rule: `join-matrix`, `t30-join-wire`, `nameonly`, `verify`, `people`, `abuse`, `relay` and `sim` (newflow).
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+
 ## 1.6.0 - 2026-11-23
 The owner's invite rule is built. Nothing is deployed and no payment switch is on.
 ### Changed
@@ -10,7 +43,7 @@ The owner's invite rule is built. Nothing is deployed and no payment switch is o
 - **The ID is one field.** The choice between mobile number, ID, either and both is gone, in the console and on the server (the server refuses the old choices; a game saved earlier is read as the one rule). The console no longer shows the four choices.
 - **One reading of every ID, in every game.** Letters and numbers only, capitals: `A-1101`, `A 1101` and `A/1101` are the same ID when you upload your list, when a guest joins, when you say yes and when the game matches. This no longer waits for a release date.
 - **Lists made before this change keep working.** A list that holds `E-101` is found by `E 101`, `E/101` and `e101` too. Nobody on the list is changed, and a second upload sees them as already listed.
-- **A game that anyone with the link may join** keeps asking only for a name (it has no list to check an ID against). The console does not offer it by default but the choice is still there; see the knowledge file for the decision this leaves to the owner.
+- **A game that anyone with the link may join** keeps asking only for a name (it has no list to check an ID against). The console does not offer it by default but the choice is still there; see the knowledge file for the decision this leaves to the owner. (1.6.0 also asked a guest with no ID for a mobile number and an e-mail; 1.6.1 corrects this to the name only, as the owner's 07:16 brief says.)
 - **The join notice now names the e-mail** (shown only to your organizer and hosts, deleted with everything else). The Terms version date was not changed: the owner or the lawyer decides whether it should be.
 - The Employee ID / Email ID kind now locks as soon as anyone is listed, also a person listed by mobile number only.
 ### Fixed
@@ -28,7 +61,7 @@ The owner's invite rule is built. Nothing is deployed and no payment switch is o
 ### Notes for the owner and the auditors
 - `bun.lock` is tracked in this PR (new on `master`; `@types/bun` is `latest` in it).
 - The first two Low items from the audits of `50efacd8` / `2fbafc79` that are fixed here: the help line test and `funnel.ts`. The frame address `https://itservices-rajat-agarwal.pages.dev` still needs the owner's confirmation; `pack/` is still not loaded by any page.
-- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: failed twice at `da3e485a` (two AUDIT: FAIL comments, 23 Nov 2026, 09:33 and 09:34 UTC); the findings are fixed in 1.6.1. Deploy: not done. Rollback id: none (not deployed).
 
 ## 1.5.1 - 2026-11-23
 Fixes after the third round of audits of PR 9. Nothing is deployed and no payment switch is on.

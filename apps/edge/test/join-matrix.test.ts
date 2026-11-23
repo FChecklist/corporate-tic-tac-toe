@@ -77,24 +77,25 @@ describe("row 2: employee ID only, employees only", () => {
   });
 });
 
-describe("row 3, 4, 5, 6: an ID, or name + mobile + e-mail for the organizer (there is no choice of mobile / either / both any more)", () => {
+describe("row 3, 4, 5, 6: an ID, or a name for the organizer (there is no choice of mobile / either / both any more)", () => {
   test("a listed ID gets its card; an outsider's number waits for a yes; an unknown ID waits too; nothing at all is refused", async () => {
     const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
     await card(await join({ empId: "E101", device: dev(1) }));
-    await waits(await join({ phone: mob(22), device: dev(2) }));
-    await waits(await join({ phone: mob(23), empId: "E555", device: dev(3) }));
-    expect((await join({ device: dev(4) })).status).toBe(400);
+    await waits(await join({ name: "Maya Lopez", phone: mob(22), device: dev(2) })); // 1.6.1: the name is all that is needed
+    await waits(await join({ name: "Dev Nair", phone: mob(23), empId: "E555", device: dev(3) }));
+    await waits(await join({ device: dev(4) })); // a name alone (the helper adds one) asks the organizer: nothing else is needed
+    const noName = await join({ name: "", device: dev(5) }); expect(noName.status).toBe(400); expect((await j(noName)).code).toBe("need-name"); // no name and no ID: asked for the name
   });
   test("a listed person with an ID and a mobile number: the ID gets them in; the mobile number with another ID does not (it waits)", async () => {
     const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha Rao", empId: "E101", phone: mob(1) }]);
-    await waits(await join({ phone: mob(1), empId: "E555", device: dev(1) }));
+    await waits(await join({ name: "Dev Nair", phone: mob(1), empId: "E555", device: dev(1) }));
     await card(await join({ phone: mob(1), empId: "E101", device: dev(2) }));
   });
   test("an employees-only game takes the ID only: a listed ID gets in, an unknown pair waits, no ID is asked for", async () => {
     const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101" }, { name: "Ravi", phone: mob(2) }]);
     await card(await join({ empId: "E101", device: dev(1) }));
     const m = await join({ phone: mob(2), device: dev(2) }); expect(m.status).toBe(400); expect((await j(m)).code).toBe("need-id");
-    await waits(await join({ phone: mob(9), empId: "E555", device: dev(3) }));
+    await waits(await join({ name: "Dev Nair", phone: mob(9), empId: "E555", device: dev(3) }));
     expect((await join({ device: dev(4) })).status).toBe(400);
   });
 });

@@ -283,11 +283,13 @@ describe("the waiting room", () => {
     expect((await call("POST", `/api/z/PPL-1/waiting/${mine[0].id}`, { decision: "maybe" }, t.cohost)).status).toBe(400);
   });
   test("the waiting room holds 500 requests: the 501st person is told it is full (429, waiting-full); someone already waiting is still told they are waiting; nobody takes a place", async () => {
-    const t = await setup({ closed: true }); for (let i = 0; i < 500; i++) await joinAs("PPL-1", 40 + i, { from: ORG_FROM }, T + Math.floor(i / 150) * 61_000); // the same network may ask 200 times a minute: spread the requests over minutes
+    const t = await setup({ closed: true }); const ipOf = (i: number) => ({ "cf-connecting-ip": `9.9.${i % 200}.${1 + Math.floor(i / 60)}` }); // 1.6.1: one network may leave 60 open requests in a game, so the 500 come from different networks
+    const ask = (i: number, now: number) => call("POST", "/api/z/PPL-1/join", { phone: mob(i), name: "G" + i, email: `g${i}@acme.test`, device: dev(i), from: ORG_FROM }, undefined, now, ipOf(i));
+    for (let i = 0; i < 500; i++) await ask(40 + i, T + Math.floor(i / 150) * 61_000); // the same network may ask 200 times a minute: spread the requests over minutes
     expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(500);
-    const extra = await joinAs("PPL-1", 900, { from: ORG_FROM }, T + 5 * 61_000); expect(extra.status).toBe(429); expect((await j(extra)).code).toBe("waiting-full");
+    const extra = await ask(900, T + 5 * 61_000); expect(extra.status).toBe(429); expect((await j(extra)).code).toBe("waiting-full");
     expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(500); // the 501st left no row
-    expect((await joinAs("PPL-1", 40, { from: ORG_FROM }, T + 6 * 61_000)).status).toBe(403); // a request already in the room is answered as before
+    expect((await ask(40, T + 6 * 61_000)).status).toBe(403); // a request already in the room is answered as before
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c + rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
   }, 120_000);
   test("admit records who approved and when; the person is then recognised and joins; decline keeps them out", async () => {
@@ -304,12 +306,13 @@ describe("the waiting room", () => {
     await call("POST", `/api/z/PPL-1/waiting/${w2.id}`, { decision: "decline" }, t.master);
     expect((await joinAs("PPL-1", 2, { from: ORG_FROM })).status).toBe(403); expect((await j(await call("GET", `/api/z/PPL-1/me?wid=${w2.id}`))).state).toBe("declined");
   });
-  test("requests use no place; a full game says so; adding a waiting person to a list admits them, by whoever listed them", async () => {
+  test("requests use no place; a full game says so; a host who says yes admits the waiting person and is recorded as the approver", async () => {
     const t = await setup({ closed: true, cap: 3 });
     expect((await joinAs("PPL-1", 3, { from: ORG_FROM })).status).toBe(403);
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c + rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
-    expect((await j(await add(t.host, [{ name: "C", phone: mob(3) }]))).added).toBe(1);
-    expect(rowsOf("SELECT status, decided_by FROM waiting")[0]).toMatchObject({ status: "admitted" });
+    expect(rowsOf("SELECT status FROM waiting")[0]).toMatchObject({ status: "waiting" }); // 1.6.1: the waiting guest is known by their own phone, not by a number they typed: only the organizer or a host decides the request
+    const w3 = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.host))).waiting[0];
+    expect((await call("POST", `/api/z/PPL-1/waiting/${w3.id}`, { decision: "admit" }, t.host)).status).toBe(200);
     expect(rowsOf("SELECT decided_by FROM waiting")[0].decided_by).toMatch(/^h:/);
     expect((await joinAs("PPL-1", 3, { from: ORG_FROM })).status).toBe(200);
     await add(t.master, [{ name: "A", phone: mob(1) }, { name: "B", phone: mob(2) }]); await joinAs("PPL-1", 1); await joinAs("PPL-1", 2);

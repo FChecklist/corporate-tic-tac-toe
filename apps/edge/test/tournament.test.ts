@@ -190,6 +190,35 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const late = await j(await result("MB-6", x!.b, x!.mid, x!.b.pid, T + 50_000)); expect(late.flagged).toBe(true);
     expect((await getM("MB-6", x!.mid, T + 51_000)).complete).toBe(false);
   });
+  test("H2 (audit 2): a single report is NOT kept while the other player is still writing to that board; it is kept once that player has been silent for 150 s; their own report still counts at any time", async () => {
+    const h = await game("MB-6B"); const ps = await joinAll("MB-6B", 8); await begin("MB-6B", h);
+    const { list: [x, y] } = await pairs("MB-6B", ps, 2);
+    await mv("MB-6B", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6B", x!.b, { mid: x!.mid, seq: 1, sq: 0 }, T + 5000); // the opponent is present: they wrote at T+5000
+    await result("MB-6B", x!.a, x!.mid, x!.a.pid, T + 6000); // "I won": a claim nobody has checked
+    await result("MB-6B", y!.a, y!.mid, y!.a.pid, T + 6000); // another board where nobody else wrote a move: the other side is away
+    expect((await getM("MB-6B", x!.mid, T + 40_000)).boards[0].result).toBeNull(); // 34 s later: still not kept
+    expect((await getM("MB-6B", y!.mid, T + 40_000)).boards[0].result).toMatchObject({ winner: y!.a.pid, how: "uncontested" }); // the old 30 s rule for the board with nobody else
+    expect((await getM("MB-6B", x!.mid, T + 154_999)).boards[0].result).toBeNull(); // 150 s after the opponent's last write (T+5000) has not passed yet
+    expect((await getM("MB-6B", x!.mid, T + 155_001)).boards[0].result).toMatchObject({ winner: x!.a.pid, how: "uncontested" }); // the opponent is gone: the report is kept
+  });
+  test("H2b (audit 2): the opponent who IS there simply reports too: two matching reports are kept at once, two different ones are flagged for the Organizer", async () => {
+    const h = await game("MB-6C"); const ps = await joinAll("MB-6C", 8); await begin("MB-6C", h);
+    const { list: [x, y] } = await pairs("MB-6C", ps, 2);
+    await mv("MB-6C", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6C", x!.b, { mid: x!.mid, seq: 1, sq: 0 }, T + 5000);
+    await result("MB-6C", x!.a, x!.mid, x!.a.pid, T + 6000); expect((await j(await result("MB-6C", x!.b, x!.mid, x!.a.pid, T + 6500))).agreed).toBe(true);
+    await mv("MB-6C", y!.a, { mid: y!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6C", y!.b, { mid: y!.mid, seq: 1, sq: 0 }, T + 5000);
+    await result("MB-6C", y!.a, y!.mid, y!.a.pid, T + 6000); const bad = await j(await result("MB-6C", y!.b, y!.mid, y!.b.pid, T + 6500)); expect(bad.flagged).toBe(true);
+  });
+  test("H3 (audit 2): a later match can be opened only with players of the two matches it comes from; a pairing against somebody from another match is refused", async () => {
+    const h = await game("MB-8B"); const ps = await joinAll("MB-8B", 8); await begin("MB-8B", h);
+    const { list: [x, y, z] } = await pairs("MB-8B", ps, 3);
+    for (const [m, w] of [[x!, x!.a], [y!, y!.b]] as const) expect((await call("POST", "/api/z/MB-8B/ttt/settle", { mid: m.mid, j: 0, winner: w.pid }, h, T + 6000)).status).toBe(200);
+    const open = (boards: string[][], p: P) => call("POST", "/api/z/MB-8B/ttt/open", { pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: "e0", b: "e1", boards, from: [x!.mid, y!.mid], opened: T + 9000 }, {}, T + 7000);
+    const bad = await open([[x!.a.pid, z!.a.pid]], x!.a); expect(bad.status).toBe(400); expect((await j(bad)).code).toBe("not-from-feeders"); // z is from a third match
+    const bad2 = await open([[x!.a.pid, "99x000000000099"]], x!.a); expect(bad2.status).toBe(400);
+    expect(sql("SELECT COUNT(*) c FROM ttt_m WHERE eid='MB-8B' AND mid='r2m0'")[0].c).toBe(0);
+    expect((await open([[x!.a.pid, y!.b.pid]], x!.a)).status).toBe(200); // the two winners: fine
+  });
   test("M7: while the host pauses nothing is stored (the clocks wait); after the resume moves are stored again", async () => {
     const h = await game("MB-7"); const ps = await joinAll("MB-7", 4); await begin("MB-7", h);
     const { list: [x] } = await pairs("MB-7", ps);
@@ -220,17 +249,39 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
   test("M9: the final ranking is kept only when two different phones in the final send the same thing (or the Organizer's page does); a different one is flagged", async () => {
     const h = await game("MB-9"); const ps = await joinAll("MB-9", 2); const { clock } = await begin("MB-9", h); void clock;
     const { list: [x] } = await pairs("MB-9", ps);
-    const pay = { champion: "e1", rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: "e1", name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: "e2", name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] };
+    const pay = { champion: x!.a.pid, rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: x!.a.pid, name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: x!.b.pid, name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] }; // v1.6.1: the result may name only people of this game (audit 2, H3)
     const fin = (p: P, body: unknown, now: number) => call("POST", "/api/z/MB-9/ttt/finish", { pid: p.pid, device: p.device, ...(body as object) }, {}, now);
     expect((await fin(x!.a, pay, T + 1000)).status).toBe(409); // the final is not finished
     await result("MB-9", x!.a, x!.mid, x!.a.pid, T + 2000); await result("MB-9", x!.b, x!.mid, x!.a.pid, T + 2100);
     expect((await call("POST", "/api/z/MB-9/ttt/finish", pay, {}, T + 2500)).status).toBe(403); // a stranger
     const one = await j(await fin(x!.a, pay, T + 3000)); expect(one).toMatchObject({ ok: true, done: false });
-    const diff = await j(await fin(x!.b, { ...pay, champion: "e2" }, T + 3100)); expect(diff.done).toBe(false);
+    const diff = await j(await fin(x!.b, { ...pay, champion: x!.b.pid }, T + 3100)); expect(diff.done).toBe(false);
     expect(sql("SELECT kind FROM ttt_x WHERE eid='MB-9'").map((x) => x.kind)).toContain("finish-mismatch");
     const two = await j(await fin(x!.b, pay, T + 3200)); expect(two.done).toBe(true);
-    const v = await view("MB-9", T + 4000); expect(v.state).toBe("done"); expect(v.champion).toBeNull(); // no entrant named e1 in the draw: the mailbox shows what it was given
+    const v = await view("MB-9", T + 4000); expect(v.state).toBe("done"); expect(v.champion).toBe(x!.a.name); // the champion is the entrant the phones named (a player of this game): the mailbox shows what it was given
     expect(sql("SELECT pattern FROM settled WHERE eid='MB-9' ORDER BY pattern").map((x) => x.pattern)).toEqual(["first", "second"]);
+  });
+  test("H3 (audit 2): a final result that names somebody who did not play is refused, whoever sends it", async () => {
+    const h = await game("MB-9B"); const ps = await joinAll("MB-9B", 2); await begin("MB-9B", h);
+    const { list: [x] } = await pairs("MB-9B", ps);
+    await result("MB-9B", x!.a, x!.mid, x!.a.pid, T + 2000); await result("MB-9B", x!.b, x!.mid, x!.a.pid, T + 2100);
+    const ok = { champion: x!.a.pid, rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: x!.a.pid, name: "P1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: x!.b.pid, name: "P2", roundReached: 1, points: 0, decidedBy: "", tie: "" }] };
+    const fin = (body: unknown) => call("POST", "/api/z/MB-9B/ttt/finish", body, h, T + 3000);
+    for (const bad of [{ ...ok, champion: "ghost-player" }, { ...ok, podium: [["99x000000000099"], [x!.b.pid]] }, { ...ok, ranking: [{ ...ok.ranking[0]!, id: "ghost-player" }] }]) { const r = await fin(bad); expect(r.status).toBe(400); expect((await j(r)).code).toBe("not-in-game"); }
+    expect(sql("SELECT COUNT(*) c FROM settled WHERE eid='MB-9B'")[0].c).toBe(0); expect(sql("SELECT COUNT(*) c FROM winner WHERE eid='MB-9B'")[0].c).toBe(0);
+    expect((await fin(ok)).status).toBe(200); // the same result with real players is kept
+  });
+  test("M1 (audit 2): the full names of the players go to a seated player (with the phone's proof) and to the Organizer; anybody else with the link sees a first name and an initial; the ids are the same", async () => {
+    const h = await game("MB-NM"); const ps: P[] = [];
+    for (const [i, name] of ["Asha Rao", "Ravi Kumar Singh", "Mei", "Dev Nair"].entries()) { const r = await call("POST", "/api/z/MB-NM/join", { name, device: dev(i + 1) }); expect(r.status).toBe(200); ps.push({ pid: (await j(r)).pid, device: dev(i + 1), name }); }
+    await begin("MB-NM", h);
+    const get = async (q = "", headers: Record<string, string> = {}) => j(await call("GET", `/api/z/MB-NM/ttt/setup${q}`, undefined, headers, T));
+    const names = (s: any) => s.roster.map((r: any) => r.name).sort(), ids = (s: any) => s.roster.map((r: any) => r.pid).sort();
+    const player = await get(`?pid=${ps[0]!.pid}&device=${ps[0]!.device}`), organizer = await get("", h);
+    expect(names(player)).toEqual(["Asha Rao", "Dev Nair", "Mei", "Ravi Kumar Singh"]); expect(names(organizer)).toEqual(names(player));
+    for (const stranger of [await get(), await get(`?pid=${ps[0]!.pid}&device=${dev(999)}`), await get(`?pid=nobody&device=${ps[0]!.device}`), await get(`?pid=${ps[1]!.pid}&device=${ps[0]!.device}`)]) {
+      expect(names(stranger)).toEqual(["Asha R.", "Dev N.", "Mei", "Ravi S."]); expect(JSON.stringify(stranger)).not.toContain("Kumar"); expect(JSON.stringify(stranger)).not.toContain("Rao"); expect(ids(stranger)).toEqual(ids(player)); // the draw is the same for everybody
+    }
   });
   test("G11/R29: a player who reloads (a brand-new phone, nothing remembered) sees the board exactly as it is, with the clock still running", async () => {
     const h = await game("MB-11"); const ps = await joinAll("MB-11", 4); const { clock } = await begin("MB-11", h);

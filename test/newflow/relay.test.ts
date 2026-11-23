@@ -100,10 +100,11 @@ describe("R2 the log is immutable, small and rate limited", () => {
     const { ps } = await setup(); await call("POST", "/api/z/LOG-1/ttt/stagelog", { pid: ps[0]!.pid, device: ps[0]!.device, slot: slotOf(ps[0]!, ps[1]!), kind: "move", seq: 0, body: "4", at_ms: 5, client_ms: 7 }, {}, T + 4321);
     expect(sql("SELECT at_ms FROM ttt_sl WHERE kind='move'")[0].at_ms).toBe(T + 4321);
   });
-  test("R3: an entry is at most 200 bytes: 200 is stored, 201 is refused", async () => {
+  test("R3: an entry is small: a square, a missed move or a result word is stored; 200 bytes of anything else, and 201, are refused (v1.6.1: only what the phones write is kept)", async () => {
     const { ps } = await setup(); const s = slotOf(ps[0]!, ps[1]!);
-    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "result", seq: 0, body: "x".repeat(200) }, T + 1000)).status).toBe(200);
-    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "result", seq: 1, body: "x".repeat(201) }, T + 2000)).status).toBe(400);
+    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "result", seq: 0, body: "draw" }, T + 1000)).status).toBe(200);
+    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "result", seq: 1, body: "x".repeat(200) }, T + 2000)).status).toBe(400);
+    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "result", seq: 2, body: "x".repeat(201) }, T + 3000)).status).toBe(400);
   });
   test("R3b: only 'move' and 'result' entries, a seq from 0 to 40, and a well-formed slot key are stored", async () => {
     const { ps } = await setup(); const s = slotOf(ps[0]!, ps[1]!);
@@ -114,9 +115,9 @@ describe("R2 the log is immutable, small and rate limited", () => {
   });
   test("R4: at most 5 writes per player per second: the 6th in the same second is refused (429), the next second is free", async () => {
     const { ps } = await setup(); const s = slotOf(ps[0]!, ps[1]!), codes: number[] = [];
-    for (let i = 0; i < 7; i++) codes.push((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: i, body: "-" }, T + 5000 + i * 10)).status);
+    for (let i = 0; i < 7; i++) codes.push((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: i, body: "4" }, T + 5000 + i * 10)).status);
     expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429]);
-    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: 7, body: "-" }, T + 6500)).status).toBe(200);
+    expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: 7, body: "4" }, T + 6500)).status).toBe(200);
     expect((await write(call, "LOG-1", ps[1]!, { slot: s, kind: "move", seq: 0, body: "-" }, T + 5100)).status).toBe(200); // another player has their own allowance
   });
   test("R5: at most 250,000 entries in one game: the next one is refused with 409 'full'", async () => {
@@ -149,7 +150,7 @@ describe("R7 public read", () => {
   });
   test("R7c: 'after' pages through the log by id; a bad slot is a 400; reading one game never shows another game's entries", async () => {
     const h1 = await makeGame(w, call, "PR-3"), h2 = await makeGame(w, call, "PR-4"); const p1 = await join(call, "PR-3", 4), p2 = await join(call, "PR-4", 4); await startStages(call, "PR-3", h1); await startStages(call, "PR-4", h2);
-    for (let i = 0; i < 3; i++) await write(call, "PR-3", p1[i]!, { slot: slotOf(p1[0]!, p1[1]!), kind: "result", seq: 0, body: "draw" }, T + 1000 + i * 10);
+    for (const [who, seq] of [[0, 0], [1, 0], [0, 1]] as const) await write(call, "PR-3", p1[who]!, { slot: slotOf(p1[0]!, p1[1]!), kind: "result", seq, body: "draw" }, T + 1000 + seq * 10 + who); // only the two players of a slot write to it
     await write(call, "PR-4", p2[0]!, { slot: slotOf(p2[0]!, p2[1]!), kind: "result", seq: 0, body: "draw" }, T + 1000);
     const a = await read("PR-3"); expect(a.entries.length).toBe(3); const last = a.entries[1].id;
     expect((await read("PR-3", `?after=${last}`)).entries.length).toBe(1);

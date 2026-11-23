@@ -42,8 +42,9 @@ describe("refusals have plain words and the right code", () => {
   test("nothing typed in an ID game (no mobile either) -> 400 need-id with a plain sentence", async () => {
     W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id", employeesOnly: true });
     const r = await W.join(GAME, { name: "Demo 4", device: dev(4) }); expect(r.status).toBe(400); const b = await j(r); expect(b.code).toBe("need-id"); expect(b.error).toMatch(/employee ID/);
-    W.restore(); W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id" }); // an ordinary list game asks for name, mobile number and e-mail instead
-    const r2 = await W.join(GAME, { name: "Demo 4", device: dev(4) }); expect(r2.status).toBe(400); expect((await j(r2)).code).toBe("need-contact");
+    W.restore(); W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id" }); // an ordinary list game asks for the name instead
+    const r2 = await W.join(GAME, { device: dev(4) }); expect(r2.status).toBe(400); expect((await j(r2)).code).toBe("need-name"); // 1.6.1: nothing typed: the name is asked for
+    const r3 = await W.join(GAME, { name: "Demo 4", device: dev(4) }); expect(r3.status).toBe(403); expect((await j(r3)).code).toBe("waiting"); // a name alone asks the organizer
   });
   test("exactly 30 characters is accepted as a new person (open game, ID game)", async () => {
     W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id" });

@@ -33,7 +33,7 @@ async function playOnServer(w: World, call: Call, id: string, ps: P[], withMoves
       const moves: Entry[] = [];
       if (withMoves) {
         const xIs = gameFrom([], a, b).xIs; let seq = 0;
-        for (const [who, body] of script(want)) { const p = who === "x" ? (xIs === a ? pa : pb) : (xIs === a ? pb : pa); t += 1000; expect((await write(call, id, p, { slot, kind: "move", seq, body }, t)).status).toBe(200); moves.push({ id: seq + 1, slot, kind: "move", pid: p.pid, seq, body, at_ms: t }); seq++; }
+        for (const [who, body] of script(want)) { const p = who === "x" ? (xIs === a ? pa : pb) : (xIs === a ? pb : pa); t += body === "-" ? 10_000 : 1000; /* a missed move comes only after the move clock ran out (the server checks it) */ expect((await write(call, id, p, { slot, kind: "move", seq, body }, t)).status).toBe(200); moves.push({ id: seq + 1, slot, kind: "move", pid: p.pid, seq, body, at_ms: t }); seq++; }
         const g = gameFrom(moves, a, b); expect(g.done).toBe(true); expect(g.winner).toBe(want);
       }
       t += 1000;

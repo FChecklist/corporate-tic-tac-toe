@@ -163,7 +163,7 @@ async function labelsOf(c: Ctx): Promise<(id: string | null) => string> {
   return (id) => (!id ? "" : id === "o" ? "Organizer" : id.startsWith("s:") ? `Guest (seat ${id.slice(2)})` : m.get(id) ?? (id.startsWith("h:") ? "Host" : "Co-host"));
 }
 
-export interface PersonView { id: string; name: string; maskedPhone: string; status: "invited" | "joined" | "waiting" | "removed"; empId?: string; link: string | null; waLink: string | null; role?: string; inviter?: string; approvedBy?: string }
+export interface PersonView { id: string; name: string; maskedPhone: string; status: "invited" | "joined" | "waiting" | "removed"; empId?: string; link: string | null; waLink: string | null; role?: string; inviter?: string; approvedBy?: string; dept?: string; region?: string }
 async function viewOf(c: Ctx, r: PersonRow, label: (id: string | null) => string, showInviter: boolean): Promise<PersonView> {
   const pii = await openPii(c.env, r.pii);
   const token = r.status === "removed" ? null : await openText(c.env, r.tok_sealed);
@@ -173,6 +173,7 @@ async function viewOf(c: Ctx, r: PersonRow, label: (id: string | null) => string
     id: r.id, name: pii?.name ?? "", maskedPhone: digits ? maskedPhone(digits) : "", status: r.status, ...(pii?.empId ? { empId: pii.empId } : {}),
     link, waLink: link && digits ? waLinkOf(digits, waMessage(pii?.name || null, c.gameName, link)) : null,
     ...(r.role ? { role: r.role } : {}), ...(showInviter ? { inviter: label(r.inviter) } : {}), ...(r.approved_by ? { approvedBy: label(r.approved_by) } : {}),
+    ...(showInviter && pii?.dept ? { dept: pii.dept } : {}), ...(showInviter && pii?.region ? { region: pii.region } : {}), // department / team and region: given by the person, seen by the Organizer and Hosts only
   };
 }
 
@@ -498,7 +499,7 @@ async function listWaiting(c: Ctx, who: Caller): Promise<Response> {
   const label = await labelsOf(c), out = [];
   for (const r of await waitingRows(c, who, 200)) {
     const p = await openPii(c.env, r.pii), first = (p?.name ?? "").trim().split(/\s+/)[0] ?? "";
-    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}), ...(p?.name ? { name: p.name } : {}), ...(p?.phone ? { mobile: "+" + phoneDigits(p.phone) } : {}), ...(p?.email ? { email: p.email } : {}) } : {}) }); // the Employee ID, the full name, the mobile number and the e-mail are shown to the Organizer and the Hosts only (they decide whether to let this person in)
+    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}), ...(p?.name ? { name: p.name } : {}), ...(p?.phone ? { mobile: "+" + phoneDigits(p.phone) } : {}), ...(p?.email ? { email: p.email } : {}), ...(p?.dept ? { dept: p.dept } : {}), ...(p?.region ? { region: p.region } : {}) } : {}) }); // the Employee ID, the full name, the mobile number and the e-mail are shown to the Organizer and the Hosts only (they decide whether to let this person in)
   }
   return c.json({ waiting: out });
 }
@@ -609,7 +610,7 @@ export async function waitingWho(c: { env: Env; e: any; eid: string }, inviter: 
 }
 
 /** Joins a person's request to wait. Used by the Worker's `join`. Returns the existing request when the number already asked. */
-export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; empId?: string | null; email?: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
+export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; empId?: string | null; email?: string | null; dept?: string | null; region?: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
   const db = c.env.DB;
   const have = await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>();
   if (have) return have;
@@ -617,7 +618,7 @@ export async function addWaiting(c: { env: Env; eid: string; e: any; now: number
   if (n >= WAITING_MAX) return { full: true };
   const id = randHex(6), chain = o.overlimit ? ",o," : await chainOf(db, c.eid, o.inviter);
   await db.prepare("INSERT OR IGNORE INTO waiting(eid,id,ph,pii,via,inviter,chain,overlimit,status,at_ms) VALUES(?,?,?,?,?,?,?,?,'waiting',?)")
-    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name, empId: o.empId, email: o.email }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
+    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name, empId: o.empId, email: o.email, dept: o.dept, region: o.region }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
   return (await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>()) ?? { id, status: "waiting" };
 }
 

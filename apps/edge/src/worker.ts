@@ -382,6 +382,17 @@ const CONSOLE_ONLY = () => json({ error: "Names and mobile numbers are handled b
  *  A whole office or hall sits behind ONE address, so the allowance of a PAID game never falls below its pack: one address may seat up to the pack's size in a minute (and three times that in a day).
  *  The base figures (the environment's JOIN_PER_IP_MINUTE / JOIN_PER_IP_DAY, else the defaults below) still apply to an unpaid game and to the waiting room, so a script cannot use a big free game to burn the write budget. */
 const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200, ID_MISS_PER_10MIN = 30;
+/** 1.6.1 (audit 2, M3 and M4): every "Is this you?" look-up counts, hit or miss: so many per network and so many for the whole game in 10 minutes; and so many open requests from one network in one game. */
+const ID_LOOK_PER_NET_10MIN = 60, ID_LOOK_PER_GAME_10MIN = 600, WAITING_PER_NET = 60;
+/** A small counter in the kv table: true while the count under this key is below the limit (and counts this call); false once the limit is reached. A counter that cannot be read or written never blocks a person. */
+async function underLimit(env: Env, k: string, limit: number): Promise<boolean> {
+  try {
+    const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
+    if (n >= limit) return false;
+    await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
+  } catch { /* a counter never blocks */ }
+  return true;
+}
 /** RUNNER_KEY (owner order 5 Nov 2026): a long secret set as a Worker secret. The owner's test programs send it as X-Runner-Key; ONLY then are the test sign-in, the free owner-test packs and the join-guard bypass honoured.
  *  Without the header (or when no key is set) everything behaves exactly as for the public. Compared in constant time; a short key counts as no key. */
 function runnerOk(env: Env, req: Request): boolean {
@@ -705,6 +716,12 @@ async function handle0(req: Request, env: Env, now: number, waitUntil?: (p: Prom
   return new Response(r.body, { status: r.status, headers: h });
 }
 
+/** Two secrets compared without stopping at the first different character (a guess cannot be made faster by timing the answer). */
+export function safeEq(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b); let d = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) d |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return d === 0;
+}
 function d1kv(env: Env): KV { return {
   get: async (k) => (await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? null,
   put: async (k, v) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, v).run(); },
@@ -716,7 +733,7 @@ async function authOf(req: Request, env: Env, now: number): Promise<Auth> {
 }
 async function authOfKey(env: Env, presented: string, now: number): Promise<Auth> {
   if (!presented) return { plat: false, org: null, kind: null };
-  if (env.ORGANIZER_SECRET && presented === env.ORGANIZER_SECRET) return { plat: true, org: null, kind: "platform" };
+  if (env.ORGANIZER_SECRET && safeEq(presented, env.ORGANIZER_SECRET)) return { plat: true, org: null, kind: "platform" };
   const kh = await sha("key|" + presented);
   const row = await env.DB.prepare("SELECT org, kind, eid, host_id, expires_ms, label FROM organizer_key WHERE hash=? AND revoked=0 AND (expires_ms IS NULL OR expires_ms>?)").bind(kh, now).first<{ org: string; kind: "master" | "ai" | "host" | "cohost"; eid: string | null; host_id: string | null; expires_ms: number | null; label: string | null }>();
   if (!row) return { plat: false, org: null, kind: null };
@@ -755,6 +772,8 @@ const HOST_ACTIONS = new Set(["participants", "summary", "results", "info", "ann
 const MAX_HOSTS = 5;
 /** A payment the gateway has not confirmed yet shows as "Confirming your payment..." for this long; after that it is simply pending again. */
 const CONFIRMING_WINDOW_MS = 30 * 60_000;
+/** An optional free-text answer (department or team, region): cleaned like a name, at most 60 characters, "" when empty. */
+const extraText = (v: unknown): string => (typeof v === "string" ? cleanPersonName(v)?.replace(/\s+/g, " ").trim().slice(0, 60) ?? "" : "");
 const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 const cleanLabel = (v: unknown): string => (typeof v === "string" ? v.replace(/[<>`]/g, "").trim().slice(0, 40) : "");
 /** Paid or pending, and (for a game paid after roles existed) who paid and when. */
@@ -1487,7 +1506,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     return json({ engagements: (r.results ?? []).map((x: any) => ({ ...x, startsAtIST: istTime(roundMs(x.start_round)) })), retentionDays: RETENTION_DAYS });
   }
   if (req.method === "POST" && p === "/api/inbound-email") { // the mail service forwards e-mail sent to our address; a deletion request counts only from the organizer's registered address
-    if (!(env.INBOUND_SECRET ?? "").trim() || (req.headers.get("x-inbound-secret") ?? "").trim() !== (env.INBOUND_SECRET ?? "").trim()) return deny(a);
+    if (!(env.INBOUND_SECRET ?? "").trim() || !safeEq((req.headers.get("x-inbound-secret") ?? "").trim(), (env.INBOUND_SECRET ?? "").trim())) return deny(a);
     const b = await body(req, 200_000);
     const from = String(b?.from ?? "").toLowerCase().match(/[^\s<>"',;]+@[^\s<>"',;]+/)?.[0];
     const text = `${b?.subject ?? ""}\n${b?.text ?? ""}`;
@@ -1502,7 +1521,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const pend = await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`delreq/${tok}`).first<{ v: string }>();
       const pv = pend ? JSON.parse(pend.v) : null;
       let confirmed = false;
+      if (pv && pv.x > now && (pv.n ?? 0) >= 10) continue; // 1.6.1 (audit 2, L4): ten wrong codes lock this request until it expires
       if (pv && pv.x > now) for (const cd of codes) if ((await sha(`delcode|${tok}|${cd}`)) === pv.c) confirmed = true;
+      if (pv && pv.x > now && !confirmed && codes.length) { pv.n = (pv.n ?? 0) + codes.length; await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`delreq/${tok}`, JSON.stringify(pv)).run(); }
       if (confirmed) { await erasePersonal(env, tok, now, "email"); await env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`delreq/${tok}`).run(); done.push(tok); continue; }
       if (pv && pv.x > now && now - pv.t < 300_000) continue; // a code was sent a moment ago: do not send another
       const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0]! % 900000));
@@ -1551,7 +1572,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       });
     }
   }
-  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|claims|settle|results|info|participants|erase|discard|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|leave|datareq|ttt|checkin|presence|who|override)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
+  const m = p.match(/^\/api\/z\/([A-Za-z0-9_-]{4,40})\/(join|details|claims|settle|results|info|participants|erase|discard|reuse|roster|settings|publish|summary|announce|unbind|seats|names|mark|won|over|invites|life|vote|confirm|prizes|prizegiven|myprizes|reportlink|person|forget|cohost|cancel-preview|cancel|reopen|clone|leave|datareq|ttt|checkin|presence|who|override)(?:\/([a-z]+(?:\/[A-Za-z0-9]+)?))?$/);
   if (!m) return json({ error: "Not found", hint: "Read the list of what you can do at /api/z/ai-manifest. Game routes look like /api/z/{id}/summary, /settings, /roster, /participants, /results, /publish." }, 404);
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
@@ -1636,6 +1657,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req), vf = verifyOf(e), id = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (!id || !e.closed) return json({ known: false });
     const ck = consentMissing(b, "K4"); if (ck) return ck;
+    { const bucket = new Date(now).toISOString().slice(0, 15), ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16); // every look-up counts, whether the ID is on the list or not (audit 2, M3)
+      if (!(await underLimit(env, `idlook/${eid}/${bucket}/${ipk}`, ID_LOOK_PER_NET_10MIN)) || !(await underLimit(env, `idlookg/${eid}/${bucket}`, ID_LOOK_PER_GAME_10MIN))) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429); }
     const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading, then the old one (lists made before 1.4.1)
     if (!hit || hit.status === "removed") {
       try {
@@ -1679,7 +1702,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading (letters and numbers only), then the old one (lists made before 1.6.0)
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
     }
-    const admittedBefore = byList && !tok && !!typedPh && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, typedPh).first()); // the organizer already said yes to this number: nothing is asked again, or they would wait for ever
+    // 1.6.1: a person who is not on the list is known by their own phone (a hash of this game and the phone's random id), never by a mobile number they typed. A mobile number is only extra contact for the organizer: it is not a key, so nobody can take over an approved place by typing someone else's number (audit 2, M2).
+    const devPh = dev ? await sha(`nm|${eid}|${dev}`) : null;
+    if (byList && !tok && !dev) return json({ error: "Please refresh this page and try again." }, 400);
+    const admittedBefore = byList && !tok && !!devPh && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, devPh).first()); // the organizer already said yes to this phone: nothing is asked again, or they would wait for ever
     let idMiss = false; // not on the list: the organizer decides
     if (byList && !tok && !admittedBefore) {
       idMiss = true;
@@ -1693,15 +1719,17 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       }
     }
     const mailTyped = typeof b?.email === "string" ? cleanAccountEmail(b.email) : "", mailOk = mailTyped.length <= 254 && EMAIL_RE.test(mailTyped);
-    if (idMiss) { // the request the organizer or host sees: name, mobile number and e-mail (and the ID, if one was typed)
+    const deptTyped = extraText(b?.dept), regionTyped = extraText(b?.region); // optional: department or team, and region
+    if (mailTyped && !mailOk) return json({ error: "That e-mail address does not look right. You can leave it empty.", code: "bad-email" }, 400); // optional, but not wrong
+    if (idMiss) { // the request the organizer or host sees: the NAME is the only thing that is needed (owner rule 23 Nov 2026). The ID, department or team, region, mobile number and e-mail are optional
       const need = empNorm ? "That ID is not on the list. " : "";
-      if ((cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "").length < 2) return json({ error: need + "Please type your name.", code: "need-contact" }, 400);
-      if (!typedPh) return json({ error: need + "Please type your mobile number. The organizer sees it and decides whether to let you in.", code: "need-contact" }, 400);
-      if (!mailOk) return json({ error: need + "Please type your e-mail address. The organizer sees it and decides whether to let you in.", code: "need-contact" }, 400);
+      if ((cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "").length < 2) return json({ error: need + "Please type your name. The organizer or host will decide whether to let you in.", code: "need-name" }, 400);
     }
+    const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
     let digits: string | null = typedDigits ?? tokPii?.phone ?? null;
     let nameOnly = false;
     let ph: string | null = typedPh ?? tok?.ph ?? null;
+    if (byList && (!tok || otherNumber) && devPh) { ph = devPh; digits = typedDigits ?? ""; } // not on the list: this phone is the key; a typed number is only contact
     if (!byList && !ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && cfgOf(e).join !== "phone") { // a game anyone may join, from the common link: the guest is known by their name, and their phone by its own random id
       const typedName = cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
@@ -1711,7 +1739,6 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (!ph || (digits === null && !nameOnly)) return json({ error: "Enter a valid mobile number." }, 400);
     const ck = consentMissing(b, "K4"); // K4: both boxes, checked on the server before any name or number is kept
     const k4 = (subject: string) => recordConsent(env.DB, { subject, kind: "K4", ref: eid!, now });
-    const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
     const reply = (pid: string, extra: object = {}) => json({ pid, startRound: e.start_round, callSeconds: e.call_seconds, trackClaims: tracks(e), ...pub(e), ...extra });
     const lateRound = lateNow();
     const have = await env.DB.prepare("SELECT p.pid AS pid, s.dev AS dev, s.pid AS seat, s.jr AS jr, s.blocked AS blocked, s.role AS role FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? AND p.phone_hash=?").bind(eid, ph).first<{ pid: string; dev: string | null; seat: string | null; jr: number | null; blocked: number | null; role: string | null }>();
@@ -1764,8 +1791,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const lateName = cleanName(b?.name);
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
       if (await joinOverLimit(env, req, now, 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
+      if (!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=?").bind(eid, ph).first()) && !(await underLimit(env, `wnet/${eid}/${(await sha("jip|" + netKeyOf(req))).slice(0, 16)}`, WAITING_PER_NET))) return json({ error: "Too many requests to join came from this network. Please ask your organizer to add you to the list.", code: "waiting-net-full" }, 429); // one network cannot fill the organizer's queue (audit 2, M4)
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
-      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, ...(mailOk ? { email: mailTyped } : {}), name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
+      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, ...(mailOk ? { email: mailTyped } : {}), ...(deptTyped ? { dept: deptTyped } : {}), ...(regionTyped ? { region: regionTyped } : {}), name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
       if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
       if (w.status === "declined") return json({ error: "This game could not add you. Please talk to whoever invited you.", code: "declined", declined: true, wid: w.id }, 403);
       const who = await waitingWho({ env, e, eid: eid! }, overlimit ? "o" : target);
@@ -1792,6 +1820,28 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (row.dev && row.dev !== dev) return json({ error: "This place was opened in a different browser or app (or on another phone). A place plays on one device only. Open your link in the same browser or app you used first. If you cannot, ask your organizer to move your place to this phone.", code: "other-phone" }, 423);
     if (!ck) await k4(row.pid);
     return reply(row.pid, { jr: row.jr ?? 0, ...(row.role ? { role: row.role } : {}) });
+  }
+  if (action === "details" && req.method === "POST") { // 1.6.1, owner rule 4: a person who is in may ADD name, department or team, region, mobile number and e-mail in the small closed panel. All optional. The card id AND the phone's own device id are the proof; nothing here is needed to play.
+    const b = await body(req, 2_048);
+    if (!b || typeof b.pid !== "string" || typeof b.device !== "string" || !/^[0-9a-f]{16,64}$/.test(b.device)) return json({ error: "Open the game link on your own phone." }, 400);
+    const row = await env.DB.prepare("SELECT p.pii AS pii, p.phone_hash AS ph, s.dev AS dev, s.blocked AS blocked FROM participant p JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=? AND p.pid=?").bind(eid, b.pid).first<{ pii: string | null; ph: string; dev: string | null; blocked: number | null }>();
+    if (!row) return json({ error: "You are not in this game." }, 403);
+    if (row.blocked) return json({ error: "You were removed from this game by the organizer.", code: "removed" }, 403);
+    if (!row.dev || row.dev !== (await sha(`dev|${eid}|${b.device}`)).slice(0, 32)) return json({ error: "This place is on another phone.", code: "other-phone" }, 403);
+    const typedGiven = typeof b.phone === "string" ? b.phone.trim() !== "" : b.phone != null;
+    const phHash = typedGiven ? await phoneHash(b.phone) : null;
+    if (typedGiven && !phHash) return json({ error: "Enter a valid mobile number." }, 400);
+    const mail = typeof b.email === "string" ? cleanAccountEmail(b.email) : "";
+    if (mail && !(mail.length <= 254 && EMAIL_RE.test(mail))) return json({ error: "That e-mail address does not look right. You can leave it empty.", code: "bad-email" }, 400);
+    const name = typeof b.name === "string" ? cleanPersonName(b.name) : "", dept = extraText(b.dept), region = extraText(b.region);
+    if (typeof b.name === "string" && b.name.trim() !== "" && name.replace(/\s+/g, " ").trim().length < 2) return json({ error: "Please type your name, at least two letters.", code: "bad-name" }, 400);
+    const old = await openPii(env, row.pii);
+    if (!old) return json({ error: "Your details could not be read. Nothing was changed." }, 409);
+    if (!(await spend(env, now, 3))) return BUSY();
+    const next = { phone: typedGiven ? keptPhone(b.phone) : old.phone, name: name || old.name, ...(old.empId ? { empId: old.empId } : {}), ...(mail ? { email: mail } : old.email ? { email: old.email } : {}), ...(dept ? { dept } : old.dept ? { dept: old.dept } : {}), ...(region ? { region } : old.region ? { region: old.region } : {}) };
+    const sealed = await sealPii(env, next);
+    await env.DB.batch([env.DB.prepare("UPDATE participant SET pii=? WHERE eid=? AND pid=?").bind(sealed, eid, b.pid), env.DB.prepare("UPDATE person SET pii=? WHERE eid=? AND ph=?").bind(sealed, eid, row.ph)]); // the list the organizer sees shows the same details
+    return json({ ok: true, saved: [...(name ? ["name"] : []), ...(dept ? ["dept"] : []), ...(region ? ["region"] : []), ...(typedGiven ? ["mobile"] : []), ...(mail ? ["email"] : [])] });
   }
   if ((action === "leave" || action === "datareq") && req.method === "POST") { // a player's own rights (rights.ts): leave at any time, and "what do you hold about me / correct / delete me"; the player's card id AND their phone's own device id are the proof
     const rc = { env: env as PayEnv, db: env.DB, e, eid: eid!, now, started: await tournamentStarted(env, eid!), // the tournament begins when the Organizer or a Host starts it (tournament.ts), not at a clock time
@@ -2146,7 +2196,7 @@ export async function retentionSweep(env: Env, now: number): Promise<void> {
   const safe = async (f: () => Promise<unknown>) => { try { await f(); } catch { /* one failing step must not stop the others */ } };
   const cutoff = new Date(now - 2 * DAY).toISOString().slice(0, 10);
   await safe(async () => {
-    const r = await db.prepare("SELECT k FROM kv WHERE k LIKE 'start/%' OR k LIKE 'linkfail/%' OR k LIKE 'plim/%' OR k LIKE 'jlim/%' OR k LIKE 'jbm/%' LIMIT 2000").all<{ k: string }>();
+    const r = await db.prepare("SELECT k FROM kv WHERE k LIKE 'start/%' OR k LIKE 'linkfail/%' OR k LIKE 'plim/%' OR k LIKE 'jlim/%' OR k LIKE 'jbm/%' OR k LIKE 'idmiss/%' OR k LIKE 'idlook/%' LIMIT 2000").all<{ k: string }>();
     for (const x of r.results ?? []) { const d = x.k.match(/\d{4}-\d{2}-\d{2}/)?.[0]; if (d && d < cutoff) await db.prepare("DELETE FROM kv WHERE k=?").bind(x.k).run(); }
   });
   await safe(() => db.prepare("DELETE FROM login_code WHERE expires_ms < ?").bind(now - DAY).run());

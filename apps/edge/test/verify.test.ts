@@ -227,9 +227,10 @@ describe("the owner's three test sign-ins need the runner key, in any mode (TT-2
 });
 
 describe("a game by invitation: a name alone is not a way in", () => {
-  test("a name alone is refused and asks for contact details; an ID on no list waits for an answer; the older choices cannot be saved (owner rule 23 Nov 2026)", async () => {
+  test("a name alone waits for a yes, no name is asked for; an ID on no list waits for an answer; the older choices cannot be saved (owner rule 23 Nov 2026)", async () => {
     const t = await setup({ verify: "id", closed: true });
-    const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(400); expect((await j(nameOnly)).code).toBe("need-contact");
+    const noName = await join("PPL-1", { device: dev(1) }); expect(noName.status).toBe(400); expect((await j(noName)).code).toBe("need-name"); // 1.6.1: the name is all that is needed ...
+    const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(403); expect((await j(nameOnly)).code).toBe("waiting"); // ... and it waits for a yes: a name alone is not a way in
     const outsider = await joinAs("PPL-1", 2, { empId: undefined }); expect(outsider.status).toBe(403); expect((await j(outsider)).code).toBe("waiting"); // an outsider with a mobile number and an e-mail asks
     expect((await join("PPL-1", { name: "Sam Roy", device: dev(3), empId: "E-7", phone: mob(3), email: "sam@acme.test" })).status).toBe(403); // an ID that is on no list waits for the organizer's answer
     for (const old of ["mobile", "either", "both"]) expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: old }, t.master)).status).toBe(400);

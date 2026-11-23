@@ -1,7 +1,7 @@
 // The phone side of the new flow (stages). PURE helpers: every phone gets the same answer from the public log. The server only stores and relays the log (apps/edge/src/tournament.ts: stagelog).
 // Rules: vendor/game-core/packages/tictactoe (book docs/TICTACTOE_RULES_BOOK.md). A game is ONE board between two players in a slot; its moves are entries kind "move" (square 0-8, or "-" for a missed move);
 // its result is entry kind "result" from each player ("a", "b" or "draw"); a result counts when BOTH players wrote the same word.
-import { boardResult, markFor, MOVE_SECONDS, play, type Board } from "../../../vendor/game-core/packages/tictactoe/src";
+import { boardResult, markFor, MOVE_SECONDS, type Board } from "../../../vendor/game-core/packages/tictactoe/src";
 import { sha256Hex } from "../../../vendor/game-core/packages/core/src/sha256";
 
 export interface Entry { id: number; slot: string; kind: string; pid: string; seq: number; body: string; at_ms?: number }
@@ -22,8 +22,10 @@ export function gameFrom(entries: Entry[], a: string, b: string): Game {
     if (!e) break;
     if (e.body === "-") { misses++; if (misses >= 2) { done = true; winner = "draw"; n++; last = e.at_ms ?? last; break; } }
     else {
-      const sq = Number(e.body), nb = Number.isInteger(sq) ? play(board, sq, who === xIs ? "X" : "O") : null;
-      if (!nb) break; // not a legal move: ignored (the game waits)
+      // A move is a square 0 to 8 that is empty. The mark belongs to the PLAYER (X moves first), not to the count of marks on the board: after a missed move the same player moves again, so the board holds one X and no O and X is still to move (audit 2, 23 Nov 2026: play() looked at the count and froze the game after a miss).
+      const sq = /^[0-8]$/.test(e.body) ? Number(e.body) : -1;
+      if (sq < 0 || board[sq]) break; // not a legal move: ignored (the game waits)
+      const nb = board.slice(); nb[sq] = who === xIs ? "X" : "O";
       board = nb; misses = 0;
       const r = boardResult(board);
       if (r) { done = true; winner = r === "draw" ? "draw" : (r === "X" ? xIs : oIs) === a ? "a" : "b"; n++; last = e.at_ms ?? last; break; }

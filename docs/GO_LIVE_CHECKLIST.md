@@ -13,6 +13,11 @@ Evidence column format: `[x] ... EVIDENCE: <test/commit/path>`; `[N/A: reason] .
 - [ ] A7 Criterion choice: Employee ID or Email ID (one criterion), list decides; Email ID criterion exists in every game.
 - [ ] A8 Test addresses only demoN@demo-test.invalid; fake mobiles; tags TEST-RUN.
 
+## A2. Before the first deploy of 1.6.1 (audit 2, 23 Nov 2026)
+- [ ] A2.1 The minute job (`apps/cron`) is deployed, so the 24-hour deletion runs on time. The Worker itself has only a daily job (03:17): without the minute job the 20-hour clock can slip past 24 hours.
+- [ ] A2.2 `STRICT_KEYS=1` is set on the Worker once all five secrets exist (`DATA_KEY`, `PHONE_SALT`, `ORGANIZER_SECRET`, `CRON_KEY`, `INBOUND_SECRET`). Without it a missing salt falls back silently. It is not set in any shipped config because a missing secret then makes every route answer 503.
+- [ ] A2.3 `PAY_VIA_CONSOLE` is not set and `CONSOLE_PUBKEYS` is empty.
+
 ## B. Organizer (5 steps + dashboard)
 - [ ] B1 Step 1 date/time, occasion, time zone with players' local times, how the game starts, who calls the numbers.
 - [ ] B2 Step 2 who is it for (people / families / extended), validation (system / by hand), criterion, list upload/paste/viewer for 600+ rows, optional list check.

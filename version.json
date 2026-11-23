@@ -1,9 +1,16 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.6.0",
-  "commit": "2fbafc7",
-  "builtAt": "2026-11-23T12:00:00Z",
+  "version": "1.6.1",
+  "commit": "PENDING",
+  "releasedAtUTC": "PENDING",
+  "releasedAtIST": "PENDING",
   "changes": [
+    {
+      "id": "1.6.1-audit-round-4",
+      "what": "Fixes for the two failed audits of PR 9 at da3e485a: a guest who is not on the list gives only a name (ID, department or team, region, mobile number and e-mail are optional); the owner's two sentences on both screens; a small optional panel after entry; a typed mobile number is no longer a key; stage log: only the two players write, a missed move only after the move clock, a missed move no longer freezes the board; classic tournament: a single report waits while the other player is present, later matches only with players of the two feeders, results name only players; the player list shows full names only to players; limits on ID look-ups and open requests; error reports and mail naming a game are deleted with its guest data; releasedAtIST in /version.json",
+      "where": "apps/edge/src/worker.ts, people.ts, pii.ts, tournament.ts, lifecycle.ts, audit.ts; packages/ttt/src/stageplay.ts and apps/web/public/tttengine.js; apps/web/public/ttt.js, zc.js, guide.js, zsw.js; pages/version.mjs; tests audit2-privacy, newflow/audit2, ttt-details-panel and others",
+      "pr": "9"
+    },
     {
       "id": "1.6.0-invite-rule",
       "what": "The owner's invite rule (23 Nov 2026): one game link for everybody; a guest types an ID and, if it is on the organizer's list, comes straight in; a guest with no ID, or an ID not on the list, gives name, mobile number and e-mail, and the organizer or a Host says yes or no (only they see the details); the ID is one field (no choice of mobile, either or both), cleaned the same way everywhere (A-1101 = A 1101 = A/1101), lists made before keep working; list and IDs are deleted within 24 hours after the game ends. Also: the page beacon limit counts an IPv6 visitor by their /64; help line test",

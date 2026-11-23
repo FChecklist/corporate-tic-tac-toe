@@ -1,8 +1,22 @@
 [
   {
+    "version": "1.6.1",
+    "date": "2026-11-23",
+    "commit": "PENDING",
+    "title": "A guest who is not on your list gives only a name; two sentences on both screens; an optional details panel; fixes from the second audit",
+    "changes": [
+      "A guest with no ID, or whose ID is not on your list, now needs to give only a name. ID, department or team, region, mobile number and e-mail are optional. You or a Host still say yes or no, and only you and your Hosts see what was given",
+      "After a guest is in, a small closed panel lets them add name, department or team, region, mobile number and e-mail, all optional. Both screens say, word for word: Above details are optional. You can play without giving these details also. And: All the details will be deleted and erased from the system within 24 hours after the game is over",
+      "A mobile number a guest types is no longer a way to take someone else's place: a guest who is not on your list is known by their own phone. People you added by mobile number still come in with their personal link",
+      "Tournament: only the two players of a game can write to it, a missed move counts only after the move clock has run out, a missed move no longer freezes a game, a later round can only be opened with players of the two earlier games, and a result can only name people who played",
+      "Privacy and abuse: look-ups of an ID and open requests are limited per network and per game; the player list shows full names only to players and to you; error reports and waiting e-mails that name a game are deleted with its guest data; the version page now shows the time in Indian time too",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-11-23",
-    "commit": "2fbafc7",
+    "commit": "da3e485",
     "title": "One way in for every guest: an ID, or name, mobile number and e-mail for your organizer to say yes",
     "changes": [
       "Every guest uses the same game link. They type an ID: if it is on your list they come straight in, and you need not do a thing",
