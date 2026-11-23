@@ -622,7 +622,7 @@ describe("console round 2 (cancel, confirming, team, e-mail rule, AI switch)", (
 });
 
 const tickAgree = (p: Page) => { const c = p.$("#cancelagree") as any; c.checked = true; c.dispatchEvent(new p.win.Event("change", { bubbles: true })); };
-const jn = (o: O, id: string, i: number, extra: Record<string, unknown> = {}) => o.api("POST", `/api/z/${id}/join`, { phone: "98765" + String(10000 + i), name: "Guest" + i + " Kumar", device: String(i).padStart(2, "0") + "d".repeat(30), ...extra });
+const jn = (o: O, id: string, i: number, extra: Record<string, unknown> = {}) => o.api("POST", `/api/z/${id}/join`, { phone: "98765" + String(10000 + i), email: "guest" + i + "@acme.test", name: "Guest" + i + " Kumar", device: String(i).padStart(2, "0") + "d".repeat(30), ...extra });
 const listOf = async (o: O, id: string, key = o.token) => o.json(await o.api("GET", `/api/z/${id}/people`, undefined, key));
 const waitOf = async (o: O, id: string, key = o.token) => (await o.json(await o.api("GET", `/api/z/${id}/waiting`, undefined, key))).waiting as any[];
 const fakeWin = () => { const w: any = { location: { href: "" }, opener: 1, closed: false, close() { w.closed = true; } }; return w; };
@@ -695,8 +695,8 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     const o = await organizer(); await make(o, "UI-EMP"); await publish(o, "UI-EMP"); const w = spy();
     const p = await ready(o, "UI-EMP", w); openStep(p, 2);
     expect(p.$('[data-bool="emp"]')).toBeTruthy(); expect(Array.from(p.win.document.querySelectorAll("#sec2 .zc-sub")).map((e: any) => e.textContent)).toContain("Who can join");
-    expect(p.win.document.querySelectorAll("#sec2 .zc-hint2").length).toBeGreaterThanOrEqual(4); // a small line under the sizes, who can join, who it is for and what to give
-    p.click('[data-ck="ver"][data-v="id"]'); expect(p.text()).toMatch(/Each employee types|Employees type their employee ID/);
+    expect(p.win.document.querySelectorAll("#sec2 .zc-hint2").length).toBeGreaterThanOrEqual(3); // a small line under the sizes, who can join and who it is for
+    expect(p.$('[data-ck="ver"]')).toBeNull(); expect(p.$('[data-ck="idk"]')).toBeNull(); // the choice of mobile / ID / either / both is gone: there is one way in
     p.click('[data-bool="emp"]'); expect(Array.from(p.win.document.querySelectorAll("#sec2 .zc-sub")).map((e: any) => e.textContent)).not.toContain("Who can join"); expect(p.text()).toMatch(/Only the employees on your list can play/); // the choice that no longer applies is hidden
     p.click('[data-save="2"]'); await p.waitFor((x) => /Saved\./.test(x));
     const sm = await o.json(await o.api("GET", "/api/z/UI-EMP/summary", undefined, o.aiKey));
@@ -745,7 +745,7 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     for (const i of [1, 2]) expect((await jn(o, "UI-WAIT", i, { name: i === 1 ? "Meera Shah" : "Nikhil Rao" })).status).toBe(403);
     const waiting = await waitOf(o, "UI-WAIT"); expect(waiting.length).toBe(2);
     const w = spy(); const p = await ready(o, "UI-WAIT", w); await myPeople(p);
-    const t = await p.waitFor((x) => /Waiting to come in: 2/.test(x)); expect(t).toMatch(/Meera \S+ 0001/); expect(t).toMatch(/Asking through/); expect(t).not.toMatch(/Shah|Rao/);
+    const t = await p.waitFor((x) => /Waiting to come in: 2/.test(x)); expect(t).toMatch(/Meera Shah \+919876510001/); expect(t).toMatch(/guest1@acme\.test/); expect(t).toMatch(/Asking through/); // the Organizer sees the whole request: name, mobile number and e-mail (owner rule 23 Nov 2026)
     const first = waiting.find((x: any) => x.firstName === "Meera");
     p.click(`[data-wid="${first.id}"][data-decide="admit"]`); await p.waitFor((x) => /Waiting to come in: 1/.test(x) && /Meera \S+ 0001: let in by/.test(x));
     expect(w.st.calls.find((c: any) => c[1].endsWith("/waiting/" + first.id))[2]).toEqual({ decision: "admit" }); expect((await waitOf(o, "UI-WAIT")).length).toBe(1);
@@ -1123,16 +1123,15 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
 });
 
 describe("simpler console (owner orders 2026-10-27: numbered steps, radio buttons and check boxes, a sentence under every option, a live line, hide never disable)", () => {
-  test("step 2: 'What must a person give to get in?' is hidden while the default (name only) stands, still in the page, and the rest of the step is shown", async () => {
+  test("step 2: the four choices (name or mobile / ID / either / both) are gone, there is one way in, and the rest of the step is shown (owner rule 23 Nov 2026)", async () => {
     const o = await organizer(); await make(o, "UI-SIMP");
     const p = await consolePage(o, "UI-SIMP"); await p.waitFor((x) => /Hello/.test(x)); openStep(p, 2);
-    const hidden = p.$("#sec2 .zc-hide[data-hidden='1']"); expect(hidden).not.toBeNull();
-    expect(hidden!.textContent).toMatch(/What must a person give/); expect(p.$("#sec2")!.textContent).toMatch(/Who can join/);
-    const visible = Array.from(p.win.document.querySelectorAll("#sec2 .zc-lbl")).filter((e: any) => !e.closest(".zc-hide")).map((e: any) => e.textContent).join("|");
-    expect(visible).not.toMatch(/What must a person give/);
-    expect(p.$('[data-ck="ver"][data-v="id"]')).not.toBeNull(); // hidden, never disabled: the buttons are still there and enabled
-    expect((p.$('[data-ck="ver"][data-v="id"]') as any).disabled).toBe(false);
-    p.click('[data-bool="emp"]'); expect(p.$("#sec2 .zc-hide[data-hidden='1']")).toBeNull(); // asking for staff only brings the choice into view
+    expect(p.$("#sec2")!.textContent).not.toMatch(/What must a person give/); expect(p.$("#sec2")!.textContent).toMatch(/Who can join/);
+    for (const v of ["mobile", "id", "either", "both"]) expect([v, p.$(`[data-ck="ver"][data-v="${v}"]`)]).toEqual([v, null]); // no chip for any of them, hidden or not
+    expect(p.$('[data-ck="idk"]')).toBeNull();
+    p.click('[data-ck="who"][data-v="list"]'); expect(p.$("#sec2")!.textContent).toMatch(/One link for everybody/); expect(p.$("#sec2")!.textContent).toMatch(/Only you and your Hosts see them/); // the one way in, told in plain words
+    const js = readFileSync(new URL("../public/zc.js", import.meta.url), "utf8"); expect(js).not.toMatch(/Mobile number and Employee ID|Name only \(or mobile number\)/);
+    p.click('[data-bool="emp"]'); expect(p.$('[data-ck="ver"]')).toBeNull(); // asking for staff only brings no choice back
   });
   test("every choice of one is a radio button and every yes/no is a check box (no drop-down, no pressed-button), each radio group has one selected, and the main options carry a plain sentence", async () => {
     const o = await organizer(); await make(o, "UI-RADIO");
@@ -1144,7 +1143,7 @@ describe("simpler console (owner orders 2026-10-27: numbered steps, radio button
     openStep(p, 2);
     const say = (sel: string) => (p.$(sel) as any).parentElement.querySelector(".zc-optsay")?.textContent ?? "";
     expect(say('[data-ck="who"][data-v="list"]')).toMatch(/Only people you add/); expect(say('[data-ck="who"][data-v="anyone"]')).toMatch(/Anyone with your link/);
-    expect(say('[data-ck="ver"][data-v="id"]')).toMatch(/employee ID/); expect(say('[data-ck="cap"][data-v="10"]')).toMatch(/Free/);
+    expect(say('[data-ck="cap"][data-v="10"]')).toMatch(/Free/);
     expect((p.$('[data-bool="emp"]') as any).getAttribute("role")).toBe("checkbox"); expect(say('[data-bool="emp"]')).toMatch(/Staff only/);
   });
   test("a live line under the question shows the choice so far and changes the moment an option is tapped; every step says what not to do and why", async () => {

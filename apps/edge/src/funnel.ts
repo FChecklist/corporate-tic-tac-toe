@@ -19,6 +19,7 @@ export function cleanProps(p: Record<string, unknown> = {}): { game?: string; si
   return o;
 }
 import type { D1 } from "./worker";
+import { netKeyOf } from "./netkey";
 
 export type FunEnv = { DB: D1; FUNNEL_EVENTS?: string };
 export const funnelOn = (env: { FUNNEL_EVENTS?: string }) => env.FUNNEL_EVENTS === "on";
@@ -78,7 +79,7 @@ export async function funnelBeacon(req: Request, env: FunEnv, now: number): Prom
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return none(413);
   let j: any; try { const t = await req.text(); if (t.length > MAX_BODY) return none(413); j = JSON.parse(t); } catch { return none(400); }
   if (!j || typeof j !== "object" || typeof j.event !== "string" || !PAGE_EVENTS.has(j.event) || typeof j.visit !== "string" || !/^[a-z0-9]{12}$/.test(j.visit)) return none(400);
-  if (rateLimited("fun/" + (req.headers.get("cf-connecting-ip") ?? "local"), now, PER_MINUTE)) return none(429);
+  if (rateLimited("fun/" + netKeyOf(req), now, PER_MINUTE)) return none(429);
   try {
     if (await isTestMode(env)) return none();
     const c = cleanProps({ size: j.size });

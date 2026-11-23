@@ -1,4 +1,4 @@
-// What a person must give to get in (mobile / employee ID / both) and "employees only": the organizer chooses it per game (people.ts verifyOf, worker.ts join).
+// How people come in (owner rule 23 Nov 2026: one way, the ID; no choice of mobile / either / both) and "employees only" (people.ts verifyOf, worker.ts join). The whole rule is in invite-rule.test.ts.
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { type Env } from "../src/worker";
 import { handle, consentFor } from "./with-terms";
@@ -21,7 +21,7 @@ const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i);
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
 const join = (id: string, body: Record<string, unknown>, now = T) => call("POST", `/api/z/${id}/join`, body, undefined, now);
-const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { phone: mob(i), name: "G" + i, device: dev(i), ...extra }, now);
+const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { phone: mob(i), name: "G" + i, email: `g${i}@acme.test`, device: dev(i), ...extra }, now); // a guest not on a list gives name, mobile number and e-mail (owner rule 23 Nov 2026)
 const rowsOf = (sql: string, ...v: unknown[]) => raw.prepare(sql).all(...(v as any[])) as any[];
 
 async function setup(opts: { closed?: boolean; verify?: string; employeesOnly?: boolean; invites?: unknown } = {}) {
@@ -47,22 +47,23 @@ describe("employee ID", () => {
 });
 
 describe("the settings", () => {
-  test("verify and employeesOnly are saved and shown; employees only forces 'only people on a list' and switches guest invites off", async () => {
-    const t = await setup({ verify: "both", invites: { on: true, per: 3, cats: ["family"] } });
-    let s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.verify).toBe("both"); expect(s.employeesOnly).toBe(false); expect(s.invites.on).toBe(true);
+  test("verify (only 'id') and employeesOnly are saved and shown; employees only forces 'only people on a list' and switches guest invites off; the older choices are refused", async () => {
+    const t = await setup({ verify: "id", invites: { on: true, per: 3, cats: ["family"] } });
+    let s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.verify).toBe("id"); expect(s.employeesOnly).toBe(false); expect(s.invites.on).toBe(true);
     expect((await call("PATCH", "/api/z/PPL-1/settings", { employeesOnly: true }, t.master)).status).toBe(200);
     s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.employeesOnly).toBe(true); expect(s.invites.on).toBe(false); expect(s.whoCanJoin).toBe("list");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "passport" }, t.master)).status).toBe(400);
+    for (const old of ["mobile", "either", "both"]) expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: old }, t.master)).status).toBe(400);
   });
-  test("a later save that does not mention them (prizes, brand moments, tickets) keeps what a person must give and employees only", async () => {
+  test("a later save that does not mention them (prizes, brand moments, tickets) keeps employees only and the ID rule", async () => {
     const t = await setup({ verify: "id", employeesOnly: true });
-    const keep = async (what: string) => { const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([what, s.verify, s.employeesOnly, s.whoCanJoin]).toEqual([what, "id", true, "list"]); };
+    const keep = async (what: string) => { const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([what, s.verify, s.employeesOnly, s.whoCanJoin]).toEqual([what, "id", true, "list"]); }
     await keep("after setup");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { rewards: [{ pattern: "first", ordinal: 1, text: "" }] }, t.master)).status).toBe(200); await keep("after the prizes");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { tickets: 1, opening: [], breaks: [], closing: [] }, t.master)).status).toBe(200); await keep("after the brand moments");
     expect((await call("PATCH", "/api/z/PPL-1/settings", { rounds: 2 }, t.master)).status).toBe(200); await keep("after the rounds");
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "mobile", employeesOnly: false }, t.master)).status).toBe(200); // choosing differently still works
-    const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([s.verify, s.employeesOnly]).toEqual(["mobile", false]);
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { employeesOnly: false }, t.master)).status).toBe(200);
+    const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect([s.verify, s.employeesOnly]).toEqual(["id", false]);
   });
 });
 
@@ -74,7 +75,7 @@ describe("employees only, ID alone", () => {
     for (const typed of ["A 1101", "A/1101", "a-1101", "A1101"]) expect((await joinAs("PPL-1", 5, { phone: undefined, empId: typed })).status).toBe(200);
     expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toEqual([await empHashOf(env, "A1101")]);
   });
-  test("PR 9 M1 (new-era game): a list made before 1.4.1 (IDs hashed with their dashes) still works: the person joins typing the ID the way the old list holds it, is not added twice, and 'Is this you?' finds them", async () => {
+  test("PR 9 M1: a list made before 1.4.1 (IDs hashed with their dashes) still works: the person joins typing the ID the way the old list holds it, is not added twice, and 'Is this you?' finds them", async () => {
     const t = await setup({ verify: "id", employeesOnly: true }); newEra();
     await j(await add(t.master, [{ name: "Asha", empId: "E101" }]));
     raw.run("UPDATE person SET ph=? WHERE ph=?", [await empHashOf(env, "E-101"), await empHashOf(env, "E101")]); // what an old list holds for "E-101"
@@ -86,24 +87,24 @@ describe("employees only, ID alone", () => {
     expect(again.added).toBe(0); expect(again.duplicates).toBe(2); // adding the old list again does not make a second Asha
     const who = await j(await call("POST", "/api/z/PPL-1/who", { empId: "e-101", consent: consentFor("K4") })); expect(who.known).toBe(true); // "Is this you?" finds the old-list person too
   });
-  test("a listed employee joins with the ID only; a wrong ID waits; a missing ID is asked for; a mobile number alone is no way in", async () => {
+  test("a listed employee joins with the ID only; a wrong ID waits (with mobile and e-mail); a missing ID is asked for; a mobile number alone is no way in", async () => {
     const t = await setup({ verify: "id", employeesOnly: true });
     const r = await j(await add(t.master, [{ name: "Asha", empId: "e-101" }, { name: "Ravi", empId: "E102", phone: mob(2) }, { name: "NoId", phone: mob(3) }, { name: "Dup", empId: "E-101" }]));
-    expect(r.added).toBe(2); expect(r.duplicates).toBe(1); expect(r.invalid.length).toBe(1);
-    expect(r.people.find((p: any) => p.name === "Asha")).toMatchObject({ empId: "E-101", maskedPhone: "", waLink: null });
+    expect(r.added).toBe(2); expect(r.duplicates).toBe(1); expect(r.invalid.length).toBe(1); // an employees-only list needs the ID of everyone on it
+    expect(r.people.find((p: any) => p.name === "Asha")).toMatchObject({ empId: "E101", maskedPhone: "", waLink: null });
     const ok = await joinAs("PPL-1", 5, { phone: undefined, empId: " e-101 " }); expect(ok.status).toBe(200);
     expect((await joinAs("PPL-1", 5, { phone: undefined, empId: "E-101" })).status).toBe(200); // the same ID again is the same person
-    const wrong = await joinAs("PPL-1", 6, { phone: undefined, empId: "E999" }); expect(wrong.status).toBe(403); expect((await j(wrong)).code).toBe("waiting");
+    const wrong = await joinAs("PPL-1", 6, { empId: "E999" }); expect(wrong.status).toBe(403); expect((await j(wrong)).code).toBe("waiting");
     const none = await joinAs("PPL-1", 7, { phone: undefined }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id");
     expect((await joinAs("PPL-1", 8, {})).status).toBe(400);
     expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(1);
-    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toContain(await empHashOf(env, "E-101"));
+    expect(rowsOf("SELECT ph FROM person").map((x) => x.ph)).toContain(await empHashOf(env, "E101"));
   });
 });
 
-describe("employees only, mobile and ID", () => {
-  test("right number but wrong ID waits for the organizer; right number with no ID is asked for the ID; both right gets in", async () => {
-    const t = await setup({ verify: "both", employeesOnly: true });
+describe("a listed person with an ID and a mobile number", () => {
+  test("the ID gets them in; their mobile number with another ID waits; their mobile number alone is no way in (owner rule 23 Nov 2026: no 'both' any more)", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true });
     const r = await j(await add(t.master, [{ name: "Asha", phone: mob(1), empId: "E101" }, { name: "NoId", phone: mob(2) }]));
     expect(r.added).toBe(1); expect(r.invalid.length).toBe(1);
     const w = await joinAs("PPL-1", 1, { empId: "E555", device: dev(41) }); expect(w.status).toBe(403); expect((await j(w)).code).toBe("waiting");
@@ -122,33 +123,14 @@ describe("an employee known by ID stays known by it", () => {
   });
 });
 
-describe("mobile number OR employee ID", () => {
-  test("a listed person gets in with either one and is the same card both ways; unlisted people wait; an outsider in an open game gives a mobile number", async () => {
-    const t = await setup({ verify: "either", employeesOnly: true });
-    const r = await j(await add(t.master, [{ name: "Both", phone: mob(1), empId: "E101" }, { name: "IdOnly", empId: "E102" }, { name: "PhoneOnly", phone: mob(3) }, { name: "Nobody" }]));
-    expect(r.added).toBe(3); expect(r.invalid.length).toBe(1); expect(r.invalid[0].why).toMatch(/mobile number or an employee ID/);
-    const byId = await j(await joinAs("PPL-1", 21, { phone: undefined, empId: "e101", device: dev(50) })); expect(byId.pid).toBeTruthy();
-    const byPhone = await j(await joinAs("PPL-1", 1, { device: dev(50) })); expect(byPhone.pid).toBe(byId.pid); // the same person, the same card, whichever they give
-    expect((await joinAs("PPL-1", 22, { phone: undefined, empId: "E102" })).status).toBe(200); // known by ID alone
-    expect((await joinAs("PPL-1", 3, {})).status).toBe(200); // known by mobile alone
-    const wrong = await joinAs("PPL-1", 40, { phone: undefined, empId: "E999" }); expect(wrong.status).toBe(403); expect((await j(wrong)).code).toBe("waiting");
-    const stranger = await joinAs("PPL-1", 41, {}); expect(stranger.status).toBe(403); expect((await j(stranger)).code).toBe("waiting"); // employees only: an unlisted number waits
-    const none = await joinAs("PPL-1", 42, { phone: undefined }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id");
-    const csv = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text(); expect(csv).toContain("E101"); expect(csv).toContain("E102");
-  });
-  test("the same employee ID cannot be given to two people of one list, and an ID still finds its person after the link is sent again with a new number", async () => {
-    const t = await setup({ verify: "either" });
+describe("one ID is one person", () => {
+  test("the same ID cannot be given to two people of one list, and the ID still finds its person after the link is sent again with a new number", async () => {
+    const t = await setup({ verify: "id", closed: true });
     const r = await j(await add(t.master, [{ name: "First", phone: mob(1), empId: "E101" }, { name: "Second", phone: mob(2), empId: "e101" }]));
     expect(r.added).toBe(1); expect(r.duplicates).toBe(1);
     const re = await call("POST", `/api/z/PPL-1/people/${r.people[0].id}/resend`, { phone: mob(9) }, t.master); expect(re.status).toBe(200);
     const byId = await j(await joinAs("PPL-1", 40, { phone: undefined, empId: "E101", device: dev(60) })); expect(byId.pid).toBeTruthy();
-    const byNew = await j(await joinAs("PPL-1", 9, { device: dev(60) })); expect(byNew.pid).toBe(byId.pid); // the new number and the ID are the same person
-  });
-  test("everyone including employees: an outsider joins with a mobile number alone; settings accept the mode", async () => {
-    const t = await setup({ verify: "either" }); await add(t.master, [{ name: "Both", phone: mob(1), empId: "E101" }]);
-    expect((await joinAs("PPL-1", 5, {})).status).toBe(200);
-    expect((await joinAs("PPL-1", 6, { phone: undefined, empId: "E101" })).status).toBe(200);
-    const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.verify).toBe("either");
+    const again = await j(await joinAs("PPL-1", 41, { phone: undefined, empId: "e-101", device: dev(60) })); expect(again.pid).toBe(byId.pid); // the same ID from the same phone is the same card
   });
 });
 
@@ -163,7 +145,7 @@ describe("junk in a list is cleaned by the server too", () => {
 describe("guessing employee IDs", () => {
   test("wrong IDs wait for the organizer, who sees the ID that was typed; after 30 wrong IDs from one network in a game the door closes for ten minutes; a right ID is not counted", async () => {
     const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
-    for (let i = 0; i < 30; i++) expect((await joinAs("PPL-1", 10 + i, { phone: undefined, empId: "X" + (900 + i) })).status).toBe(403);
+    for (let i = 0; i < 30; i++) expect((await joinAs("PPL-1", 10 + i, { empId: "X" + (900 + i) })).status).toBe(403);
     const eleventh = await joinAs("PPL-1", 60, { phone: undefined, empId: "X999" }); expect(eleventh.status).toBe(429); expect((await j(eleventh)).code).toBe("too-many-tries");
     const w = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting; expect(w.length).toBe(30); expect(w.map((x: any) => x.empId)).toContain("X900");
     expect((await joinAs("PPL-1", 61, { phone: undefined, empId: "E101" })).status).toBe(200); // the real employee still gets in
@@ -171,35 +153,27 @@ describe("guessing employee IDs", () => {
 });
 
 describe("everyone, including employees", () => {
-  test("ID: employees give their ID; an outsider gives a mobile number only and comes in at once; an unknown ID waits; guests can still invite", async () => {
-    const t = await setup({ verify: "id", invites: { on: true, per: 2, cats: ["family"] } });
+  test("a game by invitation: employees give their ID; an outsider gives name, mobile number and e-mail and waits for a yes; an unknown ID waits; guests can still invite", async () => {
+    const t = await setup({ verify: "id", closed: true, invites: { on: true, per: 2, cats: ["family"] } });
     await add(t.master, [{ name: "Asha", empId: "E101" }]);
     expect((await joinAs("PPL-1", 5, { phone: undefined, empId: "E101" })).status).toBe(200);
-    expect((await joinAs("PPL-1", 6, {})).status).toBe(200);
-    const bad = await joinAs("PPL-1", 7, { phone: undefined, empId: "E404" }); expect(bad.status).toBe(403); expect((await j(bad)).code).toBe("waiting");
+    const outsider = await joinAs("PPL-1", 6, {}); expect(outsider.status).toBe(403); expect((await j(outsider)).code).toBe("waiting");
+    const bad = await joinAs("PPL-1", 7, { empId: "E404" }); expect(bad.status).toBe(403); expect((await j(bad)).code).toBe("waiting");
     const s = await j(await call("GET", "/api/z/PPL-1/summary", undefined, t.master)); expect(s.invites.on).toBe(true);
-  });
-  test("both: an employee must match number and ID; an outsider gives the number alone; an ID on no list waits", async () => {
-    const t = await setup({ verify: "both" });
-    await add(t.master, [{ name: "Asha", phone: mob(1), empId: "E101" }]);
-    expect((await joinAs("PPL-1", 1, {})).status).toBe(400);
-    expect((await joinAs("PPL-1", 1, { empId: "E101" })).status).toBe(200);
-    expect((await joinAs("PPL-1", 2, {})).status).toBe(200);
-    expect((await joinAs("PPL-1", 3, { empId: "E777" })).status).toBe(403);
   });
 });
 
-describe("mobile only (the default) is unchanged", () => {
-  test("an ID typed in a mobile-only game is ignored", async () => {
-    const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha", phone: mob(1) }]);
+describe("a game anyone with the link may join is unchanged", () => {
+  test("an ID typed there is ignored; a number joins at once", async () => {
+    const t = await setup({}); await add(t.master, [{ name: "Asha", phone: mob(1) }]);
     expect((await joinAs("PPL-1", 1, { empId: "E1" })).status).toBe(200);
-    expect((await joinAs("PPL-1", 2, {})).status).toBe(403);
+    expect((await joinAs("PPL-1", 2, {})).status).toBe(200);
   });
 });
 
 describe("the list download carries the ID", () => {
   test("the Employee ID column is there", async () => {
-    const t = await setup({ verify: "id" }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
+    const t = await setup({ verify: "id", closed: true }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
     const txt = await (await call("GET", "/api/z/PPL-1/people/export", undefined, t.master)).text();
     expect(txt).toContain("Employee ID"); expect(txt).toContain("E101");
   });
@@ -252,18 +226,13 @@ describe("the owner's three test sign-ins need the runner key, in any mode (TT-2
   });
 });
 
-describe("this game's name-only joining with IDs asked", () => {
-  test("when the organizer asks for IDs, a name alone is not a way in; an ID on no list waits for an answer, a mobile number comes in; 'both' needs the mobile number with the ID", async () => {
-    const t = await setup({ verify: "id" });
-    const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(400); expect((await j(nameOnly)).code).toBe("need-id");
-    expect((await joinAs("PPL-1", 2, { empId: undefined })).status).toBe(200); // an outsider with a mobile number only
-    expect((await join("PPL-1", { name: "Sam", device: dev(3), empId: "E-7" })).status).toBe(403); // an ID that is on no list waits for the organizer's answer
-    // owner rule (1.4.1): once someone has joined, what people must give cannot change; the same value is allowed
-    const locked = await call("PATCH", "/api/z/PPL-1/settings", { verify: "both" }, t.master); expect(locked.status).toBe(409); expect((await j(locked)).code).toBe("id-kind-locked");
+describe("a game by invitation: a name alone is not a way in", () => {
+  test("a name alone is refused and asks for contact details; an ID on no list waits for an answer; the older choices cannot be saved (owner rule 23 Nov 2026)", async () => {
+    const t = await setup({ verify: "id", closed: true });
+    const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(400); expect((await j(nameOnly)).code).toBe("need-contact");
+    const outsider = await joinAs("PPL-1", 2, { empId: undefined }); expect(outsider.status).toBe(403); expect((await j(outsider)).code).toBe("waiting"); // an outsider with a mobile number and an e-mail asks
+    expect((await join("PPL-1", { name: "Sam Roy", device: dev(3), empId: "E-7", phone: mob(3), email: "sam@acme.test" })).status).toBe(403); // an ID that is on no list waits for the organizer's answer
+    for (const old of ["mobile", "either", "both"]) expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: old }, t.master)).status).toBe(400);
     expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "id" }, t.master)).status).toBe(200);
-  });
-  test("'both' needs the mobile number with the ID (game made with 'both' from the start)", async () => {
-    await setup({ verify: "both" });
-    const noPhone = await join("PPL-1", { name: "Tia", device: dev(4), empId: "E-8" }); expect(noPhone.status).toBe(400); expect((await j(noPhone)).code).toBe("need-id");
   });
 });

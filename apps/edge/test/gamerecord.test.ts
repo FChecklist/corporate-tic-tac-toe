@@ -17,7 +17,7 @@ describe("game settings record", () => {
   };
   const s = settingsOf(row as any), j = JSON.stringify(s);
   test("keeps the rules", () => {
-    expect(s).toMatchObject({ gameId: "ACME-2026", callSeconds: 9, cap: 100, ticketsPerPerson: 2, tieRule: "next", rounds: 2, callMode: "host", whoCanJoin: "list", verify: "both", employeesOnly: true, gameName: "Annual day" });
+    expect(s).toMatchObject({ gameId: "ACME-2026", callSeconds: 9, cap: 100, ticketsPerPerson: 2, tieRule: "next", rounds: 2, callMode: "host", whoCanJoin: "list", verify: "id", employeesOnly: true, gameName: "Annual day" });
     expect((s as any).prizes).toEqual([{ house: "early5", scope: "card", position: 1, prize: "Mug" }, { house: "full", scope: "card", position: 1, prize: "Hamper" }]);
     expect((s as any).breaks[0]).toMatchObject({ kind: "speech", seconds: 60, title: "Message from the CEO" });
     expect((s as any).brand).toEqual({ company: "Acme Ltd", colour: "#0B3D91" });

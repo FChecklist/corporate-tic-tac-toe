@@ -11,7 +11,7 @@
     K2: { A: "I have read and agree to the Terms & Conditions and the Privacy Policy." },
     K3: { A: "I agree to the Terms and the Refund Policy. I understand there is no refund; my payment stays as credit." },
     K4: {
-      A: "I agree that my name is used for this game only and deleted within 24 hours after it ends. If this game asks for my mobile number or my employee ID, it is used for this game only too and deleted at the same time. I know who invited me is recorded until then. The results are kept for 365 days, without names. Billing data is kept for audit and tax reasons. This notice is available in Hindi on request.",
+      A: "I agree that my name is used for this game only and deleted within 24 hours after it ends. If this game asks for my mobile number, my e-mail or my employee ID, it is used for this game only too, shown only to the organizer and the hosts, and deleted at the same time. I know who invited me is recorded until then. The results are kept for 365 days, without names. Billing data is kept for audit and tax reasons. This notice is available in Hindi on request.",
       B: "I am 18 or older.",
     },
     K5: { A: "I will not charge any player. I will hand over prizes as the organizer decides. I follow the Terms." },

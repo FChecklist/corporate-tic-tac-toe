@@ -55,7 +55,7 @@ const team = async (publish = true) => {
 const row = (id = "UNP-1") => raw.prepare("SELECT * FROM engagement WHERE id=?").get(id) as any;
 const endOf = (id = "UNP-1") => endBoundMs(env as any, row(id));
 const eraseAt = async (id = "UNP-1") => personalDeleteAt(await endOf(id));
-const join = (phone: string, name = "Guest", eid = "UNP-1", now = T) => call("POST", `/api/z/${eid}/join`, { phone, name }, undefined, now);
+const join = (phone: string, name = "Guest", eid = "UNP-1", now = T) => call("POST", `/api/z/${eid}/join`, { phone, name, email: `${phone}@acme.test` }, undefined, now); // a guest not on a list gives name, mobile number and e-mail (owner rule 23 Nov 2026)
 const people = (key: string, list: { name: string; phone: string }[], eid = "UNP-1") => call("POST", `/api/z/${eid}/people`, { people: list }, key);
 const pay = (key: string, eid = "UNP-1", now = T) => call("POST", "/api/checkout", { eid, org: "Acme Ltd", name: "Boss", email: "payer@acme.com", country: "IN", taxId: "", currency: "INR" }, key, now);
 const sign = (c: any, id: string) => createHmac("sha256", "sek").update(`${c.razorpay.orderId}|${id}`).digest("hex");

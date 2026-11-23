@@ -62,7 +62,7 @@ describe("employee ID cleaning (new rule): NFKC, upper case, A-Z and 0-9 only, 3
   });
   test("the join page: an ID typed in any spelling reaches the same person (no second waiting row for the same cleaned ID)", async () => {
     await W.game("T42-5", { who: "list", verify: "id" });
-    const a = await W.join("T42-5", { name: "Pat Demo", empId: "7a-9", device: dev(3) }); const b = await W.join("T42-5", { name: "Pat Demo", empId: "7A 9", device: dev(4) });
+    const a = await W.join("T42-5", { name: "Pat Demo", empId: "7a-9", phone: "9876543210", email: "pat@demo-test.invalid", device: dev(3) }); const b = await W.join("T42-5", { name: "Pat Demo", empId: "7A 9", phone: "9876543211", email: "pat2@demo-test.invalid", device: dev(4) });
     expect([a.status, b.status]).toEqual([403, 403]); expect(W.raw.prepare("SELECT COUNT(*) c FROM waiting").get().c).toBeLessThanOrEqual(2);
   });
 });

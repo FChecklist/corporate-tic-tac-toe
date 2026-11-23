@@ -60,8 +60,8 @@ describe("owner rules v1.1: the help file (guide.js) speaks to you", () => {
 describe("owner rules v1.1: employee ID is matched, not proven", () => {
   const js = readFileSync(PUB("zc.js"), "utf8");
   test("the help under 'Employee ID' says the game checks the ID against the list and does not prove who typed it", () => {
-    expect(js).toMatch(/"ver:id": "[^"]*It does not prove who typed it[^"]*personal link is the strong proof/);
-    expect(js).toMatch(/"ver:both": "[^"]*does not prove who typed them[^"]*personal link is the strong proof/);
+    expect(js).toMatch(/It does not prove who typed it[^"`]*personal link is the strong proof/); // said once now: there is one way in (the ID), not "ID" and "both"
+    expect(js).not.toMatch(/"ver:(id|both|mobile)":/);
   });
 });
 

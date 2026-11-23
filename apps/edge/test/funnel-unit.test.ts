@@ -75,6 +75,12 @@ describe("what a page may send", () => {
     expect((await funnelBeacon(new Request("https://ttt.test/api/f"), env, T)).status).toBe(405);
     expect(rows().length).toBe(0);
   });
+  test("a flood from one IPv6 home or phone network (one /64) is slowed down even when every request uses a new address; another /64 and an IPv4 address keep their own allowance", async () => {
+    let last = 0; for (let i = 0; i < 70; i++) last = (await post({ event: "viewed", at: T, visit: V(300 + i) }, { "cf-connecting-ip": `2001:db8:1:2:${(i + 1).toString(16)}:aaaa:bbbb:cccc` })).status;
+    expect(last).toBe(429); expect(rows().length).toBeLessThanOrEqual(60);
+    expect((await post({ event: "viewed", at: T, visit: V(400) }, { "cf-connecting-ip": "2001:db8:1:3:1:2:3:4" })).status).toBe(204);
+    expect((await post({ event: "viewed", at: T, visit: V(401) }, { "cf-connecting-ip": "203.0.113.77" })).status).toBe(204);
+  });
   test("a flood from one address is slowed down", async () => {
     let last = 0; for (let i = 0; i < 70; i++) last = (await post({ event: "viewed", at: T, visit: V(100 + i) }, { "cf-connecting-ip": "203.0.113.9" })).status;
     expect(last).toBe(429); expect(rows().length).toBeLessThanOrEqual(60);

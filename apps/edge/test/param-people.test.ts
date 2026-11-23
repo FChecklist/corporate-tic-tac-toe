@@ -124,12 +124,13 @@ describe("invitation policies: anyone, invite-only, two-level chain", () => {
     expect((await join(g.id, 1)).status).toBe(200);
     expect((await join(g.id, 2, { phone: "+971 50 123 4567" })).status).toBe(200);
   });
-  test("invite-only: a number that is not on the list is refused, a listed number (in any format) is let in", async () => {
+  test("invite-only: a number that is not on the list waits for a yes; a listed ID is let in (a listed number alone is not: it holds a personal link)", async () => {
     const g = await paidGame({ cap: 10 });
     expect((await call("PATCH", `/api/z/${g.id}/settings`, { closed: true }, g.h)).status).toBe(200);
-    await add(g.key, g.id, [{ name: "Asha", phone: "+91 98765 43210" }]);
+    await add(g.key, g.id, [{ name: "Asha", phone: "+91 98765 43210" }, { name: "Ravi", empId: "R-7" }]);
     expect((await join(g.id, 9, { phone: "9123456789" })).status).toBe(403);
-    expect((await join(g.id, 1, { phone: "09876543210" })).status).toBe(200);
+    expect((await join(g.id, 1, { phone: "09876543210" })).status).toBe(403); // a number alone is no way in, even a listed one (owner rule 23 Nov 2026)
+    expect((await join(g.id, 2, { empId: "r 7", phone: undefined })).status).toBe(200);
   });
   test("invite-only: the info answer says who can join, and a removed person cannot come back", async () => {
     const g = await paidGame({ cap: 10 });

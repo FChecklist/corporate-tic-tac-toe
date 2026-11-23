@@ -64,36 +64,38 @@
   });
 
   // ---------- joining: the boxes (K4, wording from the server) come BEFORE the name is asked; nothing is ticked in advance; the server refuses a join without both ticks ----------
-  let tb = null, typedName = "", typedPhone = "", typedEmp = "";
+  let tb = null, typedName = "", typedPhone = "", typedEmp = "", typedMail = "";
   const JOIN_RETRY_MS = (n) => (window.__joinRetryMs ? window.__joinRetryMs : (4 + Math.min(26, n * 2)) * 1000); // a test sets window.__joinRetryMs to wait less
-  // What the organizer asked people to give (INFO.verify): a mobile number, an employee ID or both. The default is the name alone.
-  const idKind = () => (INFO && INFO.idKind === "email" ? "email" : "emp"), idName = () => (idKind() === "email" ? "Email ID" : "employee ID");
-  const askWhat = () => { if (TOKEN) return { emp: false, mob: false, only: false, v: "mobile" }; /* a personal link already says who this is */ const v = INFO && (INFO.verify === "id" || INFO.verify === "either" || INFO.verify === "both") ? INFO.verify : "mobile", only = !!(INFO && INFO.employeesOnly), ph = !!(INFO && INFO.joinPhone); return { emp: v !== "mobile", mob: v !== "mobile" || ph, only, v }; };
+  // The one way in (owner rule 23 Nov 2026): one link for everybody. Type your ID: if it is on the organizer's list you are in, no waiting. No ID, or an ID that is not on the list: give your name, mobile number and e-mail, and the organizer or host lets you in.
+  const idKind = () => (INFO && INFO.idKind === "email" ? "email" : "emp"), idName = () => (idKind() === "email" ? "Email ID" : "ID");
+  const askWhat = () => { const inv = !!(INFO && INFO.byInvite); return { id: !TOKEN && inv, phoneOnly: !TOKEN && !inv && !!(INFO && INFO.joinPhone), only: !!(INFO && INFO.employeesOnly) }; }; // a personal link already says who this is: only the name is asked. A game by invitation asks for the ID; a game anyone may join asks for the name (and a mobile number if its organizer switched that on)
+  const mailOk = (v) => { const c = String(v || "").normalize("NFKC").replace(/[\s\u0085\u200B-\u200D\u2060\uFEFF]/g, ""); return c.length <= 254 && /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(c); };
   const joinView = () => {
     set(`${top()}<div class="zcard zform tjoin"><h2>Join the tournament</h2>
-      <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>Type your name</span></li><li><b>2</b><span>Press Join</span></li></ol>
+      <ol class="zsteps" aria-label="How to join"><li><b>1</b><span>${askWhat().id ? "Type your name and your ID" : "Type your name"}</span></li><li><b>2</b><span>Press Join</span></li></ol>
       <p class="tlead">Win your board to reach the next round. The last player standing is the champion.</p>
-      <p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only your name is asked for. Your organizer sees it and other players see it on the bracket. A game can be played with only an employee ID or an e-mail address.</p>${planned()}
-      <p class="zsmall">No personal details needed. All participant information is deleted within 24 hours of the game.</p>
+      ${askWhat().id ? `<p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Your organizer sees your name and other players see it on the bracket.</p>${planned()}
+      <p class="zsmall">Everything you give here is deleted within 24 hours after the game ends. Your mobile number and e-mail, if you give them, are seen by your organizer and hosts only.</p>` : `<p class="zsmall">Playing is free. No money is staked and there are no cash prizes. Only your name is asked for. Your organizer sees it and other players see it on the bracket.</p>${planned()}
+      <p class="zsmall">No personal details needed. All participant information is deleted within 24 hours of the game.</p>`}
       <p class="spriv"><a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a> &middot; <a href="/terms.html" target="_blank" rel="noopener">Terms</a></p>
       <div id="tbslot"></div>
       <label for="nm">Your name</label><input id="nm" autocomplete="name" maxlength="40" disabled>
-      ${(() => { const a = askWhat(); return (a.emp ? `<label for="emp">Your ${idName()}${a.only ? "" : " (if you work here)"}</label><input id="emp" autocomplete="off" ${idKind() === "email" ? 'inputmode="email" autocapitalize="none" maxlength="254"' : 'maxlength="60"'} value="${esc(typedEmp)}" disabled><p class="zsmall" id="emphint" aria-live="polite"></p>` : "") + (a.mob ? `<label for="mob">Your mobile number${a.v === "id" && !a.only ? " (if you have no employee ID)" : ""}</label><input id="mob" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(typedPhone)}" disabled>` : "") + (a.emp ? `<p class="zsmall">${a.only ? "This game is for the employees on the organizer's list." : "People who do not work here give their mobile number."}</p>` : ""); })()}
+      ${(() => { const a = askWhat(); return a.id ? `<label for="emp">Your ${idName()}${a.only ? "" : " (if you have one)"}</label><input id="emp" autocomplete="off" ${idKind() === "email" ? 'inputmode="email" autocapitalize="none" maxlength="254"' : 'maxlength="60"'} value="${esc(typedEmp)}" disabled><p class="zsmall" id="emphint" aria-live="polite"></p><p class="zsmall">Letters and numbers only. A-1101, A 1101 and A/1101 are the same ID.</p>${a.only ? "" : `<p class="zsmall"><b>On the organizer's list?</b> Your ID lets you straight in. <b>No ID, or not on the list?</b> Tell us a little about you below, and your organizer will gladly let you in.</p><label for="mob">Your mobile number (only if you have no ID, or it is not on the list)</label><input id="mob" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(typedPhone)}" disabled><label for="mail">Your e-mail (only if you have no ID, or it is not on the list)</label><input id="mail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" maxlength="254" value="${esc(typedMail)}" disabled>`}` : a.phoneOnly ? `<label for="mob">Your mobile number</label><input id="mob" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(typedPhone)}" disabled>` : ""; })()}
       ${joinMsg ? `<div class="zbanner bad" role="alert">${esc(joinMsg)}</div>` : ""}
       <button class="zbtn" id="go" disabled>Join</button>
       <p class="zsmall"><a href="#" id="watch">I only want to watch</a></p></div>`);
     const nm = document.getElementById("nm"), go = document.getElementById("go");
-    const emp = document.getElementById("emp"), mob = document.getElementById("mob"), ask = askWhat(); if (emp) { const hint = document.getElementById("emphint"); emp.addEventListener("input", () => { const c = idKind() === "email" ? String(emp.value || "").normalize("NFKC").replace(/[\s\u0085\u200B-\u200D\u2060\uFEFF]/g, "").toLowerCase() : String(emp.value || "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); const em = idKind() === "email", ok = em ? /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(c) : !!c && c.length <= 30 && !String(emp.value || "").normalize("NFKC").includes("@"); if (hint) hint.textContent = !em && c.length > 30 && !String(emp.value || "").normalize("NFKC").includes("@") ? "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned." : ok && c !== String(emp.value).trim() ? "The system will read this as " + c : ""; }); } // same cleaning as the server (apps/edge/src/ids.ts)
-    const given = () => { const e = emp ? emp.value.trim() : "", m = mob ? mob.value.replace(/\D/g, "").length >= 8 : false; return ask.only ? (ask.v === "both" ? !!e && m : !!e) : ask.v === "mobile" ? (mob ? m : true) : ask.v === "id" ? !!e || m : m; };
-    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (mob) mob.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2 || !given(); go.setAttribute("aria-disabled", String(go.disabled)); };
+    const emp = document.getElementById("emp"), mob = document.getElementById("mob"), mail = document.getElementById("mail"), ask = askWhat(); if (emp) { const hint = document.getElementById("emphint"); emp.addEventListener("input", () => { const c = idKind() === "email" ? String(emp.value || "").normalize("NFKC").replace(/[\s\u0085\u200B-\u200D\u2060\uFEFF]/g, "").toLowerCase() : String(emp.value || "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, ""); const em = idKind() === "email", ok = em ? /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(c) : !!c && c.length <= 30 && !String(emp.value || "").normalize("NFKC").includes("@"); if (hint) hint.textContent = !em && c.length > 30 && !String(emp.value || "").normalize("NFKC").includes("@") ? "This Employee ID is too long. An employee ID may be up to 30 characters once cleaned." : ok && c !== String(emp.value).trim() ? "The system will read this as " + c : ""; }); } // same cleaning as the server (apps/edge/src/ids.ts)
+    const given = () => { if (!ask.id) return ask.phoneOnly ? !!(mob && mob.value.replace(/\D/g, "").length >= 8) : true; const e = emp ? emp.value.trim() : "", m = mob ? mob.value.replace(/\D/g, "").length >= 8 : false, em = mail ? mailOk(mail.value) : false; return ask.only ? !!e : !!e || (m && em); }; // an ID, or else a mobile number and an e-mail for the organizer
+    const sync = () => { const ok = !!(tb && tb.ok()); nm.disabled = !ok; if (emp) emp.disabled = !ok; if (mob) mob.disabled = !ok; if (mail) mail.disabled = !ok; go.disabled = !ok || nm.value.trim().length < 2 || !given(); go.setAttribute("aria-disabled", String(go.disabled)); };
     window.TermsBox.mount(document.getElementById("tbslot"), "K4", { base: BASE, onChange: sync }).then((t) => { tb = t; sync(); });
-    nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (mob) mob.addEventListener("input", sync);
+    nm.addEventListener("input", sync); if (emp) emp.addEventListener("input", sync); if (mob) mob.addEventListener("input", sync); if (mail) mail.addEventListener("input", sync);
     document.getElementById("watch").addEventListener("click", (e) => { e.preventDefault(); location.href = "/big.html?e=" + encodeURIComponent(EID); });
     const BUSY_TRIES = 15; let busyTries = 0, retryTimer = 0;
     const busyView = () => set(`${top()}<div class="zcard" role="status"><h2>Many people are joining right now</h2><p>Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall">Try ${busyTries} of ${BUSY_TRIES}.</p></div>`);
     const attempt = async () => {
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
@@ -105,7 +107,7 @@
       }
     };
     go.addEventListener("click", () => {
-      go.disabled = true; joinMsg = ""; typedName = nm.value.trim(); typedEmp = emp ? emp.value.trim() : ""; typedPhone = mob ? mob.value.trim() : "";
+      go.disabled = true; joinMsg = ""; typedName = nm.value.trim(); typedEmp = emp ? emp.value.trim() : ""; typedPhone = mob ? mob.value.trim() : ""; typedMail = mail ? mail.value.trim() : "";
       attempt();
     });
   };
@@ -116,7 +118,7 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
       } catch (e) { /* the next look tries again */ }
       setTimeout(again, 5000);

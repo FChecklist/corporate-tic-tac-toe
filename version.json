@@ -1,9 +1,15 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.5.1",
-  "commit": "50efacd",
-  "builtAt": "2026-11-23T00:00:00Z",
+  "version": "1.6.0",
+  "commit": "2fbafc7",
+  "builtAt": "2026-11-23T12:00:00Z",
   "changes": [
+    {
+      "id": "1.6.0-invite-rule",
+      "what": "The owner's invite rule (23 Nov 2026): one game link for everybody; a guest types an ID and, if it is on the organizer's list, comes straight in; a guest with no ID, or an ID not on the list, gives name, mobile number and e-mail, and the organizer or a Host says yes or no (only they see the details); the ID is one field (no choice of mobile, either or both), cleaned the same way everywhere (A-1101 = A 1101 = A/1101), lists made before keep working; list and IDs are deleted within 24 hours after the game ends. Also: the page beacon limit counts an IPv6 visitor by their /64; help line test",
+      "where": "packages/beacon/src/config.ts; apps/edge/src/people.ts, worker.ts, ids.ts, pii.ts, funnel.ts, lifecycle.ts, gamerecord.ts, consent-text.json; apps/web/public/ttt.js, zc.js, guide.js, consent.js; docs/KNOWLEDGE.md, docs/PRIVACY_AND_LIFECYCLE.md; tests invite-rule and others",
+      "pr": "9"
+    },
     {
       "id": "1.5.1-audit-round-3",
       "what": "Fixes from the third audit round of PR 9: wrong-ID limits and the other per-address limits now count an IPv6 visitor by their /64 (first 64 bits), not by every single address; erasing a game also deletes its console Host / Co-host roles (with the sealed e-mail), console keys and unopened hand-off links; help says that opening a game from your console signs you out of other saved sign-ins on this device; the flaky tests are named correctly",

@@ -17,7 +17,7 @@ describe("hint texts on the join page (employee-ID game)", () => {
     for (const t of ["a".repeat(30), "ab-".repeat(15)]) { await p.type(t); expect([t, pageText(p).includes(TOO_LONG)]).toEqual([t, false]); }
   });
   test("an e-mail typed in an employee-ID box shows neither the 'read this as' hint nor the too-long sentence nor any cleaned letters", async () => {
-    for (const verify of ["id", "both", "either"]) {
+    for (const verify of ["id"]) {
       const p = await openJoin({ verify, employeesOnly: false });
       for (const t of ["dev@corp.in", "dev＠corp.in", "d e v @ c o r p . i n", ("x".repeat(40)) + "@corp.in"]) { await p.type(t); expect([verify, t, p.hint().includes(HINT), p.hint().toUpperCase().includes("DEVCORPIN"), pageText(p).includes(TOO_LONG)]).toEqual([verify, t, false, false, false]); }
     }

@@ -7,7 +7,7 @@ let W: ReturnType<typeof world>;
 afterEach(() => W?.restore());
 const GAME = "T30-A";
 const add = (key: string, people: unknown[]) => W.call("POST", `/api/z/${GAME}/people`, { people }, key);
-const joinId = (empId: string, i: number, extra: Record<string, unknown> = {}) => W.join(GAME, { name: "Demo " + i, empId, device: dev(i), ...extra });
+const joinId = (empId: string, i: number, extra: Record<string, unknown> = {}) => W.join(GAME, { name: "Demo " + i, empId, phone: mob(i), email: `d${i}@demo-test.invalid`, device: dev(i), ...extra }); // an ID that is not on the list needs the mobile number and e-mail for the organizer (owner rule 23 Nov 2026)
 
 describe("list upload and join clean an employee ID the same way (new game)", () => {
   test("a list row '1B-678' is found by 1b/678, 1B 678, 1B678, 1b.678 and full-width １Ｂ６７８; all five are the same person", async () => {
@@ -40,21 +40,23 @@ describe("refusals have plain words and the right code", () => {
     const r = await joinId(typed, 3); expect(r.status).toBe(400); const b = await j(r); expect(b.code).toBe(code); expect(b.error).toBe(msg);
   });
   test("nothing typed in an ID game (no mobile either) -> 400 need-id with a plain sentence", async () => {
-    W = world(T_NEW); await W.game(GAME, { verify: "id" });
+    W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id", employeesOnly: true });
     const r = await W.join(GAME, { name: "Demo 4", device: dev(4) }); expect(r.status).toBe(400); const b = await j(r); expect(b.code).toBe("need-id"); expect(b.error).toMatch(/employee ID/);
+    W.restore(); W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id" }); // an ordinary list game asks for name, mobile number and e-mail instead
+    const r2 = await W.join(GAME, { name: "Demo 4", device: dev(4) }); expect(r2.status).toBe(400); expect((await j(r2)).code).toBe("need-contact");
   });
   test("exactly 30 characters is accepted as a new person (open game, ID game)", async () => {
-    W = world(T_NEW); await W.game(GAME, { verify: "id" });
+    W = world(T_NEW); await W.game(GAME, { who: "list", verify: "id" });
     const r = await joinId("A".repeat(30), 5); expect(r.status).not.toBe(400);
   });
 });
 describe("a game created before EMP_CLEAN_FROM_MS keeps the old rule on the wire", () => {
-  test("list '1B-678': joining as '1b-678' works, as '1B*678' is refused bad-id, as '1B 678' (= 1B678) is NOT the same person", async () => {
+  test("list '1B-678': joining as '1b-678' works, as '1B*678' is refused bad-id, as '1B 678' (= 1B678) is the same person now (owner rule 23 Nov 2026)", async () => {
     W = world(T_OLD); const g = await W.game(GAME, { who: "list", verify: "id" });
     const r = await j(await add(g.key, [{ name: "Asha Demo", empId: "1B-678" }])); expect(r.people[0].empId).toBe("1B-678"); // stored as typed, upper-cased
     expect((await joinId("1b-678", 6)).status).toBe(200);
     const bad = await joinId("1B*678", 7); expect(bad.status).toBe(400); expect((await j(bad)).code).toBe("bad-id");
-    const other = await joinId("1B 678", 8); expect(other.status).toBe(403); expect((await j(other)).code).toBe("waiting");
+    const other = await joinId("1B 678", 8); expect(other.status).toBe(423); expect((await j(other)).code).toBe("id-used"); // owner rule 23 Nov 2026: 1B 678 and 1B-678 are one ID in every game, old lists too: the person already holds a place on another phone
   });
 });
 describe("one card, one device (devices)", () => {

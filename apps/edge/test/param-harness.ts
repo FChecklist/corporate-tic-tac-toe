@@ -93,4 +93,4 @@ export async function paidGame(opts: { id?: string; cap?: number; over?: Record<
 }
 export const mob = (i: number) => "9" + String(100000000 + i);
 export const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
-export const join = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => call("POST", `/api/z/${id}/join`, { phone: mob(i), name: "Guest " + i, device: dev(i), ...extra }, {}, now);
+export const join = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => call("POST", `/api/z/${id}/join`, { phone: mob(i), name: "Guest " + i, email: `g${i}@acme.test`, device: dev(i), ...extra }, {}, now);

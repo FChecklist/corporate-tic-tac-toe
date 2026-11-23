@@ -62,11 +62,12 @@ describe("joining with a name only", () => {
     const ok = await call("POST", "/api/z/NAME-5/join", { name: "Maya", phone: "+1 415 555 0132", device: dev(1) }); expect(ok.status).toBe(200);
     expect((await call("PATCH", "/api/z/NAME-5/settings", { join: "everyone" }, h)).status).toBe(400);
   });
-  test("an invite-only game puts a name-only guest in the waiting room; the organizer sees only the name", async () => {
+  test("an invite-only game does not take a name-only guest: it asks for name, mobile number and e-mail, then the guest waits and the organizer sees the request (owner rule 23 Nov 2026)", async () => {
     const h = await game("NAME-6", { whoCanJoin: "list" });
-    const w = await call("POST", "/api/z/NAME-6/join", { name: "Maya", device: dev(1) }); expect(w.status).toBe(403);
+    const none = await call("POST", "/api/z/NAME-6/join", { name: "Maya Lopez", device: dev(1) }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-contact");
+    const w = await call("POST", "/api/z/NAME-6/join", { name: "Maya Lopez", phone: "9876543210", email: "maya@acme.test", device: dev(1) }); expect(w.status).toBe(403);
     const b = await j(w); expect(b.waiting).toBe(true);
-    const list = await j(await call("GET", "/api/z/NAME-6/waiting", undefined, h)); expect(JSON.stringify(list)).toContain("Maya");
+    const list = await j(await call("GET", "/api/z/NAME-6/waiting", undefined, h)); expect(JSON.stringify(list)).toContain("Maya Lopez"); expect(JSON.stringify(list)).toContain("maya@acme.test");
   });
   test("a winner may leave the mobile number empty when confirming prize details", async () => {
     await game("NAME-7", { rewards: [{ pattern: "first", ordinal: 1, text: "Mug" }] });

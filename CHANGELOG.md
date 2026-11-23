@@ -2,6 +2,34 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.6.0 - 2026-11-23
+The owner's invite rule is built. Nothing is deployed and no payment switch is on.
+### Changed
+- **One way in for every guest.** Everyone uses the same game link. A guest types their ID. If it is on your list, they come straight in and you need do nothing.
+- **No ID, or an ID that is not on your list.** The guest gives their name, mobile number and e-mail. The request goes to you or a Host, who says yes or no. Only you and your Hosts see these details (a Co-host sees only the first name and the last four digits). A mobile number on your list is no longer a way in by itself; a personal link still is.
+- **The ID is one field.** The choice between mobile number, ID, either and both is gone, in the console and on the server (the server refuses the old choices; a game saved earlier is read as the one rule). The console no longer shows the four choices.
+- **One reading of every ID, in every game.** Letters and numbers only, capitals: `A-1101`, `A 1101` and `A/1101` are the same ID when you upload your list, when a guest joins, when you say yes and when the game matches. This no longer waits for a release date.
+- **Lists made before this change keep working.** A list that holds `E-101` is found by `E 101`, `E/101` and `e101` too. Nobody on the list is changed, and a second upload sees them as already listed.
+- **A game that anyone with the link may join** keeps asking only for a name (it has no list to check an ID against). The console does not offer it by default but the choice is still there; see the knowledge file for the decision this leaves to the owner.
+- **The join notice now names the e-mail** (shown only to your organizer and hosts, deleted with everything else). The Terms version date was not changed: the owner or the lawyer decides whether it should be.
+- The Employee ID / Email ID kind now locks as soon as anyone is listed, also a person listed by mobile number only.
+### Fixed
+- **The page beacon limit now counts an IPv6 visitor by their /64** like every other limit (`funnel.ts`).
+- **The help line "Opening a game from your console signs you out of any other sign-in saved on this device" now has a test of its own** (it had none).
+### Checked and kept true
+- **Everything about the guests is deleted within 24 hours after the game ends**: the list, the IDs, the requests (with their e-mails), the places and the pointers to IDs. The delete falls due 20 hours after the end. The new migration note is deleted with them.
+- The live commit `fa5ab0afa895` is still inside this branch (0 behind).
+### Tests added
+- `apps/edge/test/invite-rule.test.ts` (16 tests): the four older choices are refused and read as the one rule; a listed ID gets in in any spelling with no waiting; no ID or an unknown ID is asked for name, mobile number and e-mail, waits, and is shown in full to the Organizer and a Host and not to a Co-host; a mobile number alone is no way in; upload stores one form; a list made before this version is found in every spelling and not added twice; deleting removes people, requests, places, pointers and the migration note; a game anyone may join keeps its name-only join.
+- `apps/edge/test/funnel-unit.test.ts`: a flood from one IPv6 /64 is slowed down.
+- `apps/web/test/guide.test.ts`: the console sign-in help line, and the help for a guest who has no ID.
+- `apps/web/test/ttt-page.test.ts`: the join page for a game by invitation (ID, or mobile number and e-mail) and for an open game.
+- Many older tests that joined with a number or a name alone, or that tested "mobile / either / both", were changed to the new rule (`verify`, `people`, `join-matrix`, `t30-join-wire`, `t41-owner-rules`, `pages` and others).
+### Notes for the owner and the auditors
+- `bun.lock` is tracked in this PR (new on `master`; `@types/bun` is `latest` in it).
+- The first two Low items from the audits of `50efacd8` / `2fbafc79` that are fixed here: the help line test and `funnel.ts`. The frame address `https://itservices-rajat-agarwal.pages.dev` still needs the owner's confirmation; `pack/` is still not loaded by any page.
+- PR: [PR 9](https://github.com/FChecklist/corporate-tic-tac-toe/pull/9). Audits: pending (two required before merge). Deploy: not done. Rollback id: none (not deployed).
+
 ## 1.5.1 - 2026-11-23
 Fixes after the third round of audits of PR 9. Nothing is deployed and no payment switch is on.
 ### Fixed

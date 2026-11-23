@@ -5,7 +5,7 @@ import { openJoin } from "./t30-joinpage";
 
 describe("the employee ID box and its hint line", () => {
   test("the box exists with a hint line (aria-live polite) when the game asks for an employee ID; the hint starts empty", async () => {
-    for (const verify of ["id", "both"]) { const p = await openJoin({ verify, employeesOnly: false }); expect([verify, !!p.emp()]).toEqual([verify, true]); expect(p.d.getElementById("emphint")!.getAttribute("aria-live")).toBe("polite"); expect(p.hint()).toBe(""); }
+    for (const verify of ["id"]) { const p = await openJoin({ verify, employeesOnly: false }); expect([verify, !!p.emp()]).toEqual([verify, true]); expect(p.d.getElementById("emphint")!.getAttribute("aria-live")).toBe("polite"); expect(p.hint()).toBe(""); }
   });
   test("no box and no hint when the game asks for a mobile number only", async () => { const p = await openJoin({ verify: "number" }); expect(p.emp()).toBeNull(); expect(p.d.getElementById("emphint")).toBeNull(); });
   test("typing 1B-678 shows exactly 'The system will read this as 1B678'; typing 1b 678 shows the same; clearing the box clears the line", async () => {

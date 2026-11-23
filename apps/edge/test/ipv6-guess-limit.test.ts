@@ -15,7 +15,7 @@ const call = (method: string, path: string, body?: unknown, key?: string, h: Rec
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}), ...h }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, T);
 const j = async (r: Response) => (await r.json()) as any;
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
-const tryId = (i: number, ip: string) => call("POST", "/api/z/IPV-1/join", { empId: "X" + (900 + i), name: "G" + i, device: dev(i) }, undefined, { "cf-connecting-ip": ip });
+const tryId = (i: number, ip: string) => call("POST", "/api/z/IPV-1/join", { empId: "X" + (900 + i), name: "Guest " + i, phone: "9" + String(100000000 + i), email: `g${i}@acme.test`, device: dev(i) }, undefined, { "cf-connecting-ip": ip });
 const whoId = (i: number, ip: string) => call("POST", "/api/z/IPV-1/who", { empId: "Y" + (500 + i), consent: consentFor("K4") }, undefined, { "cf-connecting-ip": ip });
 
 async function setup() {

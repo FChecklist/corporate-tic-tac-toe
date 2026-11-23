@@ -58,7 +58,7 @@ describe("D2: the notice and the data map agree", () => {
     const asksNumber = /id="ph"|type="tel"|name="phone"|id="phone"/.test(code);
     expect(asksNumber).toBe(always.includes("mobile number") || sometimes.includes("mobile number"));
     expect(/id="nm"|id="name"|name="name"/.test(code)).toBe(always.includes("name"));
-    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(false);
+    expect(/type="email"|id="email"|name="email"/.test(code)).toBe(always.includes("e-mail") || sometimes.includes("e-mail")); // the e-mail box exists only because the data map lists it (a request to the organizer, owner rule 23 Nov 2026)
   });
   test("the box wording the server sends is the one the page script carries (no second wording)", () => {
     if (notice && existsSync(join(ROOT, "apps/web/public/consent.js")) && /\bK4:\s*\{/.test(pub("consent.js"))) { expect(pub("consent.js").includes(notice)).toBe(true); } // a game whose page fetches the wording from the server has no second copy

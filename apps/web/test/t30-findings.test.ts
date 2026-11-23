@@ -11,9 +11,9 @@ describe("F-2: pages that load the black box also load the guide first (guide.te
 });
 
 describe("the employee ID box and its hint line", () => {
-  // PRODUCT FINDING F-4 (docs/TEST_FINDINGS.md): ttt.js askWhat() only knows "id" and "both"; the server also offers "either" (mobile number or employee ID).
-  test("F-4: a game set to 'mobile number or employee ID' (verify=either) shows the employee-ID box and its hint line", async () => {
-    const p = await openJoin({ verify: "either", employeesOnly: false }); expect(!!p.emp()).toBe(true); expect(p.d.getElementById("emphint")).toBeTruthy();
+  // PRODUCT FINDING F-4 (docs/TEST_FINDINGS.md): closed by the owner rule of 23 Nov 2026: there is ONE way in (an ID); "either" and "both" no longer exist, so every game by invitation shows the ID box and its hint line.
+  test("F-4: a game by invitation shows the ID box and its hint line", async () => {
+    const p = await openJoin({ verify: "id", employeesOnly: false }); expect(!!p.emp()).toBe(true); expect(p.d.getElementById("emphint")).toBeTruthy();
   });
   // PRODUCT FINDING F-3 (docs/TEST_FINDINGS.md): the line promises a reading for input the server refuses.
   test("F-3: an e-mail typed in the ID box does not get a 'will read this as' promise (the server refuses it with bad-id)", async () => {

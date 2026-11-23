@@ -8,7 +8,10 @@ const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
 /** Waits for the condition (polls every 2 ms); no fixed sleep decides the result. */
 const until = async (what: string, pred: () => boolean, ms = 4000) => { const t0 = Date.now(); while (!pred()) { if (Date.now() - t0 > ms) throw new Error("timed out waiting for: " + what); await tick(2); } };
 
-export async function openJoin(info: Record<string, unknown>) {
+/** The server tells the page `byInvite` for a game by invitation (a list game), the only kind that asks for an ID (owner rule 23 Nov 2026). A test that says verify "id" means such a game. */
+export const asInvite = (info: Record<string, unknown>): Record<string, unknown> => (info.verify === "id" && info.byInvite === undefined ? { ...info, byInvite: true } : info);
+export async function openJoin(info0: Record<string, unknown>) {
+  const info = asInvite(info0);
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html?e=GAME-1", width: 390, height: 780 }); w.crypto = globalThis.crypto;
   const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status });
   w.fetch = async (url: string) => { const u = String(url);

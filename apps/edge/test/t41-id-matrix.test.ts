@@ -50,7 +50,7 @@ describe("the Email ID / employee ID cleaning matrix", () => {
     expect(accepted.emp).toBeGreaterThan(50_000); expect(accepted.mail).toBeGreaterThan(1_000); expect(refused.emp).toBeGreaterThan(50_000); expect(refused.mail).toBeGreaterThan(50_000); // the matrix really exercises both outcomes
   }, 280_000);
 
-  test("the same oracle through the real join (a sample of 150 inputs per kind): accepted -> waits (403 waiting), nothing typed -> need-id, refused -> bad-id", async () => {
+  test("the same oracle through the real join (a sample of 150 inputs per kind): accepted or nothing typed -> waits (403 waiting) with name, mobile and e-mail, refused -> bad-id", async () => {
     const W = world(T_NEW); try {
       const by = (x: string) => VOCAB.find((v) => v.s === x)!, pick: { raw: string; toks: Tok[] }[] = []; let k = 0;
       for (const seq of [["dev@", "mail.", "co"], ["bob@x.io"], ["\uFF21", "\uFF42", "@corp.in"], ["dev@", "\u200B", "mail.", "co"], ["bob@x.io", " "], ["sam", " ", "@corp.in"], ["dev@", "mail.", "\u00AD", "co"], ["a", "\uFF20", "B", ".", "co"], ["0", "-", "7"], ["Q1"], ["\uFF11", "\uFF11", "\u00DF"], ["sam", "-", "9"], [" "], [" ", "\t"], ["\u200B"], ["A".repeat(30)], ["a".repeat(31)], ["c".repeat(64), "@", "a", ".", "co"], ["d".repeat(65), "@", "a", ".", "co"]]) pick.push({ raw: seq.join(""), toks: seq.map(by) });
@@ -60,9 +60,9 @@ describe("the Email ID / employee ID cleaning matrix", () => {
         let i = 0, bads = 0, waits = 0; const wrong: string[] = [];
         for (const { raw, toks } of pick) {
           const want = kind === "emp" ? oracleEmp(toks) : oracleMailId(toks);
-          i++; const r = await W.call("POST", `/api/z/${id}/join`, { name: "Pat Demo", empId: raw, device: dev(i + (kind === "emp" ? 0 : 400)) }, undefined, W.now, `11.${kind === "emp" ? 1 : 2}.${i >> 8}.${i & 255}`); const b = await j(r); // a new network address each time: the per-address try limit is not what is tested here
-          const got = r.status === 403 && b.code === "waiting" ? "ok" : r.status === 400 && b.code === "bad-id" ? "bad" : r.status === 400 && b.code === "need-id" ? "none" : `${r.status}/${b.code}`;
-          const exp = want === null ? "bad" : want === "" ? "none" : "ok"; if (got !== exp && wrong.length < 10) wrong.push(`${kind}: ${JSON.stringify(raw.slice(0, 40))} got ${got} want ${exp}`);
+          i++; const r = await W.call("POST", `/api/z/${id}/join`, { name: "Pat Demo", empId: raw, phone: "9" + String(100000000 + i), email: `p${i}@demo-test.invalid`, device: dev(i + (kind === "emp" ? 0 : 400)) }, undefined, W.now, `11.${kind === "emp" ? 1 : 2}.${i >> 8}.${i & 255}`); const b = await j(r); // a new network address each time: the per-address try limit is not what is tested here
+          const got = r.status === 403 && b.code === "waiting" ? "ok" : r.status === 400 && b.code === "bad-id" ? "bad" :  `${r.status}/${b.code}`;
+          const exp = want === null ? "bad" : "ok"; // nothing typed is not refused any more: the person gives name, mobile number and e-mail and waits (owner rule 23 Nov 2026) if (got !== exp && wrong.length < 10) wrong.push(`${kind}: ${JSON.stringify(raw.slice(0, 40))} got ${got} want ${exp}`);
           if (exp === "ok") waits++; if (exp === "bad") bads++;
         }
         expect(wrong).toEqual([]); expect(waits).toBeGreaterThan(5); expect(bads).toBeGreaterThan(5);

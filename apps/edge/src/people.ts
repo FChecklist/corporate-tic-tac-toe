@@ -67,8 +67,8 @@ const legacyEmp = (raw: unknown): string | null => { const s = String(raw ?? "")
 /** the hash an OLD list holds for this typed ID, only when it differs from today's (otherwise null) */
 /** (a game made before EMP_CLEAN_FROM_MS already reads IDs the old way, so there is nothing extra to look for) */
 export const legacyEmpHashOf = async (env: { PHONE_SALT?: string; ORGANIZER_SECRET?: string }, raw: unknown, createdMs?: number | null): Promise<string | null> => { const old = legacyEmp(raw), now = normEmp(raw, createdMs ?? undefined); return old && old !== now ? empHashOf(env, old) : null; };
-/** What the organizer asked people to give to get in, read from the game's stored settings. */
-export const verifyOf = (e: { config?: string | null }): { mode: "mobile" | "id" | "either" | "both"; employeesOnly: boolean; idKind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { mode: j.verify === "id" || j.verify === "either" || j.verify === "both" ? j.verify : "mobile", employeesOnly: j.employeesOnly === true, idKind: j.idKind === "email" ? "email" : "emp" }; } catch { return { mode: "mobile", employeesOnly: false, idKind: "emp" }; } };
+/** How this game asks people in, read from its stored settings. Owner rule 23 Nov 2026: there is ONE way (an ID, one field); a game saved with an older "mobile / either / both" choice is read the same way. */
+export const verifyOf = (e: { config?: string | null }): { employeesOnly: boolean; idKind: "emp" | "email" } => { try { const j = e.config ? JSON.parse(e.config) : {}; return { employeesOnly: j.employeesOnly === true, idKind: j.idKind === "email" ? "email" : "emp" }; } catch { return { employeesOnly: false, idKind: "emp" }; } };
 
 export { cleanPhone, maskedPhone, keptPhone, phoneDigits, keptFromClean } from "./phonekit";
 export type { Cleaned } from "./phonekit";
@@ -281,32 +281,29 @@ async function addPeople(c: Ctx, who: Caller, b: any): Promise<Response> {
   const invalid: { raw: string; why: string }[] = []; let duplicates = 0; const duplicateRows: { raw: string; why: string }[] = []; const dupRow = (r: string, t: string) => { duplicates++; duplicateRows.push({ raw: t.trim().slice(0, 100) || r, why: "Already on the list" }); };
   const seen = new Set<string>(); const todo: { name: string; digits: string; ph: string; empId?: string; idHash?: string }[] = [];
   const vf = verifyOf(c.e);
+  await migrateEmpAliases(c.env, c.eid);
   for (const x of b.people) {
     const raw = `${cleanName(x?.name)} ${String(x?.phone ?? "")}`.trim().slice(0, 100);
     const empRaw = x?.empId ?? x?.employeeId, emp = normId(empRaw, vf.idKind, (c.e as any)?.created_ms);
     if (emp === null) { invalid.push({ raw, why: badIdMessage(empRaw, vf.idKind, (c.e as any)?.created_ms) }); continue; }
     const phoneTyped = String(x?.phone ?? "").trim() !== "";
-    if (vf.mode === "either" && !emp && !phoneTyped) { invalid.push({ raw, why: "Give a mobile number or an employee ID." }); continue; }
-    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
-    if ((vf.mode === "id" || (vf.mode === "either" && !phoneTyped)) && emp) { // known by ID alone: a mobile number is welcome but not needed
+    if (!emp && !phoneTyped) { invalid.push({ raw, why: vf.employeesOnly ? "This game is for employees: the employee ID is missing." : "Give an ID for this person." }); continue; }
+    if (vf.employeesOnly && !emp) { invalid.push({ raw, why: "This game is for employees: the employee ID is missing." }); continue; }
+    if (emp) { // listed by ID: the ID is how this person comes in; a mobile number is welcome but not needed
       let digits = "";
       if (phoneTyped) { const cl = cleanPhone(x?.phone); if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; } digits = keptFromClean(cl.digits); }
       const ph = await empHashOf(c.env, emp);
       if (seen.has(ph)) { dupRow(raw, String(empRaw ?? x?.phone ?? "")); continue; }
       if (vf.idKind === "emp") { const lh = await legacyEmpHashOf(c.env, empRaw, (c.e as any)?.created_ms); if (lh && (seen.has(lh) || (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, lh).first()))) { dupRow(raw, String(empRaw ?? "")); continue; } if (lh) seen.add(lh); } // a list made before 1.4.1 already holds this person under the old spelling
+      const al = await c.env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${c.eid}/${ph}`).first<{ v: string }>(); // a list made before 1.6.0 holds "A-1101": migrateEmpAliases pointed today's reading "A1101" at it
+      if (al && (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, al.v).first())) { dupRow(raw, String(empRaw ?? "")); continue; }
       seen.add(ph); todo.push({ name: cleanName(x?.name), digits, ph, empId: emp }); continue;
     }
-    const cl = cleanPhone(x?.phone);
+    const cl = cleanPhone(x?.phone); // no ID: listed by mobile number (a personal link is how this person comes in)
     if (!cl.ok) { invalid.push({ raw, why: cl.why }); continue; }
     const ph = await phoneHashOf(c.env, cl.digits);
     if (seen.has(ph)) { dupRow(raw, String(empRaw ?? x?.phone ?? "")); continue; }
-    const idHash = vf.mode === "either" && emp ? await empHashOf(c.env, emp) : undefined; // "mobile number or employee ID": a listed person with both can come in with either, so the ID points to the mobile-number identity
-    if (idHash) { // the same employee ID on two people of one list would let the second take over the first's ID: the second is a duplicate
-      const al = await c.env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`idx/${c.eid}/${idHash}`).first<{ v: string }>();
-      if ((al && al.v !== ph && (await c.env.DB.prepare("SELECT 1 AS x FROM person WHERE eid=? AND ph=? AND status<>'removed'").bind(c.eid, al.v).first())) || seen.has("I" + idHash)) { dupRow(raw, String(empRaw ?? "")); continue; }
-      seen.add("I" + idHash);
-    }
-    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: keptFromClean(cl.digits), ph, ...(emp && vf.mode !== "mobile" ? { empId: emp } : {}), ...(idHash ? { idHash } : {}) });
+    seen.add(ph); todo.push({ name: cleanName(x?.name), digits: keptFromClean(cl.digits), ph });
   }
   const db = c.env.DB, hashes = todo.map((t) => t.ph);
   const persons = await existingBy(db, "person", c.eid, hashes, "ph, status, id, inviter, removed_by");
@@ -369,7 +366,7 @@ async function exportPeople(c: Ctx, who: Caller): Promise<Response> {
     ? c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? ORDER BY added_ms, id`).bind(c.eid)
     : c.env.DB.prepare(`SELECT ${PERSON_COLS} FROM person WHERE eid=? AND inviter=? ORDER BY added_ms, id`).bind(c.eid, who.id)).all<PersonRow>();
   const label = await labelsOf(c);
-  const withId = verifyOf(c.e).mode !== "mobile"; // the Employee ID column only when the organizer asked for IDs
+  const withId = !!c.e.closed; // the ID column in a game by invitation, where the ID is how people come in
   const lines = [["Name", "Mobile", ...(withId ? ["Employee ID"] : []), "Personal link", "WhatsApp link", "Status", ...(whole ? ["Invited by"] : [])].join(",")];
   for (const r of rows.results ?? []) {
     const v = await viewOf(c, r, label, true), pii = await openPii(c.env, r.pii);
@@ -449,7 +446,6 @@ async function resendPerson(c: Ctx, who: Caller, id: string, b: any): Promise<Re
     db.prepare("UPDATE seat SET dev=NULL WHERE eid=? AND ph=?").bind(c.eid, row.ph), // the first phone to open the new link keeps the card
   ]);
   if ((res[0]?.meta?.changes ?? 0) === 0) return c.json({ error: "That number is already invited.", code: "duplicate" }, 409);
-  if (newPii && pii?.empId && verifyOf(c.e).mode === "either") await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`idx/${c.eid}/${await empHashOf(c.env, pii.empId)}`, ph).run(); // the employee ID keeps pointing at this person's current number
   const link = `${c.origin}/j/${token}`;
   return c.json({ ok: true, link, waLink: pii?.phone ? waLinkOf(pii.phone, waMessage(pii.name || null, c.gameName, link)) : null, unlocked: hasSeat });
 }
@@ -502,7 +498,7 @@ async function listWaiting(c: Ctx, who: Caller): Promise<Response> {
   const label = await labelsOf(c), out = [];
   for (const r of await waitingRows(c, who, 200)) {
     const p = await openPii(c.env, r.pii), first = (p?.name ?? "").trim().split(/\s+/)[0] ?? "";
-    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}) } : {}) }); // the Employee ID is shown to the Organizer and the Hosts only (they decide whether this person is an employee)
+    out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}), ...(p?.name ? { name: p.name } : {}), ...(p?.phone ? { mobile: "+" + phoneDigits(p.phone) } : {}), ...(p?.email ? { email: p.email } : {}) } : {}) }); // the Employee ID, the full name, the mobile number and the e-mail are shown to the Organizer and the Hosts only (they decide whether to let this person in)
   }
   return c.json({ waiting: out });
 }
@@ -613,7 +609,7 @@ export async function waitingWho(c: { env: Env; e: any; eid: string }, inviter: 
 }
 
 /** Joins a person's request to wait. Used by the Worker's `join`. Returns the existing request when the number already asked. */
-export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; empId?: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
+export async function addWaiting(c: { env: Env; eid: string; e: any; now: number }, o: { ph: string; digits: string; name: string | null; empId?: string | null; email?: string | null; via: "personal-link" | "common-link" | "direct"; inviter: string; overlimit: boolean }): Promise<{ id: string; status: string } | { full: true }> {
   const db = c.env.DB;
   const have = await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>();
   if (have) return have;
@@ -621,7 +617,7 @@ export async function addWaiting(c: { env: Env; eid: string; e: any; now: number
   if (n >= WAITING_MAX) return { full: true };
   const id = randHex(6), chain = o.overlimit ? ",o," : await chainOf(db, c.eid, o.inviter);
   await db.prepare("INSERT OR IGNORE INTO waiting(eid,id,ph,pii,via,inviter,chain,overlimit,status,at_ms) VALUES(?,?,?,?,?,?,?,?,'waiting',?)")
-    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name, empId: o.empId }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
+    .bind(c.eid, id, o.ph, await sealPii(c.env as any, { phone: o.digits, name: o.name, empId: o.empId, email: o.email }), o.via, o.inviter, chain, o.overlimit ? 1 : 0, c.now).run();
   return (await db.prepare("SELECT id, status FROM waiting WHERE eid=? AND ph=?").bind(c.eid, o.ph).first<{ id: string; status: string }>()) ?? { id, status: "waiting" };
 }
 
@@ -637,6 +633,7 @@ export async function personByPhone(env: Env, eid: string, ph: string): Promise<
 /** A person on the list by employee ID as typed: today's reading first, then (for lists made before 1.4.1) the old one. The ID may also point to a person by their mobile number (idx/ record). */
 export async function personByEmp(env: Env, eid: string, typed: unknown, idKind: "emp" | "email" = "emp", createdMs?: number | null): Promise<PersonRow | null> {
   const id = normId(typed, idKind, createdMs); if (!id) return null;
+  if (idKind === "emp") await migrateEmpAliases(env, eid);
   for (const eh of [await empHashOf(env, id), idKind === "emp" ? await legacyEmpHashOf(env, typed, createdMs) : null]) {
     if (!eh) continue;
     let hit = await personByPhone(env, eid, eh);
@@ -644,6 +641,21 @@ export async function personByEmp(env: Env, eid: string, typed: unknown, idKind:
     if (hit) return hit;
   }
   return null;
+}
+/** Lists made before 1.6.0 hold "A-1101" (spaces dropped, dashes and slashes kept). Today every ID is read as letters and numbers only ("A1101"), so A-1101 = A 1101 = A/1101. The list holds only hashes, so the first time a game's IDs are looked at, each listed person whose stored ID has more than letters and numbers gets one extra pointer (idx/<game>/<hash of today's reading> to their place). Once per game; no person is changed, nothing is rewritten, and the old reading keeps working too. */
+export async function migrateEmpAliases(env: Env, eid: string): Promise<void> {
+  const flag = `empmig/${eid}`;
+  try {
+    if (await env.DB.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(flag).first()) return;
+    const rows = (await env.DB.prepare("SELECT ph, pii FROM person WHERE eid=? LIMIT 20000").bind(eid).all<{ ph: string; pii: string }>()).results ?? [];
+    for (const r of rows) {
+      const p = await openPii(env, r.pii); if (!p?.empId || p.empId.includes("@")) continue;
+      const now = cleanEmpId(p.empId); if (!now || now === p.empId) continue; // already in today's reading
+      const h = await empHashOf(env, now); if (h === r.ph) continue;
+      await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(`idx/${eid}/${h}`, r.ph).run();
+    }
+    if (rows.length) await env.DB.prepare("INSERT OR IGNORE INTO kv(k,v) VALUES(?,?)").bind(flag, "1").run(); // an empty list is looked at again next time: people may be added by then
+  } catch { /* a lookup never fails because of this: the old reading is still tried */ }
 }
 export type { PersonRow };
 

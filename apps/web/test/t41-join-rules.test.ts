@@ -13,7 +13,7 @@ describe("the hint is shown only where the server really cleans (employee-ID gam
   });
   test("not shown when typing is already the clean form (nothing to explain)", async () => { const p = await openJoin({ verify: "id" }); for (const t of ["1B678", "ABC", "0042"]) { await p.type(t); expect([t, p.hint()]).toEqual([t, ""]); } });
   test("never for an e-mail typed in an employee-ID box: plain, full-width, small and with spaces", async () => {
-    for (const verify of ["id", "both", "either"]) {
+    for (const verify of ["id"]) {
       const p = await openJoin({ verify, employeesOnly: false });
       for (const t of ["demo1@demo-test.invalid", "a@b.co", "demo1＠demo-test.invalid", "demo1﹫demo-test.invalid", "de mo1 @ demo-test.invalid", "x@", "@y", "1B-678@x"]) { await p.type(t); expect([verify, t, p.hint()]).toEqual([verify, t, ""]); }
     }
@@ -37,7 +37,7 @@ describe("the hint for an Email ID game (idKind email)", () => {
   test("the box is an e-mail box: its label says Email ID, it allows 254 characters and asks for the e-mail keyboard", async () => {
     const p = await openJoin({ verify: "id", idKind: "email" });
     expect(p.d.querySelector('label[for="emp"]')!.textContent).toMatch(/Your Email ID/); expect(p.emp().getAttribute("maxlength")).toBe("254"); expect(p.emp().getAttribute("inputmode")).toBe("email");
-    const q = await openJoin({ verify: "id" }); expect(q.d.querySelector('label[for="emp"]')!.textContent).toMatch(/Your employee ID/); expect(q.emp().getAttribute("maxlength")).toBe("60");
+    const q = await openJoin({ verify: "id" }); expect(q.d.querySelector('label[for="emp"]')!.textContent).toMatch(/Your ID/); expect(q.emp().getAttribute("maxlength")).toBe("60");
   });
 });
 
@@ -57,17 +57,18 @@ describe("regexes written by the coder have real backslashes (checked by behavio
   });
 });
 
-describe("'either' mode asks for the ID as well (a person may give the ID or the mobile number)", () => {
-  test("verify=either shows the ID box with its hint line, and the mobile box", async () => {
+describe("one ID field: a game by invitation asks for the ID, with a mobile number and an e-mail box for people with no ID (there is no choice of mobile / either / both)", () => {
+  test("the ID box with its hint line, and the mobile and e-mail boxes, for an employee ID and for an Email ID", async () => {
     for (const idKind of ["emp", "email"]) {
-      const p = await openJoin({ verify: "either", idKind, employeesOnly: false });
-      expect([idKind, !!p.emp()]).toEqual([idKind, true]); expect(p.d.getElementById("emphint")).toBeTruthy(); expect(p.d.getElementById("mob")).toBeTruthy();
+      const p = await openJoin({ verify: "id", idKind, employeesOnly: false });
+      expect([idKind, !!p.emp()]).toEqual([idKind, true]); expect(p.d.getElementById("emphint")).toBeTruthy(); expect(p.d.getElementById("mob")).toBeTruthy(); expect(p.d.getElementById("mail")).toBeTruthy();
     }
   });
-  test("each of the four modes: mobile = no ID box; id, either, both = ID box", async () => {
-    for (const [verify, hasId] of [["number", false], ["mobile", false], ["id", true], ["either", true], ["both", true]] as const) { const p = await openJoin({ verify }); expect([verify, !!p.emp()]).toEqual([verify, hasId]); }
+  test("a game that is not by invitation (anyone with the link) has no ID box", async () => {
+    for (const info of [{ verify: "number" }, { verify: "id", byInvite: false }, { verify: "mobile" }] as const) { const p = await openJoin({ ...info }); expect([JSON.stringify(info), !!p.emp()]).toEqual([JSON.stringify(info), false]); }
+    const q = await openJoin({ verify: "id" }); expect(!!q.emp()).toBe(true);
   });
-  test("verify=either with a typed ID cleans and hints like the other ID modes", async () => { const p = await openJoin({ verify: "either" }); await p.type("1b-678"); expect(p.hint()).toBe(HINT + "1B678"); });
+  test("a typed ID is cleaned and hinted like the server cleans it", async () => { const p = await openJoin({ verify: "id" }); await p.type("1b-678"); expect(p.hint()).toBe(HINT + "1B678"); });
 });
 
 describe("the new public pages load guide.js before blackbox.js", () => {

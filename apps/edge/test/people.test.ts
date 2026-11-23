@@ -20,7 +20,7 @@ const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i); // 9100000001 ...
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
 const join = (id: string, body: Record<string, unknown>, now = T) => call("POST", `/api/z/${id}/join`, body, undefined, now);
-const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { phone: mob(i), name: "G" + i, device: dev(i), ...extra }, now);
+const joinAs = (id: string, i: number, extra: Record<string, unknown> = {}, now = T) => join(id, { phone: mob(i), name: "G" + i, email: `g${i}@acme.test`, device: dev(i), ...extra }, now); // a guest not on a list gives name, mobile number and e-mail (owner rule 23 Nov 2026)
 
 async function setup(opts: { closed?: boolean; cap?: number; invites?: unknown } = {}) {
   const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `7.7.7.${++ipN}` }, body: JSON.stringify({ email: `o${ipN}@acme.com` }) }), env as Env, T));
@@ -313,8 +313,10 @@ describe("the waiting room", () => {
     expect(rowsOf("SELECT decided_by FROM waiting")[0].decided_by).toMatch(/^h:/);
     expect((await joinAs("PPL-1", 3, { from: ORG_FROM })).status).toBe(200);
     await add(t.master, [{ name: "A", phone: mob(1) }, { name: "B", phone: mob(2) }]); await joinAs("PPL-1", 1); await joinAs("PPL-1", 2);
-    const full = await joinAs("PPL-1", 4, { from: ORG_FROM }); expect(full.status).toBe(409); // all 3 places are taken
-    expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(0);
+    const full = await joinAs("PPL-1", 4, { from: ORG_FROM }); expect(full.status).toBe(403); // a stranger asks first (owner rule 23 Nov 2026); the places are checked when the organizer says yes
+    expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(3); // the two listed numbers asked too: a number alone is no way in
+    const w4 = (await j(await call("GET", "/api/z/PPL-1/waiting", undefined, t.master))).waiting.find((x: any) => x.last4 === mob(4).slice(-4));
+    const over = await call("POST", `/api/z/PPL-1/waiting/${w4.id}`, { decision: "admit" }, t.master); expect(over.status).toBe(409); expect((await j(over)).code).toBe("over-cap"); // the places are counted when the organizer says yes
   });
   test("approve all: counts, permissions, who approved is recorded for each, and the lists' limits are respected", async () => {
     const t = await setup({ closed: true });

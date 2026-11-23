@@ -1,6 +1,6 @@
 // ONE shared cleaner for every typed or uploaded employee ID and e-mail ID (owner rule 30 Oct 2026). Same words in the browser hint.
-/** Games created before this instant keep the old employee-ID behaviour. SET TO THE DEPLOY INSTANT AT RELEASE. */
-export const EMP_CLEAN_FROM_MS = Date.UTC(2099, 0, 1); // far-future PLACEHOLDER: the release session sets the exact deploy instant (docs/TEST_HANDOFF.md)
+/** Owner rule 23 Nov 2026: every ID is cleaned the same way in EVERY game (A-1101 = A 1101 = A/1101). The old "games made before a date keep the old reading" switch is now always on, so no release date has to be set. Lists made before it are still found: see legacyEmpHashOf and migrateEmpAliases in people.ts. A value below 0 still gives the old reading (tests of the old reading use it). */
+export const EMP_CLEAN_FROM_MS = 0;
 export const EMP_MAX = 30;
 /** Employee ID: NFKC, upper case, keep only A-Z and 0-9 (spaces, dashes, slashes, dots, symbols, accents, other scripts, emoji and zero-width marks all go). Never use this on an e-mail. */
 export const cleanEmpId = (raw: unknown): string => String(raw ?? "").normalize("NFKC").toUpperCase().replace(/[^A-Z0-9]/g, "");

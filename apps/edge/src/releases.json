@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-11-23",
+    "commit": "2fbafc7",
+    "title": "One way in for every guest: an ID, or name, mobile number and e-mail for your organizer to say yes",
+    "changes": [
+      "Every guest uses the same game link. They type an ID: if it is on your list they come straight in, and you need not do a thing",
+      "A guest with no ID, or an ID that is not on your list, gives their name, mobile number and e-mail. The request goes to you or a Host, who says yes or no. Only you and your Hosts see these details",
+      "The ID is one field. The choice between mobile number, ID, either or both is gone. A-1101, A 1101 and A/1101 are the same ID, and lists made before this change still work",
+      "Everything, the list, the IDs and the requests, is deleted within 24 hours after the game ends",
+      "A game that anyone with the link may join keeps asking only for a name",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
     "version": "1.5.1",
     "date": "2026-11-23",
     "commit": "50efacd",

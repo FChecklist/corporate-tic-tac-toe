@@ -149,7 +149,8 @@ describe("bring my people list", () => {
   test("the listed and the joined people come along as new un-joined invitations with NEW personal links; the old links stay with the old game", async () => {
     const t = await world();
     await people(t.master, [{ name: "Ben", phone: "9876543211" }, { name: "Chitra", phone: "9876543212" }, { name: "Asha", phone: "9876543210" }]);
-    expect((await call("POST", "/api/z/OLD-1/join", { phone: "9876543210", name: "Asha" })).status).toBe(200); // joined: on the list as 'joined'
+    const asha = ((await j(await call("GET", "/api/z/OLD-1/people", undefined, t.master))).people as any[]).find((x) => x.name === "Asha"); // a number alone is no way in any more (owner rule 23 Nov 2026): Asha opens her personal link
+    expect((await call("POST", "/api/z/OLD-1/join", { token: String(asha.link).split("/j/")[1], name: "Asha", device: "ab".repeat(16) })).status).toBe(200); // joined: on the list as 'joined'
     expect((await call("POST", "/api/z/OLD-1/roster", { people: [{ name: "Dev", phone: "9876543213" }] }, t.master)).status).toBe(200); // an older-style loaded list: a seat with no list entry
     const old = raw.prepare("SELECT tok_hash FROM person WHERE eid='OLD-1'").all().map((x: any) => x.tok_hash);
     const b = await j(await clone(t.master, { withPeople: true, startRound: roundAt(T + 4 * DAY) }));

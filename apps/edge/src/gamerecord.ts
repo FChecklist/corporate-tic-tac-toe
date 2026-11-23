@@ -23,7 +23,7 @@ export function settingsOf(e: { closed?: number | null; id: string; start_round:
   return {
     gameId: e.id, startRound: e.start_round, callSeconds: e.call_seconds, cap: e.cap, ticketsPerPerson: e.tickets, pack: e.pack, demo: c.demo === true, cancelled: !!e.cancelled_ms,
     tieRule: c.ties === "share" ? "share" : "next", rounds: num(c.rounds) ?? 1, callMode: c.callMode === "host" ? "host" : "auto",
-    whoCanJoin: e.closed ? "list" : "anyone", verify: c.verify === "id" || c.verify === "either" || c.verify === "both" ? c.verify : "mobile", employeesOnly: c.employeesOnly === true,
+    whoCanJoin: e.closed ? "list" : "anyone", verify: "id", employeesOnly: c.employeesOnly === true,
     invites: c.invites && typeof c.invites === "object" ? { on: c.invites.on === true, per: num(c.invites.per), categories: Array.isArray(c.invites.cats) ? c.invites.cats.slice(0, 10).map((x: unknown) => text(x, 20)) : [] } : null,
     prizes: (Array.isArray(c.rewards) ? c.rewards : []).slice(0, 300).map((r: any) => ({ house: text(r?.pattern, 20), scope: r?.scope === "two_ticket" ? "two_ticket" : "card", position: num(r?.ordinal), prize: text(r?.text, 80) })),
     breaks: brandSlots(c.breaks), opening: brandSlots(c.opening), closing: brandSlots(c.closing),

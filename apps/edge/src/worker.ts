@@ -111,7 +111,7 @@ const tracks = (e: { cap: number }) => e.cap <= CLAIM_TRACKING_MAX_CAP;
 /** The part of the settings every phone needs, public by design: how many tickets, what each house wins, and when the brand breaks are. */
 /** The brand strip as phones see it: the full brand (with the logo) from `info`; everywhere else only name and colour (a logo can be 40 KB and a 10,000-person list must not carry it). */
 const brandOut = (c: EngagementCfg, withLogo: boolean) => (c.brand ? { brand: withLogo ? c.brand : { name: c.brand.name, color: c.brand.color, ...(c.brand.logo ? { hasLogo: true } : {}) } } : {});
-const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinPhone: c.join === "phone", verify: c.verify ?? "number", employeesOnly: !!c.employeesOnly, idKind: c.idKind === "email" ? "email" : "emp", tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
+const pub = (e: any, withLogo = false) => { const c = cfgOf(e); return { ...(c.mark ? { mark: c.mark } : {}), joinPhone: c.join === "phone", verify: "id", byInvite: !!e.closed, employeesOnly: !!c.employeesOnly, idKind: c.idKind === "email" ? "email" : "emp", tickets: c.tickets, rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...brandOut(c, withLogo) }; };
 const cfgJson = (c: EngagementCfg) => JSON.stringify({ rewards: c.rewards, breaks: c.breaks, rounds: c.rounds, invites: c.invites, opening: c.opening, closing: c.closing, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}), ...(c.mark ? { mark: c.mark } : {}), ...(c.join ? { join: c.join } : {}), ...(c.tz ? { tz: c.tz } : {}), ...(c.verify ? { verify: c.verify } : {}), ...(c.employeesOnly ? { employeesOnly: true } : {}), ...(c.idKind === "email" ? { idKind: "email" } : {}) });
 
 /** Privacy and lifecycle: sealed personal data, the role / inviter / invite kind / source of a seat, when each game ended, the winners record that outlives the personal data, and the votes that tell us a game is over. */
@@ -1634,7 +1634,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   if (locked && !can(a, e) && (action === "info" || action === "join")) await nudge(env, e.id, "lockmail", now, `Your game ${e.id} could not begin: payment is due`, `Your game ${e.id} could not begin: payment is due.\n\nPay now and the game opens 2 minutes after your payment is confirmed: ${(env as PayEnv).PUBLIC_ORIGIN ?? ""}/pay.html?e=${e.id}`);
   if (action === "who" && req.method === "POST") { // "Is this you?": once the employee ID is typed and both boxes are ticked, the first name and the first letter of the last name the organizer gave, so the person sees the name that will be used. Nothing is kept; a wrong ID counts like a wrong ID at the door.
     const b = await body(req), vf = verifyOf(e), id = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
-    if (vf.mode === "mobile" || !id) return json({ known: false });
+    if (!id || !e.closed) return json({ known: false });
     const ck = consentMissing(b, "K4"); if (ck) return ck;
     const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading, then the old one (lists made before 1.4.1)
     if (!hit || hit.status === "removed") {
@@ -1668,30 +1668,47 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     let typedDigits = digitsOf(b?.phone), typedPh = await phoneHash(b?.phone);
     if (typedDigits) typedDigits = keptPhone(b?.phone); // kept with its country: 91 + 10 digits for India, +<code><number> for any other country
     if (typedGiven && !typedPh) return json({ error: "Enter a valid mobile number." }, 400);
-    // What the organizer asked people to give: a mobile number (default), an employee ID, or both. An outsider (a vendor, a customer, a family member) has no ID and gives a mobile number.
-    const vf = verifyOf(e), empNorm = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
+    // The owner's invite rule (23 Nov 2026): one link for everybody. The person types an ID. An ID on the organizer's list is checked and lets them in, no approval. No ID, or an ID that is not on the list: they give name, mobile number and e-mail, and the request goes to the organizer or host, who says yes or no.
+    // It is the rule of every game by invitation (a list game; the console makes only those). A game that anyone with the link may join (made before, or through the API) keeps its name-only join: it has no list to check an ID against.
+    const vf = verifyOf(e), byList = !!e.closed, empNorm = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (empNorm === null) return json({ error: badIdMessage(b?.empId, vf.idKind, (e as any)?.created_ms), code: "bad-id" }, 400);
     const dev = typeof b?.device === "string" && /^[0-9a-f]{16,64}$/.test(b.device) ? (await sha(`dev|${eid}|${b.device}`)).slice(0, 32) : null; // one card, one device: the phone's own random id, only its hash is kept
-    if (vf.employeesOnly && vf.mode !== "mobile" && vf.mode !== "either" && !empNorm && !tok) return json({ error: vf.mode === "id" ? "Enter your employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
-    if (vf.employeesOnly && vf.mode === "either" && !empNorm && !typedGiven && !tok) return json({ error: "Enter your mobile number or your employee ID.", code: "need-id" }, 400);
-    let extraDigits: string | null = null, idHit = false; // a mobile number given together with an employee ID that is on the list: kept as the person's contact, never a reason to refuse
-    if ((vf.mode === "either" || vf.mode === "id") && empNorm && !tok) { // "mobile number or employee ID" (and ID alone): an ID on the list is as good as the listed mobile number (the person is then known by their listed number)
-      const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading, then the old one (lists made before 1.4.1)
+    if (byList && vf.employeesOnly && !empNorm && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400);
+    let extraDigits: string | null = null, idHit = false; // a mobile number given together with an ID that is on the list: kept as the person's contact, never a reason to refuse
+    if (byList && empNorm && !tok) {
+      const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading (letters and numbers only), then the old one (lists made before 1.6.0)
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
     }
-    const idOnly = (vf.mode === "id" || vf.mode === "either") && !!empNorm && !typedGiven && !tok; // known by employee ID alone
-    let digits = typedDigits ?? tokPii?.phone ?? (idOnly ? "" : null);
-    if (vf.mode === "both" && empNorm && !tok && !typedGiven) return json({ error: "Enter your employee ID and your mobile number.", code: "need-id" }, 400);
+    const admittedBefore = byList && !tok && !!typedPh && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, typedPh).first()); // the organizer already said yes to this number: nothing is asked again, or they would wait for ever
+    let idMiss = false; // not on the list: the organizer decides
+    if (byList && !tok && !admittedBefore) {
+      idMiss = true;
+      if (empNorm) { // guessing IDs: only so many wrong IDs per network per game per 10 minutes
+        try {
+          const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
+          const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
+          if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
+          await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
+        } catch { /* a counter never blocks a join */ }
+      }
+    }
+    const mailTyped = typeof b?.email === "string" ? cleanAccountEmail(b.email) : "", mailOk = mailTyped.length <= 254 && EMAIL_RE.test(mailTyped);
+    if (idMiss) { // the request the organizer or host sees: name, mobile number and e-mail (and the ID, if one was typed)
+      const need = empNorm ? "That ID is not on the list. " : "";
+      if ((cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "").length < 2) return json({ error: need + "Please type your name.", code: "need-contact" }, 400);
+      if (!typedPh) return json({ error: need + "Please type your mobile number. The organizer sees it and decides whether to let you in.", code: "need-contact" }, 400);
+      if (!mailOk) return json({ error: need + "Please type your e-mail address. The organizer sees it and decides whether to let you in.", code: "need-contact" }, 400);
+    }
+    let digits: string | null = typedDigits ?? tokPii?.phone ?? null;
     let nameOnly = false;
-    if (vf.mode !== "mobile" && !empNorm && !typedGiven && !tok) return json({ error: vf.mode === "either" ? "Enter your mobile number or your employee ID." : vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : "Enter your employee ID and your mobile number.", code: "need-id" }, 400); // the name alone is not enough when the organizer asked for IDs
-    let ph = idOnly ? await empHashOf(env, empNorm) : typedPh ?? tok?.ph ?? null;
-    if (!ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && vf.mode === "mobile" && cfgOf(e).join !== "phone") { // joining with a name only (the default for the common link): the guest is known by their name, and their phone by its own random id
+    let ph: string | null = typedPh ?? tok?.ph ?? null;
+    if (!byList && !ph && !tok && !typedGiven && !empNorm && !vf.employeesOnly && cfgOf(e).join !== "phone") { // a game anyone may join, from the common link: the guest is known by their name, and their phone by its own random id
       const typedName = cleanName(b?.name)?.replace(/\s+/g, " ").trim() ?? "";
       if (typedName.length < 2) return json({ error: "Please type your name." }, 400);
       if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
       ph = await sha(`nm|${eid}|${dev}`); digits = ""; nameOnly = true;
     }
-    if (!ph || (!digits && !idOnly && !nameOnly && !((vf.mode === "id" || vf.mode === "either") && tokPii))) return json({ error: vf.mode === "id" ? "Enter your employee ID, or your mobile number if you have no employee ID." : vf.mode === "either" ? "Enter your mobile number or your employee ID." : "Enter a valid mobile number." }, 400);
+    if (!ph || (digits === null && !nameOnly)) return json({ error: "Enter a valid mobile number." }, 400);
     const ck = consentMissing(b, "K4"); // K4: both boxes, checked on the server before any name or number is kept
     const k4 = (subject: string) => recordConsent(env.DB, { subject, kind: "K4", ref: eid!, now });
     const otherNumber = !!(tok && typedPh && typedPh !== tok.ph); // somebody else opened this person's link
@@ -1719,25 +1736,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     // A NEW person cannot take a place when the game could not begin because payment is due (a person who already holds a card is handled above and keeps it).
     // (A person who opens the link AFTER the game is over still gets a card: the page then shows "Game complete", the thank-you and the share button. That is designed, so there is no "ended" refusal here.)
     if (locked) return json({ error: "This game could not begin because the organizer's payment is not complete. Please ask your organizer.", code: "locked" }, 403);
-    let pr = await personByPhone(env, eid!, ph); // is this number (or employee ID) on any list of the game?
-    const admitted = vf.mode !== "mobile" && !!pr && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, ph).first()); // the organizer already said yes to this person: the ID typed is not checked again, or they would wait for ever
-    let idMiss = false, needIdAfterConsent = false; // an employee ID that does not match the list: the organizer decides
-    if (vf.mode !== "mobile" && empNorm && !tok && !admitted) {
-      if (vf.mode === "both") { const pp0 = pr ? await openPii(env, pr.pii) : null; if (!pr || (pp0?.empId && normId(pp0.empId, vf.idKind, (e as any)?.created_ms) !== empNorm)) { pr = null; idMiss = true; } }
-      else if (!pr) idMiss = true; // ID alone, not on the list
-      if (idMiss) { // guessing IDs: only so many wrong IDs per network per game per 10 minutes
-        try {
-          const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
-          const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-          if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
-          await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
-        } catch { /* a counter never blocks a join */ }
-      }
-    } else if (vf.mode === "both" && pr && !tok && !admitted) { const pp0 = await openPii(env, pr.pii); if (pp0?.empId) needIdAfterConsent = true; } // asked only after the consent box is ticked: an untick-and-ask cannot be used to find out who is on the list
+    let pr = !byList ? await personByPhone(env, eid!, ph) : tok || admittedBefore ? await personByPhone(env, eid!, ph) : null; // a list game: on the list by the ID they typed, by their personal link, or because the organizer already said yes (a mobile number alone never lets anyone in). A game anyone may join: this number is on a list, or not
     if (pr?.status === "removed") return removedReply();
     const tickedBefore = !!(await env.DB.prepare("SELECT 1 AS x FROM consent_log WHERE kind='K4' AND ref=? AND subject=?").bind(eid, await pidOf(ph)).first()); // ticked when they asked to come in; the page does not keep it across a reload
     if (ck && !tickedBefore) return ck;
-    if (needIdAfterConsent) return json({ error: "Enter your employee ID.", code: "need-id" }, 400);
     if (!dev) return json({ error: "Please refresh this page and try again." }, 400);
     if (await env.DB.prepare("SELECT 1 AS x FROM seat WHERE eid=? AND dev=?").bind(eid, dev).first()) return json({ error: "This phone already holds a place in this game. One phone, one place. Others can join from their own phones.", code: "device-used" }, 409);
     if (await tournamentStarted(env, eid!)) return json({ error: "The tournament has started and the list is closed. You can still watch it.", code: "closed", spectator: true }, 409);
@@ -1763,7 +1765,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
       if (await joinOverLimit(env, req, now, 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
-      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
+      const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, ...(mailOk ? { email: mailTyped } : {}), name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
       if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
       if (w.status === "declined") return json({ error: "This game could not add you. Please talk to whoever invited you.", code: "declined", declined: true, wid: w.id }, 403);
       const who = await waitingWho({ env, e, eid: eid! }, overlimit ? "o" : target);
@@ -1773,13 +1775,13 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
         : json({ error: `This game is by invitation. ${msg}`, code: "waiting", waiting: true, wid: w.id, with: who }, 403);
     };
     let inviter: string | null = null, role: string | null = null, guardId: string | null = null, guardLimit: number | null = null, pii: string;
-    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); digits = pp?.phone || digits; const addName = !!(lateName && pp && !pp.name), addPhone = !!(extraDigits && pp && !pp.phone); pii = addName || addPhone ? await sealPii(env, { phone: addPhone ? extraDigits! : pp!.phone, name: addName ? lateName : pp!.name, ...(pp!.empId ? { empId: pp!.empId } : {}) }) : pr.pii; }
+    if (pr) { inviter = pr.inviter; role = pr.role; const pp = await openPii(env, pr.pii); digits = pp?.phone || digits; const addName = !!(lateName && pp && !pp.name), addPhone = !!(extraDigits && pp && !pp.phone); pii = addName || addPhone ? await sealPii(env, { phone: addPhone ? extraDigits! : pp!.phone, name: addName ? lateName : pp!.name, ...(pp!.empId ? { empId: pp!.empId } : {}), ...(pp!.email ? { email: pp!.email } : {}) }) : pr.pii; }
     else {
       if (e.closed || idMiss) return wait(false, null); // "Only people on a list" (or an employee ID not on the list): the person waits for an answer
       const limit = await limitOfInviter({ env, eid: eid!, e, invites: inviteCfg ?? { on: false, per: 4 } }, target);
       if (limit !== null && (await listCount(env.DB, eid!, target)) >= limit) return wait(true, limit);
       inviter = target; if (limit !== null) { guardId = target; guardLimit = limit; }
-      pii = await sealPii(env, { phone: digits ?? "", name: lateName || tokPii?.name || null, empId: vf.mode !== "mobile" && empNorm ? empNorm : null });
+      pii = await sealPii(env, { phone: digits ?? "", name: lateName || tokPii?.name || null, empId: empNorm || null });
     }
     if (await joinOverLimit(env, req, now, e.pack ?? 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
     if (!(await spend(env, now, JOIN_WRITES))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
@@ -1914,7 +1916,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       waitingFor: locked ? "organizer" : null, didNotStart, erasureMs: await erasureOf(env, e), ...(await endedAtOf(env, e, now)), ...(startPending ? { startPending: true } : {}),
       credit: creditNow ? creditNow.activeTotalInr : null, creditExpiresMs: creditNow ? creditNow.nextExpiryMs : null, creditApplied: creditNow ? await creditAppliedFor(env.DB, e.id) : null, payable: creditNow ? payablePublic(await adjustAnyCur(env.DB, e.id, packOf(e.cap))) : null,
       status: didNotStart ? "did not start (closed)" : cancelled ? "cancelled by the organizer" : isDraft ? "draft" : unpaid ? (locked ? "published, NOT PAID, held because the start time passed" : "published, payment due before the start") : "published and paid",
-      startsAtIST: istTime(roundMs(e.start_round), tzOfRow(e)), tz: tzOfRow(e), startMs: roundMs(e.start_round), startRound: e.start_round, callSeconds: e.call_seconds, limit: e.cap, closed: !!e.closed, whoCanJoin: e.closed ? "list" : "anyone", coHostLimit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: cfgOf(e).invites, verify: c.verify ?? "mobile", employeesOnly: !!c.employeesOnly, idKind: c.idKind === "email" ? "email" : "emp",
+      startsAtIST: istTime(roundMs(e.start_round), tzOfRow(e)), tz: tzOfRow(e), startMs: roundMs(e.start_round), startRound: e.start_round, callSeconds: e.call_seconds, limit: e.cap, closed: !!e.closed, whoCanJoin: e.closed ? "list" : "anyone", coHostLimit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, guestInvites: cfgOf(e).invites, verify: "id", employeesOnly: !!c.employeesOnly, idKind: c.idKind === "email" ? "email" : "emp",
       tickets: c.tickets, rounds: c.rounds, rewards: c.rewards, breaks: c.breaks, opening: c.opening, closing: c.closing, invites: c.invites, brandMomentsAllowed: brandMomentsFor(c.tickets), participants: n, ...(c.name ? { name: c.name } : {}), ...(c.brand ? { brand: c.brand } : {}),
       paid: !unpaid, ...(freeGame ? { rs0: true } : {}), ...(demoGame ? { demo: true } : {}), payment, ...(unpaid ? { pack: PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null, priceInr: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "INR").total : null, priceUsd: PACKS.find((x) => x[0] >= e.cap) ? price(PACKS.find((x) => x[0] >= e.cap)![0], "USD").total : null, startsAt: istTime(roundMs(e.start_round), tzOfRow(e)), payUntil: istTime(await erasureOf(env, e), tzOfRow(e)) } : { pack: e.pack }),
       gameMinutes: Math.round((75 * e.call_seconds * c.rounds + c.breaks.reduce((t: number, b: any) => t + b.seconds, 0) + (c.rounds - 1) * 90) / 60),
@@ -2101,8 +2103,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const vc = validateCfg({ tickets: b.tickets, rewards: b.rewards, breaks: b.breaks, rounds: b.rounds, invites: b.invites !== undefined ? b.invites : b.guestInvites, opening: b.opening, closing: b.closing, name: b.name, brand: b.brand, mark: b.mark, join: b.join, tz: b.tz, verify: b.verify, employeesOnly: b.employeesOnly, idKind: b.idKind }, cfgOf(e)); // guestInvites is the console's name for invites
     if (!vc.ok) return json({ error: vc.error }, 400);
     { const c0 = cfgOf(e); // what a person must give to get in cannot change once anyone is listed or has joined
-      const kindChanged = b.idKind !== undefined && (b.idKind === "email" ? "email" : "emp") !== (c0.idKind === "email" ? "email" : "emp"), verChanged = b.verify !== undefined && (b.verify === "mobile" ? undefined : b.verify) !== c0.verify;
-      if ((kindChanged || verChanged) && c0.verify && c0.verify !== "mobile") { /* only a game that asks for IDs has anyone holding an ID hash */ const n = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM person WHERE eid=?) + (SELECT COUNT(*) FROM participant WHERE eid=?) AS c").bind(e.id, e.id).first<{ c: number }>(); if ((n?.c ?? 0) > 0) return json({ error: kindChanged ? "You already have people listed. Start a new game to use a different kind of Employee or Email ID." : "You already have people listed. Start a new game to use a different way of asking for Employee IDs.", code: "id-kind-locked" }, 409); } }
+      const kindChanged = b.idKind !== undefined && (b.idKind === "email" ? "email" : "emp") !== (c0.idKind === "email" ? "email" : "emp");
+      if (kindChanged) { /* anyone listed holds an ID hash */ const n = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM person WHERE eid=?) + (SELECT COUNT(*) FROM participant WHERE eid=?) AS c").bind(e.id, e.id).first<{ c: number }>(); if ((n?.c ?? 0) > 0) return json({ error: kindChanged ? "You already have people listed. Start a new game to use a different kind of Employee or Email ID." : "You already have people listed.", code: "id-kind-locked" }, 409); } }
     const next = { start_round: b.startRound ?? e.start_round, call_seconds: b.callSeconds ?? e.call_seconds, cap: b.cap ?? e.cap, closed: vc.cfg.employeesOnly ? 1 : b.whoCanJoin !== undefined ? (b.whoCanJoin === "list" ? 1 : 0) : b.closed === undefined ? e.closed : b.closed ? 1 : 0, cohost_limit: b.coHostLimit ?? e.cohost_limit ?? null }; // whoCanJoin "list" is the same switch as the older `closed`
     if (Number.isInteger(next.call_seconds) && !GAPS.includes(next.call_seconds)) return json({ error: GAP_MSG }, 400);
     if (!Number.isInteger(next.start_round)) return json({ error: "Pick the day and time the game starts." }, 400);

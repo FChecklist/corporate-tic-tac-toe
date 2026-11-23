@@ -120,6 +120,21 @@ describe("showing it: pop-up, in place, take me there, back to where you were", 
   });
 });
 
+describe("help lines added with the invite rule and the console sign-in", () => {
+  test("the 'one game only' help tells you that opening a game from your console signs you out of any other sign-in saved on this device", async () => {
+    const p = await page(); const g = p.win.CTG.find({ status: 403, message: "This sign-in is for one game only." }); expect(g.matched).toBe(true);
+    expect(g.entry.d).toContain("Opening a game from your console signs you out of any other sign-in saved on this device.");
+    const shown = p.win.CTG.explain({ status: 403, message: "This sign-in is for one game only." }); expect(shown.steps.join(" ")).toContain("signs you out of any other sign-in saved on this device");
+  });
+  test("a guest who has no ID, or whose ID is not on the list, is told kindly what to give, and that only the organizer and hosts see it", async () => {
+    const p = await page();
+    for (const msg of ["That ID is not on the list. Please type your mobile number. The organizer sees it and decides whether to let you in.", "Please type your e-mail address. The organizer sees it and decides whether to let you in."]) {
+      const g = p.win.CTG.explain({ status: 400, message: msg }); expect(g.matched).toBe(true);
+      expect(g.steps.join(" ")).toContain("Only your organizer and hosts see them"); expect(g.steps.join(" ")).toContain("deleted within 24 hours");
+    }
+  });
+});
+
 describe("the screens use it", () => {
   test("the console, the pay page, the pay link, the player screen and the shared helper all give their errors a guide", () => {
     const PUB = join(import.meta.dir, "../public");
