@@ -2,7 +2,7 @@
   {
     "version": "1.6.1",
     "date": "2026-11-23",
-    "commit": "PENDING",
+    "commit": "8bf8c5d",
     "title": "A guest who is not on your list gives only a name; two sentences on both screens; an optional details panel; fixes from the second audit",
     "changes": [
       "A guest with no ID, or whose ID is not on your list, now needs to give only a name. ID, department or team, region, mobile number and e-mail are optional. You or a Host still say yes or no, and only you and your Hosts see what was given",

@@ -3,6 +3,7 @@
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
 ## 1.6.1 - 2026-11-23
+Code commit `8bf8c5d` (made 2026-11-23 19:15 UTC = 2026-11-24 00:45 IST). The head of the PR is this record-only commit that follows it: a commit cannot name its own hash, so `version.json` and `releases.json` name the code commit.
 Fixes for the two failed audits of `da3e485a` (PR 9, 23 Nov 2026, 09:33 and 09:34 UTC), built on the owner's join rule of 07:16 UTC. Nothing is deployed and no payment switch is on (`PAY_VIA_CONSOLE` and `CONSOLE_PUBKEYS` are untouched).
 ### Changed (the join rule, audit 1: H-1, H-2, H-3, L-2)
 - **Only the name is needed.** A guest who is not on your list (no ID, or an ID that is not on the list) gives a name. The ID, department or team, region, mobile number and e-mail are optional. The server refuses only a missing name (`need-name`); a wrong optional e-mail or mobile number is refused with a plain sentence, because it can be left empty. Before this, the server and the page demanded a mobile number and an e-mail.
