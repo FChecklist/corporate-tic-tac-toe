@@ -2,7 +2,7 @@
   {
     "version": "1.6.3",
     "date": "2026-11-24",
-    "commit": "4fe1471",
+    "commit": "2424af0",
     "title": "Fixes from the fourth audit round: guests on the list cannot be locked out, the waiting room can be closed and cleared in one tap and cannot be flooded by a script, and a Host belongs to one game",
     "changes": [
       "Employee ID tries: only a WRONG ID is counted now. One address (or a crowd of addresses) can no longer use up the game's allowance and shut every listed guest out. A right ID is let in whatever other people did. Each network still gets 30 wrong tries in ten minutes, and the whole game 600 (or 3 for every place in a game over 200 places)",

@@ -1,9 +1,9 @@
 {
   "product": "corporate-tic-tac-toe",
   "version": "1.6.3",
-  "commit": "4fe1471",
-  "releasedAtUTC": "2026-11-24T12:00:00Z",
-  "releasedAtIST": "2026-11-24T17:30:00+05:30",
+  "commit": "2424af0",
+  "releasedAtUTC": "2026-11-24T06:51:43Z",
+  "releasedAtIST": "2026-11-24T12:21:43+05:30",
   "changes": [
     {
       "id": "1.6.3-audit-round-6",
