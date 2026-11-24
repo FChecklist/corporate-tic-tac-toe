@@ -184,6 +184,7 @@ describe("M-C: bracket and podium cannot be forged", () => {
     const onlyChampion = await fin(x.a, { ...ok, champion: x.b.pid }); expect(onlyChampion.status).toBe(400); expect((await j(onlyChampion)).code).toBe("not-the-winner"); // a loser named as champion, everything else as it should be
     const wrongPodium = await fin(x.a, { ...ok, podium: [[x.b.pid], [y.b.pid], [x.a.pid], [y.a.pid]] }); expect(wrongPodium.status).toBe(400);
     const swappedRunner = await fin(x.a, { ...ok, ranking: rank([x.a.pid, x.b.pid, y.b.pid, y.a.pid], names) }); expect(swappedRunner.status).toBe(400); // the runner-up is the other side of the final
+    const consistentButWrong = await fin(x.a, { ...ok, podium: [[x.a.pid], [x.b.pid], [y.b.pid], [y.a.pid]], ranking: rank([x.a.pid, x.b.pid, y.b.pid, y.a.pid], names) }); expect(consistentButWrong.status).toBe(400); // podium and ranking agree with each other, but the second place is a first-round loser
     expect((await fin(x.a, ok)).status).toBe(200); expect((await j(await fin(y.b, ok))).done).toBe(true);
     expect(sql("SELECT COUNT(*) c FROM settled WHERE eid='RC-3'")[0].c).toBeGreaterThan(0);
   });
