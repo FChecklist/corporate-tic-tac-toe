@@ -2,7 +2,7 @@
   {
     "version": "1.6.4",
     "date": "2026-11-24",
-    "commit": "2424af0",
+    "commit": "1cb00f1",
     "title": "Wording fix: the join page no longer claims the short check on the phone shows that a person is there",
     "changes": [
       "When a guest asks to join and is not on the list, the page now says \"One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.\" It no longer claims that the check shows a person is there, because the small piece of work only slows down scripts. How long it takes was not measured on real phones"

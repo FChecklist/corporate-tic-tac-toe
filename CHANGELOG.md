@@ -3,7 +3,7 @@
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
 ## 1.6.4 - 2026-11-24
-Wording fix for the one open Medium of the security audit of `02b56a1a` (PR 9, 24 Nov 2026, M-1: an unbacked claim shown to players). Nothing else changed. Nothing is deployed and no payment switch is on. Payments go only through IT Services by Rajat Agarwal and Razorpay.
+Code commit `1cb00f1`. Wording fix for the one open Medium of the security audit of `02b56a1a` (PR 9, 24 Nov 2026, M-1: an unbacked claim shown to players). Nothing else changed. Nothing is deployed and no payment switch is on. Payments go only through IT Services by Rajat Agarwal and Razorpay.
 ### Fixed (security audit)
 - **M-1: the join page claimed that the guest's phone was checking whether a person is there. That is not true.** The small proof of work only slows down scripts; a script can do the same work, so it does not show that a person is asking. The card on the join page (`ttt.js`), the server's 428 `need-pow` sentence (`worker.ts`) and the guide's list of server sentences (`guide.js`) now say: "One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds." The 1.6.3 notes (`CHANGELOG.md`, `releases.json`) now say the proof of work is there "to slow down scripts" and that it takes "a few seconds, not measured on real phones" (they gave a time of one second, which nobody measured). The test that pins the page's sentence to the server's sentence is kept (`waiting-pow.test.ts`).
 
