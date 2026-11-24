@@ -30,7 +30,7 @@ const organizer = async (email = "boss@acme.com") => {
   await call("POST", "/api/z", { id: "HOST-1", startRound: FAR_START, callSeconds: 9, cap: 100 }, st.token);
   return { master: st.token as string, ai: st.aiKey as string };
 };
-const addHost = async (master: string, body: Record<string, unknown>, now = T) => j(await call("POST", "/api/org/host", { label: "Priya", ...body }, master, now));
+const addHost = async (master: string, body: Record<string, unknown>, now = T) => j(await call("POST", "/api/org/host", { e: "HOST-1", label: "Priya", ...body }, master, now));
 /** Confirms the e-mail by code through the real routes and returns the answer. */
 const confirmByCode = async (key: string, email: string, now = T) => {
   const s = await j(await call("POST", "/api/host/setup/email", { email }, key, now));
@@ -45,8 +45,8 @@ describe("adding a Host: at least one of e-mail or mobile", () => {
     expect((await call("POST", "/api/org/host", { label: "X", email: "not-an-email" }, master)).status).toBe(400);
     expect((await call("POST", "/api/org/host", { label: "X", mobile: "123" }, master)).status).toBe(400);
     expect((raw.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE kind='host' AND expires_ms IS NULL").get() as any).c).toBe(0);
-    expect((await call("POST", "/api/org/host", { label: "A", email: "a@acme.com" }, master)).status).toBe(200);
-    expect((await call("POST", "/api/org/host", { label: "B", mobile: "9876500002" }, master)).status).toBe(200);
+    expect((await call("POST", "/api/org/host", { e: "HOST-1", label: "A", email: "a@acme.com" }, master)).status).toBe(200);
+    expect((await call("POST", "/api/org/host", { e: "HOST-1", label: "B", mobile: "9876500002" }, master)).status).toBe(200);
   });
   test("e-mail only: the link is e-mailed to the Host (not the Organizer), sealed on the key row; no WhatsApp button", async () => {
     const { master } = await organizer();
@@ -215,8 +215,8 @@ describe("later devices: e-mail code or Google, same Host, same label", () => {
     for (let i = 0; i < 2; i++) { const s = await j(await call("POST", "/api/auth/email", { email: "p@acme.com" })); await call("POST", "/api/auth/verify", { email: "p@acme.com", code: s.devCode }); }
     expect(one("SELECT COUNT(*) AS c FROM organizer_key WHERE kind='host' AND expires_ms IS NULL").c).toBe(4);
     expect((await teamEmails(env, one("SELECT org FROM organizer_key LIMIT 1").org, "HOST-1")).hosts).toEqual(["p@acme.com"]);
-    for (let i = 0; i < 4; i++) expect((await call("POST", "/api/org/host", { label: "H" + i, mobile: "98765000" + (10 + i) }, master)).status).toBe(200); // 1 + 4 = 5 Hosts: the device keys did not use up places
-    expect((await call("POST", "/api/org/host", { label: "Sixth", mobile: "9876500020" }, master)).status).toBe(409);
+    for (let i = 0; i < 4; i++) expect((await call("POST", "/api/org/host", { e: "HOST-1", label: "H" + i, mobile: "98765000" + (10 + i) }, master)).status).toBe(200); // 1 + 4 = 5 Hosts: the device keys did not use up places
+    expect((await call("POST", "/api/org/host", { e: "HOST-1", label: "Sixth", mobile: "9876500020" }, master)).status).toBe(409);
   });
   test("the e-mail of a Host who was never confirmed, or of nobody, gets the same quiet answer and no mail", async () => {
     const { master } = await organizer(); await addHost(master, { email: "p@acme.com", mobile: "9876500002" });

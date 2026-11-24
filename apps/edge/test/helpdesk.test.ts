@@ -64,6 +64,7 @@ beforeEach(() => {
   env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", TEST_MODE: "1", PUBLIC_ORIGIN: "https://tictactoe.test" };
 });
 
+const hostGame = async (h: Record<string, string>, id = "HG-1") => { await call("POST", "/api/z", { id, startRound: FAR_START, callSeconds: 9, cap: 100 }, h); return id; }; // 1.6.3: a Host belongs to one game, so the game is made first
 describe("joining Help Desk", () => {
   test("joining needs the e-mail the partner enrolled with, and the e-mail is kept sealed", async () => {
     const p = await enroll();
@@ -270,23 +271,27 @@ describe("the helper becomes the desk Host", () => {
     const { w } = await published();
     const row = raw.query("SELECT label, created_by, kind, host_id, hash FROM organizer_key WHERE created_by='d' AND kind='host' AND expires_ms IS NULL").get() as any;
     expect(row).toMatchObject({ label: "Help desk: Asha", created_by: "d", kind: "host" }); expect(row.host_id).toBe(row.hash);
+    expect((raw.query("SELECT eid FROM organizer_key WHERE hash=?").get(row.hash) as any).eid).toBe("HD-GAME-1"); // 1.6.3: the desk Host belongs to the game it was made for
     expect((raw.query("SELECT host_hash FROM helpdesk_link").get() as any).host_hash).toBe(row.hash);
     const team = await j(await call("GET", "/api/org/team", undefined, org(w.master)));
     expect(team.hosts).toEqual([expect.objectContaining({ label: "Help desk: Asha", helpDesk: true })]);
-    for (let i = 0; i < 5; i++) expect((await call("POST", "/api/org/host", { email: `h${i}@acme.com`, label: `H${i}` }, org(w.master))).status).toBe(200); // five more are allowed
-    expect((await call("POST", "/api/org/host", { email: "h6@acme.com" }, org(w.master))).status).toBe(409); // the 6th of the Organizer's own is not
+    for (let i = 0; i < 5; i++) expect((await call("POST", "/api/org/host", { e: await hostGame(org(w.master)), email: `h${i}@acme.com`, label: `H${i}` }, org(w.master))).status).toBe(200); // five more are allowed
+    expect((await call("POST", "/api/org/host", { e: await hostGame(org(w.master)), email: "h6@acme.com" }, org(w.master))).status).toBe(409); // the 6th of the Organizer's own is not
     expect((await j(await call("GET", "/api/org/team", undefined, org(w.master)))).hosts.length).toBe(6);
     expect((await call("GET", "/api/helpdesk/me", undefined, part(w.p.partnerKey)).then(j)).clients[0].hostLink).toBeDefined();
   });
-  test("the desk Host key works as a Host, and a second published game does not make a second desk Host", async () => {
+  test("the desk Host key works as a Host in its own game; a second published game gets its own desk Host and the first one stops (1.6.3: a Host belongs to one game)", async () => {
     const { w } = await published();
     const hostKey = lastMail("asha@partner.example", /is published/).body.match(/zc\.html\?k=(cbh_[0-9a-f]{48})/)![1]!;
     expect((await j(await call("GET", "/api/whoami", undefined, org(hostKey)))).kind).toBe("host");
     expect((await call("POST", "/api/z/HD-GAME-1/announce", { text: "Hello" }, org(hostKey))).status).toBe(200);
     await makeGame(w.aiKey, "HD-GAME-2"); await req("POST", "/api/helpdesk/request-publish", { linkId: w.linkId, eid: "HD-GAME-2" }, part(w.p.partnerKey), T + 20 * 60_000);
     const t2 = approvalToken(); const r = await approveAndPublish(t2, "HD-GAME-2", T + 20 * 60_000); expect(r.done.status).toBe(200);
-    expect(raw.query("SELECT COUNT(*) c FROM organizer_key WHERE created_by='d' AND kind='host' AND expires_ms IS NULL AND host_id=hash").get()).toEqual({ c: 1 });
-    expect(lastMail("asha@partner.example", /HD-GAME-2 is published/).body).not.toContain("OPEN MY HOST CONSOLE");
+    expect(raw.query("SELECT eid FROM organizer_key WHERE created_by='d' AND kind='host' AND expires_ms IS NULL AND host_id=hash AND revoked=0").all()).toEqual([{ eid: "HD-GAME-2" }]); // one desk Host, for the game that is open now
+    const key2 = lastMail("asha@partner.example", /HD-GAME-2 is published/).body.match(/zc\.html\?k=(cbh_[0-9a-f]{48})/)![1]!; expect(key2).not.toBe(hostKey);
+    expect((await call("POST", "/api/z/HD-GAME-2/announce", { text: "Hello" }, org(key2))).status).toBe(200);
+    const other = await call("POST", "/api/z/HD-GAME-1/announce", { text: "Hello" }, org(key2)); expect(other.status).toBe(403); expect((await j(other)).code).toBe("other-game");
+    expect((await call("POST", "/api/z/HD-GAME-1/announce", { text: "Hello" }, org(hostKey))).status).not.toBe(200); // the key of the first game stopped
   });
   test("the helper's key does not trigger the unfamiliar-use alert, an Organizer's own AI key does", async () => {
     const w = await world();

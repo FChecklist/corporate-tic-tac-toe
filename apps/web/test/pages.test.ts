@@ -56,8 +56,9 @@ const stub = (routes: Record<string, Stub>) => (win: any, f: string) => {
   };
 };
 /** The roles come from the real Worker (apps/edge): these make a Host key, a Co-host key, and read the team back. */
-const hostKey = async (o: O, label = "Anita", ready = true) => {
-  const k = (await o.json(await o.api("POST", "/api/org/host", { label, mobile: "9822200011", email: "host@acme.com" }, o.token))).hostKey as string;
+const hostKey = async (o: O, label = "Anita", ready = true, inGame?: string) => {
+  const game = inGame ?? (o.world.raw.prepare("SELECT id FROM engagement ORDER BY rowid DESC LIMIT 1").get() as { id: string } | null)?.id; // 1.6.3: a Host belongs to one game: the one made last
+  const k = (await o.json(await o.api("POST", "/api/org/host", { label, mobile: "9822200011", email: "host@acme.com", ...(game ? { e: game } : {}) }, o.token))).hostKey as string;
   if (ready) o.world.raw.prepare("UPDATE host_state SET verified_ms=?, mobile_ok=1").run(Date.now()); // as if the Host had finished "Finish setup" (that screen has its own tests)
   return k;
 };
@@ -263,7 +264,7 @@ describe("console (organizer page)", () => {
     expect((p.$("#hostadd") as any).disabled).toBe(true); expect(p.text()).toMatch(/most Hosts allowed/); expect(p.text()).toMatch(/Anita 3/);
     expect(p.text()).toMatch(/Send it to that one person only/); expect(p.$(".zc-person .zlink")!.textContent).toMatch(/\/zc\.html\?e=UI-TEAM#host=cbh_[0-9a-f]{48}$/);
     p.click("#hostadd"); await new Promise((r) => setTimeout(r, 150)); expect((await teamOf(o)).hosts.length).toBe(5); // the sixth is stopped (and the server would refuse it too)
-    expect((await o.api("POST", "/api/org/host", { label: "Sixth", phone: "9876500006", email: "six@acme.com" }, o.token)).status).toBe(409);
+    expect((await o.api("POST", "/api/org/host", { label: "Sixth", phone: "9876500006", email: "six@acme.com", e: "UI-TEAM" }, o.token)).status).toBe(409);
     for (let i = 1; i <= 3; i++) { setField(p, "#cohostlabel", "Ravi " + i); setField(p, "#cohostphone", "98111000" + (10 + i)); p.click("#cohostadd"); await p.waitFor((x) => new RegExp(`Your Co-hosts: ${i} \\(no limit\\)`).test(x)); }
     expect(Array.from(doc.querySelectorAll(".zc-person .zlink")).map((e: any) => e.textContent).filter((x: string) => /#cohost=cbc_[0-9a-f]{48}$/.test(x)).length).toBe(3);
     expect(p.text()).toMatch(/brought 0/); expect((await teamOf(o)).cohosts.length).toBe(3);
@@ -752,6 +753,22 @@ describe("console phase 2: wording fixes, My people, waiting room, remove, play 
     const second = (await waitOf(o, "UI-WAIT"))[0]; p.click(`[data-wid="${second.id}"][data-decide="decline"]`); await p.waitFor((x) => /Nobody is waiting right now/.test(x) && /declined by/.test(x));
   });
 
+  test("Waiting room, one tap (1.6.3): 'Stop new requests and clear the list' clears every request still waiting and shuts the door, 'Allow new requests again' opens it; a full list says so; a Co-host gets no such buttons", async () => {
+    const o = await organizer(); await make(o, "UI-ROOM", { whoCanJoin: "list" }); await publish(o, "UI-ROOM");
+    for (let i = 1; i <= 3; i++) expect((await jn(o, "UI-ROOM", i)).status).toBe(403);
+    const w = spy(); const p = await ready(o, "UI-ROOM", w); await myPeople(p);
+    await p.waitFor((x) => /Waiting to come in: 3/.test(x)); expect(p.$('[data-room="close-clear"]')!.textContent).toBe("Stop new requests and clear the list"); expect(p.$('[data-room="clear"]')!.textContent).toBe("Clear the list"); expect(p.$('[data-room="open"]')).toBeNull();
+    p.click('[data-room="close-clear"]'); await p.waitFor((x) => /New requests are stopped and 3 requests cleared\./.test(x) && /Nobody is waiting right now/.test(x));
+    expect(w.st.calls.find((c: any) => c[1].endsWith("/waiting/room"))[2]).toEqual({ action: "close-clear" }); expect((await waitOf(o, "UI-ROOM")).length).toBe(0);
+    await p.waitFor((x) => /New requests are stopped\. People who ask now are told to ask you to add them\./.test(x)); expect(p.$('[data-room="open"]')!.textContent).toBe("Allow new requests again"); expect(p.$('[data-room="close-clear"]')).toBeNull();
+    const shut = await jn(o, "UI-ROOM", 4); expect(shut.status).toBe(403); expect((await shut.json()).code).toBe("waiting-closed");
+    p.click('[data-room="open"]'); await p.waitFor((x) => /New requests are allowed again\./.test(x)); expect(p.$('[data-room="close-clear"]')).toBeTruthy();
+    expect((await jn(o, "UI-ROOM", 4)).status).toBe(403); expect((await waitOf(o, "UI-ROOM")).length).toBe(1);
+    o.world.raw.prepare("WITH RECURSIVE s(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM s WHERE i<499) INSERT INTO waiting(eid,id,ph,pii,via,inviter,chain,overlimit,status,at_ms) SELECT 'UI-ROOM', printf('%012x', i+100), 'ph' || i, 'x', 'direct', 'o', ',o,', 0, 'waiting', 1 FROM s").run();
+    const f = await ready(o, "UI-ROOM", spy()); await myPeople(f); await f.waitFor((x) => /Your waiting list is full \(500 requests\), so nobody new can ask to join\./.test(x));
+    const ck = await cohostKey(o, "UI-ROOM"); const c = await ready(o, "UI-ROOM", spy(), ck); openStep(c, 2); await c.waitFor((x) => /Waiting to come in/.test(x)); expect(c.$("[data-room]")).toBeNull(); expect(c.$("#waitfull")).toBeNull();
+  });
+
   test("Approve all (real): shows only when someone waits, asks calmly first, shows the counts and who approved; Decline all too; a Co-host sees only their own link's requests", async () => {
     const o = await organizer(); await make(o, "UI-ALL", { whoCanJoin: "list" }); await publish(o, "UI-ALL");
     const none = await ready(o, "UI-ALL"); await myPeople(none); await none.waitFor((x) => /Nobody is waiting right now/.test(x)); expect(none.$("#admitall")).toBeNull(); expect(none.$("#declineall")).toBeNull();
@@ -929,7 +946,7 @@ describe("console phase 4: Finish setup for a new Host, and Continue with Google
 
   test("a Host whose link was just opened sees Finish setup: e-mail first (a wrong one is told which one the link is for), a 6-digit code, then the mobile number; then the console opens with the new key", async () => {
     const o = await organizer(); await make(o, "UI-FIN"); await publish(o, "UI-FIN");
-    const added = await o.json(await o.api("POST", "/api/org/host", { label: "Anita", email: "anita@acme.com" }, o.token)); const oldKey = added.hostKey as string;
+    const added = await o.json(await o.api("POST", "/api/org/host", { label: "Anita", email: "anita@acme.com", e: "UI-FIN" }, o.token)); const oldKey = added.hostKey as string;
     o.world.raw.prepare("UPDATE host_state SET verified_ms=NULL, mobile_ok=0, spent=0").run(); // a Host who has only just been added (the Worker's own answer for an e-mail-only Host was "ready" while this was written)
     const w = spy(); const p = await consolePage(o, "UI-FIN", oldKey, {}, { afterLoad: w.hook });
     await p.waitFor((x) => /Finish setup/.test(x)); expect(p.text()).toMatch(/a\*\*\*@acme\.com/); expect(p.$("#sec1")).toBeNull(); expect(p.$("#gbtn")).toBeNull(); // no Google button when the server has no client id
@@ -949,7 +966,7 @@ describe("console phase 4: Finish setup for a new Host, and Continue with Google
 describe("console: Send a new link to a Host, and a Host who opens the console without a game", () => {
   test("Your team: a Host who has not finished setup shows why, and the Organizer can send a new link (the old one stops); with a mobile there is a WhatsApp button; once the Host has confirmed an e-mail the server says no and the console says so calmly", async () => {
     const o = await organizer(); await make(o, "UI-NLK"); await publish(o, "UI-NLK");
-    const added = await o.json(await o.api("POST", "/api/org/host", { label: "Anita", mobile: "9876543210", email: "anita@acme.com" }, o.token)); const oldKey = added.hostKey as string;
+    const added = await o.json(await o.api("POST", "/api/org/host", { label: "Anita", mobile: "9876543210", email: "anita@acme.com", e: "UI-NLK" }, o.token)); const oldKey = added.hostKey as string;
     o.world.raw.prepare("UPDATE host_state SET verified_ms=NULL, mobile_ok=0, spent=0").run();
     const w = spy(); const p = await consolePage(o, "UI-NLK", o.token, {}, { afterLoad: w.hook }); await p.waitFor(() => !!p.$('.zc-dot[data-open="5"]')); openStep(p, 5);
     await p.waitFor((x) => /Waiting for them to open the link/.test(x)); expect(p.$("[data-newlink]")!.textContent).toBe("Send a new link");
@@ -963,13 +980,13 @@ describe("console: Send a new link to a Host, and a Host who opens the console w
     p.click("[data-newlink]"); await p.waitFor((x) => /already finished setup, so they sign in with their e-mail/.test(x));
   });
 
-  test("a Host who opens the console without a game: with one game they go straight in; with several they see 'Your games' and Open works", async () => {
+  test("a Host who opens the console without a game in the address goes straight into their own game, whether the account has one game or several (1.6.3: a Host belongs to one game, and never sees the others)", async () => {
     const o = await organizer(); await make(o, "UI-ONE1"); await publish(o, "UI-ONE1"); const hk = await hostKey(o, "Anita");
     const one = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": hk, "cbz-aimsg": "" }); await one.waitFor((x) => /Your game/.test(x) && /Check and publish/.test(x));
     expect(one.$("#rolepill")!.textContent).toMatch(/^Signed in as Host/); expect(one.text()).not.toMatch(/Your games/); expect(one.$("#sec1")).toBeTruthy();
     await make(o, "UI-TWO2", { name: "Second game" }); await publish(o, "UI-TWO2");
-    const many = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": hk }); await many.waitFor((x) => /Your games/.test(x)); expect(many.text()).toMatch(/UI-ONE1/); expect(many.text()).toMatch(/UI-TWO2/); expect(many.$("#sec1")).toBeNull();
-    many.click('[data-open-game="UI-TWO2"]'); await many.waitFor(() => !!many.$("#sec1")); await many.waitFor((x) => /Second game/.test(x)); expect(many.$("#rolepill")!.textContent).toMatch(/^Signed in as Host/);
+    const many = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": hk }); await many.waitFor((x) => /Your game/.test(x) && /Check and publish/.test(x));
+    expect(many.text()).not.toMatch(/UI-TWO2/); expect(many.text()).not.toMatch(/Second game/); expect(many.$("#sec1")).toBeTruthy(); expect(many.$("#rolepill")!.textContent).toMatch(/^Signed in as Host/);
     expect(many.errors).toEqual([]);
   });
 });
@@ -1094,7 +1111,7 @@ describe("console: no refunds (credit), games that wait or did not start, 'Creat
     expect(p.$("#newgameread")).toBeNull();
     const home = await page(o, "/zc", "zc.html", ZC_SCRIPTS, { "cbz-org": o.token, "cbz-aimsg": o.aiMessage }, { afterLoad: w.hook }); await home.waitFor((x) => /Start a new game/.test(x)); home.click('[data-hist="1"]'); await home.waitFor(() => !!home.$('[data-clonebtn][data-from="UI-OLD1"]'));
     home.click('[data-clonebtn][data-from="UI-OLD1"]'); await home.waitFor(() => !!home.$("#clonepanel")); expect(home.$("#clonepeople")).toBeTruthy();
-    const h = await consolePage(o, "UI-OLD1", await hostKey(o)); await h.waitFor(() => !!h.$('.zc-dot[data-open="7"]')); openStep(h, 7); expect(h.$("[data-clonebtn]")).toBeTruthy(); // a Host has it too
+    const h = await consolePage(o, "UI-OLD1", await hostKey(o, "Anita", true, "UI-OLD1")); await h.waitFor(() => !!h.$('.zc-dot[data-open="7"]')); openStep(h, 7); expect(h.$("[data-clonebtn]")).toBeTruthy(); // a Host has it too
     const c = await consolePage(o, "UI-OLD1", await cohostKey(o, "UI-OLD1")); await c.waitFor((x) => /Hi\. Here is the game/.test(x)); for (let n = 1; n <= 3; n++) openStep(c, n); expect(c.$("[data-clonebtn]")).toBeNull();
   });
 

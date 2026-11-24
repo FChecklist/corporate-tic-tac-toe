@@ -1,10 +1,16 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.6.2",
-  "commit": "0a9966b",
-  "releasedAtUTC": "2026-11-24T03:31:08Z",
-  "releasedAtIST": "2026-11-24T09:01:08+05:30",
+  "version": "1.6.3",
+  "commit": "4fe1471",
+  "releasedAtUTC": "2026-11-24T12:00:00Z",
+  "releasedAtIST": "2026-11-24T17:30:00+05:30",
   "changes": [
+    {
+      "id": "1.6.3-audit-round-6",
+      "what": "Fixes for the failed security audit of PR 9 at 4fe14715: one network can no longer lock listed guests out of ID entry (only wrong IDs are counted, a right ID is never refused for other people's tries); the waiting room: at most 60 new requests in ten minutes for a whole game, one tap for the Organizer or a Host to stop new requests and clear the list, and a small proof of work (no outside service, no key) before a new request is taken; a Host belongs to one game: no Host is made without a game, an old Host with no game has no game access until the Organizer adds them again inside a game, and the team list, removing a Co-host, pay links, paying with credit and the games list all keep a Host inside their own game; one player can no longer fill a board; the planted-number test no longer fails by chance",
+      "where": "apps/edge/src/worker.ts, people.ts, pow.ts (new), tournament.ts, credit.ts, pay.ts, helpdesk.ts, lifecycle.ts; apps/web/public/ttt.js, zc.js, guide.js, zsw.js; tests audit-round-6, waiting-pow and others",
+      "pr": "9"
+    },
     {
       "id": "1.6.2-audit-round-5",
       "what": "Fixes for the two failed audits of PR 9 at 776e5ee6: a Host added inside one game works in that game only; a single report wins a classic board only when the board shows the other player is away (a clock-out claim is stored only after the move clock, and a board and a player are limited); a later match can only be registered by the winners of the two matches it comes from, and the final result must name the real winner and the real finalists; the ID allowance of a game also counts the join; the ranking, the champion and the view show full names only to players and organizers; stage game: the second player can no longer take the first move; the organizer's setup screen tells the owner's join rule (only the name is needed)",

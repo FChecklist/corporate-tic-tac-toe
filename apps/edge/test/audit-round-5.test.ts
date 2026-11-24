@@ -130,13 +130,13 @@ describe("M-B: a single report wins only when the board shows the other side is 
     const { h, x } = await board("RB-5", { moveSecs: 60 });
     expect((await call("POST", "/api/z/RB-5/ttt/move", { mid: x.mid, j: 0, seq: 0, absent: true }, h, T + 1000)).status).toBe(200);
   });
-  test("one player cannot flood a board: at most 5 writes in a second, and a board holds at most 120 entries", async () => {
+  test("one player cannot flood a board: at most 5 writes in a second, and (1.6.3) at most 40 entries on one board; the board's own cap of 120 is kept as a last guard", async () => {
     const { x } = await board("RB-6");
     const codes: number[] = []; for (let i = 0; i < 7; i++) codes.push((await mv("RB-6", x.a, { mid: x.mid, seq: Math.min(i, 5), sq: 4 }, T + 5000 + i * 10)).status);
     expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429]);
-    let seq = 5, at = T + 7000; for (; seq < 120; seq++, at += 1000) expect([seq, (await mv("RB-6", x.a, { mid: x.mid, seq, sq: 4 }, at)).status]).toEqual([seq, 200]);
-    const full = await mv("RB-6", x.a, { mid: x.mid, seq: 120, sq: 4 }, at); expect(full.status).toBe(409); expect((await j(full)).code).toBe("board-full");
-    expect(sql("SELECT COUNT(*) c FROM ttt_mv WHERE mid=?", x.mid)[0].c).toBe(120);
+    let seq = 5, at = T + 7000; for (; seq < 40; seq++, at += 1000) expect([seq, (await mv("RB-6", x.a, { mid: x.mid, seq, sq: 4 }, at)).status]).toEqual([seq, 200]);
+    const full = await mv("RB-6", x.a, { mid: x.mid, seq: 40, sq: 4 }, at); expect(full.status).toBe(409); expect((await j(full)).code).toBe("player-board-full");
+    expect(sql("SELECT COUNT(*) c FROM ttt_mv WHERE mid=?", x.mid)[0].c).toBe(40);
   }, 30_000);
 });
 
@@ -211,39 +211,7 @@ describe("M-C: third and fourth place are people who reached the semi-finals", (
   }, 30_000);
 });
 
-// ---------------------------------------------------------------------------------------------------------------- M-D
-describe("M-D: the per-game ID allowance also covers the route where an ID is used (join)", () => {
-  async function listGame(id = "RD-1") {
-    const h = await account();
-    expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 6, cap: 100, whoCanJoin: "list" }, h)).status).toBe(200);
-    expect((await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210" }, h)).status).toBe(200);
-    expect((await call("POST", `/api/z/${id}/people`, { people: [{ name: "Asha Rao", empId: "A-1101" }, { name: "Dev Nair", empId: "B-2202" }] }, h)).status).toBe(200);
-    return h;
-  }
-  const tryJoin = (id: string, i: number, empId: string, ip: string, now = T) => handle(new Request(`http://x/api/z/${id}/join`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": ip }, body: JSON.stringify({ name: "Guest " + i, empId, device: dev(i), consent: consentFor("K4") }) }), env, now);
-  test("the audit's probe: 600 tries from 600 different networks use up the game's allowance; a RIGHT ID after that is refused (429) like a wrong one, so a guesser learns nothing", async () => {
-    await listGame();
-    const early = await tryJoin("RD-1", 5000, "A1101", "9.0.0.1"); expect(early.status).toBe(200); // a real guest early in the window comes straight in
-    for (let i = 1; i < 600; i++) { const r = await tryJoin("RD-1", i, "ZZ" + i, `9.${i % 250}.${Math.floor(i / 250)}.7`); expect([i, [403, 429].includes(r.status)]).toEqual([i, true]); }
-    for (const empId of ["B2202", "ZZ9999"]) { const r = await tryJoin("RD-1", 6000, empId, "9.99.99.99"); expect([empId, r.status]).toEqual([empId, 429]); expect((await j(r)).code).toBe("too-many-tries"); }
-    expect((await tryJoin("RD-1", 6001, "B2202", "9.99.99.100", T + 11 * 60_000)).status).toBe(200); // ten minutes later the allowance is fresh
-  }, 120_000);
-  test("the allowance is shared with 'Is this you?': tries on the preview and on the join come off the same budget", async () => {
-    await listGame();
-    for (let i = 0; i < 300; i++) await handle(new Request("http://x/api/z/RD-1/who", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `8.${i % 250}.${Math.floor(i / 250)}.3` }, body: JSON.stringify({ empId: "ZZ" + i, consent: consentFor("K4") }) }), env, T);
-    const used = sql("SELECT v FROM kv WHERE k LIKE 'idlookg/RD-1/%'")[0].v; expect(Number(used)).toBe(300);
-    await tryJoin("RD-1", 1, "ZZ1", "9.1.1.1"); expect(Number(sql("SELECT v FROM kv WHERE k LIKE 'idlookg/RD-1/%'")[0].v)).toBe(301);
-  }, 60_000);
-  test("a game with a large cap keeps room for its own guests: the allowance is 3 tries for every place", async () => {
-    const h = await account(); await call("POST", "/api/z", { id: "RD-2", startRound: START, callSeconds: 6, cap: 2000, whoCanJoin: "list" }, h);
-    await call("POST", "/api/z/RD-2/publish", { email: "boss@acme.com", phone: "98765 43210" }, h);
-    await call("POST", "/api/z/RD-2/people", { people: [{ name: "Asha Rao", empId: "A-1101" }] }, h);
-    raw.run("INSERT INTO kv(k,v) VALUES(?,?)", [`idlookg/RD-2/${new Date(T).toISOString().slice(0, 15)}`, "1500"]);
-    expect((await tryJoin("RD-2", 1, "A1101", "9.2.2.2")).status).toBe(200); // 1,500 of 6,000 used
-    raw.run("UPDATE kv SET v='6000' WHERE k LIKE 'idlookg/RD-2/%'");
-    expect((await tryJoin("RD-2", 2, "A1101", "9.2.2.3")).status).toBe(429);
-  });
-});
+// M-D (the per-game ID allowance also covers the route where an ID is used) was replaced in 1.6.3 by M-1: only WRONG IDs are counted. Its tests are in audit-round-6.test.ts.
 
 // ---------------------------------------------------------------------------------------------------------------- M-E
 describe("M-E: the ranking and the view show full names only to people who may see them", () => {

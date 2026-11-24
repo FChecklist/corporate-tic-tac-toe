@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.6.3",
+    "date": "2026-11-24",
+    "commit": "4fe1471",
+    "title": "Fixes from the fourth audit round: guests on the list cannot be locked out, the waiting room can be closed and cleared in one tap and cannot be flooded by a script, and a Host belongs to one game",
+    "changes": [
+      "Employee ID tries: only a WRONG ID is counted now. One address (or a crowd of addresses) can no longer use up the game's allowance and shut every listed guest out. A right ID is let in whatever other people did. Each network still gets 30 wrong tries in ten minutes, and the whole game 600 (or 3 for every place in a game over 200 places)",
+      "Waiting room: a game takes at most 60 NEW requests to join in ten minutes, from all networks together. When it is more, the person is told to try again in a few minutes or to ask the organizer",
+      "Waiting room: the Organizer and every Host get two buttons in the waiting panel. One tap stops new requests and clears the list; another allows requests again. The list also says when it is full (500) and the guest is told so in words",
+      "Waiting room: before a new request is taken, the guest's phone does a small piece of work (about a second) to show a person is asking. No outside service and no key is used",
+      "A Host belongs to one game. A Host can no longer be made without a game. A Host made before, with no game, has no access to any game until the Organizer removes them and adds them again from inside a game",
+      "A Host can no longer read the team of another game, remove a Co-host of another game, make a pay link or pay with credit for another game, or see the other games in the games list. A Help Desk helper's Host belongs to the game that was published",
+      "One player can write at most 40 entries to one board, so a player cannot fill a board and freeze the match"
+    ]
+  },
+  {
     "version": "1.6.2",
     "date": "2026-11-24",
     "commit": "0a9966b",

@@ -35,7 +35,7 @@ async function setup(opts: { employeesOnly?: boolean } = {}) {
   await call("POST", "/api/z", { id: "INV-1", startRound: START, callSeconds: 6, cap: 100, whoCanJoin: "list" }, master); // the console makes list games; there is no choice of mobile / ID: a game is made without saying how people come in
   await call("POST", "/api/z/INV-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, master);
   if (opts.employeesOnly) expect((await call("PATCH", "/api/z/INV-1/settings", { employeesOnly: true }, master)).status).toBe(200);
-  const host = (await j(await call("POST", "/api/org/host", { label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "INV-1", label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500002", e: "INV-1" }, master))).cohostKey as string;
   return { master, host, cohost };
 }

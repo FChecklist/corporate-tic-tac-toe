@@ -64,7 +64,7 @@ describe("the front door", () => {
     expect(m).not.toMatch(/cbk_/);
   });
   test("a co-host's AI link gets a short front door of its own and cannot use the organizer's guided path or map", async () => {
-    const o = await organizer(); const hk = await j(await call("POST", "/api/org/host", { email: "host@acme.com", mobile: "9876500009" }, { "x-organizer": o.token })); const hb = `${ORIGIN}/ai/${hk.hostKey}`;
+    const o = await organizer(); await call("POST", "/api/z", { id: "HG-1", startRound: Math.floor((T / 1000 - 1692803367) / 3) + 1 + 1200, callSeconds: 9, cap: 100 }, { "x-organizer": o.token }); const hk = await j(await call("POST", "/api/org/host", { e: "HG-1", email: "host@acme.com", mobile: "9876500009" }, { "x-organizer": o.token })); const hb = `${ORIGIN}/ai/${hk.hostKey}`;
     expect((await open(`${hb}/start`)).text).toMatch(/Host's AI assistant/);
     expect((await open(`${hb}/go/new`)).status).toBe(403); expect((await open(`${hb}/map`)).status).toBe(403);
   });

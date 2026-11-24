@@ -47,7 +47,7 @@ const start = async (email: string) => { const r = await j(await handle(new Requ
 const team = async () => {
   const master = await start("boss@acme.com"); const ai = lastAi;
   await call("POST", "/api/z", { id: "CAN-1", startRound: START, callSeconds: 9, cap: 300 }, master);
-  const hostR = await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master));
+  const hostR = await j(await call("POST", "/api/org/host", { e: "CAN-1", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master));
   const cohostR = await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "CAN-1" }, master));
   return { master, ai, host: hostR.hostKey as string, cohost: cohostR.cohostKey as string, hostId: hostR.id as string, cohostId: cohostR.id as string };
 };
@@ -248,7 +248,8 @@ describe("Host e-mail", () => {
     const master = await start("boss@acme.com");
     for (const bad of ["not-an-email", "a@b"]) expect((await call("POST", "/api/org/host", { mobile: "9876500009", label: "X", ...(bad === undefined ? {} : { email: bad }) }, master)).status).toBe(400);
     expect(raw.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE kind='host'").get()).toEqual({ c: 0 });
-    const r = await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "Priya@Acme.com" }, master));
+    await call("POST", "/api/z", { id: "CAN-1", startRound: START, callSeconds: 9, cap: 300 }, master);
+    const r = await j(await call("POST", "/api/org/host", { e: "CAN-1", mobile: "9876500009", label: "Priya", email: "Priya@Acme.com" }, master));
     expect(r.emailed).toBe(true); expect(r.email).toBe("priya@acme.com");
     const m = mailsTo("priya@acme.com").find((x) => /Host/.test(x.subject))!;
     expect(m.body).toContain(`/zc.html?k=${r.hostKey}`);

@@ -47,7 +47,7 @@ const GAME_START = T + 3 * H;
 const team = async (publish = true) => {
   const master = await start("boss@acme.com"); const ai = lastAi;
   expect((await call("POST", "/api/z", { id: "UNP-1", startRound: roundAt(GAME_START), callSeconds: 9, cap: 300 }, master)).status).toBe(200);
-  const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "UNP-1", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "UNP-1" }, master))).cohostKey as string;
   if (publish) expect((await call("POST", "/api/z/UNP-1/publish", PUB, master)).status).toBe(200);
   return { master, ai, host, cohost };

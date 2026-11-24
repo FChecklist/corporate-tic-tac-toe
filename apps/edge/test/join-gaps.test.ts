@@ -125,7 +125,7 @@ describe("join gaps", () => {
   });
   test("a Host's narrow AI work link cannot register keys or file pause / stop / erase requests (permissions family)", async () => {
     const g = await paidGame({ cap: 20 });
-    const hostKey = (await j(await call("POST", "/api/org/host", { label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, keyH(g.key)))).hostKey as string;
+    const hostKey = (await j(await call("POST", "/api/org/host", { e: g.id, label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, keyH(g.key)))).hostKey as string;
     const link = { "x-organizer": hostKey, "x-cb-link": "1" };
     for (const [m, p, b] of [["POST", `/api/z/${g.id}/control/request`, { action: "stop" }], ["GET", `/api/z/${g.id}/control/request`, undefined], ["PUT", `/api/z/${g.id}/control/key`, { publicKey: "00".repeat(32) }]] as const) {
       const r = await call(m, p, b, link); expect([m, p.slice(-16), r.status]).toEqual([m, p.slice(-16), 403]);

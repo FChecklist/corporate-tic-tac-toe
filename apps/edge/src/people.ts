@@ -38,6 +38,8 @@ export const MAX_ADD_BATCH = 200;
 /** Most people that may wait for an answer in one game at a time (a free-plan guard against someone filling the table). */
 export const WAITING_MAX = 500;
 
+/** 1.6.3 (security audit M-2 b): the Organizer or a Host can stop new requests to join (and clear the waiting list) with one tap. The flag is one small row; people already waiting keep their place until it is cleared. */
+export const waitingClosed = async (db: D1, eid: string): Promise<boolean> => !!(await db.prepare("SELECT 1 AS x FROM kv WHERE k=?").bind(`wroom/${eid}`).first().catch(() => null));
 export const isOrg = (id: string) => id === "o";
 const encoder = new TextEncoder();
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -246,6 +248,7 @@ export async function peopleRoute(c: Ctx): Promise<Response> {
   if (parts[0] === "waiting") {
     if (parts.length === 1 && method === "GET") return listWaiting(c, who);
     if (parts.length === 2 && parts[1] === "all" && method === "POST") return decideAll(c, who, bodyObj);
+    if (parts.length === 2 && parts[1] === "room" && method === "POST") return waitingRoom(c, who, bodyObj);
     if (parts.length === 2 && method === "POST") return decideWaiting(c, who, parts[1]!, bodyObj);
     return c.json({ error: "Not found" }, 404);
   }
@@ -504,7 +507,22 @@ async function listWaiting(c: Ctx, who: Caller): Promise<Response> {
     const p = await openPii(c.env, r.pii), first = (p?.name ?? "").trim().split(/\s+/)[0] ?? "";
     out.push({ id: r.id, firstName: first, last4: (p?.phone ?? "").slice(-4), via: r.via, at: r.at_ms, ...(who.all ? { inviter: label(r.inviter), overLimit: !!r.overlimit, ...(p?.empId ? { empId: p.empId } : {}), ...(p?.name ? { name: p.name } : {}), ...(p?.phone ? { mobile: "+" + phoneDigits(p.phone) } : {}), ...(p?.email ? { email: p.email } : {}), ...(p?.dept ? { dept: p.dept } : {}), ...(p?.region ? { region: p.region } : {}) } : {}) }); // the Employee ID, the full name, the mobile number and the e-mail are shown to the Organizer and the Hosts only (they decide whether to let this person in)
   }
-  return c.json({ waiting: out });
+  const total = (await c.env.DB.prepare("SELECT COUNT(*) AS c FROM waiting WHERE eid=? AND status='waiting'").bind(c.eid).first<{ c: number }>())?.c ?? 0;
+  return c.json({ waiting: out, ...(who.all ? { closed: await waitingClosed(c.env.DB, c.eid), total, max: WAITING_MAX, full: total >= WAITING_MAX } : {}) });
+}
+/** POST /api/z/{id}/waiting/room {action}: "close" (no new requests), "open" (allow them again), "clear" (delete every request still waiting), "close-clear" (both, one tap). Organizer and Host only. Deleted requests take their names, e-mails and mobile numbers with them. */
+async function waitingRoom(c: Ctx, who: Caller, b: any): Promise<Response> {
+  if (!who.all) return c.json({ error: "Only the Organizer and Hosts can do this." }, 403);
+  const action = b?.action;
+  if (action !== "close" && action !== "open" && action !== "clear" && action !== "close-clear") return c.json({ error: "Say close, open, clear or close-clear." }, 400);
+  const db = c.env.DB;
+  const n = action === "close" || action === "open" ? 0 : (await db.prepare("SELECT COUNT(*) AS c FROM waiting WHERE eid=? AND status='waiting'").bind(c.eid).first<{ c: number }>())?.c ?? 0;
+  if (!(await c.spend(2 + n))) return c.busy();
+  if (action === "close" || action === "close-clear") await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(`wroom/${c.eid}`, String(c.now)).run();
+  if (action === "open") await db.prepare("DELETE FROM kv WHERE k=?").bind(`wroom/${c.eid}`).run();
+  let cleared = 0;
+  if (action === "clear" || action === "close-clear") cleared = (await db.prepare("DELETE FROM waiting WHERE eid=? AND status='waiting'").bind(c.eid).run()).meta?.changes ?? 0;
+  return c.json({ ok: true, closed: await waitingClosed(db, c.eid), cleared });
 }
 /** Puts an admitted person on a list, but only while the waiting request is still "waiting" (so a decline that won the race leaves nobody inside). */
 const admitInsert = (db: D1, eid: string, wid: string, id: string, ph: string, pii: string, inviter: string, tokHash: string, tokSealed: string, by: string, now: number) =>

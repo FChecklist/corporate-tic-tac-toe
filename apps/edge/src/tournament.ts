@@ -49,6 +49,8 @@ const UNCONTESTED_MS = 30_000; // a single report that nobody contradicts for th
 const ABSENT_MS = 150_000; // ... but only when the other side is known to be away: nothing written to that board by anybody else for this long (more than two of the longest move clocks). A present opponent's own phone reports within seconds; until then the single report waits (audit 2, H2: a player could win by reporting)
 /** 1.6.2 (security audit M-B): a board holds at most this many stored entries, and one player writes at most this many a second to one board. A board has nine squares, up to three games and the "absent" claims: far below the cap. */
 const MOVES_PER_BOARD_MAX = 120, MOVES_PER_SECOND = 5;
+/** 1.6.3 (security audit, Low 1): and one player (or the Organizer's page) holds at most this many entries on one board, so a player who writes as fast as allowed cannot fill the board and shut the other player out. Real play needs about 20. */
+const PLAYER_ENTRIES_PER_BOARD_MAX = 40;
 const PAGE = 100, LIVE_SAMPLE = 24, MAX_PLAN_MATCHES = 600;
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -317,6 +319,7 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (b.seq !== next) return json({ error: "The board changed. Look again.", code: "seq", next }, 409);
     // 1.6.2 (security audit M-B): one board holds a bounded number of entries and one player writes only so many a second: nobody can flood a board or starve the other player's moves
     if (next >= MOVES_PER_BOARD_MAX) return json({ error: "This board is full.", code: "board-full" }, 409);
+    if (((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=? AND pid=?").bind(eid, b.mid, j, who.pid).first<{ c: number }>())?.c ?? 0) >= PLAYER_ENTRIES_PER_BOARD_MAX) return json({ error: "You have written as many entries on this board as one player may. Please wait for your opponent or the organizer.", code: "player-board-full" }, 409);
     if (!orgClaim && ((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=? AND pid=? AND at_ms>?").bind(eid, b.mid, j, who.pid, now - 1000).first<{ c: number }>())?.c ?? 0) >= MOVES_PER_SECOND) return json({ error: "Slow down a little.", code: "rate" }, 429);
     // ... and a player's "the other side is away" claim is stored only after the move clock has really run out: by the server's own stamp of the entry before it (or of the match opening), the game's own clock (the ready time for the first move, the move clock after that). The Organizer's page is not held to this (it looks after boards nobody is on).
     if (absent && !orgClaim) {

@@ -36,7 +36,7 @@ const team = async () => {
   const st = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `9.9.9.${++ipN}` }, body: JSON.stringify({ email: `boss${ipN}@acme.com` }) }), env as Env, T));
   const master = st.token as string;
   await call("POST", "/api/z", { id: "PL-1", startRound: START, callSeconds: 9, cap: 300, name: "Diwali Bingo" }, master);
-  const host = (await j(await call("POST", "/api/org/host", { label: "Priya", email: "priya@acme.com", mobile: "9876500009" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "PL-1", label: "Priya", email: "priya@acme.com", mobile: "9876500009" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500001", e: "PL-1" }, master))).cohostKey as string;
   const o2 = await j(await handle(new Request("http://x/api/start", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": `9.9.9.${++ipN}` }, body: JSON.stringify({ email: `other${ipN}@acme.com` }) }), env as Env, T));
   await call("POST", "/api/z", { id: "PL-2", startRound: START, callSeconds: 9, cap: 100 }, o2.token);

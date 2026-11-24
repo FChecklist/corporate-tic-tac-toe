@@ -477,7 +477,8 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       const eg = await db.prepare("SELECT org, cap, pack, cancelled_ms, unplayed_ms FROM engagement WHERE id=?").bind(b.eid).first<{ org: string | null; cap: number; pack: number | null; cancelled_ms: number | null; unplayed_ms: number | null }>();
       if (!eg || eg.org !== k.org) return json({ error: "No such game." }, 404);
       if (k.kind === "cohost" && k.eid && k.eid !== b.eid) return json({ error: "Your Co-host link is for a different game." }, 403); // a Co-host belongs to one game
-      if (k.label === "console" && k.eid && k.eid !== b.eid) return json({ error: "This sign-in is for one game only. Open the console to pay for your other games." }, 403); // a key made by the master console and tied to one game
+      if (k.label === "console" && k.eid && k.eid !== b.eid) return json({ error: "This sign-in is for one game only. Open the console to pay for your other games." }, 403);
+      if (k.kind === "host" && k.eid && k.eid !== b.eid) return json({ error: "You are a Host of another game. Open that game to pay for it.", code: "other-game" }, 403); // 1.6.3: a Host added inside one game works inside that game // a key made by the master console and tied to one game
       if (eg.cancelled_ms) return json({ error: "This game was cancelled by the organizer. It cannot be paid for." }, 409);
       if (eg.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
       if (eg.pack !== 0) return json({ error: "This game is already published." }, 409);
@@ -671,7 +672,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     else if (presented && typeof b.eid === "string") {
       const k = await db.prepare("SELECT org, kind, eid, label FROM organizer_key WHERE hash=? AND revoked=0 AND (expires_ms IS NULL OR expires_ms>?)").bind(await sha("key|" + presented), now).first<{ org: string; kind: string; eid: string | null; label: string | null }>();
       const eg = k && (k.kind in PAYER) ? await db.prepare("SELECT org FROM engagement WHERE id=?").bind(b.eid).first<{ org: string | null }>() : null;
-      if (!k || !eg || eg.org !== k.org || ((k.kind === "cohost" || k.label === "console") && k.eid && k.eid !== b.eid)) return json({ error: "Please sign in again." }, 403);
+      if (!k || !eg || eg.org !== k.org || ((k.kind === "cohost" || k.kind === "host" || k.label === "console") && k.eid && k.eid !== b.eid)) return json({ error: "Please sign in again." }, 403);
       eid = b.eid;
     }
     if (!eid) return json({ error: "Not found" }, 404);

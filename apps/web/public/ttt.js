@@ -23,6 +23,27 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "http " + r.status), { status: r.status, code: j.code, body: j });
     return j;
   };
+  // 1.6.3 (security audit M-2 c): a request to join from a person who is not on the list needs a small proof of work. The server answers 428 need-pow with the window and the zero bits it wants; the phone finds a number so that SHA-256 of "pow1|<game>|<this phone's id>|<window>|<number>" starts with that many zero bits (about a second), and asks again. Nothing is sent to anybody else. Same rule as apps/edge/src/pow.ts.
+  const powSolve = async (win, bits) => {
+    const enc = new TextEncoder(), prefix = `pow1|${EID}|${device}|${win}|`;
+    const zeros = (h) => { let n = 0; for (const b of h) { if (b === 0) { n += 8; continue; } n += Math.clz32(b) - 24; break; } return n; };
+    for (let base = 0; ; base += 256) {
+      const tries = Array.from({ length: 256 }, (_, i) => (base + i).toString(36));
+      const out = await Promise.all(tries.map((t) => crypto.subtle.digest("SHA-256", enc.encode(prefix + t))));
+      for (let i = 0; i < out.length; i++) if (zeros(new Uint8Array(out[i])) >= bits) return tries[i];
+    }
+  };
+  const joinApi = async (body) => {
+    let pow = null;
+    for (let tries = 0; ; tries++) {
+      try { return await api("POST", `/api/z/${EID}/join`, pow ? { ...body, pow } : body); }
+      catch (e) {
+        if (e.code !== "need-pow" || !e.body || !e.body.pow || tries >= 3) throw e;
+        set(`${top()}<div class="zcard" role="status"><h2>One moment</h2><p>Your phone is checking that you are a person. This takes a few seconds.</p></div>`);
+        pow = { b: e.body.pow.bucket, n: await powSolve(e.body.pow.bucket, Number(e.body.pow.bits) || 16) };
+      }
+    }
+  };
   const head = () => `<div class="zhead"><b>Corporate Tic Tac Toe</b></div>`;
   // the planned start, in the player's own time zone (the host still presses Start when everybody is in)
   const planned = () => { const ms = INFO && Number(INFO.startMs); if (!ms) return ""; let w = ""; try { w = new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { w = ""; } return w ? `<p class="zsmall" id="planned">Planned start: <b>${esc(w)}</b>. The host starts the tournament when everybody is in.</p>` : ""; };
@@ -100,7 +121,7 @@
     const busyView = () => set(`${top()}<div class="zcard" role="status"><h2>Many people are joining right now</h2><p>Your request is safe. We are trying again for you every few seconds. Keep this page open.</p><p class="zsmall">Try ${busyTries} of ${BUSY_TRIES}.</p></div>`);
     const attempt = async () => {
       try {
-        const r = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), ...(typedDept ? { dept: typedDept } : {}), ...(typedRegion ? { region: typedRegion } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
+        const r = await joinApi({ name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), ...(typedDept ? { dept: typedDept } : {}), ...(typedRegion ? { region: typedRegion } : {}), device, consent: tb.terms(), ...(TOKEN ? { token: TOKEN } : {}), ...(FROM ? { from: FROM, ...(CAT ? { cat: CAT } : {}) } : {}) });
         pid = r.pid; ls.set(pidKey(), pid);
         start();
       } catch (e) {
@@ -123,9 +144,12 @@
     const again = async () => {
       try {
         const r = await api("GET", `/api/z/${EID}/me?wid=${encodeURIComponent(wid)}`);
-        if (r.state === "admitted") { try { const j = await api("POST", `/api/z/${EID}/join`, { name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), ...(typedDept ? { dept: typedDept } : {}), ...(typedRegion ? { region: typedRegion } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
+        if (r.state === "admitted") { try { const j = await joinApi({ name: typedName, ...(typedEmp ? { empId: typedEmp } : {}), ...(typedPhone ? { phone: typedPhone } : {}), ...(typedMail ? { email: typedMail } : {}), ...(typedDept ? { dept: typedDept } : {}), ...(typedRegion ? { region: typedRegion } : {}), device, consent: tb ? tb.terms() : undefined }); pid = j.pid; ls.set(pidKey(), pid); start(); return; } catch (e) { joinMsg = e.message; joinView(); return; } }
         if (r.state === "declined" || r.state === "lapsed" || r.state === "removed") { set(`${head()}<div class="zcard" role="status"><h2>${r.state === "declined" ? "Your request was not accepted" : "This request is over"}</h2><p class="zsmall">Please ask whoever invited you.</p></div>`); return; }
-      } catch (e) { /* the next look tries again */ }
+      } catch (e) {
+        if (e.status === 404) { set(`${head()}<div class="zcard" role="status"><h2>This request is over</h2><p>The organizer cleared the waiting list. You can ask again, or ask whoever invited you.</p></div>`); return; } // 1.6.3: the Organizer or a Host cleared the waiting list
+        /* the next look tries again */
+      }
       setTimeout(again, 5000);
     };
     setTimeout(again, 5000);

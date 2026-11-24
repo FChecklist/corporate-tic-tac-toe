@@ -18,7 +18,8 @@ const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
 
 const PLANTED = [{ name: "Plantina Zyxwvu", phone: "9123456789" }, { name: "Rosterio Quuxbar", phone: "9345678901" }, { name: "Winnerella Blorptag", phone: "9456789012" }];
-const needles = () => PLANTED.flatMap((p) => [p.name, p.name.split(" ")[0]!, p.phone, p.phone.slice(-4), "XXXXXXXX" + p.phone.slice(-2), p.phone.replace(/(\d{5})(\d{5})/, "$1 $2")]);
+// 1.6.3 (audit Low 3): the short needle is the LAST SEVEN digits (it was the last four, which a random AI key can contain by chance: it failed once in a while). Seven digits of a planted number cannot appear by chance.
+const needles = () => PLANTED.flatMap((p) => [p.name, p.name.split(" ")[0]!, p.phone, p.phone.slice(-7), "XXXXXXXX" + p.phone.slice(-2), p.phone.replace(/(\d{5})(\d{5})/, "$1 $2")]);
 
 async function setup() {
   const x = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" }));
@@ -29,10 +30,11 @@ async function setup() {
   await call("POST", "/api/z/PLANT-1/roster", { people: [PLANTED[1]] }, h); // the owner loads a list in the console
   const sealed = await sealPii(env as any, { phone: PLANTED[2]!.phone, name: PLANTED[2]!.name });
   raw.prepare("INSERT INTO prize(eid,round,pattern,ordinal,seat,pii,orig,trail,confirmed_ms) VALUES('PLANT-1',1,'blackout',1,1,?,?,?,?)").run(sealed, sealed, null, T);
-  const host = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h));
+  const host = await j(await call("POST", "/api/org/host", { e: await hostGame(h), mobile: "9876500009", email: "host@acme.com" }, h));
   return { h, ai: x.aiKey as string, host: host.hostKey as string };
 }
 
+const hostGame = async (h: Record<string, string>, id = "HG-1") => { await call("POST", "/api/z", { id, startRound: roundAt(T) + 1200, callSeconds: 9, cap: 100 }, h); return id; }; // 1.6.3: a Host belongs to one game, so the game is made first
 describe("no AI-readable route returns a name or a mobile number", () => {
   test("the planted identifiers are really stored (sanity), and the owner's console can read them", async () => {
     const o = await setup();

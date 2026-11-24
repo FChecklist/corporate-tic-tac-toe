@@ -37,14 +37,15 @@ describe("the Organizer's own sign-up and sign-in e-mail (/api/start, /api/auth/
   });
 });
 describe("Host setup: Google e-mail step", () => {
-  const addHost = async (master: string, body: Record<string, unknown>) => j(await W.call("POST", "/api/org/host", { label: "Priya", ...body }, master));
+  let HG = "HG-0"; // the game the Host is added inside (1.6.3: a Host belongs to one game)
+  const addHost = async (master: string, body: Record<string, unknown>) => j(await W.call("POST", "/api/org/host", { e: HG, label: "Priya", ...body }, master));
   test("a Host added as demo7@demo-test.invalid finishes the e-mail step with Google as 'DEMO7＠Demo-Test.Invalid'", async () => {
-    const master = await W.organizer(8); const h = await addHost(master, { email: "demo7@demo-test.invalid", mobile: "9876500002" });
+    const master = (await W.game("HG-8", { n: 8 })).key; HG = "HG-8"; const h = await addHost(master, { email: "demo7@demo-test.invalid", mobile: "9876500002" });
     const r = await j(await google(await idp.sign(claims("DEMO7@Demo-Test.Invalid", W.now)), "host", { hostKey: h.hostKey }));
     expect(r).toMatchObject({ ok: true, kind: "host", ready: true });
   });
   test("a different e-mail is refused 403 email-mismatch and the Host is not verified", async () => {
-    const master = await W.organizer(8); const h = await addHost(master, { email: "demo7@demo-test.invalid", mobile: "9876500002" });
+    const master = (await W.game("HG-8", { n: 8 })).key; HG = "HG-8"; const h = await addHost(master, { email: "demo7@demo-test.invalid", mobile: "9876500002" });
     const r = await google(await idp.sign(claims("demo9@demo-test.invalid", W.now)), "host", { hostKey: h.hostKey }); expect(r.status).toBe(403); expect((await j(r)).code).toBe("email-mismatch");
   });
 });

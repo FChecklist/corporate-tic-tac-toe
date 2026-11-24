@@ -189,7 +189,7 @@ describe("tests 1-4 at every point", () => {
   });
   async function team() {
     const master = await organizer(); await game(master, "CON-5");
-    const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
+    const host = (await j(await call("POST", "/api/org/host", { e: "CON-5", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
     const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500001", e: "CON-5" }, master))).cohostKey as string;
     return { master, host, cohost };
   }

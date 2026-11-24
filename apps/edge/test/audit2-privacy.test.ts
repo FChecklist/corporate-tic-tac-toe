@@ -35,10 +35,11 @@ describe("M3: every 'Is this you?' look-up counts, a right ID too", () => {
     expect(codes.slice(0, 60).every((c) => c === 200)).toBe(true); expect(codes[60]).toBe(429);
     expect((await who("AP-1", "5.5.5.6")).status).toBe(200);
   });
-  test("the whole game allows 600 look-ups in ten minutes, however many networks they come from", async () => {
+  test("the whole game allows 3 WRONG look-ups per place in ten minutes (1,800 for this 600-place game), however many networks they come from; a right ID is still answered after that (1.6.3: only wrong IDs come off the game's allowance)", async () => {
     await listGame();
-    for (let i = 0; i < 600; i++) expect([i, (await who("AP-1", `6.${i % 250}.${Math.floor(i / 250)}.1`)).status]).toEqual([i, 200]);
-    const r = await who("AP-1", "6.250.9.9"); expect(r.status).toBe(429); expect((await j(r)).code).toBe("too-many-tries");
+    for (let i = 0; i < 1800; i++) expect([i, (await who("AP-1", `6.${i % 250}.${Math.floor(i / 250)}.1`, "ZZ" + i)).status]).toEqual([i, 200]);
+    const r = await who("AP-1", "6.250.9.9", "ZZ9999"); expect(r.status).toBe(429); expect((await j(r)).code).toBe("too-many-tries");
+    const right = await who("AP-1", "6.250.9.10"); expect(right.status).toBe(200); expect(await j(right)).toMatchObject({ known: true });
   }, 60_000);
 });
 
@@ -49,10 +50,10 @@ describe("M4: one network cannot fill the organizer's queue", () => {
     const full = await ask("AP-1", 61, "8.8.8.8"); expect(full.status).toBe(429); expect((await j(full)).code).toBe("waiting-net-full");
     expect(one("SELECT COUNT(*) c FROM waiting").c).toBe(60);
     expect((await ask("AP-1", 7, "8.8.8.8")).status).toBe(403); // the same phone asking again is answered as before
-    expect((await ask("AP-1", 62, "8.8.4.4")).status).toBe(403); // another network
+    expect((await ask("AP-1", 62, "8.8.4.4", T + 11 * 60_000)).status).toBe(403); // another network (the game-wide limit of 60 new requests in ten minutes is used up by then, so ten minutes later)
     expect(one("SELECT COUNT(*) c FROM kv WHERE k LIKE 'wnet/AP-1/%'").c).toBeGreaterThan(0);
     await erasePersonal(env as any, "AP-1", T + 25 * HOUR, "organizer");
-    expect(one("SELECT COUNT(*) c FROM kv WHERE k LIKE 'wnet/AP-1/%' OR k LIKE 'idlook%/AP-1/%' OR k LIKE 'idmiss/AP-1/%'").c).toBe(0);
+    expect(one("SELECT COUNT(*) c FROM kv WHERE k LIKE 'wnet/AP-1/%' OR k LIKE 'idlook%/AP-1/%' OR k LIKE 'idmiss/AP-1/%' OR k LIKE 'idmissg/AP-1/%' OR k LIKE 'wnew/AP-1/%'").c).toBe(0);
   });
   test("the organizer is told, in the panel, that what a person typed is not checked", async () => {
     const js = await Bun.file(new URL("../../web/public/zc.js", import.meta.url)).text();

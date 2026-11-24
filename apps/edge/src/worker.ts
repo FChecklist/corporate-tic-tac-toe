@@ -42,7 +42,8 @@ import { PAY_SCHEMA, issueDueInvoices, payRoute, retryOutbox, sendMail, freeLaun
 import { PACKS, price } from "../../../packages/shared/src/pricing";
 import { PARTNER_SCHEMA, partnerRoute } from "./partners";
 import { HELPDESK_SCHEMA, HELPER_MANUAL_NOTE, helpdeskCloseStatements, helpdeskRoute, helpdeskSweep, isDeskKeyId, isHelperKey, noteHelperGame } from "./helpdesk";
-import { normEmp, normId, badIdMessage, empHashOf, personByEmp, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
+import { powValid, powWindow, POW_BITS, POW_BITS_BUSY, POW_BUSY_AFTER } from "./pow";
+import { normEmp, normId, badIdMessage, empHashOf, personByEmp, verifyOf, keptPhone, phoneDigits, cleanName as cleanPersonName, PEOPLE_SCHEMA, COHOST_FROM, HOST_FROM, ORG_FROM, COHOST_LIMIT_DEFAULT, COHOST_LIMIT_MIN, COHOST_LIMIT_MAX, WAITING_MAX, addWaiting, waitingClosed, chainOf, cleanPhone, fromCodeOf, inviterOf, joinLinkPage, limitOfInviter, listCount, parseFrom, peopleRoute, personByPhone, personByToken, srcOf, waitingWho, type PersonRow } from "./people";
 import { PAYLINK_SCHEMA, PAYLINK_TOKEN, createPayLink, packFor } from "./paylink";
 import { purgePaytestCounters } from "./payfirst";
 import { HOST_LINK_TTL_MS, HOST_SCHEMA, confirmHostEmail, emailHashOf, hostForEmail, hostKeyStatus, hostSetupRoute, hostStateRow, identityRow, maskEmail, maskMobile, mintDeviceKey, retireHost } from "./hostsetup";
@@ -383,7 +384,9 @@ const CONSOLE_ONLY = () => json({ error: "Names and mobile numbers are handled b
  *  The base figures (the environment's JOIN_PER_IP_MINUTE / JOIN_PER_IP_DAY, else the defaults below) still apply to an unpaid game and to the waiting room, so a script cannot use a big free game to burn the write budget. */
 const JOIN_PER_IP_DAY = 1500, JOIN_PER_IP_MINUTE = 200, ID_MISS_PER_10MIN = 30;
 /** 1.6.1 (audit 2, M3 and M4): every "Is this you?" look-up counts, hit or miss: so many per network and so many for the whole game in 10 minutes; and so many open requests from one network in one game. */
-const ID_LOOK_PER_NET_10MIN = 60, ID_LOOK_PER_GAME_10MIN = 600, WAITING_PER_NET = 60;
+/** 1.6.3 (security audit M-2 a): new requests to join (people who are not on the list) for one whole game, from every network together, in 10 minutes. */
+const WAITING_NEW_PER_GAME_10MIN = 60;
+const ID_LOOK_PER_NET_10MIN = 60, ID_MISS_PER_GAME_10MIN = 600, WAITING_PER_NET = 60;
 /** A small counter in the kv table: true while the count under this key is below the limit (and counts this call); false once the limit is reached. A counter that cannot be read or written never blocks a person. */
 async function underLimit(env: Env, k: string, limit: number): Promise<boolean> {
   try {
@@ -392,6 +395,20 @@ async function underLimit(env: Env, k: string, limit: number): Promise<boolean> 
     await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
   } catch { /* a counter never blocks */ }
   return true;
+}
+/** 1.6.3 (security audit M-1): a WRONG employee ID is counted, a right one never is. Two limits, both only for wrong IDs: so many per network per game (30 in 10 minutes), and so many for the whole game (600 in 10 minutes, or 3 per place for a game over 200 places).
+ *  A network that has used up its own 30 is refused here BEFORE the game's allowance is touched, so one address can never use up the allowance of the whole game. A right ID is never refused because of other people's wrong tries: this function is called only after the ID was looked up and was not found.
+ *  Returns false when this wrong try is over a limit. With `peek` it only looks (so a refusal is free for the person and costs no proof of work). A counter that cannot be read or written never blocks a person. */
+async function missAllowed(env: Env, req: Request, eid: string, now: number, cap: number, peek = false): Promise<boolean> {
+  try {
+    const bucket = new Date(now).toISOString().slice(0, 15), ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${bucket}/${ipk}`;
+    const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
+    if (n >= ID_MISS_PER_10MIN) return false;
+    const gk = `idmissg/${eid}/${bucket}`, gl = Math.max(ID_MISS_PER_GAME_10MIN, 3 * cap);
+    if (peek) return Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(gk).first<{ v: string }>())?.v ?? 0) < gl; // a look only: nothing is counted
+    await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
+    return await underLimit(env, gk, gl);
+  } catch { return true; }
 }
 /** RUNNER_KEY (owner order 5 Nov 2026): a long secret set as a Worker secret. The owner's test programs send it as X-Runner-Key; ONLY then are the test sign-in, the free owner-test packs and the join-guard bypass honoured.
  *  Without the header (or when no key is set) everything behaves exactly as for the public. Compared in constant time; a short key counts as no key. */
@@ -727,7 +744,7 @@ function d1kv(env: Env): KV { return {
   put: async (k, v) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, v).run(); },
 }; }
 
-interface Auth { /** a Host added inside one game (1.6.2): the key works for that game only; set from the stored game of the key row */ gameOnly?: boolean; plat: boolean; org: string | null; kind: "platform" | "master" | "ai" | "host" | "cohost" | null; viaLink?: boolean; eid?: string | null; /** a key made by the master console (label "console"): when it is tied to one game it works for that game only */ console?: boolean; /** A Host: the identity the key belongs to and whether the first-open setup (confirmed e-mail + mobile) is finished. */ hid?: string; hostReady?: boolean ; temp?: boolean }
+interface Auth { /** a Host added inside one game (1.6.2): the key works for that game only; set from the stored game of the key row */ gameOnly?: boolean; /** 1.6.3 (security audit M-3): a Host with NO game stored (made before 1.6.2): no access to any game until the Organizer adds them again inside a game */ noGame?: boolean; plat: boolean; org: string | null; kind: "platform" | "master" | "ai" | "host" | "cohost" | null; viaLink?: boolean; eid?: string | null; /** a key made by the master console (label "console"): when it is tied to one game it works for that game only */ console?: boolean; /** A Host: the identity the key belongs to and whether the first-open setup (confirmed e-mail + mobile) is finished. */ hid?: string; hostReady?: boolean ; temp?: boolean }
 async function authOf(req: Request, env: Env, now: number): Promise<Auth> {
   return authOfKey(env, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), now);
 }
@@ -739,14 +756,14 @@ async function authOfKey(env: Env, presented: string, now: number): Promise<Auth
   if (!row) return { plat: false, org: null, kind: null };
   if (row.label === CONSOLE_KEY_LABEL) { // a key made by the master console: no Host first-open setup (the console proved the mailbox); one tied to a game stops the moment that game is over
     if (row.eid && (await keyGameEnded(env, row.eid, now))) return { plat: false, org: null, kind: null };
-    return { plat: false, org: row.org, kind: row.kind, eid: row.eid ?? null, console: true, ...(row.kind === "host" ? { hostReady: true } : {}) };
+    return { plat: false, org: row.org, kind: row.kind, eid: row.eid ?? null, console: true, ...(row.kind === "host" ? { hostReady: true, ...(row.eid ? {} : { noGame: true }) } : {}) };
   }
   if (row.kind === "host") { // a Host's first-open link works once and for 7 days; the console works only after setup (hostsetup.ts)
     const hs = await hostKeyStatus(env.DB, kh, row.host_id, now);
     if (!hs.usable) return { plat: false, org: null, kind: null };
     // the 24-hour Host AI-link key (cth_, mailed to the Organizer for an outside AI chat) has an expiry and no first-open record: it must never be able to finish a Host setup and turn itself into a lasting key
     const temp = row.expires_ms != null && !row.host_id && !(await hostStateRow(env.DB, kh));
-    return { plat: false, org: row.org, kind: "host", eid: row.eid ?? null, hid: hs.hid, hostReady: hs.ready, ...(temp ? { temp: true } : {}), ...(row.eid && !temp ? { gameOnly: true } : {}) };
+    return { plat: false, org: row.org, kind: "host", eid: row.eid ?? null, hid: hs.hid, hostReady: hs.ready, ...(temp ? { temp: true } : {}), ...(row.eid && !temp ? { gameOnly: true } : {}), ...(!row.eid && !temp ? { noGame: true } : {}) };
   }
   return { plat: false, org: row.org, kind: row.kind, eid: row.eid ?? null };
 }
@@ -754,7 +771,7 @@ async function authOfKey(env: Env, presented: string, now: number): Promise<Auth
 /** The routes of /api/z/{id}/... that are for the people who run a game (not the ones players use). A Host tied to one game may use them for that game only. */
 const HOST_GAME_ACTIONS = new Set(["participants", "erase", "discard", "reuse", "roster", "settings", "publish", "summary", "announce", "unbind", "seats", "names", "mark", "invites", "life", "prizes", "prizegiven", "reportlink", "person", "forget", "cohost", "cancel-preview", "cancel", "reopen", "clone", "override", "settle"]);
 /** A key tied to one game (a console key made for one game, or a Host added from inside a game: ROLES_AND_CONSOLE_SPEC.md "The three roles (per game)") works for that game only. A key with no game (the Organizer's, the AI's, a Host made before 1.6.2 or without a game) is not held back here. */
-const gameFits = (a: Auth, e: { id?: string }) => !((a.console || a.gameOnly) && a.eid) || a.eid === e.id;
+const gameFits = (a: Auth, e: { id?: string }) => a.noGame ? false : !((a.console || a.gameOnly) && a.eid) || a.eid === e.id; // 1.6.3: a Host with no game on the key reaches no game at all
 /** May this caller act on this engagement? `master` = needs the organizer's own key, or a Host's (both are people, never the AI), or ours. A Co-host never passes: their rights are a few named routes only. */
 const can = (a: Auth, e: { org: string | null; id?: string }, master = false) => a.plat || (!!a.org && e.org === a.org && gameFits(a, e) && a.kind !== "cohost" && (!master || a.kind === "master" || (a.kind === "host" && !a.viaLink)));
 /** The organizer's own key, a Host's, their AI's key, or ours. */
@@ -875,6 +892,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   // A Host whose first-open setup is not finished (confirmed e-mail + mobile number) can do nothing but finish it (hostsetup.ts). Public routes stay public.
   if (a.kind === "host" && !a.viaLink && a.hostReady === false && !(p === "/api/whoami" || p.startsWith("/api/host/setup") || p.startsWith("/api/auth/") || p.startsWith("/api/paylink/") || (p === "/api/notices" && req.method === "GET")))
     return json({ error: "Please finish your setup first: confirm your e-mail address and add your mobile number.", code: "host-setup" }, 403);
+  // 1.6.3 (security audit M-3, BOSS decision 24 Nov 2026): a Host with no game on the key (made before 1.6.2) has NO game access until the Organizer retires them and adds them again inside a game. The setup, sign-in and pay-link routes stay open.
+  if (a.kind === "host" && a.noGame && !(p === "/api/whoami" || p.startsWith("/api/host/setup") || p.startsWith("/api/auth/") || p.startsWith("/api/paylink/") || (p === "/api/notices" && req.method === "GET")))
+    return json({ error: "Your Host link is not tied to a game. Please ask the organizer to remove you and add you again from inside the game.", code: "host-no-game" }, 403);
 
   if (req.method === "GET" && p === "/api/z/ai-manifest") return json(AI_MANIFEST);
   { const bm = req.method === "GET" ? p.match(/^\/api\/beacon\/([0-9a-f]{64})\/public\/(latest|\d{1,10})$/) : null; if (bm) return beaconRelay(req, bm[1]!, bm[2]!); }
@@ -1187,6 +1207,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       const pe = await env.DB.prepare("SELECT id, org, cap, pack, cancelled_ms FROM engagement WHERE id=?").bind(plm[1]!).first<{ id: string; org: string | null; cap: number; pack: number | null; cancelled_ms: number | null }>();
       if (!pe || pe.org !== a.org) return json({ error: "No such game." }, 404);
       if (a.kind === "cohost" && a.eid && a.eid !== pe.id) return json({ error: "Your Co-host link is for a different game." }, 403);
+      if (!gameFits(a, pe)) return json({ error: "You are a Host of another game. Open that game to do this.", code: "other-game" }, 403); // 1.6.3: a pay link is a route for one game
       if (pe.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for." }, 409);
       if (pe.pack !== 0) return json({ error: "This game is already paid for.", code: "already-paid" }, 409);
       if (!packFor(pe.cap)) return json({ error: "That many participants needs a custom arrangement. Please write to us." }, 400);
@@ -1207,11 +1228,12 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (hEmail && !EMAIL_RE.test(hEmail)) return json({ error: "That e-mail address does not look right. Please check it." }, 400);
     const hMob = hasMob ? cleanPhone(rawMob) : null;
     if (hMob && !hMob.ok) return json({ error: "Please check the Host's mobile number. " + hMob.why }, 400);
+    const hGame = await ownGameId(env, a.org, hb?.e); // added from inside a game: the Host's link opens that game
+    if (!hGame) return json({ error: "A Host belongs to one game. Open the game and add the Host from there.", code: "host-needs-game" }, 400); // 1.6.3 (security audit M-3, BOSS decision 24 Nov 2026): no Host is made without a game
     const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM organizer_key WHERE org=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash) AND COALESCE(created_by,'')<>'d'").bind(a.org).first<{ c: number }>())?.c ?? 0; // a Help Desk Host (created_by 'd') does not use one of the 5 places
     if (n >= MAX_HOSTS) return json({ error: `You can have up to ${MAX_HOSTS} Hosts at a time. Retire one first.` }, 409);
     if (!(await spend(env, now, 4))) return BUSY();
     const key = "cbh_" + randHex(24), label = cleanLabel(hb?.label), kh = await sha("key|" + key);
-    const hGame = await ownGameId(env, a.org, hb?.e); // added from inside a game: the Host's link opens that game
     const sealedEmail = hEmail ? await sealText(env as any, hEmail) : null, sealedWho = hMob && hMob.ok ? await sealPii(env, { phone: hMob.digits, name: label || null }) : null; // the Host's e-mail and mobile are kept sealed, on the key row
     await env.DB.batch([
       env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id,eid) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0),?,?,?,'o',?,?)").bind(kh, a.org, "host", now, a.org, label, sealedEmail, sealedWho, kh, hGame || null), // 1.6.2 (security audit M-A): a Host added from inside a game belongs to that game only
@@ -1229,8 +1251,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const lb = await body(req);
     const lid = typeof lb?.id === "string" && /^[0-9a-f]{10}$/.test(lb.id) ? lb.id : "";
     if (!lid) return json({ error: "Pick a Host from the list." }, 400);
-    const hr = await env.DB.prepare("SELECT hash, label, email_sealed, pii FROM organizer_key WHERE org=? AND substr(hash,1,10)=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash)").bind(a.org, lid).first<{ hash: string; label: string | null; email_sealed: string | null; pii: string | null }>();
+    const hr = await env.DB.prepare("SELECT hash, label, email_sealed, pii, eid FROM organizer_key WHERE org=? AND substr(hash,1,10)=? AND kind='host' AND revoked=0 AND expires_ms IS NULL AND (host_id IS NULL OR host_id=hash)").bind(a.org, lid).first<{ hash: string; label: string | null; email_sealed: string | null; pii: string | null; eid: string | null }>();
     if (!hr) return json({ error: "That person is not on your team." }, 404);
+    if (!hr.eid) return json({ error: "This Host is not tied to a game, so their link no longer works. Remove them and add them again from inside the game.", code: "host-needs-game" }, 409); // 1.6.3 (security audit M-3): a Host made before 1.6.2 has no game access until they are added again
     const hst = await hostStateRow(env.DB, hr.hash);
     if (hst?.verified_ms) return json({ error: "This Host has already finished setup and signs in with their e-mail. If they cannot get in, retire them and add them again.", code: "host-active" }, 409);
     if (!(await spend(env, now, 4))) return BUSY();
@@ -1240,7 +1263,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       env.DB.prepare("INSERT INTO host_state(host_id,org,link_exp_ms,mobile_ok) VALUES(?,?,?,?) ON CONFLICT(host_id) DO NOTHING").bind(hr.hash, a.org, now + HOST_LINK_TTL_MS, hr.pii ? 1 : 0),
       env.DB.prepare("UPDATE host_state SET host_id=?, link_exp_ms=?, spent=0, pend_hash=NULL, pend_sealed=NULL WHERE host_id=?").bind(nh, now + HOST_LINK_TTL_MS, hr.hash),
     ]);
-    const lGame = await ownGameId(env, a.org, lb?.e);
+    const lGame = hr.eid; // the game of the Host's own key, never one named by the caller
     const lOrigin = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, lLink = `${lOrigin}/zc.html?k=${nk}${lGame ? "&e=" + encodeURIComponent(lGame) : ""}`;
     const lEmail = await openText(env as any, hr.email_sealed), lWho = await openPii(env as any, hr.pii);
     let lMailed = false;
@@ -1249,7 +1272,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   }
   if (req.method === "GET" && p === "/api/org/team") { // who is on the team (never the keys): the Organizer, their AI and a Host may look; a Co-host may not. ?e=<game> lists that game's Co-hosts. Host e-mails only for the Organizer and Hosts.
     if ((a.kind !== "master" && a.kind !== "ai" && a.kind !== "host") || !a.org) return deny(a);
-    const forGame = url.searchParams.get("e");
+    let forGame = url.searchParams.get("e");
+    if (a.kind === "host" && a.gameOnly && a.eid) { // 1.6.3 (security audit M-3): a Host added inside one game sees that game's team only, never another game's Co-hosts or the Hosts of other games
+      if (forGame && forGame !== a.eid) return json({ error: "You are a Host of another game. Open that game to see its team.", code: "other-game" }, 403);
+      forGame = a.eid;
+    }
     const rows = (await env.DB.prepare("SELECT hash, kind, label, created_ms, email_sealed, eid, pii, created_by FROM organizer_key WHERE org=? AND revoked=0 AND expires_ms IS NULL AND kind IN ('host','cohost') AND (host_id IS NULL OR host_id=hash) ORDER BY created_ms").bind(a.org).all<{ hash: string; kind: string; label: string | null; created_ms: number; email_sealed: string | null; eid: string | null; pii: string | null; created_by: string | null }>()).results ?? [];
     const cohosts = [];
     for (const r of rows.filter((x) => x.kind === "cohost" && (!forGame || x.eid === forGame))) {
@@ -1257,10 +1284,10 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       cohosts.push({ id: r.hash.slice(0, 10), label: r.label ?? "", createdMs: r.created_ms, eid: r.eid, ...(who ? { phoneMasked: "******" + who.phone.slice(-4) } : {}), brought: await broughtBy(env, a.org, r.hash.slice(0, 7)) });
     }
     const hosts = [];
-    for (const r of rows.filter((x) => x.kind === "host")) {
+    for (const r of rows.filter((x) => x.kind === "host" && (!(a.kind === "host" && a.gameOnly && a.eid) || x.eid === a.eid))) {
       const hst = await hostStateRow(env.DB, r.hash), emailOk = !!hst?.verified_ms, mobileOk = !!hst?.mobile_ok || !!r.pii;
       const setup = emailOk && mobileOk ? "ready" : emailOk ? "needs-mobile" : hst && !hst.spent && now > hst.link_exp_ms ? "link-expired" : "waiting-for-host"; // what the Organizer sees next to a Host: ready, or why not (a new link can be sent for the last two)
-      hosts.push({ id: r.hash.slice(0, 10), label: r.label ?? "", createdMs: r.created_ms, ...(r.created_by === "d" ? { helpDesk: true } : {}), setup, emailConfirmed: emailOk, hasMobile: mobileOk, ...(hst && !emailOk ? { linkExpiresMs: hst.link_exp_ms } : {}), ...(a.kind !== "ai" && r.email_sealed ? { email: await openText(env as any, r.email_sealed) } : {}) });
+      hosts.push({ id: r.hash.slice(0, 10), label: r.label ?? "", createdMs: r.created_ms, ...(r.eid ? { eid: r.eid } : { noGame: true }), ...(r.created_by === "d" ? { helpDesk: true } : {}), setup, emailConfirmed: emailOk, hasMobile: mobileOk, ...(hst && !emailOk ? { linkExpiresMs: hst.link_exp_ms } : {}), ...(a.kind !== "ai" && r.email_sealed ? { email: await openText(env as any, r.email_sealed) } : {}) });
     }
     return json({ maxHosts: MAX_HOSTS, hosts, cohosts });
   }
@@ -1286,8 +1313,9 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req);
     const id = typeof b?.id === "string" && /^[0-9a-f]{10}$/.test(b.id) ? b.id : "";
     if (!id) return json({ error: "Pick a person from the list." }, 400);
-    const row = await env.DB.prepare("SELECT hash, kind FROM organizer_key WHERE org=? AND substr(hash,1,10)=? AND revoked=0 AND kind IN ('host','cohost')").bind(a.org, id).first<{ hash: string; kind: string }>();
+    const row = await env.DB.prepare("SELECT hash, kind, eid FROM organizer_key WHERE org=? AND substr(hash,1,10)=? AND revoked=0 AND kind IN ('host','cohost')").bind(a.org, id).first<{ hash: string; kind: string; eid: string | null }>();
     if (!row) return json({ error: "That person is not on your team." }, 404);
+    if (a.kind === "host" && !gameFits(a, { id: row.eid ?? "" })) return json({ error: "You are a Host of another game. Open that game to remove someone from its team.", code: "other-game" }, 403); // 1.6.3 (security audit M-3): a Host retires Co-hosts of their own game only
     if (row.kind === "host" && a.kind !== "master") return deny(a);
     const me = await sha("key|" + (req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "")));
     if (row.hash === me) return json({ error: "That is the key you are using right now." }, 409);
@@ -1507,7 +1535,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       ? env.DB.prepare("SELECT e.id, e.created_ms, e.start_round, e.call_seconds, e.closed, (e.pack=0) AS draft, (e.pack=0 AND e.cancelled_ms IS NULL AND e.unplayed_ms IS NULL AND NOT EXISTS (SELECT 1 FROM kv WHERE k='pub/'||e.id)) AS deletable, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS participants, CASE WHEN json_valid(e.config) THEN json_extract(e.config,'$.name') END AS name FROM engagement e WHERE e.is_test=? ORDER BY e.created_ms DESC LIMIT 50").bind(url.searchParams.get("mode") === "test" ? 1 : 0) // the owner's list shows real engagements unless the test ones are asked for
       : env.DB.prepare("SELECT e.id, e.created_ms, e.start_round, e.call_seconds, e.closed, (e.pack=0) AS draft, (e.pack=0 AND e.cancelled_ms IS NULL AND e.unplayed_ms IS NULL AND NOT EXISTS (SELECT 1 FROM kv WHERE k='pub/'||e.id)) AS deletable, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS participants, CASE WHEN json_valid(e.config) THEN json_extract(e.config,'$.name') END AS name FROM engagement e WHERE e.org=? ORDER BY e.created_ms DESC LIMIT 50").bind(a.org);
     const r = await q.all<any>();
-    return json({ engagements: (r.results ?? []).map((x: any) => ({ ...x, startsAtIST: istTime(roundMs(x.start_round)) })), retentionDays: RETENTION_DAYS });
+    return json({ engagements: (r.results ?? []).filter((x: any) => !(a.gameOnly && a.eid) || x.id === a.eid).map((x: any) => ({ ...x, startsAtIST: istTime(roundMs(x.start_round)) })), retentionDays: RETENTION_DAYS }); // 1.6.3: a Host added inside one game sees that game only
   }
   if (req.method === "POST" && p === "/api/inbound-email") { // the mail service forwards e-mail sent to our address; a deletion request counts only from the organizer's registered address
     if (!(env.INBOUND_SECRET ?? "").trim() || !safeEq((req.headers.get("x-inbound-secret") ?? "").trim(), (env.INBOUND_SECRET ?? "").trim())) return deny(a);
@@ -1663,16 +1691,11 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const b = await body(req), vf = verifyOf(e), id = normId(b?.empId, vf.idKind, (e as any)?.created_ms);
     if (!id || !e.closed) return json({ known: false });
     const ck = consentMissing(b, "K4"); if (ck) return ck;
-    { const bucket = new Date(now).toISOString().slice(0, 15), ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16); // every look-up counts, whether the ID is on the list or not (audit 2, M3)
-      if (!(await underLimit(env, `idlook/${eid}/${bucket}/${ipk}`, ID_LOOK_PER_NET_10MIN)) || !(await underLimit(env, `idlookg/${eid}/${bucket}`, ID_LOOK_PER_GAME_10MIN))) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429); }
+    { const bucket = new Date(now).toISOString().slice(0, 15), ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16); // every look-up of one network counts, hit or miss, against that network only (audit 2, M3). The whole game's allowance counts wrong IDs only (1.6.3, M-1): a network cannot use it up with right IDs or by repeating itself
+      if (!(await underLimit(env, `idlook/${eid}/${bucket}/${ipk}`, ID_LOOK_PER_NET_10MIN))) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429); }
     const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading, then the old one (lists made before 1.4.1)
     if (!hit || hit.status === "removed") {
-      try {
-        const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
-        const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-        if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
-        await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
-      } catch { /* a counter never blocks */ }
+      if (!(await missAllowed(env, req, eid!, now, Number(e.cap ?? 0)))) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
       return json({ known: false });
     }
     const nm = ((await openPii(env, hit.pii))?.name ?? "").trim().split(/\s+/);
@@ -1705,8 +1728,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (byList && vf.employeesOnly && !empNorm && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400);
     let extraDigits: string | null = null, idHit = false; // a mobile number given together with an ID that is on the list: kept as the person's contact, never a reason to refuse
     if (byList && empNorm && !tok) {
-      // 1.6.2 (security audit M-D): the route where an ID is really used counts every try too, right or wrong, against the same per-game allowance as "Is this you?": a right ID that comes after the allowance is spent is refused like a wrong one, so nobody learns which is which. A guest does at most two tries (the preview and the join), so the allowance grows with the size of the game.
-      if (!(await underLimit(env, `idlookg/${eid}/${new Date(now).toISOString().slice(0, 15)}`, Math.max(ID_LOOK_PER_GAME_10MIN, 3 * Number(e.cap ?? 0))))) return json({ error: "Too many tries with an employee ID. Please ask your organizer for help.", code: "too-many-tries" }, 429);
+      // 1.6.3 (security audit M-1): the join no longer counts every try. Only a WRONG ID is counted (below, per network and for the whole game), so one address, or a crowd, can never shut the door on listed guests: a right ID is let in whatever the others did.
       const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading (letters and numbers only), then the old one (lists made before 1.6.0)
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
     }
@@ -1714,17 +1736,21 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const devPh = dev ? await sha(`nm|${eid}|${dev}`) : null;
     if (byList && !tok && !dev) return json({ error: "Please refresh this page and try again." }, 400);
     const admittedBefore = byList && !tok && !!devPh && !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=? AND status='admitted'").bind(eid, devPh).first()); // the organizer already said yes to this phone: nothing is asked again, or they would wait for ever
+    // 1.6.3 (security audit M-2 b and c): a NEW request to wait is refused while the Organizer or a Host has closed the room, and needs a small proof of work (pow.ts). Both are checked before any counter is used, in the one place every new request passes, so a refusal here is free and counts for nothing.
+    const requestGate = async (forPh: string): Promise<Response | null> => {
+      if (await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=?").bind(eid, forPh).first()) return null;
+      if (await waitingClosed(env.DB, eid!)) return json({ error: "The organizer has stopped new requests to join for now. Please ask your organizer to add you to the list.", code: "waiting-closed" }, 403);
+      const recent = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`wnew/${eid}/${new Date(now).toISOString().slice(0, 15)}`).first<{ v: string }>().catch(() => null))?.v ?? 0), bits = recent >= POW_BUSY_AFTER ? POW_BITS_BUSY : POW_BITS;
+      if (!(await powValid(eid!, b?.device, b?.pow, bits, now))) return json({ error: "One moment please. Your phone is checking that you are a person.", code: "need-pow", pow: { v: 1, bucket: powWindow(now), bits } }, 428);
+      return null;
+    };
     let idMiss = false; // not on the list: the organizer decides
     if (byList && !tok && !admittedBefore) {
       idMiss = true;
-      if (empNorm) { // guessing IDs: only so many wrong IDs per network per game per 10 minutes
-        try {
-          const ipk = (await sha("jip|" + netKeyOf(req))).slice(0, 16), k = `idmiss/${eid}/${new Date(now).toISOString().slice(0, 15)}/${ipk}`;
-          const n = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(k).first<{ v: string }>())?.v ?? 0);
-          if (n >= ID_MISS_PER_10MIN) return json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help.", code: "too-many-tries" }, 429);
-          await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, String(n + 1)).run();
-        } catch { /* a counter never blocks a join */ }
-      }
+      const missErr = () => json({ error: "Too many tries with an employee ID that is not on the list. Please ask your organizer for help. If you have no ID, clear that box and type your name instead.", code: "too-many-tries" }, 429);
+      if (empNorm && !(await missAllowed(env, req, eid!, now, Number(e.cap ?? 0), true))) return missErr(); // over a limit already: refused at once, before any proof of work is asked
+      if (empNorm) { const g = await requestGate(devPh!); if (g) return g; } // a wrong ID that would become a request: the proof of work comes first, so the try is counted once (when the phone comes back with the proof), not twice
+      if (empNorm && !(await missAllowed(env, req, eid!, now, Number(e.cap ?? 0)))) return missErr(); // guessing IDs: only so many wrong IDs per network and per game per 10 minutes
     }
     const mailTyped = typeof b?.email === "string" ? cleanAccountEmail(b.email) : "", mailOk = mailTyped.length <= 254 && EMAIL_RE.test(mailTyped);
     const deptTyped = extraText(b?.dept), regionTyped = extraText(b?.region); // optional: department or team, and region
@@ -1798,11 +1824,16 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const target = owner ?? "o";
     const lateName = cleanName(b?.name);
     const wait = async (overlimit: boolean, limit: number | null) => { // the waiting room: no place is used while someone waits
+      const known = !!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=?").bind(eid, ph).first()); // a phone that already asked gets its own answer back and is not counted again
+      if (!known) { const g = await requestGate(ph); if (g) return g; } // closed room, then the proof of work: before any counter is used, so a refusal here costs nobody anything
       if (await joinOverLimit(env, req, now, 0, runnerTestGame(env, req, e))) return json({ error: "It is busy right now. Please try again in a few minutes.", code: "busy" }, 429);
-      if (!(await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=?").bind(eid, ph).first()) && !(await underLimit(env, `wnet/${eid}/${(await sha("jip|" + netKeyOf(req))).slice(0, 16)}`, WAITING_PER_NET))) return json({ error: "Too many requests to join came from this network. Please ask your organizer to add you to the list.", code: "waiting-net-full" }, 429); // one network cannot fill the organizer's queue (audit 2, M4)
+      if (!known) {
+        if (!(await underLimit(env, `wnet/${eid}/${(await sha("jip|" + netKeyOf(req))).slice(0, 16)}`, WAITING_PER_NET))) return json({ error: "Too many requests to join came from this network. Please ask your organizer to add you to the list.", code: "waiting-net-full" }, 429); // one network cannot fill the organizer's queue (audit 2, M4)
+        if (!(await underLimit(env, `wnew/${eid}/${new Date(now).toISOString().slice(0, 15)}`, WAITING_NEW_PER_GAME_10MIN))) return json({ error: "Many people are asking to join this game right now. Please try again in a few minutes, or ask your organizer to add you to the list.", code: "waiting-busy" }, 429); // 1.6.3 (security audit M-2 a): so many NEW requests for the whole game in 10 minutes, from all networks together
+      }
       if (!(await spend(env, now, 2))) return json({ error: "It is very busy right now. Please try again in a few minutes.", code: "busy" }, 503);
       const w = await addWaiting({ env, eid: eid!, e, now }, { ph, digits: digits ?? "", empId: empNorm || null, ...(mailOk ? { email: mailTyped } : {}), ...(deptTyped ? { dept: deptTyped } : {}), ...(regionTyped ? { region: regionTyped } : {}), name: lateName || tokPii?.name || null, via, inviter: target, overlimit });
-      if ("full" in w) return json({ error: "Many people are waiting for an answer right now. Please try again a little later.", code: "waiting-full" }, 429);
+      if ("full" in w) return json({ error: `The waiting list of this game is full (${WAITING_MAX} requests), so nobody can ask to join right now. Please ask your organizer to add you to the list, or to clear the waiting list, and then try again.`, code: "waiting-full" }, 429);
       if (w.status === "declined") return json({ error: "This game could not add you. Please talk to whoever invited you.", code: "declined", declined: true, wid: w.id }, 403);
       const who = await waitingWho({ env, e, eid: eid! }, overlimit ? "o" : target);
       const msg = `Your request is with ${who}. You can come in as soon as they say yes.`;

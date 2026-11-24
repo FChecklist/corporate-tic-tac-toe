@@ -14,11 +14,11 @@
     },
     "apps/edge": {
       "name": "@tictactoe/edge",
-      "version": "1.6.2",
+      "version": "1.6.3",
     },
     "packages/beacon": {
       "name": "@tictactoe/beacon",
-      "version": "1.6.2",
+      "version": "1.6.3",
       "dependencies": {
         "@noble/curves": "^1.6.0",
         "@noble/hashes": "^1.5.0",
@@ -26,11 +26,11 @@
     },
     "packages/billing": {
       "name": "@tictactoe/billing",
-      "version": "1.6.2",
+      "version": "1.6.3",
     },
     "packages/shared": {
       "name": "@tictactoe/shared",
-      "version": "1.6.2",
+      "version": "1.6.3",
       "dependencies": {
         "libphonenumber-js": "^1.11.4",
       },

@@ -28,7 +28,7 @@ async function setup(opts: { closed?: boolean; cap?: number; invites?: unknown }
   await call("POST", "/api/z", { id: "PPL-1", startRound: START, callSeconds: 6, cap: opts.cap ?? 100, ...(opts.closed ? { whoCanJoin: "list" } : {}) }, master);
   await call("POST", "/api/z/PPL-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, master);
   if (opts.invites) await call("PATCH", "/api/z/PPL-1/settings", { guestInvites: opts.invites }, master);
-  const host = (await j(await call("POST", "/api/org/host", { label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "PPL-1", label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500002", e: "PPL-1" }, master))).cohostKey as string;
   return { master, ai, host, cohost };
 }
@@ -285,9 +285,9 @@ describe("the waiting room", () => {
   test("the waiting room holds 500 requests: the 501st person is told it is full (429, waiting-full); someone already waiting is still told they are waiting; nobody takes a place", async () => {
     const t = await setup({ closed: true }); const ipOf = (i: number) => ({ "cf-connecting-ip": `9.9.${i % 200}.${1 + Math.floor(i / 60)}` }); // 1.6.1: one network may leave 60 open requests in a game, so the 500 come from different networks
     const ask = (i: number, now: number) => call("POST", "/api/z/PPL-1/join", { phone: mob(i), name: "G" + i, email: `g${i}@acme.test`, device: dev(i), from: ORG_FROM }, undefined, now, ipOf(i));
-    for (let i = 0; i < 500; i++) await ask(40 + i, T + Math.floor(i / 150) * 61_000); // the same network may ask 200 times a minute: spread the requests over minutes
+    for (let i = 0; i < 500; i++) { if (i % 60 === 0) raw.prepare("DELETE FROM kv WHERE k LIKE 'wnew/%'").run(); await ask(40 + i, T + Math.floor(i / 150) * 61_000); } // 1.6.3: a game takes 60 NEW requests in ten minutes (all networks together): the counter is cleared every 60 requests, as ten minutes passing would do
     expect(rowsOf("SELECT COUNT(*) c FROM waiting WHERE status='waiting'")[0].c).toBe(500);
-    const extra = await ask(900, T + 5 * 61_000); expect(extra.status).toBe(429); expect((await j(extra)).code).toBe("waiting-full");
+    raw.prepare("DELETE FROM kv WHERE k LIKE 'wnew/%'").run(); const extra = await ask(900, T + 5 * 61_000); expect(extra.status).toBe(429); expect((await j(extra)).code).toBe("waiting-full");
     expect(rowsOf("SELECT COUNT(*) c FROM waiting")[0].c).toBe(500); // the 501st left no row
     expect((await ask(40, T + 6 * 61_000)).status).toBe(403); // a request already in the room is answered as before
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c + rowsOf("SELECT COUNT(*) c FROM person")[0].c).toBe(0);
@@ -471,8 +471,8 @@ describe("export, privacy and cleanup", () => {
   });
   test("a Host needs an e-mail or a mobile number (one is enough), kept sealed; a Co-host records who made them", async () => {
     const t = await setup();
-    expect((await call("POST", "/api/org/host", { label: "X" }, t.master)).status).toBe(400);
-    expect((await call("POST", "/api/org/host", { email: "x@acme.com", mobile: "123" }, t.master)).status).toBe(400);
+    expect((await call("POST", "/api/org/host", { e: "PPL-1", label: "X" }, t.master)).status).toBe(400);
+    expect((await call("POST", "/api/org/host", { e: "PPL-1", email: "x@acme.com", mobile: "123" }, t.master)).status).toBe(400);
     const hk = rowsOf("SELECT pii, created_by FROM organizer_key WHERE kind='host' ORDER BY created_ms"); expect(hk[0].pii).toBeTruthy(); expect(JSON.stringify(hk)).not.toContain("9876500001"); expect(hk[0].created_by).toBe("o");
     await call("POST", "/api/org/cohost", { label: "Meera", phone: "9876500003", e: "PPL-1" }, t.host);
     expect(rowsOf("SELECT created_by FROM organizer_key WHERE kind='cohost' ORDER BY created_ms").map((x) => x.created_by[0])).toEqual(["o", "h"]);

@@ -47,7 +47,7 @@ const start = async (email: string) => { const r = await j(await handle(new Requ
 const team = async () => {
   const master = await start("boss@acme.com"); const ai = lastAi;
   await call("POST", "/api/z", { id: "CAN-1", startRound: START, callSeconds: 9, cap: 300 }, master);
-  const hostR = await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master));
+  const hostR = await j(await call("POST", "/api/org/host", { e: "CAN-1", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master));
   const cohostR = await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "CAN-1" }, master));
   return { master, ai, host: hostR.hostKey as string, cohost: cohostR.cohostKey as string, hostId: hostR.id as string, cohostId: cohostR.id as string };
 };

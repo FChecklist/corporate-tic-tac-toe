@@ -33,6 +33,7 @@ async function organizer() {
   return { h: { "x-organizer": x.token as string }, ai: x.aiKey as string, msg: x.aiMessage as string };
 }
 
+const hostGame = async (h: Record<string, string>, id = "HG-1") => { await call("POST", "/api/z", { id, startRound: roundAt(T) + 1200, callSeconds: 9, cap: 100 }, h); return id; }; // 1.6.3: a Host belongs to one game, so the game is made first
 describe("the dedicated mail builders", () => {
   const KEY = "cba_" + "ab".repeat(24);
   test("organizer mail: own subject, warning at the top and the bottom, plain-text part, numbered steps, the paste as plain text (no hyperlink)", () => {
@@ -89,7 +90,7 @@ describe("the AI link is in the dedicated mails and nowhere else", () => {
     const { h } = await organizer();
     await call("POST", "/api/z", { id: "MAIL-1", startRound: roundAt(T + 30 * 3_600_000), callSeconds: 6, cap: 500 }, h);
     expect((await call("POST", "/api/z/MAIL-1/publish", contact, h)).status).toBe(200);
-    expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h)).status).toBe(200);
+    expect((await call("POST", "/api/org/host", { e: await hostGame(h), mobile: "9876500009", email: "host@acme.com" }, h)).status).toBe(200);
     expect((await call("POST", "/api/org/ai/replace", {}, h)).status).toBe(200);
     await housekeeping(env as Env, T + 86_400_000); // payment reminder
     await call("GET", "/api/z/MAIL-1/info", undefined, {}, T + 40 * 3_600_000); // start passed unpaid: the "could not begin" mail
@@ -142,7 +143,7 @@ describe("Replace my AI link", () => {
   });
   test("an AI key, a co-host key, the platform key and strangers cannot replace it", async () => {
     const o = await organizer();
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h));
+    const hk = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), mobile: "9876500009", email: "host@acme.com" }, o.h));
     for (const hdr of <Record<string, string>[]>[{ "x-organizer": o.ai }, { "x-organizer": hk.hostKey }, { "x-organizer": "plat" }, {}, { "x-organizer": "cba_" + "0".repeat(48) }])
       for (const path of ["/api/org/ai/replace", "/api/org/ai"]) expect((await call("POST", path, {}, hdr)).status).toBe(403);
     expect((await call("POST", `/ai/${o.ai}/org/ai/replace`, {})).status).toBe(403); // not through the AI link either
@@ -156,7 +157,7 @@ describe("Replace my AI link", () => {
   });
   test("a co-host key made later is e-mailed to the organizer in its own mail", async () => {
     const o = await organizer();
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.mailed).toBe(true);
+    const hk = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.mailed).toBe(true);
     const m = outbox().at(-1)!; expect(m.subject).toBe("[Tic Tac Toe] " + HOST_SUBJECT); expect(m.to_addr).toBe("boss@acme.com"); expect(m.body).not.toContain(hk.hostKey); expect(m.body).toContain("boss@acme.com"); expect(m.body).toMatch(/WORKS FOR 24 HOURS ONLY/);
     const ck = m.body.match(/cbh_[0-9a-f]{48}/)![0]; expect(ck).not.toBe(hk.hostKey); expect((await call("GET", `/ai/${ck}`)).status).toBe(200); expect((await call("GET", `/ai/${hk.hostKey}`)).status).toBe(200);
   });

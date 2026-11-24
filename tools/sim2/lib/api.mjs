@@ -79,7 +79,7 @@ export class Organizer {
     const id = o.id ?? "SIM" + randomBytes(4).toString("hex").toUpperCase();
     const startRound = o.startRound ?? (await startRoundIn(o.leadMs ?? 2 * 3_600_000));
     const body = { id, startRound, callSeconds: 15, cap: 100, ...o.cfg };
-    const r = await this.api("POST", "/api/z", body); must(r, "create " + id);
+    const r = await this.api("POST", "/api/z", body); must(r, "create " + id); this.lastGameId = id;
     return { id, startRound, startMs: roundTimeMs(startRound), res: r.body };
   }
   settings(id, patch) { return this.api("PATCH", `/api/z/${id}/settings`, patch); }
@@ -96,7 +96,8 @@ export class Organizer {
   team() { return this.api("GET", "/api/org/team"); }
   whoami() { return this.api("GET", "/api/whoami"); }
   /** invite a Host. Returns the API body: { hostKey, link, waLink?, id, ... } */
-  async inviteHost({ label, email, mobile }) { return must(await this.api("POST", "/api/org/host", { label, email, mobile }), "invite host"); }
+  /** 1.6.3: a Host belongs to one game, so the Host is added inside `e`, else the game this organizer made last (one is made if there is none). */
+  async inviteHost({ label, email, mobile, e }) { const game = e ?? this.lastGameId ?? (await this.createGame()).id; return must(await this.api("POST", "/api/org/host", { label, email, mobile, e: game }), "invite host"); }
   newHostLink(id) { return this.api("POST", "/api/org/host/link", { id }); }
   async inviteCohost({ label, phone, e }) { return must(await this.api("POST", "/api/org/cohost", { label, phone, e }), "invite cohost"); }
   retire(id) { return this.api("POST", "/api/org/team/retire", { id }); }

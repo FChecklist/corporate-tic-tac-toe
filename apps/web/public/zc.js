@@ -535,7 +535,7 @@
       while (all.length < (Number(r.total) || 0)) { const more = await call("GET", `/api/z/${eid}/people?offset=${all.length}`); if (!(more.people || []).length) break; all.push(...more.people); } // a long list arrives in pages
       P.list = all; P.limit = role() === "cohost" ? Number(r.limit) || 100 : 0; P.used = typeof r.used === "number" ? r.used : null; P.common = r.commonLink || ""; P.canExport = !!r.canExport; P.err = "";
     } catch (e) { P.list = null; P.err = e.status === 404 || e.status === 405 ? "Your people list is not switched on yet. Please try again a little later." : friendly(e); }
-    try { const w = await call("GET", `/api/z/${eid}/waiting`); P.waiting = w.waiting || []; P.approved = w.approved || []; } catch { P.waiting = null; }
+    try { const w = await call("GET", `/api/z/${eid}/waiting`); P.waiting = w.waiting || []; P.approved = w.approved || []; P.room = w.max ? { closed: !!w.closed, full: !!w.full, total: Number(w.total) || (w.waiting || []).length, max: Number(w.max) } : null; /* only the Organizer and Hosts get these */ } catch { P.waiting = null; P.room = null; }
   }
   /** The caller's own play seat (POST /people/me), made only when they ask for it. */
   async function ensureMe(typed) {
@@ -582,7 +582,8 @@
       .map((d) => `<div class="zc-small zc-nomargin">${esc(d.name)} &middot;&middot;&middot;&middot; ${esc(d.last4)}: ${d.decision === "decline" ? "declined" : "let in"} by ${esc(d.by || "someone")}${d.ms ? ", " + esc(dmy(d.ms)) : ""}</div>`).join("");
     const bulk = P.bulk ? `<div class="zc-box" id="bulkask" role="group" aria-label="Please confirm"><p><b>${P.bulk === "admit" ? `Let all ${W.length} ${W.length === 1 ? "person" : "people"} in?` : `Decline all ${W.length} ${W.length === 1 ? "person" : "people"}?`}</b></p>${small(P.bulk === "admit" ? "Everyone waiting is let in, one after the other, until the game is full." : "They are told you could not take them this time.")}<div class="zc-chips"><button type="button" class="zc-btn zc-btn-s${P.bulk === "decline" ? " zc-btn-bad" : ""}" id="bulkyes">${P.bulk === "admit" ? "Yes, let them in" : "Yes, decline them"}</button><button type="button" class="zc-btn zc-btn-s zc-btn-alt" id="bulkno">No, wait</button></div></div>`
       : W.length ? `<div class="zc-chips zc-gap"><button type="button" class="zc-btn zc-btn-s" id="admitall">Approve all (${W.length})</button><button type="button" class="zc-mini" id="declineall">Decline all</button></div>` : "";
-    return `<div class="zc-box" id="waitpanel"><b class="zc-bt">Waiting to come in${W.length ? ": " + W.length : ""}</b>${W.length ? small("Everything here was typed by the person asking. Nothing is checked, so please look at it before you say yes.") : ""}${bulk}${rows || small("Nobody is waiting right now.")}${P.still ? `<p class="zc-small zc-warnt" id="stillwaiting">${esc(P.still)}</p>` : ""}${done ? `<div class="zc-gap">${done}</div>` : ""}</div>`;
+    const R = P.room, roomBar = R ? `${R.full ? `<p class="zc-small zc-warnt" id="waitfull" role="status">Your waiting list is full (${R.max} requests), so nobody new can ask to join. Decide the requests, or clear the list.</p>` : ""}${R.closed ? `<p class="zc-small zc-warnt" id="waitclosed" role="status">New requests are stopped. People who ask now are told to ask you to add them.</p>` : ""}<div class="zc-chips zc-gap" id="waitroom">${R.closed ? `<button type="button" class="zc-btn zc-btn-s" data-room="open">Allow new requests again</button>` : `<button type="button" class="zc-btn zc-btn-s zc-btn-alt" data-room="close-clear">Stop new requests and clear the list</button>`}${W.length || R.total ? `<button type="button" class="zc-mini" data-room="clear">Clear the list</button>` : ""}</div>` : "";
+    return `<div class="zc-box" id="waitpanel"><b class="zc-bt">Waiting to come in${W.length ? ": " + W.length : ""}</b>${roomBar}${W.length ? small("Everything here was typed by the person asking. Nothing is checked, so please look at it before you say yes.") : ""}${bulk}${rows || small("Nobody is waiting right now.")}${P.still ? `<p class="zc-small zc-warnt" id="stillwaiting">${esc(P.still)}</p>` : ""}${done ? `<div class="zc-gap">${done}</div>` : ""}</div>`;
   }
   function addBox() {
     const modes = (canContacts() ? [["contacts", "From your contacts"]] : []).concat([["pdf", "Upload a PDF"], ["type", "Add a name and number"], ["paste", "Paste from Excel"], ["file", "Upload a CSV"]]);
@@ -1572,6 +1573,12 @@
       catch (e) { S.payUrl = ""; S.payLinkNote = friendly(e); }
       redraw();
     };
+    all("[data-room]", (b) => (b.onclick = async () => { // one tap: stop new requests, allow them again, and/or clear the list (Organizer and Hosts)
+      const a = b.dataset.room; b.disabled = true;
+      try { const r = await call("POST", `/api/z/${eid}/waiting/room`, { action: a }), n = Number(r.cleared) || 0; S.pp.sum = a === "open" ? "New requests are allowed again." : a === "close" ? "New requests are stopped." : a === "clear" ? `${n} ${n === 1 ? "request" : "requests"} cleared.` : `New requests are stopped and ${n} ${n === 1 ? "request" : "requests"} cleared.`; }
+      catch (e) { S.pp.sum = friendly(e); }
+      await loadPeople(); redraw();
+    }));
     if ($("admitall")) $("admitall").onclick = () => { S.pp.bulk = "admit"; redraw(); };
     if ($("declineall")) $("declineall").onclick = () => { S.pp.bulk = "decline"; redraw(); };
     if ($("bulkno")) $("bulkno").onclick = () => { S.pp.bulk = ""; redraw(); };

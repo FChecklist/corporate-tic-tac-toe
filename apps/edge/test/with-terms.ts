@@ -3,6 +3,7 @@
 // instead of repeating `consent: {...}` in hundreds of requests. A request that already carries `consent` is passed on untouched.
 // A Co-host key also has to have accepted the role before it can do anything; the wrapper records that tick the first time such a key is used.
 import { handle as realHandle, type Env } from "../src/worker";
+import { powSolve } from "./pow-solve";
 import { CONSENT_VERSION, boxesOf, recordConsent, type Kind as ConsentKind } from "../src/consent";
 
 export const termsFor = (kind: ConsentKind) => consentFor(kind);
@@ -38,8 +39,22 @@ export async function handle(req: Request, env: Env, now?: number): Promise<Resp
     const k = kindFor(req.method, path, b);
     if (k && b && typeof b === "object" && !Array.isArray(b) && !b.consent) {
       const headers = new Headers(req.headers); headers.delete("content-length");
-      return realHandle(new Request(req.url, { method: req.method, headers, body: JSON.stringify({ ...b, consent: consentFor(k) }) }), env, now);
+      return withPow(new Request(req.url, { method: req.method, headers, body: JSON.stringify({ ...b, consent: consentFor(k) }) }), env, now);
     }
+    if (k === "K4" && b && typeof b === "object") return withPow(req, env, now);
   }
   return realHandle(req, env, now);
+}
+
+/** What the page does when a request to join is answered 428 need-pow (1.6.3, pow.ts): find the number the server asks for and ask again. Tests that call `handle` from here behave like a real phone. */
+async function withPow(req: Request, env: Env, now?: number): Promise<Response> {
+  const path = new URL(req.url).pathname;
+  const first = await realHandle(req.clone(), env, now);
+  if (first.status !== 428 || !/^\/api\/z\/[A-Za-z0-9_-]{4,40}\/join$/.test(path)) return first;
+  const ask = (await first.clone().json().catch(() => null)) as any;
+  if (ask?.code !== "need-pow" || !ask.pow) return first;
+  const b = JSON.parse(await req.clone().text()), eid = path.split("/")[3]!;
+  const nonce = await powSolve(eid, String(b.device), ask.pow.bucket, ask.pow.bits);
+  const headers = new Headers(req.headers); headers.delete("content-length");
+  return realHandle(new Request(req.url, { method: req.method, headers, body: JSON.stringify({ ...b, pow: { b: ask.pow.bucket, n: nonce } }) }), env, now);
 }

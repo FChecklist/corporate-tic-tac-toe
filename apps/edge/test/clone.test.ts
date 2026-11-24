@@ -45,7 +45,7 @@ const world = async (publish = true) => {
   const master = await start("boss@acme.com"); const ai = lastAi;
   expect((await call("POST", "/api/z", { id: "OLD-1", startRound: roundAt(GAME_START), callSeconds: 12, cap: 300, tickets: 2, rounds: 2, rewards: REWARDS, brand: BRAND, name: "Diwali Party" }, master)).status).toBe(200);
   expect((await call("PATCH", "/api/z/OLD-1/settings", { guestInvites: { on: true, per: 3 }, whoCanJoin: "list", coHostLimit: 50 }, master)).status).toBe(200);
-  const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "OLD-1", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "OLD-1" }, master))).cohostKey as string;
   if (publish) await call("POST", "/api/z/OLD-1/publish", PUB, master);
   return { master, ai, host, cohost };
