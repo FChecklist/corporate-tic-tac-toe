@@ -50,7 +50,7 @@
     on("end", async () => { if (!confirm("End the tournament for everybody now? Nobody is ranked and this cannot be undone.")) return; try { await call("POST", `/api/z/${EID}/ttt/end`, {}); S.msg = ""; } catch (e) { S.msg = e.message; } load(); });
   }
   async function load() {
-    try { S.view = await (await fetch(BASE + `/api/z/${EID}/ttt/view`, { cache: "no-store" })).json(); } catch (e) { S.msg = "Connecting..."; }
+    try { S.view = await call("GET", `/api/z/${EID}/ttt/view`); } catch (e) { S.msg = "Connecting..."; } // with the key: the Organizer and Hosts see the full names (1.6.2)
     try { if (con && S.view && S.view.state !== "open" && S.view.state !== "done") { await con.tick(); S.n = (S.n || 0) + 1; if (S.n % 5 === 1) S.disputed = [...(S.view.disputed ? await con.disputed() : []), ...(await con.waiting())]; } } catch (e) { /* the next look tries again */ }
     paint();
   }

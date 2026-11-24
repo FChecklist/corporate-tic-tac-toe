@@ -111,7 +111,7 @@ export interface Caller { id: string; kind: "organizer" | "host" | "cohost" | "g
 export interface Ctx {
   req: Request; env: Env; now: number; url: URL; e: any; eid: string; tail: string;
   /** From worker.ts `authOf`: who holds the key, and the first 7 hex of its hash (its id in the chains). */
-  a: { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean };
+  a: { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean; gameOnly?: boolean };
   keyId7: string; viaLink: boolean; origin: string; gameName: string; invites: { on: boolean; per: number; cats: string[] };
   started: boolean; draft: boolean; cancelled: boolean;
   json: (o: unknown, status?: number) => Response;
@@ -135,7 +135,10 @@ async function callerOf(c: Ctx, bodyMe?: unknown, bodyDevice?: unknown): Promise
   if (a.kind) {
     if (!a.plat && (!a.org || a.org !== e.org)) return { res: c.json({ error: "Not allowed." }, 403) };
     if (a.plat || a.kind === "master") return { who: { id: "o", kind: "organizer", all: true, limit: null, label: "Organizer", platform: a.plat } };
-    if (a.kind === "host") return { who: { id: "h:" + c.keyId7, kind: "host", all: true, limit: null, label: "Host" } };
+    if (a.kind === "host") {
+      if (a.gameOnly && a.eid && a.eid !== e.id) return { res: c.json({ error: "You are a Host of another game. Open that game to do this.", code: "other-game" }, 403) }; // 1.6.2: a Host added inside one game works inside that game only
+      return { who: { id: "h:" + c.keyId7, kind: "host", all: true, limit: null, label: "Host" } };
+    }
     if (a.kind === "cohost") {
       if (a.eid && a.eid !== e.id) return { res: c.json({ error: "Your Co-host link is for a different game." }, 403) };
       return { who: { id: "c:" + c.keyId7, kind: "cohost", all: false, limit: e.cohost_limit ?? COHOST_LIMIT_DEFAULT, label: "Co-host" } };

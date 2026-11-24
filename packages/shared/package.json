@@ -1,1 +1,1 @@
-{ "name": "@tictactoe/shared", "version": "0.1.0", "type": "module", "main": "src/index.ts", "dependencies": { "libphonenumber-js": "^1.11.4" } }
+{ "name": "@tictactoe/shared", "version": "1.6.2", "type": "module", "main": "src/index.ts", "dependencies": { "libphonenumber-js": "^1.11.4" } }

@@ -118,7 +118,7 @@ describe("R2 the log is immutable, small and rate limited", () => {
     for (let i = 0; i < 7; i++) codes.push((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: i, body: "4" }, T + 5000 + i * 10)).status);
     expect(codes).toEqual([200, 200, 200, 200, 200, 429, 429]);
     expect((await write(call, "LOG-1", ps[0]!, { slot: s, kind: "move", seq: 7, body: "4" }, T + 6500)).status).toBe(200);
-    expect((await write(call, "LOG-1", ps[1]!, { slot: s, kind: "move", seq: 0, body: "-" }, T + 5100)).status).toBe(200); // another player has their own allowance
+    expect((await write(call, "LOG-1", ps[1]!, { slot: s, kind: "move", seq: 0, body: "3" }, T + 5100)).status).toBe(200); // another player has their own allowance (1.6.2: a square, not a "-": a missed move at number 0 waits for the move clock of the slot, see audit-round-5 test)
   });
   test("R5: at most 250,000 entries in one game: the next one is refused with 409 'full'", async () => {
     const { ps } = await setup();

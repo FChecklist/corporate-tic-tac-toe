@@ -46,7 +46,7 @@ export const identityRow = (db: D1, hid: string) => db.prepare("SELECT hash, org
 
 /** A new key for another device of the same Host: same row details, same Host identity. The old keys are untouched. */
 export async function mintDeviceKey(env: Env, hid: string, key: string, now: number): Promise<string> {
-  await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id) SELECT ?,org,kind,0,?,is_test,label,email_sealed,pii,created_by,? FROM organizer_key WHERE hash=?").bind(await sha("key|" + key), now, hid, hid).run();
+  await env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id,eid) SELECT ?,org,kind,0,?,is_test,label,email_sealed,pii,created_by,?,eid FROM organizer_key WHERE hash=?").bind(await sha("key|" + key), now, hid, hid).run(); // the game of the Host (if they were added inside one) goes with every device key (1.6.2)
   return key;
 }
 

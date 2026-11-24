@@ -17,7 +17,7 @@
   let skew = 0, timer = null, last = null, joinMsg = "", INFO = null, phone = null;
   const thePhone = () => (phone && phone.deps.pid === pid ? phone : (phone = new window.TTT.TttPhone({ api, eid: EID, pid, device, now: () => Date.now() })));
   const api = async (method, path, body) => {
-    if (method === "GET" && pid && /\/ttt\/setup$/.test(path)) path += "?pid=" + encodeURIComponent(pid) + "&device=" + encodeURIComponent(device); // a seat and this phone's own proof: players see the full names, others only a first name and an initial
+    if (method === "GET" && pid && /\/ttt\/(setup|rank|view)(\?|$)/.test(path)) path += (path.includes("?") ? "&" : "?") + "pid=" + encodeURIComponent(pid) + "&device=" + encodeURIComponent(device); // a seat and this phone's own proof: players see the full names (the list, the ranking, the champion), others only a first name and an initial
     const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw Object.assign(new Error(j.error || "http " + r.status), { status: r.status, code: j.code, body: j });

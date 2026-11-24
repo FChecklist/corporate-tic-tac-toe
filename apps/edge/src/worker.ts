@@ -727,7 +727,7 @@ function d1kv(env: Env): KV { return {
   put: async (k, v) => { await env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(k, v).run(); },
 }; }
 
-interface Auth { plat: boolean; org: string | null; kind: "platform" | "master" | "ai" | "host" | "cohost" | null; viaLink?: boolean; eid?: string | null; /** a key made by the master console (label "console"): when it is tied to one game it works for that game only */ console?: boolean; /** A Host: the identity the key belongs to and whether the first-open setup (confirmed e-mail + mobile) is finished. */ hid?: string; hostReady?: boolean ; temp?: boolean }
+interface Auth { /** a Host added inside one game (1.6.2): the key works for that game only; set from the stored game of the key row */ gameOnly?: boolean; plat: boolean; org: string | null; kind: "platform" | "master" | "ai" | "host" | "cohost" | null; viaLink?: boolean; eid?: string | null; /** a key made by the master console (label "console"): when it is tied to one game it works for that game only */ console?: boolean; /** A Host: the identity the key belongs to and whether the first-open setup (confirmed e-mail + mobile) is finished. */ hid?: string; hostReady?: boolean ; temp?: boolean }
 async function authOf(req: Request, env: Env, now: number): Promise<Auth> {
   return authOfKey(env, req.headers.get("x-organizer") || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, ""), now);
 }
@@ -746,12 +746,15 @@ async function authOfKey(env: Env, presented: string, now: number): Promise<Auth
     if (!hs.usable) return { plat: false, org: null, kind: null };
     // the 24-hour Host AI-link key (cth_, mailed to the Organizer for an outside AI chat) has an expiry and no first-open record: it must never be able to finish a Host setup and turn itself into a lasting key
     const temp = row.expires_ms != null && !row.host_id && !(await hostStateRow(env.DB, kh));
-    return { plat: false, org: row.org, kind: "host", eid: row.eid ?? null, hid: hs.hid, hostReady: hs.ready, ...(temp ? { temp: true } : {}) };
+    return { plat: false, org: row.org, kind: "host", eid: row.eid ?? null, hid: hs.hid, hostReady: hs.ready, ...(temp ? { temp: true } : {}), ...(row.eid && !temp ? { gameOnly: true } : {}) };
   }
   return { plat: false, org: row.org, kind: row.kind, eid: row.eid ?? null };
 }
 /** A key made by the master console and tied to one game works for that game only (console-bridge/bridge.ts keyFitsGame). Every other key is unchanged. A game without an id fails closed. */
-const gameFits = (a: Auth, e: { id?: string }) => !(a.console && a.eid) || a.eid === e.id;
+/** The routes of /api/z/{id}/... that are for the people who run a game (not the ones players use). A Host tied to one game may use them for that game only. */
+const HOST_GAME_ACTIONS = new Set(["participants", "erase", "discard", "reuse", "roster", "settings", "publish", "summary", "announce", "unbind", "seats", "names", "mark", "invites", "life", "prizes", "prizegiven", "reportlink", "person", "forget", "cohost", "cancel-preview", "cancel", "reopen", "clone", "override", "settle"]);
+/** A key tied to one game (a console key made for one game, or a Host added from inside a game: ROLES_AND_CONSOLE_SPEC.md "The three roles (per game)") works for that game only. A key with no game (the Organizer's, the AI's, a Host made before 1.6.2 or without a game) is not held back here. */
+const gameFits = (a: Auth, e: { id?: string }) => !((a.console || a.gameOnly) && a.eid) || a.eid === e.id;
 /** May this caller act on this engagement? `master` = needs the organizer's own key, or a Host's (both are people, never the AI), or ours. A Co-host never passes: their rights are a few named routes only. */
 const can = (a: Auth, e: { org: string | null; id?: string }, master = false) => a.plat || (!!a.org && e.org === a.org && gameFits(a, e) && a.kind !== "cohost" && (!master || a.kind === "master" || (a.kind === "host" && !a.viaLink)));
 /** The organizer's own key, a Host's, their AI's key, or ours. */
@@ -1211,7 +1214,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const hGame = await ownGameId(env, a.org, hb?.e); // added from inside a game: the Host's link opens that game
     const sealedEmail = hEmail ? await sealText(env as any, hEmail) : null, sealedWho = hMob && hMob.ok ? await sealPii(env, { phone: hMob.digits, name: label || null }) : null; // the Host's e-mail and mobile are kept sealed, on the key row
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0),?,?,?,'o',?)").bind(kh, a.org, "host", now, a.org, label, sealedEmail, sealedWho, kh),
+      env.DB.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id,eid) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0),?,?,?,'o',?,?)").bind(kh, a.org, "host", now, a.org, label, sealedEmail, sealedWho, kh, hGame || null), // 1.6.2 (security audit M-A): a Host added from inside a game belongs to that game only
       env.DB.prepare("INSERT INTO host_state(host_id,org,link_exp_ms,mobile_ok) VALUES(?,?,?,?)").bind(kh, a.org, now + HOST_LINK_TTL_MS, hMob ? 1 : 0),
     ]);
     const hOrigin = (env as PayEnv).PUBLIC_ORIGIN ?? new URL(req.url).origin, hLink = `${hOrigin}/zc.html?k=${key}${hGame ? "&e=" + encodeURIComponent(hGame) : ""}`;
@@ -1270,6 +1273,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     const cEid = typeof cb?.e === "string" ? cb.e : typeof cb?.eid === "string" ? cb.eid : "";
     const cg = ID.test(cEid) ? await env.DB.prepare("SELECT id, org, cancelled_ms FROM engagement WHERE id=?").bind(cEid).first<{ id: string; org: string | null; cancelled_ms: number | null }>() : null;
     if (!cg || cg.org !== a.org) return json({ error: "Choose which game this Co-host is for." }, 400);
+    if (!gameFits(a, cg)) return json({ error: "You are a Host of another game. Open that game to add a Co-host there." }, 403); // 1.6.2: a Host added inside a game works inside that game
     if (cg.cancelled_ms) return json({ error: "That game was cancelled." }, 409);
     if (!(await spend(env, now, 2))) return BUSY();
     const key = "cbc_" + randHex(24), kh = await sha("key|" + key);
@@ -1577,6 +1581,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
   const [, eid, action, sub] = m;
   const e = await env.DB.prepare("SELECT * FROM engagement WHERE id=?").bind(eid).first<any>();
   if (!e) return json({ error: "No such game." }, 404);
+  // 1.6.2 (security audit M-A): a Host added inside one game works inside that game only. Every route that is for the people running a game is shut to a Host of another game, whether or not it checks "can" itself. (The routes the players use are public and are not touched.)
+  if (a.kind === "host" && a.gameOnly && a.eid && a.eid !== e.id && HOST_GAME_ACTIONS.has(action!)) return json({ error: "You are a Host of another game. Open that game to do this.", code: "other-game" }, 403);
   const digitsOf = (raw: unknown): string | null => { // a number typed with its country code (+65 ..., 0044 ...) may be as short as 8 digits in all: some countries have 5-digit numbers; a number typed without a code is 10 to 15 digits as before
     const s = String(raw ?? ""), d = s.replace(/\D/g, ""), withCode = /^\s*(\+|00)/.test(s), n = withCode && !/^(00)?91/.test(d) ? d.replace(/^00/, "") : d;
     if (n.length < (withCode ? 8 : 10) || n.length > 15) return null;
@@ -1699,6 +1705,8 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
     if (byList && vf.employeesOnly && !empNorm && !tok) return json({ error: "Enter your employee ID.", code: "need-id" }, 400);
     let extraDigits: string | null = null, idHit = false; // a mobile number given together with an ID that is on the list: kept as the person's contact, never a reason to refuse
     if (byList && empNorm && !tok) {
+      // 1.6.2 (security audit M-D): the route where an ID is really used counts every try too, right or wrong, against the same per-game allowance as "Is this you?": a right ID that comes after the allowance is spent is refused like a wrong one, so nobody learns which is which. A guest does at most two tries (the preview and the join), so the allowance grows with the size of the game.
+      if (!(await underLimit(env, `idlookg/${eid}/${new Date(now).toISOString().slice(0, 15)}`, Math.max(ID_LOOK_PER_GAME_10MIN, 3 * Number(e.cap ?? 0))))) return json({ error: "Too many tries with an employee ID. Please ask your organizer for help.", code: "too-many-tries" }, 429);
       const hit = await personByEmp(env, eid!, b?.empId, vf.idKind, (e as any)?.created_ms); // today's reading (letters and numbers only), then the old one (lists made before 1.6.0)
       if (hit) { tok = hit; tokPii = await openPii(env, hit.pii); extraDigits = typedDigits; idHit = true; typedPh = null; typedDigits = null; }
     }
