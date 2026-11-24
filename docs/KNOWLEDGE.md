@@ -1,8 +1,9 @@
-# Knowledge: Corporate Tic Tac Toe (updated 24 Nov 2026, version 1.6.3)
+# Knowledge: Corporate Tic Tac Toe (updated 24 Nov 2026, version 1.6.4)
 
 What a new session must know before touching this game. No secrets and no business figures here.
 
 ## State
+- Version 1.6.4 on PR 9 = version 1.6.3 plus one wording fix for the open Medium of the security audit of `02b56a1a`: the join page and the server no longer claim that the phone is checking whether a person is there (the proof of work only slows down scripts), and the notes no longer give an unmeasured time of one second. See CHANGELOG 1.6.4.
 - Version 1.6.3 on PR 9 = version 1.6.2 plus the fixes for the failed security audit of `4fe14715` (see "Audit round 6 (version 1.6.3)" below). Version 1.6.2 on PR 9 = version 1.6.1 plus the fixes for its two failed audits (see "Audit round 5 (version 1.6.2)" below). Version 1.6.1 on PR 9 = version 1.6.0 plus the fixes for its two failed audits (see "Audit round 4 (version 1.6.1)" below). Version 1.6.0 on PR 9 = version 1.5.1 plus the owner's invite rule (see "The invite rule (version 1.6.0)" below); version 1.5.1 = version 1.5.0 plus the third-round audit fixes (see "Per-address limits and erasing console data" below); version 1.5.0 = version 1.4.2 plus a merge of the live production commit `fa5ab0afa895` (deployed 5 Nov 2026; before this merge the branch was 13 ahead and 108 behind it). Check any future deploy with `git merge-base --is-ancestor fa5ab0afa895 HEAD`. Version 1.4.2 on PR 9 (branch `feat/ttt-console-pay-step-2026-11-20`). Not merged, not deployed. The first version (1.4.1, head f1d18faf) failed both audits; 1.4.2 fixes them. Two independent `AUDIT: PASS` on the exact new commit are required before the owner deploys.
 - Money switches are OFF: `PAY_VIA_CONSOLE` is not set anywhere and `CONSOLE_PUBKEYS` is empty in every shipped config (kept by `apps/edge/test/console-security.test.ts`).
 

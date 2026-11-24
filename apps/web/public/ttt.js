@@ -23,7 +23,7 @@
     if (!r.ok) throw Object.assign(new Error(j.error || "http " + r.status), { status: r.status, code: j.code, body: j });
     return j;
   };
-  // 1.6.3 (security audit M-2 c): a request to join from a person who is not on the list needs a small proof of work. The server answers 428 need-pow with the window and the zero bits it wants; the phone finds a number so that SHA-256 of "pow1|<game>|<this phone's id>|<window>|<number>" starts with that many zero bits (about a second), and asks again. Nothing is sent to anybody else. Same rule as apps/edge/src/pow.ts.
+  // 1.6.3 (security audit M-2 c): a request to join from a person who is not on the list needs a small proof of work. The server answers 428 need-pow with the window and the zero bits it wants; the phone finds a number so that SHA-256 of "pow1|<game>|<this phone's id>|<window>|<number>" starts with that many zero bits (a few seconds, not measured on real phones), and asks again. Nothing is sent to anybody else. Same rule as apps/edge/src/pow.ts.
   const powSolve = async (win, bits) => {
     const enc = new TextEncoder(), prefix = `pow1|${EID}|${device}|${win}|`;
     const zeros = (h) => { let n = 0; for (const b of h) { if (b === 0) { n += 8; continue; } n += Math.clz32(b) - 24; break; } return n; };
@@ -39,7 +39,7 @@
       try { return await api("POST", `/api/z/${EID}/join`, pow ? { ...body, pow } : body); }
       catch (e) {
         if (e.code !== "need-pow" || !e.body || !e.body.pow || tries >= 3) throw e;
-        set(`${top()}<div class="zcard" role="status"><h2>One moment</h2><p>Your phone is checking that you are a person. This takes a few seconds.</p></div>`);
+        set(`${top()}<div class="zcard" role="status"><h2>One moment</h2><p>Your phone is doing a short check before your request is sent. This takes a few seconds.</p></div>`);
         pow = { b: e.body.pow.bucket, n: await powSolve(e.body.pow.bucket, Number(e.body.pow.bits) || 16) };
       }
     }

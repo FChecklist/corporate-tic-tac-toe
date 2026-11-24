@@ -46,7 +46,7 @@ describe("the player's page does the proof of work when the server asks for it",
     expect(p.bodies.length).toBe(2); expect(p.d.body.textContent).not.toMatch(/Could not join/);
   });
   test("the page asks for the proof again when the server wants more work, and gives up with the server's sentence if it never accepts", async () => {
-    const p = await page((n) => ok({ error: "One moment please. Your phone is checking that you are a person.", code: "need-pow", pow: { v: 1, bucket: 7, bits: 8 + n } }, 428));
+    const p = await page((n) => ok({ error: "One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.", code: "need-pow", pow: { v: 1, bucket: 7, bits: 8 + n } }, 428));
     await until("the page gave up", () => /One moment please/.test(String(p.d.body.textContent)) && p.bodies.length >= 4);
     expect(p.bodies.length).toBe(4); // the first try, then three proofs (the page's own limit), then the server's sentence is shown
     for (let i = 1; i < p.bodies.length; i++) expect(goodProof(p.bodies[i], 7, 8 + i)).toBe(true);

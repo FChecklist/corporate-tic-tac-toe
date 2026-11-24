@@ -1741,7 +1741,7 @@ async function route0(req: Request, env: Env, now: number, a: Auth): Promise<Res
       if (await env.DB.prepare("SELECT 1 AS x FROM waiting WHERE eid=? AND ph=?").bind(eid, forPh).first()) return null;
       if (await waitingClosed(env.DB, eid!)) return json({ error: "The organizer has stopped new requests to join for now. Please ask your organizer to add you to the list.", code: "waiting-closed" }, 403);
       const recent = Number((await env.DB.prepare("SELECT v FROM kv WHERE k=?").bind(`wnew/${eid}/${new Date(now).toISOString().slice(0, 15)}`).first<{ v: string }>().catch(() => null))?.v ?? 0), bits = recent >= POW_BUSY_AFTER ? POW_BITS_BUSY : POW_BITS;
-      if (!(await powValid(eid!, b?.device, b?.pow, bits, now))) return json({ error: "One moment please. Your phone is checking that you are a person.", code: "need-pow", pow: { v: 1, bucket: powWindow(now), bits } }, 428);
+      if (!(await powValid(eid!, b?.device, b?.pow, bits, now))) return json({ error: "One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.", code: "need-pow", pow: { v: 1, bucket: powWindow(now), bits } }, 428);
       return null;
     };
     let idMiss = false; // not on the list: the organizer decides

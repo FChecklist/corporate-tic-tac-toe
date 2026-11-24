@@ -1,10 +1,16 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "commit": "2424af0",
-  "releasedAtUTC": "2026-11-24T06:51:43Z",
-  "releasedAtIST": "2026-11-24T12:21:43+05:30",
+  "releasedAtUTC": "2026-11-24T11:56:16Z",
+  "releasedAtIST": "2026-11-24T17:26:16+05:30",
   "changes": [
+    {
+      "id": "1.6.4-audit-wording",
+      "what": "Wording fix from the second security audit of PR 9 at 02b56a1a (M-1): the join page, the server's 'one moment' sentence and the guide no longer claim that the phone is checking whether a person is there, because the small proof of work only slows down scripts and does not show that a person is asking. They now say: 'One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.' The release notes no longer give an unmeasured time of one second (now 'a few seconds, not measured on real phones'). Nothing else changed",
+      "where": "apps/web/public/ttt.js, guide.js; apps/edge/src/worker.ts, releases.json; apps/web/test/waiting-pow.test.ts; CHANGELOG.md",
+      "pr": "9"
+    },
     {
       "id": "1.6.3-audit-round-6",
       "what": "Fixes for the failed security audit of PR 9 at 4fe14715: one network can no longer lock listed guests out of ID entry (only wrong IDs are counted, a right ID is never refused for other people's tries); the waiting room: at most 60 new requests in ten minutes for a whole game, one tap for the Organizer or a Host to stop new requests and clear the list, and a small proof of work (no outside service, no key) before a new request is taken; a Host belongs to one game: no Host is made without a game, an old Host with no game has no game access until the Organizer adds them again inside a game, and the team list, removing a Co-host, pay links, paying with credit and the games list all keep a Host inside their own game; one player can no longer fill a board; the planted-number test no longer fails by chance",
