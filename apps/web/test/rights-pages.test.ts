@@ -15,7 +15,7 @@ async function openRights({ player = true }: { player?: boolean } = {}) {
   w.fetch = async (url: string, init: any = {}) => {
     const body = init.body ? JSON.parse(init.body) : undefined; calls.push({ url: String(url), body });
     const ok = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status });
-    if (String(url).endsWith("/leave")) return ok({ ok: true, left: true, message: "You have left the game. Your name and your place were deleted from our system just now. You can close this page." });
+    if (String(url).endsWith("/leave")) return ok({ ok: true, left: true, message: "You have left the game. Your name and your place were deleted from the system just now. You can close this page." });
     if (String(url).endsWith("/datareq")) {
       if (body.kind === "status") return ok({ promiseDays: 7, promise: "within 7 days", requests: [] });
       if (body.kind === "erasure") return ok({ ok: true, erased: true, status: "done", message: "Done. Your name and your place were deleted just now. We told the organizer." });

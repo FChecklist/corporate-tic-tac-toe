@@ -40,7 +40,7 @@ async function joinAll(id: string, count: number, from = 1): Promise<P[]> {
   }
   return out;
 }
-const view = async (id: string, now: number, q = "") => j(await call("GET", `/api/z/${id}/ttt/view${q}`, undefined, {}, now));
+const view = async (id: string, now: number, q = "", headers: Record<string, string> = {}) => j(await call("GET", `/api/z/${id}/ttt/view${q}`, undefined, headers, now)); // 1.6.2 (audit M-E): full names only with a key or a seat; pass the Organizer's header to see them
 const setupOf = async (id: string, now = T): Promise<Setup> => j(await call("GET", `/api/z/${id}/ttt/setup`, undefined, {}, now));
 /** Start through the route, then let the Organizer's page compute and send the draw (as host.js does). */
 async function begin(id: string, h: Record<string, string>, body: Record<string, unknown> = {}, now = T) {
@@ -60,7 +60,7 @@ async function pairs(id: string, ps: P[], count = 1) {
   const ms = Object.values(plan.t.matches).filter((m) => m.round === 1 && !m.bye).sort((a, b) => a.idx - b.idx).slice(0, count);
   return { plan, list: ms.map((m) => ({ mid: m.mid, m, a: by.get(m.boards[0]!.a)!, b: by.get(m.boards[0]!.b)! })) };
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env; n = 0; seedRng = 1; });
 
 describe("the lobby and the start (G1-G6)", () => {
   test("G5/G6: the view shows how many joined; start is refused with fewer than two players and for anyone but the Organizer or a Host", async () => {
@@ -117,6 +117,19 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     expect(m.boards[0].events.map((e: any) => [e.seq, e.sq, e.ms])).toEqual([[0, 4, T + 5000], [1, 1, T + 7000]]);
     expect((await mv("MB-1", x!.a, { mid: x!.mid, seq: 2, sq: 9 }, T + 9000)).status).toBe(400); // not a square
   });
+  test("M1b: a passing database hiccup on the move is a gentle 503 busy (the phone asks again), NOT 'the board changed' (409); a true clash stays 409 (5 Nov 2026 audit)", async () => {
+    const h = await game("MB-1b"); const ps = await joinAll("MB-1b", 4); await begin("MB-1b", h);
+    const { list: [x] } = await pairs("MB-1b", ps);
+    const real = env.DB as any; let fails = 1;
+    const wrap = (st: any, sqlText: string): any => new Proxy(st, { get(t, k) { const v = t[k]; if (k === "bind") return (...a: any[]) => wrap(v.apply(t, a), sqlText); if (k === "run") return async (...a: any[]) => { if (fails > 0 && sqlText.startsWith("INSERT INTO ttt_mv")) { fails--; throw new Error("D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window"); } return v.apply(t, a); }; return typeof v === "function" ? v.bind(t) : v; } });
+    (env as any).DB = new Proxy(real, { get(t, k) { if (k === "prepare") return (q: string) => wrap(t.prepare(q), q); const v = t[k]; return typeof v === "function" ? v.bind(t) : v; } });
+    try {
+      const busy = await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5000);
+      expect(busy.status).toBe(503); expect((await j(busy)).code).toBe("busy"); expect(sql("SELECT * FROM ttt_mv WHERE eid='MB-1b'").length).toBe(0);
+      expect((await mv("MB-1b", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 5100)).status).toBe(200); // the phone asks again: it goes in
+      expect((await mv("MB-1b", x!.b, { mid: x!.mid, seq: 0, sq: 1 }, T + 6000)).status).toBe(409); // a true clash is still a 409
+    } finally { (env as any).DB = real; }
+  });
   test("M2: only a player in that match can write to it, from their own phone", async () => {
     const h = await game("MB-2"); const ps = await joinAll("MB-2", 8); await begin("MB-2", h);
     const { list: [x, y] } = await pairs("MB-2", ps, 2);
@@ -166,16 +179,45 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     expect((await result("MB-5", x!.a, x!.mid, y!.a.pid, T + 1000)).status).toBe(400);
     expect((await result("MB-5", y!.a, x!.mid, x!.a.pid, T + 1000)).status).toBe(403);
   });
-  test("M6: a single report that nobody contradicts for 30 seconds is kept as the result (the other phone is away or closed); a late contradiction is flagged", async () => {
+  test("M6: a single report that nobody contradicts for 30 seconds is kept as the result when the board shows the other phone is away (a stored clock-out claim); a late contradiction is flagged", async () => {
     const h = await game("MB-6"); const ps = await joinAll("MB-6", 8); await begin("MB-6", h);
     const { list: [x, y] } = await pairs("MB-6", ps, 2);
-    await result("MB-6", x!.a, x!.mid, x!.a.pid, T + 1000); await result("MB-6", y!.a, y!.mid, y!.a.pid, T + 1000);
-    expect((await getM("MB-6", x!.mid, T + 20_000)).boards[0].result).toBeNull();
-    const kept = await getM("MB-6", x!.mid, T + 31_001); expect(kept.complete).toBe(true); expect(kept.boards[0].result).toMatchObject({ winner: x!.a.pid, how: "uncontested", ms: T + 31_000 });
-    await call("POST", "/api/lifecycle/tick", {}, { "x-organizer": "plat" }, T + 40_000); // the scheduled job does the same for matches nobody looks at
+    for (const b of [x!, y!]) { expect((await mv("MB-6", b.a, { mid: b.mid, seq: 0, absent: true }, T + 31_000)).status).toBe(200); await result("MB-6", b.a, b.mid, b.a.pid, T + 31_500); } // the first move had its 30 s: the other phone did not come; "I won" is reported
+    expect((await getM("MB-6", x!.mid, T + 50_000)).boards[0].result).toBeNull();
+    const kept = await getM("MB-6", x!.mid, T + 61_501); expect(kept.complete).toBe(true); expect(kept.boards[0].result).toMatchObject({ winner: x!.a.pid, how: "uncontested", ms: T + 61_500 });
+    await call("POST", "/api/lifecycle/tick", {}, { "x-organizer": "plat" }, T + 70_000); // the scheduled job does the same for matches nobody looks at
     expect(sql("SELECT how FROM ttt_b WHERE mid=?", y!.mid)[0].how).toBe("uncontested");
-    const late = await j(await result("MB-6", x!.b, x!.mid, x!.b.pid, T + 50_000)); expect(late.flagged).toBe(true);
-    expect((await getM("MB-6", x!.mid, T + 51_000)).complete).toBe(false);
+    const late = await j(await result("MB-6", x!.b, x!.mid, x!.b.pid, T + 80_000)); expect(late.flagged).toBe(true);
+    expect((await getM("MB-6", x!.mid, T + 81_000)).complete).toBe(false);
+  });
+  test("H2 (audit 2): a single report is NOT kept while the other player is still writing to that board; it is kept once that player has been silent for 150 s; their own report still counts at any time", async () => {
+    const h = await game("MB-6B"); const ps = await joinAll("MB-6B", 8); await begin("MB-6B", h);
+    const { list: [x, y] } = await pairs("MB-6B", ps, 2);
+    await mv("MB-6B", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6B", x!.b, { mid: x!.mid, seq: 1, sq: 0 }, T + 5000); // the opponent is present: they wrote at T+5000
+    await result("MB-6B", x!.a, x!.mid, x!.a.pid, T + 6000); // "I won": a claim nobody has checked
+    await mv("MB-6B", y!.a, { mid: y!.mid, seq: 0, absent: true }, T + 31_000); await result("MB-6B", y!.a, y!.mid, y!.a.pid, T + 32_000); // another board where the other side never came: a clock-out claim after the first move's 30 s, then the report
+    expect((await getM("MB-6B", x!.mid, T + 40_000)).boards[0].result).toBeNull(); // 34 s later: still not kept
+    expect((await getM("MB-6B", y!.mid, T + 62_001)).boards[0].result).toMatchObject({ winner: y!.a.pid, how: "uncontested" }); // the 30 s rule for the board where the other side never came
+    expect((await getM("MB-6B", x!.mid, T + 154_999)).boards[0].result).toBeNull(); // 150 s after the opponent's last write (T+5000) has not passed yet
+    expect((await getM("MB-6B", x!.mid, T + 155_001)).boards[0].result).toMatchObject({ winner: x!.a.pid, how: "uncontested" }); // the opponent is gone: the report is kept
+  });
+  test("H2b (audit 2): the opponent who IS there simply reports too: two matching reports are kept at once, two different ones are flagged for the Organizer", async () => {
+    const h = await game("MB-6C"); const ps = await joinAll("MB-6C", 8); await begin("MB-6C", h);
+    const { list: [x, y] } = await pairs("MB-6C", ps, 2);
+    await mv("MB-6C", x!.a, { mid: x!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6C", x!.b, { mid: x!.mid, seq: 1, sq: 0 }, T + 5000);
+    await result("MB-6C", x!.a, x!.mid, x!.a.pid, T + 6000); expect((await j(await result("MB-6C", x!.b, x!.mid, x!.a.pid, T + 6500))).agreed).toBe(true);
+    await mv("MB-6C", y!.a, { mid: y!.mid, seq: 0, sq: 4 }, T + 1000); await mv("MB-6C", y!.b, { mid: y!.mid, seq: 1, sq: 0 }, T + 5000);
+    await result("MB-6C", y!.a, y!.mid, y!.a.pid, T + 6000); const bad = await j(await result("MB-6C", y!.b, y!.mid, y!.b.pid, T + 6500)); expect(bad.flagged).toBe(true);
+  });
+  test("H3 (audit 2): a later match can be opened only with players of the two matches it comes from; a pairing against somebody from another match is refused", async () => {
+    const h = await game("MB-8B"); const ps = await joinAll("MB-8B", 8); await begin("MB-8B", h);
+    const { list: [x, y, z] } = await pairs("MB-8B", ps, 3);
+    for (const [m, w] of [[x!, x!.a], [y!, y!.b]] as const) expect((await call("POST", "/api/z/MB-8B/ttt/settle", { mid: m.mid, j: 0, winner: w.pid }, h, T + 6000)).status).toBe(200);
+    const open = (boards: string[][], p: P) => call("POST", "/api/z/MB-8B/ttt/open", { pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: x!.a.pid, b: y!.b.pid, boards, from: [x!.mid, y!.mid], opened: T + 9000 }, {}, T + 7000);
+    const bad = await open([[x!.a.pid, z!.a.pid]], x!.a); expect(bad.status).toBe(400); expect((await j(bad)).code).toBe("not-from-feeders"); // z is from a third match
+    const bad2 = await open([[x!.a.pid, "99x000000000099"]], x!.a); expect(bad2.status).toBe(400);
+    expect(sql("SELECT COUNT(*) c FROM ttt_m WHERE eid='MB-8B' AND mid='r2m0'")[0].c).toBe(0);
+    expect((await open([[x!.a.pid, y!.b.pid]], x!.a)).status).toBe(200); // the two winners: fine
   });
   test("M7: while the host pauses nothing is stored (the clocks wait); after the resume moves are stored again", async () => {
     const h = await game("MB-7"); const ps = await joinAll("MB-7", 4); await begin("MB-7", h);
@@ -191,33 +233,54 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const h = await game("MB-8"); const ps = await joinAll("MB-8", 4); await begin("MB-8", h);
     const { list: [x, y] } = await pairs("MB-8", ps, 2);
     const w0 = x!.a, w1 = y!.b; const l0 = x!.b, l1 = y!.a;
-    const body = (p: P, extra: Record<string, unknown> = {}) => ({ pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: "e0", b: "e1", boards: [[w0.pid, w1.pid]], from: [x!.mid, y!.mid], opened: T + 9000, ...extra });
+    const body = (p: P, extra: Record<string, unknown> = {}) => ({ pid: p.pid, device: p.device, mid: "r2m0", round: 2, idx: 0, a: w0.pid, b: w1.pid, boards: [[w0.pid, w1.pid]], from: [x!.mid, y!.mid], opened: T + 9000, ...extra });
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(w0), {}, T + 5000)).status).toBe(409); // the earlier matches are not finished
     for (const [m, w] of [[x!, w0], [y!, w1]] as const) { expect((await call("POST", "/api/z/MB-8/ttt/settle", { mid: m.mid, j: 0, winner: w.pid }, h, T + 6000)).status).toBe(200); }
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(l0), {}, T + 7000)).status).toBe(403); // somebody who is not on the board
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(w0, { from: [x!.mid] }), {}, T + 7000)).status).toBe(400);
     expect((await call("POST", "/api/z/MB-8/ttt/open", body(w0), {}, T + 7000)).status).toBe(200);
     expect((await j(await call("POST", "/api/z/MB-8/ttt/open", body(w1), {}, T + 7100))).again).toBe(true); // the same pairing from the other player: fine
-    const clash = await call("POST", "/api/z/MB-8/ttt/open", body(w1, { boards: [[w1.pid, w0.pid]] }), {}, T + 7200); expect(clash.status).toBe(409); expect((await j(clash)).code).toBe("conflict");
-    expect(sql("SELECT kind FROM ttt_x WHERE eid='MB-8'")[0].kind).toBe("pairing");
-    const reg = await getM("MB-8", "r2m0", T + 8000); expect(reg.reg).toMatchObject({ round: 2, a: "e0", b: "e1", opened: T + 9000 }); expect(reg.boards.length).toBe(1);
+    const clash = await call("POST", "/api/z/MB-8/ttt/open", body(w1, { boards: [[w1.pid, w0.pid]] }), {}, T + 7200); expect(clash.status).toBe(400); expect((await j(clash)).code).toBe("not-from-feeders"); // 1.6.2: a different pairing is not even stored (the sides are the winners, in order)
+    const reg = await getM("MB-8", "r2m0", T + 8000); expect(reg.reg).toMatchObject({ round: 2, a: w0.pid, b: w1.pid, opened: T + 9000 }); expect(reg.boards.length).toBe(1);
     expect((await mv("MB-8", w0, { mid: "r2m0", seq: 0, sq: 4 }, T + 9000)).status).toBe(200);
     expect(l1.pid).toBeTruthy();
   });
   test("M9: the final ranking is kept only when two different phones in the final send the same thing (or the Organizer's page does); a different one is flagged", async () => {
     const h = await game("MB-9"); const ps = await joinAll("MB-9", 2); const { clock } = await begin("MB-9", h); void clock;
     const { list: [x] } = await pairs("MB-9", ps);
-    const pay = { champion: "e1", rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: "e1", name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: "e2", name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] };
+    const pay = { champion: x!.a.pid, rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: x!.a.pid, name: "Player 1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: x!.b.pid, name: "Player 2", roundReached: 1, points: 0, decidedBy: "round reached", tie: "" }] }; // v1.6.1: the result may name only people of this game (audit 2, H3)
     const fin = (p: P, body: unknown, now: number) => call("POST", "/api/z/MB-9/ttt/finish", { pid: p.pid, device: p.device, ...(body as object) }, {}, now);
     expect((await fin(x!.a, pay, T + 1000)).status).toBe(409); // the final is not finished
     await result("MB-9", x!.a, x!.mid, x!.a.pid, T + 2000); await result("MB-9", x!.b, x!.mid, x!.a.pid, T + 2100);
     expect((await call("POST", "/api/z/MB-9/ttt/finish", pay, {}, T + 2500)).status).toBe(403); // a stranger
     const one = await j(await fin(x!.a, pay, T + 3000)); expect(one).toMatchObject({ ok: true, done: false });
-    const diff = await j(await fin(x!.b, { ...pay, champion: "e2" }, T + 3100)); expect(diff.done).toBe(false);
+    const diff = await j(await fin(x!.b, { ...pay, ranking: [{ ...pay.ranking[0]!, points: 3 }, pay.ranking[1]!] }, T + 3100)); expect(diff.done).toBe(false);
     expect(sql("SELECT kind FROM ttt_x WHERE eid='MB-9'").map((x) => x.kind)).toContain("finish-mismatch");
     const two = await j(await fin(x!.b, pay, T + 3200)); expect(two.done).toBe(true);
-    const v = await view("MB-9", T + 4000); expect(v.state).toBe("done"); expect(v.champion).toBeNull(); // no entrant named e1 in the draw: the mailbox shows what it was given
+    const v = await view("MB-9", T + 4000, "", h); expect(v.state).toBe("done"); expect(v.champion).toBe(x!.a.name); // the champion is the entrant the phones named (a player of this game): the mailbox shows what it was given
     expect(sql("SELECT pattern FROM settled WHERE eid='MB-9' ORDER BY pattern").map((x) => x.pattern)).toEqual(["first", "second"]);
+  });
+  test("H3 (audit 2): a final result that names somebody who did not play is refused, whoever sends it", async () => {
+    const h = await game("MB-9B"); const ps = await joinAll("MB-9B", 2); await begin("MB-9B", h);
+    const { list: [x] } = await pairs("MB-9B", ps);
+    await result("MB-9B", x!.a, x!.mid, x!.a.pid, T + 2000); await result("MB-9B", x!.b, x!.mid, x!.a.pid, T + 2100);
+    const ok = { champion: x!.a.pid, rounds: 1, finalMid: "r1m0", podium: [[x!.a.pid], [x!.b.pid]], ranking: [{ rank: 1, id: x!.a.pid, name: "P1", roundReached: 2, points: 2, decidedBy: "", tie: "" }, { rank: 2, id: x!.b.pid, name: "P2", roundReached: 1, points: 0, decidedBy: "", tie: "" }] };
+    const fin = (body: unknown) => call("POST", "/api/z/MB-9B/ttt/finish", body, h, T + 3000);
+    for (const bad of [{ ...ok, champion: "ghost-player" }, { ...ok, podium: [["99x000000000099"], [x!.b.pid]] }, { ...ok, ranking: [{ ...ok.ranking[0]!, id: "ghost-player" }] }]) { const r = await fin(bad); expect(r.status).toBe(400); expect((await j(r)).code).toBe("not-in-game"); }
+    expect(sql("SELECT COUNT(*) c FROM settled WHERE eid='MB-9B'")[0].c).toBe(0); expect(sql("SELECT COUNT(*) c FROM winner WHERE eid='MB-9B'")[0].c).toBe(0);
+    expect((await fin(ok)).status).toBe(200); // the same result with real players is kept
+  });
+  test("M1 (audit 2): the full names of the players go to a seated player (with the phone's proof) and to the Organizer; anybody else with the link sees a first name and an initial; the ids are the same", async () => {
+    const h = await game("MB-NM"); const ps: P[] = [];
+    for (const [i, name] of ["Asha Rao", "Ravi Kumar Singh", "Mei", "Dev Nair"].entries()) { const r = await call("POST", "/api/z/MB-NM/join", { name, device: dev(i + 1) }); expect(r.status).toBe(200); ps.push({ pid: (await j(r)).pid, device: dev(i + 1), name }); }
+    await begin("MB-NM", h);
+    const get = async (q = "", headers: Record<string, string> = {}) => j(await call("GET", `/api/z/MB-NM/ttt/setup${q}`, undefined, headers, T));
+    const names = (s: any) => s.roster.map((r: any) => r.name).sort(), ids = (s: any) => s.roster.map((r: any) => r.pid).sort();
+    const player = await get(`?pid=${ps[0]!.pid}&device=${ps[0]!.device}`), organizer = await get("", h);
+    expect(names(player)).toEqual(["Asha Rao", "Dev Nair", "Mei", "Ravi Kumar Singh"]); expect(names(organizer)).toEqual(names(player));
+    for (const stranger of [await get(), await get(`?pid=${ps[0]!.pid}&device=${dev(999)}`), await get(`?pid=nobody&device=${ps[0]!.device}`), await get(`?pid=${ps[1]!.pid}&device=${ps[0]!.device}`)]) {
+      expect(names(stranger)).toEqual(["Asha R.", "Dev N.", "Mei", "Ravi S."]); expect(JSON.stringify(stranger)).not.toContain("Kumar"); expect(JSON.stringify(stranger)).not.toContain("Rao"); expect(ids(stranger)).toEqual(ids(player)); // the draw is the same for everybody
+    }
   });
   test("G11/R29: a player who reloads (a brand-new phone, nothing remembered) sees the board exactly as it is, with the clock still running", async () => {
     const h = await game("MB-11"); const ps = await joinAll("MB-11", 4); const { clock } = await begin("MB-11", h);
@@ -236,7 +299,7 @@ describe("the mailbox stores and relays; it does not judge (M1-M8)", () => {
     const w = await con.waiting(300_000); expect(w.length).toBe(1); expect([w[0]!.a.name, w[0]!.b.name].sort()).toEqual(["Player 1", "Player 2"]);
     expect((await call("POST", "/api/z/MB-12/ttt/settle", { mid: w[0]!.mid, j: w[0]!.j, winner: w[0]!.a.pid }, h, clock.t)).status).toBe(200);
     expect((await con.tick()).finished).toBe(true); // the page computes the ranking and sends it
-    const v = await view("MB-12", clock.t); expect(v.state).toBe("done"); expect(v.champion).toBe(w[0]!.a.name);
+    const v = await view("MB-12", clock.t, "", h); expect(v.state).toBe("done"); expect(v.champion).toBe(w[0]!.a.name);
     void ps;
   });
   test("M10: the server never sees a rule: no table of the mailbox holds a board, a clock or a bracket, only ids, squares, stamps and who reported what", () => {
@@ -253,8 +316,8 @@ describe("whole tournaments played by simulated phones that compute the game the
   test("G12/R24: 8 phones finish on their own; the champion is rank 1; the podium is in the winners record; the end starts the deletion clock; nothing is flagged", async () => {
     const h = await game("TT-9"); const ps = await joinAll("TT-9", 8); const { clock } = await begin("TT-9", h, { moveSecs: 10 });
     const r = await playCrowd({ call, eid: "TT-9", phones: ps, orgHeaders: h, clock, rng: rnd, isDone: done("TT-9") });
-    const v = await view("TT-9", clock.t); expect(v.state).toBe("done"); expect(v.format).toBe("solo"); expect(v.moveSecs).toBe(10); expect(v.players).toBe(8);
-    const rank = await j(await call("GET", "/api/z/TT-9/ttt/rank?n=10", undefined, {}, clock.t));
+    const v = await view("TT-9", clock.t, "", h); expect(v.state).toBe("done"); expect(v.format).toBe("solo"); expect(v.moveSecs).toBe(10); expect(v.players).toBe(8);
+    const rank = await j(await call("GET", "/api/z/TT-9/ttt/rank?n=10", undefined, h, clock.t));
     expect(rank.ranking.map((x: any) => x.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]); expect(rank.ranking[0]!.name).toBe(v.champion);
     expect(sql("SELECT pattern FROM settled WHERE eid='TT-9' ORDER BY pattern").map((x) => x.pattern)).toEqual(["fifth", "first", "fourth", "second", "third"]);
     expect(sql("SELECT COUNT(*) c FROM winner WHERE eid='TT-9'")[0].c).toBe(5);
@@ -362,5 +425,21 @@ describe("removing a player after the host pressed Start (found by the Chrome si
     expect((await j(rm)).during).toBe(false);
     expect(sql("SELECT COUNT(*) c FROM participant WHERE eid='TT-RM2'")[0].c).toBe(2);
     void ps;
+  });
+});
+
+describe("T-51: a big draw is sent in parts", () => {
+  test("5,000 solo players: no part of the draw is bigger than the mailbox takes, and every player is sent once", async () => {
+    const roster = Array.from({ length: 5000 }, (_, i) => ({ pid: "p" + i.toString(36).padStart(8, "0"), name: "Player " + i }));
+    const setup = { eid: "TT-BIG", state: "starting", commit: "c", seed: "ab".repeat(32), roster, opts: { format: "solo", teamSize: 1, moveMs: 20_000, readyMs: 30_000 }, startedMs: null, pauses: [], serverNow: T };
+    const sent: any[] = []; const sizes: number[] = [];
+    const api = async (method: string, path: string, body?: unknown) => {
+      if (method === "GET") return path.endsWith("/view") ? { state: "starting" } : setup;
+      sizes.push(JSON.stringify(body).length); sent.push(body); return { ok: true };
+    };
+    await new TttConsole(api as any, "TT-BIG").tick();
+    expect(Math.max(...sizes)).toBeLessThan(400_000);
+    expect(sent.flatMap((b) => b.entrants ?? []).length).toBe(5000);
+    expect(sent.filter((b) => b.last).length).toBe(1); expect(sent[sent.length - 1].last).toBe(true);
   });
 });

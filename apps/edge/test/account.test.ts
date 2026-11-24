@@ -15,7 +15,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
 const j = async (r: Response) => (await r.json()) as any;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 const rd = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k", TEST_MODE: "1" }; });
 async function org(email = "boss@acme.com", ip = "1.1.1.1") {
   const x = await j(await call("POST", "/api/start", { email }, { "cf-connecting-ip": ip }));
   return { h: { "x-organizer": x.token as string }, token: x.token as string, ai: x.aiKey as string };
@@ -49,7 +49,7 @@ describe("Close my organizer account", () => {
     const o = await org(); await game(o, "CLS-1"); await game(o, "CLS-2");
     await call("POST", "/api/z/CLS-1/join", { phone: "9811111111", name: "Asha", device: "1".repeat(32) });
     raw.prepare("INSERT INTO payment(id,org,email,pack,amount,tax,currency,status,created_ms,meta) VALUES('pay_1','x','boss@acme.com',100,1,0,'INR','paid',?,'{}')").run(T);
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h));
+    const hk = await j(await call("POST", "/api/org/host", { e: "CLS-1", mobile: "9876500009", email: "host@acme.com" }, o.h));
     for (const hdr of <Record<string, string>[]>[{ "x-organizer": o.ai }, { "x-organizer": hk.hostKey }, { "x-organizer": "plat" }, {}]) expect((await call("POST", "/api/org/close", { confirm: true }, hdr)).status).toBe(403);
     expect((await call("POST", `/ai/${o.ai}/org/close`, { confirm: true })).status).toBe(403);
     expect((await call("POST", "/api/org/close", {}, o.h)).status).toBe(400); // no confirmation
@@ -65,7 +65,7 @@ describe("Close my organizer account", () => {
     const o = await org(); await game(o, "CLS-3", 0);
     const r = await call("POST", "/api/org/close", { confirm: true }, o.h, T + 5 * 60_000); expect(r.status).toBe(409);
     expect((raw.prepare("SELECT COUNT(*) AS c FROM engagement").get() as any).c).toBe(1);
-    const z = rd("zc.js"); expect(z).toContain("Close my account"); expect(z).toContain("This cannot be undone.");
+    const z = rd("zc.js"); expect(z).toContain("Close your account"); expect(z).toContain("This cannot be undone.");
   });
 });
 

@@ -5,7 +5,7 @@ import { handle } from "./with-terms";
 import { makeD1 } from "./d1-sqlite";
 
 const ALL = { DATA_KEY: "d", PHONE_SALT: "p", ORGANIZER_SECRET: "o", CRON_KEY: "c", INBOUND_SECRET: "i" };
-const mk = (extra: Record<string, string>) => ({ DB: makeD1().db, DAILY_WRITE_BUDGET: "1000", ...extra }) as unknown as Env;
+const mk = (extra: Record<string, string>) => ({ DB: makeD1().db, RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000", ...extra }) as unknown as Env;
 const hit = (env: Env) => handle(new Request("http://x/api/whoami"), env, Date.UTC(2026, 9, 1));
 
 describe("strict keys", () => {

@@ -218,10 +218,10 @@ export async function appendAudit(env: AuditEnv, r: RecordIn): Promise<boolean> 
       const last = await env.DB.prepare("SELECT seq, row_hash FROM audit_log WHERE chain=? ORDER BY seq DESC LIMIT 1").bind(chain).first<{ seq: number; row_hash: string }>();
       const seq = (last?.seq ?? 0) + 1, prev = last?.row_hash ?? GENESIS;
       // a participant's network number is personal too: it lives in the sealed part only
-      const f = { chain, seq, prev, at: r.now, actor: r.actor, event: r.event, target: r.target, corr: r.corr, status: r.status, country: r.country || null, asn: split ? null : r.asn || null, vendor: r.aiVendor ?? null, key: r.keyId ?? null, proof: r.proof ?? null, mismatch: r.mismatch ? 1 : 0, sealed, pdig };
+      const f = { chain, seq, prev, at: r.now, actor: r.actor, event: r.event, target: r.target, corr: split ? "" : r.corr, status: r.status, country: split ? null : r.country || null, asn: split ? null : r.asn || null, vendor: r.aiVendor ?? null, key: r.keyId ?? null, proof: r.proof ?? null, mismatch: r.mismatch ? 1 : 0, sealed, pdig };
       try {
         const ins = env.DB.prepare("INSERT INTO audit_log(chain,seq,eid,org,at_ms,actor,event,target,corr,status,country,asn,ai_vendor,key_id,proof,mismatch,sealed,prev_hash,row_hash,pdig) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-          .bind(chain, seq, r.eid, r.org, r.now, r.actor, r.event, r.target, r.corr, r.status, f.country, f.asn, f.vendor, f.key, f.proof, f.mismatch, sealed, prev, await rowHash(f), pdig);
+          .bind(chain, seq, r.eid, r.org, r.now, r.actor, r.event, r.target, f.corr, r.status, f.country, f.asn, f.vendor, f.key, f.proof, f.mismatch, sealed, prev, await rowHash(f), pdig);
         if (pii) await env.DB.batch([ins, env.DB.prepare("INSERT INTO audit_pii(chain,seq,eid,sealed) VALUES(?,?,?,?)").bind(chain, seq, r.eid, pii)]); else await ins.run();
         return true;
       } catch { /* another request took this sequence number: read the new head and try again */ }
@@ -328,7 +328,7 @@ export async function verifyChain(db: D1, chain: string): Promise<{ ok: boolean;
     if (x.pdig) { // the personal part, while it exists, must be the one the chain committed to; once shredded it is rightly gone (the chain never needed it)
       const blob = piiRows.get(x.seq);
       if (blob !== undefined && (await sha(blob)) !== x.pdig) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part was changed", headHash: head };
-      if (blob === undefined && !shredded) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part is missing without a recorded erasure", headHash: head };
+      if (blob === undefined && !shredded) return { ok: false, rows: n, brokenAtSeq: x.seq, reason: "this row's personal part is missing without a recorded deletion", headHash: head };
     }
     prev = x.row_hash; head = x.row_hash; expectSeq = x.seq + 1;
   }

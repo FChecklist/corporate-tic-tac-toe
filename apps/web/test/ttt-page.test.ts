@@ -1,5 +1,5 @@
-// The player's page (z.html + ttt.js + termsbox.js) in a simulated phone browser: the join screen shows the K4 boxes BEFORE any name field works,
-// nothing is ticked in advance, the button stays disabled until both are ticked, and the request carries the ticks and the Terms version. Gates K4, U1, U2, U3, LR-6, LR-7.
+// The player's page (z.html + ttt.js + termsbox.js) in a simulated phone browser: the join screen shows the one-line agreement notice BEFORE the name field,
+// there is nothing to tick (no tick-boxes since 1 Nov 2026), the button waits for a name, and the request carries the Terms version. Gates K4, U1, U2, U3, LR-6, LR-7.
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { Window } from "happy-dom";
@@ -8,8 +8,12 @@ const K4: Record<string, string> = (TEXT as any).K4, VER: string = (TEXT as any)
 
 const pub = (f: string) => readFileSync(new URL("../public/" + f, import.meta.url), "utf8");
 const tick = (ms = 15) => new Promise((r) => setTimeout(r, ms));
+// The two sentences, word for word as the owner wrote them (23 Nov 2026). Both screens show them: the ask-to-join screen and the panel after entry.
+export const OPTIONAL_SENTENCE = "Above details are optional. You can play without giving these details also.";
+export const DELETE_SENTENCE = "All the details will be deleted and erased from the system within 24 hours after the game is over.";
 
-async function openPlayerPage(search = "?e=GAME-1", info: Record<string, unknown> = {}) {
+async function openPlayerPage(search = "?e=GAME-1", info0: Record<string, unknown> = {}) {
+  const info = info0.verify === "id" && info0.byInvite === undefined ? { ...info0, byInvite: true } : info0; // verify "id" means a game by invitation (the only kind that asks for an ID)
   const w: any = new Window({ url: "https://tictactoe.corporatetambola.com/z.html" + search, width: 390, height: 780 });
   w.crypto = globalThis.crypto;
   const sent: { url: string; method: string; body: any }[] = [];
@@ -30,47 +34,73 @@ async function openPlayerPage(search = "?e=GAME-1", info: Record<string, unknown
 }
 
 describe("the join screen (K4, U1-U3)", () => {
-  test("U1/K4: the boxes are drawn first, with the server's exact wording, unticked; the name field and the button are disabled", async () => {
+  test("U1/K4: the agreement notice is drawn first (one line, three links, nothing to tick); the name field is ready and the button waits for a name", async () => {
     const { d } = await openPlayerPage();
-    const boxes = [...d.querySelectorAll('input[type="checkbox"]')] as any[];
-    expect(boxes.length).toBe(2); expect(boxes.every((b) => b.checked === false)).toBe(true);
-    const labels = [...d.querySelectorAll("#tbslot label")].map((l: any) => l.textContent.trim()); expect(labels).toEqual([K4.A, K4.B]); // string for string with the agreed wording
-    expect(d.getElementById("go")!.getAttribute("aria-disabled")).toBe("true");
-    expect(d.getElementById("nm")!.disabled).toBe(true); expect(d.getElementById("go")!.disabled).toBe(true);
-    const order = d.body.innerHTML; expect(order.indexOf("tbslot")).toBeLessThan(order.indexOf('id="nm"')); // the boxes come before the name field
+    expect(d.querySelectorAll('input[type="checkbox"]').length).toBe(0); // no tick-boxes since 1 Nov 2026
+    const note = d.querySelector("#tbslot .tb-note") as any; expect(note).toBeTruthy();
+    expect(note.textContent.trim()).toBe("By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules.");
+    expect([...note.querySelectorAll("a")].map((a: any) => a.getAttribute("href"))).toEqual(["https://home.corporatetambola.com/terms#terms", "https://home.corporatetambola.com/terms#privacy", "https://home.corporatetambola.com/terms#game-rules"]);
+    expect(d.getElementById("nm")!.disabled).toBe(false); expect(d.getElementById("go")!.disabled).toBe(true); expect(d.getElementById("go")!.getAttribute("aria-disabled")).toBe("true"); // a name is still needed
+    expect(d.body.textContent).not.toMatch(/tick the box/i);
+    const order = d.body.innerHTML; expect(order.indexOf("tbslot")).toBeLessThan(order.indexOf('id="nm"')); // the notice comes before the name field
   });
-  test("U3/LR-6: only a name is asked (no phone field), and the invite chain is in the wording the person ticks", async () => {
+  test("U3/LR-6 and H-2: only a name is asked (no phone field), and the two exact sentences of the owner are on the join screen", async () => {
     const { d } = await openPlayerPage();
     expect(d.querySelector('input[type="tel"]')).toBeNull(); expect(d.getElementById("ph")).toBeNull();
-    expect(d.body.textContent).toContain("who invited me is recorded until then");
+    expect(d.body.textContent).toContain(OPTIONAL_SENTENCE); expect(d.body.textContent).toContain(DELETE_SENTENCE);
   });
-  test("when the organizer asks for an employee ID the join screen has an ID box (and a mobile number box for people from outside); the name alone is not enough, and the request carries what was typed", async () => {
+  test("when the organizer asks for an employee ID the join screen has an ID box and the optional box; an ID alone or a name alone is enough to press Join, and the request carries what was typed", async () => {
     const { d, sent } = await openPlayerPage("?e=GAME-1", { verify: "id", employeesOnly: false });
     for (const b of [...d.querySelectorAll('input[type="checkbox"]')] as any[]) { b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); }
     await tick();
-    const W = d.defaultView as any, put = (id: string, v: string) => { const el = d.getElementById(id) as any; el.value = v; el.dispatchEvent(new W.Event("input")); };
+    const W = d.defaultView as any, put = (id: string, v: string) => { const el = d.getElementById(id) as any; el.value = v; el.dispatchEvent(new W.Event("input")); }, go = () => (d.getElementById("go") as any).disabled;
     expect(d.getElementById("emp")).toBeTruthy(); expect(d.getElementById("mob")).toBeTruthy();
-    put("nm", "Maya"); await tick(); expect((d.getElementById("go") as any).disabled).toBe(true); // a name alone is not a way in
-    put("emp", "e-101"); await tick(); expect((d.getElementById("go") as any).disabled).toBe(false);
+    expect(go()).toBe(true); // nothing typed: nothing to send
+    put("emp", "e-101"); await tick(); expect(go()).toBe(false); // an ID alone is enough (the server checks the list)
+    put("emp", ""); put("nm", "M"); await tick(); expect(go()).toBe(true); // one letter is not a name
+    put("nm", "Maya"); await tick(); expect(go()).toBe(false); // H-1: a name alone is enough: the organizer decides
+    put("emp", "e-101"); await tick();
     (d.getElementById("go") as any).click(); await tick(60);
     const join = sent.find((s) => s.url.endsWith("/join"))!; expect(join.body).toMatchObject({ name: "Maya", empId: "e-101" }); expect(join.body.phone).toBeUndefined();
+  });
+  test("H-1/H-2: a game by invitation: only the name is needed; department or team, region, mobile and e-mail sit in a closed optional fold; both exact sentences are shown; the request carries what was typed", async () => {
+    const { d, sent } = await openPlayerPage("?e=GAME-1", { verify: "id", byInvite: true, employeesOnly: false });
+    for (const b of [...d.querySelectorAll('input[type="checkbox"]')] as any[]) { b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); }
+    await tick();
+    const W = d.defaultView as any, put = (id: string, v: string) => { const el = d.getElementById(id) as any; el.value = v; el.dispatchEvent(new W.Event("input")); }, go = () => (d.getElementById("go") as any).disabled;
+    expect(d.body.textContent).toMatch(/A-1101, A 1101 and A\/1101 are the same ID/); expect(d.body.textContent).toMatch(/seen by your organizer and hosts only/);
+    expect(d.body.textContent).toContain(OPTIONAL_SENTENCE); expect(d.body.textContent).toContain(DELETE_SENTENCE);
+    const fold = d.getElementById("moreopt") as any; expect(fold.tagName).toBe("DETAILS"); expect(fold.hasAttribute("open")).toBe(false); // closed until opened
+    for (const id of ["emp", "dept", "reg", "mob", "mail"]) expect(d.getElementById(id)).toBeTruthy(); expect((d.getElementById("mail") as any).getAttribute("type")).toBe("email");
+    expect(go()).toBe(true);
+    put("mob", "98765 43210"); put("mail", "maya@acme.test"); await tick(); expect(go()).toBe(true); // contact alone is not what is asked for: the name is
+    put("nm", "Maya Lopez"); await tick(); expect(go()).toBe(false); // H-1: the name alone is enough, no ID, no mobile number, no e-mail needed
+    put("dept", "Finance Ops"); put("reg", "South"); await tick();
+    (d.getElementById("go") as any).click(); await tick(60);
+    const join = sent.find((x) => x.url.endsWith("/join"))!; expect(join.body).toMatchObject({ name: "Maya Lopez", phone: "98765 43210", email: "maya@acme.test", dept: "Finance Ops", region: "South" }); expect(join.body.empId).toBeUndefined();
+  });
+  test("H-1: a name alone is sent with no contact fields at all", async () => {
+    const { d, sent } = await openPlayerPage("?e=GAME-1", { verify: "id", byInvite: true, employeesOnly: false });
+    const W = d.defaultView as any, put = (id: string, v: string) => { const el = d.getElementById(id) as any; el.value = v; el.dispatchEvent(new W.Event("input")); };
+    await tick(); put("nm", "Maya Lopez"); await tick(); (d.getElementById("go") as any).click(); await tick(60);
+    const join = sent.find((x) => x.url.endsWith("/join"))!; expect(join.body.name).toBe("Maya Lopez"); for (const k of ["phone", "email", "dept", "region", "empId"]) expect(join.body[k]).toBeUndefined();
+  });
+  test("a game anyone may join (not by invitation) asks only for a name, and shows the owner's two sentences", async () => {
+    const { d } = await openPlayerPage("?e=GAME-1", { verify: "id", byInvite: false });
+    expect(d.getElementById("emp")).toBeNull(); expect(d.getElementById("mail")).toBeNull(); expect(d.body.textContent).toContain(OPTIONAL_SENTENCE); expect(d.body.textContent).toContain(DELETE_SENTENCE);
   });
   test("with the default (nothing asked) there is no ID box and no mobile box", async () => {
     const { d } = await openPlayerPage("?e=GAME-1", { verify: "number" });
     expect(d.getElementById("emp")).toBeNull(); expect(d.getElementById("mob")).toBeNull();
   });
-  test("K4: one box is not enough; with both ticked and a name typed the button works, and the request carries both ticks and the version", async () => {
+  test("K4: with a name typed the button works, and the request carries the version and the points of the point (notice: true)", async () => {
     const { d, sent } = await openPlayerPage();
-    const [a, b] = [...d.querySelectorAll('input[type="checkbox"]')] as any[];
-    a.checked = true; a.dispatchEvent(new (d.defaultView as any).Event("change")); await tick();
-    expect(d.getElementById("nm")!.disabled).toBe(true); expect(d.getElementById("go")!.disabled).toBe(true);
-    b.checked = true; b.dispatchEvent(new (d.defaultView as any).Event("change")); await tick();
     const nm = d.getElementById("nm") as any; expect(nm.disabled).toBe(false); expect(d.getElementById("go")!.disabled).toBe(true); // a name is still needed
     nm.value = "Maya"; nm.dispatchEvent(new (d.defaultView as any).Event("input")); await tick();
     const go = d.getElementById("go") as any; expect(go.disabled).toBe(false);
     go.click(); await tick(60);
     const join = sent.find((s) => s.url.endsWith("/join"))!;
-    expect(join.body.name).toBe("Maya"); expect(join.body.consent).toEqual({ v: VER, boxes: ["A", "B"] }); expect(join.body.device).toMatch(/^[0-9a-f]{32}$/);
+    expect(join.body.name).toBe("Maya"); expect(join.body.consent).toEqual({ v: VER, boxes: ["A", "B"], notice: true }); expect(join.body.device).toMatch(/^[0-9a-f]{32}$/);
     expect(d.body.textContent).toContain("Waiting for the host");
   });
   test("the page never types the consent wording itself (it comes from the server)", () => {

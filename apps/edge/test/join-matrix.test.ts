@@ -17,7 +17,7 @@ const call = (method: string, path: string, body?: unknown, key?: string, now = 
 const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i);
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
-const join = (body: Record<string, unknown>) => call("POST", "/api/z/PPL-1/join", { name: "G", ...body }, undefined, T);
+const join = (body: Record<string, unknown>) => call("POST", "/api/z/PPL-1/join", { name: "Guest G", email: "g@acme.test", ...body }, undefined, T);
 const rowsOf = (sql: string, ...v: unknown[]) => raw.prepare(sql).all(...(v as any[])) as any[];
 
 async function setup(opts: { closed?: boolean; verify?: "mobile" | "id" | "both" | "either"; employeesOnly?: boolean } = {}) {
@@ -30,7 +30,7 @@ async function setup(opts: { closed?: boolean; verify?: "mobile" | "id" | "both"
   return { master };
 }
 const add = (key: string, people: unknown[]) => call("POST", "/api/z/PPL-1/people", { people }, key);
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" } as any; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
 afterEach(() => { globalThis.fetch = realFetch; });
 const card = async (r: Response) => { expect(r.status).toBe(200); const b = await j(r); expect(b.pid).toBeTruthy(); return b; };
 const waits = async (r: Response) => { expect(r.status).toBe(403); expect((await j(r)).code).toBe("waiting"); };
@@ -40,17 +40,17 @@ describe("row 1 and 7: mobile number only", () => {
     await setup(); await card(await join({ phone: mob(1), device: dev(1) }));
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(1);
   });
-  test("a list-only game: a listed number gets its card at once, an unlisted number waits and takes no place", async () => {
-    const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha", phone: mob(1) }]);
-    await card(await join({ phone: mob(1), device: dev(1) }));
-    await waits(await join({ phone: mob(2), device: dev(2) }));
+  test("a list game (owner rule 23 Nov 2026): a listed ID gets its card at once; a number alone is no way in, even a listed one: it waits for the organizer and takes no place", async () => {
+    const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha", empId: "E101" }, { name: "Ravi", phone: mob(1) }]);
+    await card(await join({ empId: "E101", device: dev(1) }));
+    await waits(await join({ phone: mob(1), device: dev(2) })); await waits(await join({ phone: mob(2), device: dev(3) }));
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(1);
   });
   test("a number with fewer than 8 digits in all, or with letters, is refused and nothing is stored", async () => {
     await setup();
     expect((await join({ phone: "+1234567", device: dev(1) })).status).toBe(400);
     expect((await join({ phone: "98abc43210", device: dev(2) })).status).toBe(400);
-    expect((await join({ device: dev(3) })).status).toBe(400); // blank
+    // (a blank number in a game anyone may join is a name-only guest, as before)
     expect(rowsOf("SELECT COUNT(*) c FROM seat")[0].c).toBe(0);
   });
 });
@@ -65,7 +65,7 @@ describe("row 2: employee ID only, employees only", () => {
   });
   test("an ID that is not on the list waits for the organizer; no ID at all is refused, and a mobile alone does not replace the ID", async () => {
     const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101", phone: mob(1) }]);
-    await waits(await join({ empId: "E555", device: dev(1) }));
+    await waits(await join({ empId: "E555", phone: mob(9), device: dev(1) }));
     const none = await join({ phone: mob(1), device: dev(2) }); expect(none.status).toBe(400); expect((await j(none)).code).toBe("need-id");
     expect((await join({ device: dev(3) })).status).toBe(400);
   });
@@ -77,30 +77,25 @@ describe("row 2: employee ID only, employees only", () => {
   });
 });
 
-describe("row 3, 4, 5, 6: ID and mobile together", () => {
-  test("ID, others by mobile (not employees only): a listed ID and an outsider's mobile both get tickets; an unknown ID waits", async () => {
-    const t = await setup({ verify: "id" }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
+describe("row 3, 4, 5, 6: an ID, or a name for the organizer (there is no choice of mobile / either / both any more)", () => {
+  test("a listed ID gets its card; an outsider's number waits for a yes; an unknown ID waits too; nothing at all is refused", async () => {
+    const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha", empId: "E101" }]);
     await card(await join({ empId: "E101", device: dev(1) }));
-    await card(await join({ phone: mob(22), device: dev(2) }));
-    await waits(await join({ phone: mob(23), empId: "E555", device: dev(3) })); // D4: today's behaviour in an open game
-    expect((await join({ device: dev(4) })).status).toBe(400);
+    await waits(await join({ name: "Maya Lopez", phone: mob(22), device: dev(2) })); // 1.6.1: the name is all that is needed
+    await waits(await join({ name: "Dev Nair", phone: mob(23), empId: "E555", device: dev(3) }));
+    await waits(await join({ device: dev(4) })); // a name alone (the helper adds one) asks the organizer: nothing else is needed
+    const noName = await join({ name: "", device: dev(5) }); expect(noName.status).toBe(400); expect((await j(noName)).code).toBe("need-name"); // no name and no ID: asked for the name
   });
-  test("mobile always, ID if employee (both, not employees only): a non-employee needs only a mobile; a listed employee must give the matching ID", async () => {
-    const t = await setup({ verify: "both" }); await add(t.master, [{ name: "Asha Rao", empId: "E101", phone: mob(1) }]);
-    await card(await join({ phone: mob(22), device: dev(1) })); // not on the list: a mobile is enough
-    const noId = await join({ phone: mob(1), device: dev(2) }); expect(noId.status).toBe(400); expect((await j(noId)).code).toBe("need-id"); // on the list with an ID: the ID is asked
-    await card(await join({ phone: mob(1), empId: "E101", device: dev(3) }));
-  });
-  test("both compulsory, employees only: a listed mobile with a DIFFERENT ID waits", async () => {
-    const t = await setup({ verify: "both", employeesOnly: true }); await add(t.master, [{ name: "Asha Rao", empId: "E101", phone: mob(1) }]);
-    await waits(await join({ phone: mob(1), empId: "E555", device: dev(1) }));
+  test("a listed person with an ID and a mobile number: the ID gets them in; the mobile number with another ID does not (it waits)", async () => {
+    const t = await setup({ closed: true }); await add(t.master, [{ name: "Asha Rao", empId: "E101", phone: mob(1) }]);
+    await waits(await join({ name: "Dev Nair", phone: mob(1), empId: "E555", device: dev(1) }));
     await card(await join({ phone: mob(1), empId: "E101", device: dev(2) }));
   });
-  test("ID or mobile (either): the listed ID wins, a listed mobile alone also works, an unknown pair waits", async () => {
-    const t = await setup({ verify: "either", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101" }, { name: "Ravi", phone: mob(2) }]);
+  test("an employees-only game takes the ID only: a listed ID gets in, an unknown pair waits, no ID is asked for", async () => {
+    const t = await setup({ verify: "id", employeesOnly: true }); await add(t.master, [{ name: "Asha", empId: "E101" }, { name: "Ravi", phone: mob(2) }]);
     await card(await join({ empId: "E101", device: dev(1) }));
-    await card(await join({ phone: mob(2), device: dev(2) }));
-    await waits(await join({ phone: mob(9), empId: "E555", device: dev(3) }));
+    const m = await join({ phone: mob(2), device: dev(2) }); expect(m.status).toBe(400); expect((await j(m)).code).toBe("need-id");
+    await waits(await join({ name: "Dev Nair", phone: mob(9), empId: "E555", device: dev(3) }));
     expect((await join({ device: dev(4) })).status).toBe(400);
   });
 });

@@ -1,0 +1,69 @@
+{
+  "product": "corporate-tic-tac-toe",
+  "version": "1.6.4",
+  "commit": "1cb00f1",
+  "releasedAtUTC": "2026-11-24T11:56:16Z",
+  "releasedAtIST": "2026-11-24T17:26:16+05:30",
+  "changes": [
+    {
+      "id": "1.6.4-audit-wording",
+      "what": "Wording fix from the second security audit of PR 9 at 02b56a1a (M-1): the join page, the server's 'one moment' sentence and the guide no longer claim that the phone is checking whether a person is there, because the small proof of work only slows down scripts and does not show that a person is asking. They now say: 'One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.' The release notes no longer give an unmeasured time of one second (now 'a few seconds, not measured on real phones'). Nothing else changed",
+      "where": "apps/web/public/ttt.js, guide.js; apps/edge/src/worker.ts, releases.json; apps/web/test/waiting-pow.test.ts; CHANGELOG.md",
+      "pr": "9"
+    },
+    {
+      "id": "1.6.3-audit-round-6",
+      "what": "Fixes for the failed security audit of PR 9 at 4fe14715: one network can no longer lock listed guests out of ID entry (only wrong IDs are counted, a right ID is never refused for other people's tries); the waiting room: at most 60 new requests in ten minutes for a whole game, one tap for the Organizer or a Host to stop new requests and clear the list, and a small proof of work (no outside service, no key) before a new request is taken; a Host belongs to one game: no Host is made without a game, an old Host with no game has no game access until the Organizer adds them again inside a game, and the team list, removing a Co-host, pay links, paying with credit and the games list all keep a Host inside their own game; one player can no longer fill a board; the planted-number test no longer fails by chance",
+      "where": "apps/edge/src/worker.ts, people.ts, pow.ts (new), tournament.ts, credit.ts, pay.ts, helpdesk.ts, lifecycle.ts; apps/web/public/ttt.js, zc.js, guide.js, zsw.js; tests audit-round-6, waiting-pow and others",
+      "pr": "9"
+    },
+    {
+      "id": "1.6.2-audit-round-5",
+      "what": "Fixes for the two failed audits of PR 9 at 776e5ee6: a Host added inside one game works in that game only; a single report wins a classic board only when the board shows the other player is away (a clock-out claim is stored only after the move clock, and a board and a player are limited); a later match can only be registered by the winners of the two matches it comes from, and the final result must name the real winner and the real finalists; the ID allowance of a game also counts the join; the ranking, the champion and the view show full names only to players and organizers; stage game: the second player can no longer take the first move; the organizer's setup screen tells the owner's join rule (only the name is needed)",
+      "where": "apps/edge/src/worker.ts, people.ts, hostsetup.ts, tournament.ts; apps/web/public/zc.js, ttt.js, host.js; tests audit-round-5, newflow/audit3, organizer-join-rule and others",
+      "pr": "9"
+    },
+    {
+      "id": "1.6.1-audit-round-4",
+      "what": "Fixes for the two failed audits of PR 9 at da3e485a: a guest who is not on the list gives only a name (ID, department or team, region, mobile number and e-mail are optional); the owner's two sentences on both screens; a small optional panel after entry; a typed mobile number is no longer a key; stage log: only the two players write, a missed move only after the move clock, a missed move no longer freezes the board; classic tournament: a single report waits while the other player is present, later matches only with players of the two feeders, results name only players; the player list shows full names only to players; limits on ID look-ups and open requests; error reports and mail naming a game are deleted with its guest data; releasedAtIST in /version.json",
+      "where": "apps/edge/src/worker.ts, people.ts, pii.ts, tournament.ts, lifecycle.ts, audit.ts; packages/ttt/src/stageplay.ts and apps/web/public/tttengine.js; apps/web/public/ttt.js, zc.js, guide.js, zsw.js; pages/version.mjs; tests audit2-privacy, newflow/audit2, ttt-details-panel and others",
+      "pr": "9"
+    },
+    {
+      "id": "1.6.0-invite-rule",
+      "what": "The owner's invite rule (23 Nov 2026): one game link for everybody; a guest types an ID and, if it is on the organizer's list, comes straight in; a guest with no ID, or an ID not on the list, gives name, mobile number and e-mail, and the organizer or a Host says yes or no (only they see the details); the ID is one field (no choice of mobile, either or both), cleaned the same way everywhere (A-1101 = A 1101 = A/1101), lists made before keep working; list and IDs are deleted within 24 hours after the game ends. Also: the page beacon limit counts an IPv6 visitor by their /64; help line test",
+      "where": "packages/beacon/src/config.ts; apps/edge/src/people.ts, worker.ts, ids.ts, pii.ts, funnel.ts, lifecycle.ts, gamerecord.ts, consent-text.json; apps/web/public/ttt.js, zc.js, guide.js, consent.js; docs/KNOWLEDGE.md, docs/PRIVACY_AND_LIFECYCLE.md; tests invite-rule and others",
+      "pr": "9"
+    },
+    {
+      "id": "1.5.1-audit-round-3",
+      "what": "Fixes from the third audit round of PR 9: wrong-ID limits and the other per-address limits now count an IPv6 visitor by their /64 (first 64 bits), not by every single address; erasing a game also deletes its console Host / Co-host roles (with the sealed e-mail), console keys and unopened hand-off links; help says that opening a game from your console signs you out of other saved sign-ins on this device; the flaky tests are named correctly",
+      "where": "apps/edge/src/netkey.ts (new), worker.ts, pay.ts, payfirst.ts, partners.ts, lifecycle.ts; apps/web/public/guide.js; tests netkey, ipv6-guess-limit, stage-log-erase, owner-rules",
+      "pr": "9"
+    },
+    {
+      "id": "1.5.0-live-merge",
+      "what": "The live production code (commit fa5ab0afa895, deployed 5 Nov 2026) is merged into this branch, so the branch now holds everything live plus this PR's console Pay step. Where both changed the same words, the live hardening and this PR's owner rules v1.1 are both kept. The PR's two new database files are renumbered 0032 and 0033 because live already uses 0030 and 0031",
+      "where": "apps/edge/src/people.ts, worker.ts, migrations 0032_game_role.sql and 0033_console_paid.sql, apps/web/public/zc.js, guide.js, tests verify / migrations / pages / ttt-start-resume",
+      "pr": "9"
+    },
+    {
+      "id": "1.4.2-audit-fixes",
+      "what": "Fixes from the two failed audits of PR 9: the one-game console key now stays in its own tab only and wins over any older saved sign-in; Sign out in that tab ends the key on the server; a payment for a game that is already paid by another order is refused; employee lists made before 1.4.1 still work; help for organizers speaks to you; help says an employee ID is matched, not proven",
+      "where": "apps/web/public/zc.js, signin.js, guide.js; apps/edge/src/console-adapter.ts, people.ts, worker.ts; tests console-handoff, console-pay-step, verify, owner-rules",
+      "pr": "9"
+    },
+    {
+      "id": "1.4.1-audit-fixes",
+      "what": "Pre-audit fixes for the console Pay step: tests all green except two that fail on master too; migration 0031 for the console payment table; one way to read an employee ID (A-1101 = A 1101 = A/1101); organizer screens speak to you, rupee sign, one privacy line, one fairness sentence with a test; a broken address can no longer crash a one-game console key",
+      "where": "apps/edge/src/people.ts, apps/edge/src/console-adapter.ts, apps/edge/migrations/0031_console_paid.sql, apps/web/public/zc.js, signin.js, guide.js, tests owner-rules / console-security / verify",
+      "pr": "9"
+    },
+    {
+      "id": "1.4.0-console-pay-step",
+      "what": "Console Pay step: payInfo, repeatable markPaid (only unlock of the start), PAY_VIA_CONSOLE redirect (off), payment-window CSP on the organizer page, descriptor payGame/consoleOrigin; bridge and game pack re-vendored",
+      "where": "organizer page /zc (headers only); apps/edge/src/console-adapter.ts, apps/edge/src/pay-redirect.ts, apps/edge/src/worker.ts, pages/build.mjs, pages/functions/_middleware.ts, apps/web/public/zc-flow-game.js, apps/edge/src/console-bridge/, apps/web/public/pack/",
+      "pr": "9"
+    }
+  ]
+}

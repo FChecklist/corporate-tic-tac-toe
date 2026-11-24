@@ -64,7 +64,7 @@ export async function mailTeam(env: PayEnv, org: string | null, eid: string | nu
 }
 
 /** The rule in one sentence, for e-mails and pages. */
-export const NO_REFUND_LINE = "We do not give refunds. If you cancel a paid game before it starts, your payment stays as credit for your next game for 365 days. Unused credit lapses at the end of day 365.";
+export const NO_REFUND_LINE = "A paid game that is cancelled before it starts stays with the organizer as credit for the next game, valid for 365 days. Unused credit lapses at the end of day 365.";
 
 // ------------------------------------------------------------------------------------------------ making credit
 /**
@@ -197,7 +197,7 @@ export async function creditTick(env: PayEnv, now: number): Promise<{ lapsed: nu
 
 // ------------------------------------------------------------------------------------------------ the routes
 /** The part of the Worker's Auth that matters here. */
-export interface CreditAuth { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean }
+export interface CreditAuth { plat: boolean; org: string | null; kind: string | null; eid?: string | null; viaLink?: boolean; gameOnly?: boolean }
 
 /** The credit of an account as the API shows it. A credit past its time shows as expired even before the scheduled job has marked it. */
 export async function listCredits(db: D1, org: string, now: number) {
@@ -230,6 +230,7 @@ export async function creditRoute(req: Request, env: PayEnv, now: number, spend:
   const e = await db.prepare("SELECT * FROM engagement WHERE id=?").bind(m[1]!).first<any>();
   if (!e || e.org !== a.org) return json({ error: "No such game." }, 404);
   if (a.kind === "cohost" && a.eid && a.eid !== e.id) return json({ error: "Your Co-host link is for a different game." }, 403);
+  if (a.kind === "host" && a.gameOnly && a.eid && a.eid !== e.id) return json({ error: "You are a Host of another game. Open that game to pay for it.", code: "other-game" }, 403); // 1.6.3: a Host added inside one game works inside that game
   if (e.cancelled_ms) return json({ error: "This game was cancelled. It cannot be paid for.", code: "cancelled" }, 409);
   if (e.unplayed_ms) return json({ error: "This game did not start and is closed. It cannot be paid for.", code: "did-not-start" }, 409);
   const pack = PACKS.find((x) => x[0] >= e.cap)?.[0] ?? null;

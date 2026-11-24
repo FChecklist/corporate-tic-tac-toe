@@ -24,7 +24,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -33,7 +33,7 @@ const start = async (email: string) => (await j(await handle(new Request("http:/
 const team = async (org = "boss@acme.com", gid = "ROLE-1") => {
   const master = await start(org);
   await call("POST", "/api/z", { id: gid, startRound: FAR_START, callSeconds: 9, cap: 300 }, master);
-  const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: gid, mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "9876500001", e: gid }, master))).cohostKey as string;
   return { master, host, cohost };
 };
@@ -67,14 +67,14 @@ describe("adding and retiring people", () => {
   test("a Host may add a Co-host but not a Host; the sixth Host is refused", async () => {
     const t = await team();
     expect((await call("POST", "/api/org/cohost", { label: "Meera", phone: "9876500002", e: "ROLE-1" }, t.host)).status).toBe(200);
-    expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, t.host)).status).toBe(403);
-    for (let i = 0; i < 4; i++) expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, t.master)).status).toBe(200);
-    expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, t.master)).status).toBe(409); // 5 active already
+    expect((await call("POST", "/api/org/host", { e: "ROLE-1", mobile: "9876500009", email: "host@acme.com" }, t.host)).status).toBe(403);
+    for (let i = 0; i < 4; i++) expect((await call("POST", "/api/org/host", { e: "ROLE-1", mobile: "9876500009", email: "host@acme.com" }, t.master)).status).toBe(200);
+    expect((await call("POST", "/api/org/host", { e: "ROLE-1", mobile: "9876500009", email: "host@acme.com" }, t.master)).status).toBe(409); // 5 active already
   });
   test("a Co-host cannot add anyone; Co-hosts have no limit", async () => {
     const t = await team();
     expect((await call("POST", "/api/org/cohost", {}, t.cohost)).status).toBe(403);
-    expect((await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, t.cohost)).status).toBe(403);
+    expect((await call("POST", "/api/org/host", { e: "ROLE-1", mobile: "9876500009", email: "host@acme.com" }, t.cohost)).status).toBe(403);
     for (let i = 0; i < 8; i++) expect((await call("POST", "/api/org/cohost", { label: "Guest " + i, phone: "98765001" + String(i).padStart(2, "0"), e: "ROLE-1" }, t.master)).status).toBe(200);
   });
   test("the Organizer retires a Host or Co-host; a Host retires a Co-host only", async () => {
@@ -116,7 +116,7 @@ describe("what each role may do", () => {
   test("a Co-host reads only the small game header, with an own invite link", async () => {
     const t = await team();
     const h = await j(await call("GET", "/api/z/ROLE-1/cohost", undefined, t.cohost));
-    expect(Object.keys(h).sort()).toEqual(["brought", "cap", "credit", "creditApplied", "creditExpiresMs", "didNotStart", "erasureMs", "inviteLink", "joined", "name", "payment", "price", "startMs", "waitingFor"]);
+    expect(Object.keys(h).sort()).toEqual(["brought", "cap", "credit", "creditApplied", "creditExpiresMs", "didNotStart", "erasureMs", "inviteLink", "joined", "name", "payable", "payment", "price", "startMs", "waitingFor"]);
     expect(h).toMatchObject({ cap: 300, joined: 0, brought: 0, payment: { status: "pending" } });
     expect(h.inviteLink).toBeNull(); // a draft cannot take guests yet
     const other = await team("other@rival.com", "ROLE-2");

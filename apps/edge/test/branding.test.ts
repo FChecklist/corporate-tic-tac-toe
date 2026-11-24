@@ -22,7 +22,7 @@ const read = (...p: string[]) => readFileSync(join(root, ...p), "utf8");
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key", TEST_MODE: "1" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key", TEST_MODE: "1" };
   sentReports.length = 0;
 });
 const realFetch = globalThis.fetch;
@@ -78,7 +78,7 @@ describe("mail that is not built by mails.ts gets the same brand when it is sent
     await call("POST", "/api/z/BRAND-1/publish", { email: "boss@acme.com", phone: "98765 43210" }, h);
     const use = (ip: string, c: string, now: number) => call("GET", `/ai/${o.aiKey}`, undefined, { "cf-connecting-ip": ip, "cf-ipcountry": c, "user-agent": "ChatGPT-User/1" }, now);
     await use("1.2.3.4", "US", T); await use("5.6.7.8", "DE", T + 1000);
-    await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, h); await call("POST", "/api/org/ai/replace", {}, h); await call("POST", "/api/org/ai/fresh", {}, h);
+    await call("POST", "/api/org/host", { e: "BRAND-1", mobile: "9876500009", email: "host@acme.com" }, h); await call("POST", "/api/org/ai/replace", {}, h); await call("POST", "/api/org/ai/fresh", {}, h);
     await call("POST", "/api/auth/email", { email: "boss@acme.com" });
     await housekeeping(env as Env, T + 86_400_000);
     await call("GET", "/api/z/BRAND-1/info", undefined, {}, T + 40 * 3_600_000);

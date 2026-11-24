@@ -14,7 +14,7 @@ afterEach(restore);
 /** A game that was played (it began two hours before T), with `n` players who joined three hours before T and an organizer e-mail on record. */
 async function played(n = 3, over: Record<string, unknown> = {}) {
   const id = uid("LIFE");
-  expect((await create(undefined, id, { startRound: startIn(-2 * HOUR), callSeconds: 6, cap: 5000, ...over })).status).toBe(200);
+  expect((await create(undefined, id, { startRound: startIn(-2 * HOUR), callSeconds: 6, cap: 2000, ...over })).status).toBe(200);
   await W.env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email: "boss@acme.com", phone: "9811122233" })).run();
   for (let i = 1; i <= n; i++) expect((await join(id, i, {}, T - 3 * HOUR)).status).toBe(200);
   const end = await endBoundMs(W.env as any, one("SELECT * FROM engagement WHERE id=?", id));

@@ -20,7 +20,7 @@ const rows = (chain: string) => raw.prepare("SELECT * FROM audit_log WHERE chain
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "test-data-key" };
 });
 async function organizer() {
   const x = await j(await call("POST", "/api/start", { email: "boss@acme.com" }, { "cf-connecting-ip": "1.1.1.1" }));
@@ -33,6 +33,7 @@ async function withEngagement() {
   return o;
 }
 
+const hostGame = async (h: Record<string, string>, id = "HG-1") => { await call("POST", "/api/z", { id, startRound: roundAt(T) + 1200, callSeconds: 9, cap: 100 }, h); return id; }; // 1.6.3: a Host belongs to one game, so the game is made first
 describe("what is recorded, and sealed", () => {
   test("a create and an edit are rows of the engagement's chain; the full IP, user agent and values are not readable in the database", async () => {
     await withEngagement();
@@ -143,7 +144,7 @@ describe("hash chain and tamper detection", () => {
 describe("only the owner reads it, and every owner use is logged", () => {
   test("organizer, AI key, co-host, a participant and a stranger get a plain 404 and each attempt is logged as denied", async () => {
     const o = await withEngagement();
-    const host = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h)); const hostKey = host.hostKey as string;
+    const host = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), mobile: "9876500009", email: "host@acme.com" }, o.h)); const hostKey = host.hostKey as string;
     for (const h of [o.h, { "x-organizer": o.ai }, { "x-organizer": hostKey }, {}, { "x-organizer": "wrong" }]) {
       for (const path of ["/api/owner/audit/EVT1", "/api/owner/audit/EVT1/verify", "/api/org/audit", "/api/owner/audit/access"]) {
         const r = await call("GET", path, undefined, h as any);

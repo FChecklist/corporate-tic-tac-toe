@@ -9,6 +9,7 @@ import { keysInPlay, linesFor, quorumFor } from "../../../packages/beacon/src/co
 import { seatOfPid } from "../../../packages/beacon/src/unique-ticket";
 import { openPii, openText, sealPii, sealText, type PiiEnv } from "./pii";
 import { cfgOfRow, recordWinners } from "./lifecycle";
+import { transientDb } from "./transient";
 import { checkinRequired, deviceMatches } from "./checkin";
 import type { D1, Env } from "./worker";
 import { cleanPhone, keptFromClean, keptPhone } from "./phonekit";
@@ -49,22 +50,24 @@ export async function acceptVotes(env: Env & PiiEnv, e: any, eid: string, b: any
     const digest = (await sha(JSON.stringify([x.pattern, x.ordinal, x.round, x.idx, pids]))).slice(0, 32);
     if (!(await spend(env, now, 3))) return json({ error: "Busy day. Your report is kept on your phone and will be sent again.", counted }, 503);
     const v = await env.DB.prepare("INSERT OR IGNORE INTO rvote(eid,round,pattern,ordinal,seat,digest) VALUES(?,?,?,?,?,?)").bind(eid, x.round, x.pattern, x.ordinal, seat, digest).run();
-    if (!(v.meta?.changes ?? 0)) continue; // this phone already reported this prize
-    counted++;
-    await env.DB.prepare("INSERT OR IGNORE INTO rcand(eid,round,pattern,ordinal,digest,idx,pids) VALUES(?,?,?,?,?,?,?)").bind(eid, x.round, x.pattern, x.ordinal, digest, x.idx, JSON.stringify(pids)).run();
+    if (v.meta?.changes ?? 0) { // a phone repeating its report adds nothing, but the SAME report repeated may still finish a settlement a passing database hiccup left open
+      counted++;
+      await env.DB.prepare("INSERT OR IGNORE INTO rcand(eid,round,pattern,ordinal,digest,idx,pids) VALUES(?,?,?,?,?,?,?)").bind(eid, x.round, x.pattern, x.ordinal, digest, x.idx, JSON.stringify(pids)).run();
+    }
     const n = (await env.DB.prepare("SELECT COUNT(*) AS c FROM rvote WHERE eid=? AND round=? AND pattern=? AND ordinal=? AND digest=?").bind(eid, x.round, x.pattern, x.ordinal, digest).first<{ c: number }>())?.c ?? 0;
     if (n < need) continue;
+    // The winner record and the prize rows are written BEFORE the prize is marked settled (both are safe to write twice): a passing database hiccup in between leaves the prize unsettled, so the next report repairs it, not settled with no winner record (5 Nov 2026 audit).
+    await recordWinners(env, e, eid, [{ pattern: x.pattern, ordinal: x.ordinal, round: x.round, idx: x.idx, pids }], now, "phones", true);
+    await makePrizeRows(env, eid, x.round, x.pattern, x.ordinal, pids.slice(0, 100), true);
     const ins = await env.DB.prepare("INSERT OR IGNORE INTO settled(eid,pattern,ordinal,round,idx,pids) VALUES(?,?,?,?,?,?)").bind(eid, x.pattern, x.ordinal, x.round, x.idx, JSON.stringify(pids.slice(0, 500))).run();
     if (!(ins.meta?.changes ?? 0)) continue;
     accepted++;
-    await recordWinners(env, e, eid, [{ pattern: x.pattern, ordinal: x.ordinal, round: x.round, idx: x.idx, pids }], now, "phones");
-    await makePrizeRows(env, eid, x.round, x.pattern, x.ordinal, pids.slice(0, 100));
   }
   return json({ ok: true, counted, accepted, done, need });
 }
 
 /** One record per winning seat, holding the sealed name and number the person joined with (they are asked to confirm it after the game). */
-async function makePrizeRows(env: Env, eid: string, round: number, pattern: string, ordinal: number, pids: string[]) {
+async function makePrizeRows(env: Env, eid: string, round: number, pattern: string, ordinal: number, pids: string[], strict = false) {
   try {
     for (const pid of pids) {
       const seat = seatOfPid(pid);
@@ -72,7 +75,7 @@ async function makePrizeRows(env: Env, eid: string, round: number, pattern: stri
       const row = await env.DB.prepare("SELECT pii FROM participant WHERE eid=? AND pid=?").bind(eid, pid).first<{ pii: string | null }>();
       await env.DB.prepare("INSERT OR IGNORE INTO prize(eid,round,pattern,ordinal,seat,pii,orig) VALUES(?,?,?,?,?,?,?)").bind(eid, round, pattern, ordinal, seat, row?.pii ?? null, row?.pii ?? null).run();
     }
-  } catch { /* the winner record itself already stands; the prize list is filled the next time */ }
+  } catch (err) { if (strict && transientDb(err)) throw err; /* the winner record itself already stands; the prize list is filled the next time */ }
 }
 
 /** The winner, on their own phone, confirms (or corrects) the name and mobile number the prize goes to. The phone proves it is the one that holds the card. Every change is kept. */

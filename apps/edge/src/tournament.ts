@@ -13,6 +13,7 @@
 //   open (a player)         registers a later-round match: who plays on which board, and the two finished matches it came from
 //   finish (a player or the Organizer)  the ranking two phones computed; kept when two different phones sent the same thing
 //   view / all / rank (public), flag (a player), tick (scheduled job)
+import { transientDb } from "./transient";
 import { commitOf, newSecret, seedOf } from "../../../packages/ttt/src/seal";
 import type { Env } from "./worker";
 
@@ -24,6 +25,13 @@ export const TTT_SCHEMA: string[] = [
   `CREATE INDEX IF NOT EXISTS ttt_m_live ON ttt_m (eid, status, deadline)`,
   `CREATE INDEX IF NOT EXISTS ttt_m_a ON ttt_m (eid, a)`,
   `CREATE INDEX IF NOT EXISTS ttt_m_b ON ttt_m (eid, b)`,
+];
+/** The new flow's append-only log (0030_stage_log.sql): moves and results of the stage games. Only opaque ids, squares and stamps. */
+export const STAGE_SCHEMA: string[] = [
+  `CREATE TABLE IF NOT EXISTS ttt_sl (eid TEXT NOT NULL, id INTEGER PRIMARY KEY AUTOINCREMENT, slot TEXT NOT NULL, kind TEXT NOT NULL, pid TEXT NOT NULL, seq INTEGER NOT NULL, body TEXT NOT NULL, at_ms INTEGER NOT NULL)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ttt_sl_u ON ttt_sl (eid, slot, kind, pid, seq)`,
+  `CREATE INDEX IF NOT EXISTS ttt_sl_p ON ttt_sl (eid, pid, at_ms)`,
+  `CREATE INDEX IF NOT EXISTS ttt_sl_k ON ttt_sl (eid, kind, id)`,
 ];
 /** The mailbox tables (0023_mailbox.sql): moves, reports, agreed results, finish reports, notes for the Organizer, pauses. Only opaque ids, squares and stamps; no names. */
 export const TTT_MAILBOX_SCHEMA: string[] = [
@@ -37,7 +45,12 @@ export const TTT_MAILBOX_SCHEMA: string[] = [
 
 export const TTT_MOVE_SECONDS = [10, 20, 30, 60] as const;
 const MAX_MS = 6 * 3_600_000; // a tournament that has not finished this long after its scheduled start is closed for the data-deletion clock (lifecycle.ts)
-const UNCONTESTED_MS = 30_000; // a single report that nobody contradicts for this long (server clock) is kept as the result
+const UNCONTESTED_MS = 30_000; // a single report that nobody contradicts for this long (server clock) is kept as the result ...
+const ABSENT_MS = 150_000; // ... but only when the other side is known to be away: nothing written to that board by anybody else for this long (more than two of the longest move clocks). A present opponent's own phone reports within seconds; until then the single report waits (audit 2, H2: a player could win by reporting)
+/** 1.6.2 (security audit M-B): a board holds at most this many stored entries, and one player writes at most this many a second to one board. A board has nine squares, up to three games and the "absent" claims: far below the cap. */
+const MOVES_PER_BOARD_MAX = 120, MOVES_PER_SECOND = 5;
+/** 1.6.3 (security audit, Low 1): and one player (or the Organizer's page) holds at most this many entries on one board, so a player who writes as fast as allowed cannot fill the board and shut the other player out. Real play needs about 20. */
+const PLAYER_ENTRIES_PER_BOARD_MAX = 40;
 const PAGE = 100, LIVE_SAMPLE = 24, MAX_PLAN_MATCHES = 600;
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -54,6 +67,14 @@ export async function ensureT(env: Env, eid: string): Promise<TRow> {
   return (await env.DB.prepare("SELECT * FROM ttt_t WHERE eid=?").bind(eid).first<TRow>())!;
 }
 export const tournamentStarted = async (env: Env, eid: string): Promise<boolean> => !!(await env.DB.prepare("SELECT 1 AS x FROM ttt_t WHERE eid=? AND state<>'open'").bind(eid).first());
+/** The real end of the game, or {} while it can still be live: the moment phones confirmed the end or the Organizer or a Host ended it (returned at once, whatever the clock); otherwise the scheduled end bound, only once now has reached it. Never moves once returned. Erasing people's data and cancelling are not an end. */
+export async function endedAtOf(env: Env, e: any, now: number): Promise<{ endedAtMs?: number }> {
+  const t = await env.DB.prepare("SELECT ended_ms FROM ttt_t WHERE eid=?").bind(e.id).first<{ ended_ms: number | null }>();
+  if (t?.ended_ms) return { endedAtMs: t.ended_ms };
+  if (e.cancelled_ms) return {};
+  const bound = endBoundTtt((1692803367 + (e.start_round - 1) * 3) * 1000, null);
+  return now >= bound ? { endedAtMs: bound } : {};
+}
 export function endBoundTtt(startMs: number, t: { ended_ms: number | null } | null): number { return t?.ended_ms ? t.ended_ms + 60_000 : startMs + MAX_MS; }
 
 const boardsOf = (m: Pick<MRow, "data">): [string, string][] => (m.data ? JSON.parse(m.data) : []);
@@ -70,8 +91,11 @@ async function refreshMatch(env: Env, eid: string, mid: string, now: number): Pr
 }
 /** Keeps a single report that nobody has contradicted for UNCONTESTED_MS as the result of that board. Only compares stamps. */
 async function sweep(env: Env, eid: string, now: number, mid?: string): Promise<number> {
-  const rows = await env.DB.prepare(`SELECT r.mid AS mid, r.j AS j, r.winner AS winner, r.at_ms AS at_ms FROM ttt_r r WHERE r.eid=?${mid ? " AND r.mid=?" : ""} AND r.at_ms<? AND NOT EXISTS (SELECT 1 FROM ttt_b b WHERE b.eid=r.eid AND b.mid=r.mid AND b.j=r.j) GROUP BY r.mid, r.j HAVING COUNT(*)=1 LIMIT 300`)
-    .bind(...(mid ? [eid, mid] : [eid]), now - UNCONTESTED_MS).all<{ mid: string; j: number; winner: string; at_ms: number }>();
+  const rows = await env.DB.prepare(`SELECT r.mid AS mid, r.j AS j, r.winner AS winner, r.at_ms AS at_ms FROM ttt_r r WHERE r.eid=?${mid ? " AND r.mid=?" : ""} AND r.at_ms<? AND NOT EXISTS (SELECT 1 FROM ttt_b b WHERE b.eid=r.eid AND b.mid=r.mid AND b.j=r.j) AND NOT EXISTS (SELECT 1 FROM ttt_mv v WHERE v.eid=r.eid AND v.mid=r.mid AND v.j=r.j AND v.pid<>r.pid AND v.at_ms>?)`
+    // 1.6.2 (security audit M-B): "nobody has written for 150 s" proves nothing about a board that nobody has written to. A lone report is kept only when the board shows the other side is away: they wrote something once, or a clock-out claim is stored (the server stores a player's claim only after the move clock has run out, see "move")
+    + ` AND EXISTS (SELECT 1 FROM ttt_mv w WHERE w.eid=r.eid AND w.mid=r.mid AND w.j=r.j AND (w.pid<>r.pid OR w.sq<0))`
+    + ` GROUP BY r.mid, r.j HAVING COUNT(*)=1 LIMIT 300`)
+    .bind(...(mid ? [eid, mid] : [eid]), now - UNCONTESTED_MS, now - ABSENT_MS).all<{ mid: string; j: number; winner: string; at_ms: number }>();
   const touched = new Set<string>();
   for (const r of rows.results ?? []) {
     await env.DB.prepare("INSERT OR IGNORE INTO ttt_b(eid,mid,j,winner,how,flag,at_ms) VALUES(?,?,?,?,'uncontested',0,?)").bind(eid, r.mid, r.j, r.winner, r.at_ms + UNCONTESTED_MS).run(); touched.add(r.mid);
@@ -98,10 +122,21 @@ export interface TttCtx {
   allowed: boolean; /** Organizer or Host (not the AI) */ openName: (pii: string | null) => Promise<string | null>; gate: Response | null; BUSY: () => Response;
 }
 
+/** "Asha Rao" -> "Asha R."; one word stays as it is. */
+const shortName = (n: string): string => { const w = String(n ?? "").trim().split(/\s+/).filter(Boolean); return !w.length ? "Player" : w.length === 1 ? w[0]! : `${w[0]} ${Array.from(w[w.length - 1]!)[0]}.`; };
 const cleanName = (n: unknown) => String(n ?? "").replace(/[<>`]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) || "Player";
 const MID = /^r[0-9]{1,2}m[0-9]{1,5}$/;
 const PID = /^[A-Za-z0-9_-]{4,40}$/;
 
+/** Limits of the new flow's log (the free Cloudflare tier): entries per game, bytes per entry, writes per player per second, players per game. */
+const STAGE_MAX_ENTRIES = 250_000, STAGE_ENTRY_BYTES = 200, STAGE_WRITES_PER_SECOND = 5, STAGE_MAX_PLAYERS = 2000;
+const STAGE_SLOT = /^[0-9]-[0-9]-[A-Za-z0-9_-]{4,40}-[A-Za-z0-9_-]{4,40}$/;
+/** The calendar of the new flow, as the phones read it (vendor/game-core/packages/tictactoe/src/stages.ts: WAIT_SECONDS, STAGE_SECONDS, SLOT_SECONDS): the room opens at the published start, stage 1 begins WAIT later, a stage is STAGE long and a slot SLOT long. Three numbers, no rule: the server only needs them to know when a slot began. A test keeps them equal to the phones' numbers. */
+export const STAGE_CALENDAR_MS = { wait: 120_000, stage: 300_000, slot: 100_000 } as const;
+const STAGE_MOVE_MS = 10_000, STAGE_CLOCK_SLACK_MS = 1_500; // the move clock of the new flow (a published number, 10 s) and a little slack for a phone's own clock: the server only compares stamps
+/** The two players of a slot are written in its key: "<stage>-<slot>-<first>-<second>". Ids may hold "-", so the pair is whatever follows the first two numbers: this player is the first, or the second. */
+const inSlot = (slot: string, pid: string): boolean => { const rest = slot.split("-").slice(2).join("-"); return rest.startsWith(pid + "-") || rest.endsWith("-" + pid); };
+const stagesOn = async (env: Env, eid: string): Promise<boolean> => { try { return !!(await env.DB.prepare("SELECT 1 AS x FROM ttt_sl WHERE eid=? AND kind='flag' LIMIT 1").bind(eid).first()); } catch { return false; } }; // no table yet (migration 0030 not applied): the new flow is simply off
 async function playerOf(c: TttCtx, pid: unknown, device: unknown): Promise<{ pid: string } | Response> {
   if (typeof pid !== "string" || typeof device !== "string" || !/^[0-9a-f]{16,64}$/.test(device)) return json({ error: "Open the game link on your own phone." }, 400);
   const seat = await c.env.DB.prepare("SELECT s.dev AS dev, s.blocked AS blocked FROM seat s WHERE s.eid=? AND s.pid=?").bind(c.eid, pid).first<{ dev: string | null; blocked: number | null }>();
@@ -112,6 +147,24 @@ async function playerOf(c: TttCtx, pid: unknown, device: unknown): Promise<{ pid
 }
 /** Which board of the match is this player on? Only a lookup in the list the mailbox was given. */
 function boardOfPid(m: MRow, pid: string): number { return boardsOf(m).findIndex(([x, y]) => x === pid || y === pid); }
+
+/** The two sides of a registered match: the entrants it names, or (a solo match registered without them) the two players of its first board. */
+const sidesOf = (m: MRow): [string | null, string | null] => [m.a ?? boardsOf(m)[0]?.[0] ?? null, m.b ?? boardsOf(m)[0]?.[1] ?? null];
+/** The side that WON a finished match, as the mailbox has it stored: a bye names its winner; otherwise the side that won more of the agreed boards (the same count the phones make, one board in a solo match). Only counts what two phones agreed. */
+async function winnerSideOf(env: Env, eid: string, m: MRow): Promise<string | null> {
+  if (m.bye) return m.winner ?? null;
+  const [sa, sb] = sidesOf(m), boards = boardsOf(m);
+  if (!boards.length || !sa || !sb) return null;
+  const rows = (await env.DB.prepare("SELECT j, winner FROM ttt_b WHERE eid=? AND mid=? AND flag=0 AND winner IS NOT NULL").bind(eid, m.mid).all<{ j: number; winner: string }>()).results ?? [];
+  if (rows.length < boards.length) return null;
+  const winsA = boards.filter(([x], j) => rows.find((r) => r.j === j)?.winner === x).length;
+  return winsA * 2 > boards.length ? sa : sb;
+}
+/** The players behind a side: the members of the entrant (a team), or the player himself when the side is a player. */
+async function membersOfSide(env: Env, eid: string, id: string): Promise<string[]> {
+  const e = await env.DB.prepare("SELECT members FROM ttt_e WHERE eid=? AND id=?").bind(eid, id).first<{ members: string }>();
+  return e ? (JSON.parse(e.members) as string[]) : [id];
+}
 
 export async function tttRoute(c: TttCtx): Promise<Response> {
   const { env, req, now, eid, sub } = c;
@@ -128,9 +181,11 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const head = { eid, state: t.state, commit: t.commit_hash, serverNow: now, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t), pauses: await pausesOf(env, eid) };
     if (t.state === "open") return json({ ...head, pauses: [] });
     if (t.state === "starting" && !c.allowed) return json(head); // the seed and the list are shown to everybody when the clocks start (the Organizer's page needs them one moment earlier to send the draw)
-    const roster = ((await env.DB.prepare("SELECT pid, name FROM ttt_p WHERE eid=? ORDER BY pid").bind(eid).all<{ pid: string; name: string }>()).results ?? []);
+    // Audit 2, M1: the full names of the players go to the players (a seat and the phone's own proof) and to the Organizer and Hosts. Anybody else who has the one link (somebody still waiting, declined, or not on the list) gets a first name and an initial. The ids and the draw are the same for everybody.
+    const seated = c.allowed || !(await playerOf(c, c.url.searchParams.get("pid"), c.url.searchParams.get("device")) instanceof Response);
+    const roster = ((await env.DB.prepare("SELECT pid, name FROM ttt_p WHERE eid=? ORDER BY pid").bind(eid).all<{ pid: string; name: string }>()).results ?? []).map((x) => (seated ? x : { pid: x.pid, name: shortName(x.name) }));
     const o = optsOf(t);
-    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
+    return json({ ...head, secret: t.secret, seed: t.seed, roster, opts: { format: o.format, teamSize: o.teamSize, moveMs: o.moveMs, readyMs: o.readyMs, ...(o.stages ? { stages: true } : {}) }, planDigest: o.planDigest ?? null, rounds: t.rounds, entrants: t.entrants });
   }
 
   if (sub === "reveal" && method === "GET") {
@@ -157,9 +212,12 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
     const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid), beacon);
     const o = { format, teamSize, moveMs: moveSecs * 1000, readyMs: 30_000 };
-    const stmts: any[] = [env.DB.prepare("UPDATE ttt_t SET state='starting', opts=?, seed=?, players=? WHERE eid=? AND state='open'").bind(JSON.stringify(o), seed, players.length, eid)];
+    // The players are written FIRST (each press starts from a clean list), the tournament is switched to "starting" LAST in its own step: if a passing database hiccup stops a big start (more than 89 players = several steps) half-way,
+    // the tournament is still "open", so the next press simply does it all again instead of finding a started tournament with missing players (5 Nov 2026 audit).
+    const stmts: any[] = [env.DB.prepare("DELETE FROM ttt_p WHERE eid=?").bind(eid)];
     for (const p of players) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO ttt_p(eid,pid,name,ent) VALUES(?,?,?,NULL)").bind(eid, p.pid, p.name));
     for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+    await env.DB.prepare("UPDATE ttt_t SET state='starting', opts=?, seed=?, players=? WHERE eid=? AND state='open'").bind(JSON.stringify(o), seed, players.length, eid).run();
     return json({ ok: true, players: players.length, commit: t.commit_hash, state: "starting", next: "The Organizer's page computes the bracket from the seed and sends it to the mailbox (plan)." });
   }
 
@@ -223,8 +281,19 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const pids = [...new Set((boards as [string, string][]).flat())];
     const known = (await env.DB.prepare(`SELECT COUNT(*) AS c FROM ttt_p WHERE eid=? AND pid IN (${pids.map(() => "?").join(",")})`).bind(eid, ...pids).first<{ c: number }>())?.c ?? 0;
     if (known !== pids.length) return json({ error: "A board lists someone who did not join.", code: "not-in-game" }, 400);
+    // 1.6.2 (security audit M-C): the match, its round and place, and the two matches it comes from belong together: r<n>m<k> comes from r<n-1>m<2k> and r<n-1>m<2k+1>, in that order. Nobody can register a match against the wrong feeders.
+    const mp = /^r([0-9]{1,2})m([0-9]{1,5})$/.exec(b.mid)!;
+    if (Number(mp[1]) !== b.round || Number(mp[2]) !== b.idx || from[0] !== `r${b.round - 1}m${2 * b.idx}` || from[1] !== `r${b.round - 1}m${2 * b.idx + 1}`) return json({ error: "That match does not come from those two matches.", code: "not-from-feeders" }, 400);
     const ready = await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_m WHERE eid=? AND mid IN (?,?) AND status='done'").bind(eid, from[0], from[1]).first<{ c: number }>();
     if ((ready?.c ?? 0) !== 2) return json({ error: "The two earlier matches are not finished yet.", code: "feeders-not-done" }, 409);
+    // ... and the two sides are the WINNERS of those two matches (losers cannot play on), the board lists are made of their players, one from each side, in the order of the sides.
+    const feeders = (await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid IN (?,?)").bind(eid, from[0], from[1]).all<MRow>()).results ?? [];
+    const f0 = feeders.find((f) => f.mid === from[0]), f1 = feeders.find((f) => f.mid === from[1]);
+    const w0 = f0 ? await winnerSideOf(env, eid, f0) : null, w1 = f1 ? await winnerSideOf(env, eid, f1) : null;
+    if (!w0 || !w1) return json({ error: "The two earlier matches are not finished yet.", code: "feeders-not-done" }, 409);
+    if ((b.a ?? null) !== w0 || (b.b ?? null) !== w1) return json({ error: "The sides of a match are the winners of the two matches it comes from.", code: "not-from-feeders" }, 400);
+    const sideA = new Set(await membersOfSide(env, eid, w0)), sideB = new Set(await membersOfSide(env, eid, w1));
+    if (!(boards as [string, string][]).every(([x, y]) => sideA.has(x) && sideB.has(y))) return json({ error: "A board lists someone who did not win the two earlier matches.", code: "not-from-feeders" }, 400);
     const data = JSON.stringify(boards);
     const have = await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND mid=?").bind(eid, b.mid).first<MRow>();
     if (have) { if (have.data === data && have.a === (b.a ?? null) && have.b === (b.b ?? null)) return json({ ok: true, again: true }); await note(env, eid, "pairing", b.mid, who.pid, "Two different pairings were sent for the same match.", now); return json({ error: "That match is already registered with other players. The Organizer was told.", code: "conflict" }, 409); }
@@ -248,8 +317,18 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     if (await env.DB.prepare("SELECT 1 AS x FROM ttt_b WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first()) return json({ error: "This board is finished.", code: "board-over" }, 409);
     const next = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ c: number }>())?.c ?? 0;
     if (b.seq !== next) return json({ error: "The board changed. Look again.", code: "seq", next }, 409);
+    // 1.6.2 (security audit M-B): one board holds a bounded number of entries and one player writes only so many a second: nobody can flood a board or starve the other player's moves
+    if (next >= MOVES_PER_BOARD_MAX) return json({ error: "This board is full.", code: "board-full" }, 409);
+    if (((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=? AND pid=?").bind(eid, b.mid, j, who.pid).first<{ c: number }>())?.c ?? 0) >= PLAYER_ENTRIES_PER_BOARD_MAX) return json({ error: "You have written as many entries on this board as one player may. Please wait for your opponent or the organizer.", code: "player-board-full" }, 409);
+    if (!orgClaim && ((await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_mv WHERE eid=? AND mid=? AND j=? AND pid=? AND at_ms>?").bind(eid, b.mid, j, who.pid, now - 1000).first<{ c: number }>())?.c ?? 0) >= MOVES_PER_SECOND) return json({ error: "Slow down a little.", code: "rate" }, 429);
+    // ... and a player's "the other side is away" claim is stored only after the move clock has really run out: by the server's own stamp of the entry before it (or of the match opening), the game's own clock (the ready time for the first move, the move clock after that). The Organizer's page is not held to this (it looks after boards nobody is on).
+    if (absent && !orgClaim) {
+      const o = optsOf(t), last = (await env.DB.prepare("SELECT MAX(at_ms) AS at FROM ttt_mv WHERE eid=? AND mid=? AND j=?").bind(eid, b.mid, j).first<{ at: number | null }>())?.at ?? null;
+      const clock = last !== null ? (Number(o.moveMs) > 0 ? Number(o.moveMs) : 10_000) : (Number(o.readyMs) > 0 ? Number(o.readyMs) : 30_000); // the first move has the ready time, every later one the move clock (the game's own clocks)
+      if (now < (last ?? m.started_ms ?? 0) + clock - STAGE_CLOCK_SLACK_MS) return json({ error: "The move clock has not run out yet.", code: "too-early" }, 409);
+    }
     try { await env.DB.prepare("INSERT INTO ttt_mv(eid,mid,j,seq,pid,sq,client_ms,at_ms) VALUES(?,?,?,?,?,?,?,?)").bind(eid, b.mid, j, b.seq, who.pid, sq, Number.isFinite(b.client_ms) ? Math.trunc(b.client_ms) : null, now).run(); }
-    catch { return json({ error: "The board changed. Look again.", code: "seq", next: next + 1 }, 409); }
+    catch (err) { if (transientDb(err)) throw err; /* a passing database hiccup is not a clash: it becomes the gentle 503 busy and the phone asks again */ return json({ error: "The board changed. Look again.", code: "seq", next: next + 1 }, 409); }
     return json({ ok: true, seq: b.seq, at: now });
   }
 
@@ -336,6 +415,25 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const podium = b.podium, ranking = b.ranking;
     if (typeof b.champion !== "string" || b.finalMid !== finalMid || !Array.isArray(podium) || podium.length < 1 || podium.length > 5 || !podium.every((x: unknown) => Array.isArray(x) && x.length >= 1 && x.length <= 5 && (x as unknown[]).every((p) => typeof p === "string" && PID.test(p as string)))
       || !Array.isArray(ranking) || ranking.length < 1 || ranking.length > 100) return json({ error: "Bad result." }, 400);
+    // Audit 2, H3: nobody is named who did not play: every podium id is a player of this game, the champion and every ranked id is a player or an entrant of it
+    const players = new Set(((await env.DB.prepare("SELECT pid FROM ttt_p WHERE eid=?").bind(eid).all<{ pid: string }>()).results ?? []).map((x) => x.pid));
+    const entrants = new Set(((await env.DB.prepare("SELECT id FROM ttt_e WHERE eid=?").bind(eid).all<{ id: string }>()).results ?? []).map((x) => x.id));
+    const known = (x: string) => players.has(x) || entrants.has(x);
+    if (!known(b.champion) || !podium.every((m: string[]) => m.every((p) => players.has(p))) || !ranking.every((r: any) => typeof r?.id === "string" && known(r.id))) return json({ error: "The result names someone who did not play.", code: "not-in-game" }, 400);
+    // 1.6.2 (security audit M-C): the result is the one the stored results give. The champion is the winner of the final; the ranking starts with the champion, then the other side of the final; the podium is made of the players of those places; and the third and fourth places are sides that played in the round before the final. Nobody can name a first-round loser champion.
+    const finalWinner = await winnerSideOf(env, eid, fm);
+    if (!finalWinner || b.champion !== finalWinner) return json({ error: "The champion is not the winner of the final.", code: "not-the-winner" }, 400);
+    const [fa, fb] = sidesOf(fm), runnerUp = finalWinner === fa ? fb : fa;
+    if (ranking[0]?.id !== finalWinner || (ranking.length > 1 && ranking[1]?.id !== runnerUp)) return json({ error: "The ranking does not start with the two sides of the final.", code: "not-the-winner" }, 400);
+    for (let i = 0; i < podium.length; i++) {
+      const rid = ranking[i]?.id as string | undefined, want = rid ? await membersOfSide(env, eid, rid) : [];
+      if (!rid || podium[i].length !== want.length || !podium[i].every((p: string) => want.includes(p))) return json({ error: "The podium does not match the ranking.", code: "not-in-game" }, 400);
+    }
+    if ((t.rounds ?? 0) >= 2 && ranking.length > 2) {
+      const semis = (await env.DB.prepare("SELECT * FROM ttt_m WHERE eid=? AND round=?").bind(eid, (t.rounds ?? 0) - 1).all<MRow>()).results ?? [];
+      const seen = new Set(semis.flatMap((x) => sidesOf(x)).filter((x): x is string => !!x));
+      for (const r of ranking.slice(2, 4)) if (!seen.has(r.id)) return json({ error: "The ranking names someone who did not reach the semi-finals.", code: "not-in-game" }, 400);
+    }
     const clean = { champion: b.champion, rounds: t.rounds, finalMid, podium, ranking: ranking.map((r: any) => ({ rank: Number(r.rank), id: String(r.id).slice(0, 40), name: cleanName(r.name), roundReached: Number(r.roundReached), points: Number(r.points), decidedBy: String(r.decidedBy ?? "").slice(0, 40), tie: String(r.tie ?? "").slice(0, 200) })) };
     const payload = JSON.stringify(clean), digest = await sha(payload);
     await env.DB.prepare("INSERT OR REPLACE INTO ttt_f(eid,who,digest,payload,at_ms) VALUES(?,?,?,?,?)").bind(eid, who, digest, payload, now).run();
@@ -347,7 +445,10 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     return json({ ok: true, done: true });
   }
 
-  if (sub === "rank" && method === "GET") return json({ done: t.state === "done", ranking: t.ranking ? JSON.parse(t.ranking).slice(0, Math.min(100, Number(c.url.searchParams.get("n") ?? 10) || 10)) : [], podium: t.state === "done" ? PODIUM.slice(0, 5) : [] });
+  // 1.6.2 (security audit M-E): the ranking and the view carry full names only for the people who may see them (a seat with the phone's own proof, the Organizer, a Host); everybody else who has the link gets a first name and an initial, like the player list. A team's name is not a person's name and stays as it is.
+  const fullNames = async (): Promise<boolean> => c.allowed || !(await playerOf(c, c.url.searchParams.get("pid"), c.url.searchParams.get("device")) instanceof Response);
+  const shortened = <T extends { name?: unknown }>(rows: T[], full: boolean): T[] => (full || optsOf(t).format === "team" ? rows : rows.map((r) => (typeof r.name === "string" ? { ...r, name: shortName(r.name) } : r)));
+  if (sub === "rank" && method === "GET") return json({ done: t.state === "done", ranking: t.ranking ? shortened(JSON.parse(t.ranking).slice(0, Math.min(100, Number(c.url.searchParams.get("n") ?? 10) || 10)), await fullNames()) : [], podium: t.state === "done" ? PODIUM.slice(0, 5) : [] });
 
   // ------------------------------------------------------------------ lists (public): counts for the big screen and the Organizer's page; matches page by page
   // a light list of the registered matches of a round: who is registered, whether the match is finished, the agreed winner of each board and when it was agreed (no moves). The Organizer's page uses it to see which later matches are ready to be registered.
@@ -365,15 +466,80 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const rows = (await env.DB.prepare("SELECT m.mid AS mid FROM ttt_m m WHERE m.eid=? AND m.status='live' AND m.bye=0 AND COALESCE((SELECT MAX(v.at_ms) FROM ttt_mv v WHERE v.eid=m.eid AND v.mid=m.mid), m.started_ms) < ? ORDER BY m.round DESC, m.idx LIMIT 200 OFFSET ?").bind(eid, now - ms, Math.max(0, Number(c.url.searchParams.get("page") ?? 0) || 0) * 200).all<{ mid: string }>()).results ?? [];
     return json({ serverNow: now, matches: await matchRecs(env, eid, rows.map((r) => r.mid)), pauses: await pausesOf(env, eid) });
   }
+  // ------------------------------------------------------------------ the new flow (stages): the server only STORES and RELAYS. No pairing, no clock, no ranking here: every phone computes them from the start time and this public log.
+  // The log is append-only (an entry is never changed), keyed by game id and slot key, and it is auto-deleted with the other participant data. Reachable only when the Organizer or a Host switched the new flow on for this game before it started.
+  if ((sub === "stageon" || sub === "stagego") && method === "POST") {
+    if (!c.allowed) return json({ error: "Only the Organizer or a Host can do this." }, 403);
+    if (t.state !== "open") return json({ error: "The tournament has already started.", code: "started" }, 409);
+    if (sub === "stageon") { try { await env.DB.prepare("INSERT OR IGNORE INTO ttt_sl(eid,slot,kind,pid,seq,body,at_ms) VALUES(?,?,?,?,?,?,?)").bind(eid, "_", "flag", "_", 0, "stages", now).run(); } catch { return json({ error: "The new flow is not switched on for this game.", code: "no-stages" }, 409); } return json({ ok: true, stages: true }); }
+    if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not switched on for this game.", code: "no-stages" }, 409);
+    const b = (await c.body(req, 1024)) ?? {};
+    const rows = await env.DB.prepare("SELECT p.pid AS pid, p.pii AS pii, s.blocked AS blocked FROM participant p LEFT JOIN seat s ON s.eid=p.eid AND s.pid=p.pid WHERE p.eid=?").bind(eid).all<{ pid: string; pii: string | null; blocked: number | null }>();
+    const players: { pid: string; name: string }[] = [];
+    for (const r of rows.results ?? []) { if (r.blocked) continue; players.push({ pid: r.pid, name: cleanName(await c.openName(r.pii)) }); }
+    if (players.length < 2) return json({ error: `A game needs at least 2 players. ${players.length} joined.`, code: "too-few", joined: players.length }, 409);
+    if (players.length > STAGE_MAX_PLAYERS) return json({ error: `This game is for up to ${STAGE_MAX_PLAYERS} players.`, code: "too-many" }, 409);
+    if (!(await c.spend(env, now, players.length * 2 + 8))) return c.BUSY();
+    const beacon = typeof b.beacon === "string" ? b.beacon.replace(/[^A-Za-z0-9._-]/g, "").slice(0, 128) : "";
+    const seed = await seedOf(t.secret!, eid, players.map((p) => p.pid), beacon);
+    const startMs = Number.isFinite(Number(b.startMs)) && Number(b.startMs) >= now && Number(b.startMs) <= now + 3_600_000 ? Math.floor(Number(b.startMs)) : now; // the published start; the room opens then
+    const stmts: any[] = [env.DB.prepare("DELETE FROM ttt_p WHERE eid=?").bind(eid)]; // players first, "running" last (see the start step above)
+    for (const p of players) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO ttt_p(eid,pid,name,ent) VALUES(?,?,?,NULL)").bind(eid, p.pid, p.name));
+    for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
+    await env.DB.prepare("UPDATE ttt_t SET state='running', opts=?, seed=?, players=?, started_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify({ stages: true }), seed, players.length, startMs, eid).run();
+    return json({ ok: true, players: players.length, commit: t.commit_hash, state: "running", startedMs: startMs, seed });
+  }
+  if (sub === "stagelog" && method === "POST") {
+    if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not on for this game." }, 404);
+    if (t.state !== "running") return json({ error: "The game is not running.", code: "not-running" }, 409);
+    if (t.pause_at) return json({ error: "The host paused the game. Your clock waits.", code: "paused" }, 409);
+    const b = (await c.body(req, 1024)) ?? {};
+    const who = await playerOf(c, b.pid, b.device); if (who instanceof Response) return who;
+    const slot = String(b.slot ?? ""), kind = String(b.kind ?? ""), seq = Number(b.seq), body = typeof b.body === "string" ? b.body : "";
+    if (!STAGE_SLOT.test(slot) || (kind !== "move" && kind !== "result") || !Number.isInteger(seq) || seq < 0 || seq > 40 || body.length > STAGE_ENTRY_BYTES) return json({ error: "That entry is not valid." }, 400);
+    // Who may write: only the two players of this slot (audit 2, H1: a third player could burn the turns of a game that was not theirs). What may be written: a square or a missed move; a result word. Nothing else is stored.
+    if (!inSlot(slot, who.pid)) return json({ error: "You are not a player of this game.", code: "not-in-slot" }, 403);
+    if (kind === "move" ? !/^([0-8]|-)$/.test(body) : !(body === "a" || body === "b" || body === "draw")) return json({ error: "That entry is not valid." }, 400);
+    // A missed move ("-") counts only after the move clock ran out: it must come after the entry before it, by the SERVER's own stamp plus the clock (a player cannot give away the other player's turn early).
+    // 1.6.2 (correctness audit M-A): the first move of a slot has no entry before it, so its clock runs from the start of the slot, which the server knows from the published start (and the pauses so far). Before that, a "-" at number 0 is refused: the second player cannot take the first move.
+    if (kind === "move" && body === "-") {
+      if (seq > 0) {
+        const prev = await env.DB.prepare("SELECT MIN(at_ms) AS at FROM ttt_sl WHERE eid=? AND slot=? AND kind='move' AND seq=?").bind(eid, slot, seq - 1).first<{ at: number | null }>();
+        if (prev?.at == null) return json({ error: "The move before this one is not on the board yet.", code: "too-early" }, 409);
+        if (now < prev.at + STAGE_MOVE_MS - STAGE_CLOCK_SLACK_MS) return json({ error: "The move clock has not run out yet.", code: "too-early" }, 409);
+      } else {
+        const sp = /^([0-9])-([0-9])-/.exec(slot);
+        const slotStart = (t.started_ms ?? 0) + (t.pause_total ?? 0) + STAGE_CALENDAR_MS.wait + Math.max(0, Number(sp![1]) - 1) * STAGE_CALENDAR_MS.stage + Math.max(0, Number(sp![2]) - 1) * STAGE_CALENDAR_MS.slot;
+        if (now < slotStart + STAGE_MOVE_MS - STAGE_CLOCK_SLACK_MS) return json({ error: "The move clock has not run out yet.", code: "too-early" }, 409);
+      }
+    }
+    const recent = (await env.DB.prepare("SELECT COUNT(*) AS n FROM ttt_sl WHERE eid=? AND pid=? AND at_ms>?").bind(eid, who.pid, now - 1000).first<{ n: number }>())?.n ?? 0;
+    if (recent >= STAGE_WRITES_PER_SECOND) return json({ error: "Slow down a little.", code: "rate" }, 429);
+    const total = (await env.DB.prepare("SELECT COUNT(*) AS n FROM ttt_sl WHERE eid=?").bind(eid).first<{ n: number }>())?.n ?? 0;
+    if (total >= STAGE_MAX_ENTRIES) return json({ error: "The log of this game is full.", code: "full" }, 409);
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO ttt_sl(eid,slot,kind,pid,seq,body,at_ms) VALUES(?,?,?,?,?,?,?)").bind(eid, slot, kind, who.pid, seq, body, now).run();
+    return json({ ok: true, stored: (r.meta?.changes ?? 0) > 0 }); // an existing entry is never replaced
+  }
+  if (sub === "stagelog" && method === "GET") {
+    if (!(await stagesOn(env, eid))) return json({ error: "The new flow is not on for this game." }, 404);
+    const q = c.url.searchParams, after = Math.max(0, Number(q.get("after") ?? 0) || 0), slot = q.get("slot");
+    let rows;
+    if (slot !== null) { if (!STAGE_SLOT.test(slot)) return json({ error: "That game slot is not valid." }, 400); rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND slot=? AND kind<>'flag' AND id>? ORDER BY id LIMIT 200").bind(eid, slot, after).all<any>(); }
+    else rows = await env.DB.prepare("SELECT id, slot, kind, pid, seq, body, at_ms FROM ttt_sl WHERE eid=? AND kind='result' AND id>? ORDER BY id LIMIT 1000").bind(eid, after).all<any>();
+    return new Response(JSON.stringify({ serverNow: now, entries: rows.results ?? [] }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=2" } });
+  }
+
   if (sub === "view" && method === "GET") {
     await sweep(env, eid, now);
     const joined = (await env.DB.prepare("SELECT COUNT(*) AS c FROM participant WHERE eid=?").bind(eid).first<{ c: number }>())?.c ?? 0;
     const o = optsOf(t);
-    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t) };
+    const head = { serverNow: now, state: t.state, commit: t.commit_hash, paused: !!t.pause_at, joined, startedMs: t.started_ms, endedMs: t.ended_ms, endedEarly: endedEarly(t), ...(await endedAtOf(env, c.e, now)) };
     if (t.state === "open") return json({ ...head, phase: "waiting" });
     const counts = (await env.DB.prepare("SELECT round, status, COUNT(*) AS n FROM ttt_m WHERE eid=? AND bye=0 GROUP BY round, status").bind(eid).all<{ round: number; status: string; n: number }>()).results ?? [];
     const flags = (await env.DB.prepare("SELECT COUNT(*) AS c FROM ttt_b WHERE eid=? AND flag=1").bind(eid).first<{ c: number }>())?.c ?? 0;
-    return json({ ...head, phase: t.state, format: o.format, teamSize: o.teamSize, moveSecs: (o.moveMs ?? 0) / 1000, players: t.players, entrants: t.entrants, rounds: t.rounds, perRound: counts.map((x) => ({ round: x.round, status: x.status, n: x.n })), disputed: flags, champion: t.champion ? ((await env.DB.prepare("SELECT name FROM ttt_e WHERE eid=? AND id=?").bind(eid, t.champion).first<{ name: string }>())?.name ?? null) : null, ranking: t.ranking ? JSON.parse(t.ranking).slice(0, 10) : [] });
+    const full = await fullNames(), champName = t.champion ? ((await env.DB.prepare("SELECT name FROM ttt_e WHERE eid=? AND id=?").bind(eid, t.champion).first<{ name: string }>())?.name ?? null) : null;
+    const champ = champName && !full && o.format !== "team" ? shortName(champName) : champName;
+    return json({ ...head, phase: t.state, format: o.format, teamSize: o.teamSize, moveSecs: (o.moveMs ?? 0) / 1000, players: t.players, entrants: t.entrants, rounds: t.rounds, perRound: counts.map((x) => ({ round: x.round, status: x.status, n: x.n })), disputed: flags, champion: champ, ranking: t.ranking ? shortened(JSON.parse(t.ranking).slice(0, 10), full) : [] });
   }
   if (sub === "all" && method === "GET") {
     if (t.state === "open") return json({ matches: [] });

@@ -1,0 +1,213 @@
+{
+  "_about": "Contract v1 between the console and every game. Checked by packages/bridge/test-kit/schema-check.mjs: a field that is not listed here is an error (closed objects). Changing this file is a contract change: bump contract/VERSION and tell every game session.",
+  "$defs": {
+    "Hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "GameId": { "type": "string", "enum": ["tambola", "bingo", "tictactoe", "snakesladders", "luckbychance", "luckydraw"] },
+    "RoleName": { "type": "string", "enum": ["organizer", "host", "cohost", "participant"] },
+    "Status": { "type": "string", "enum": ["draft", "waiting_payment", "ready", "playing", "finished", "cancelled", "not_started"] },
+    "Currency": { "type": "string", "enum": ["INR", "USD"] },
+    "Eid": { "type": "string", "pattern": "^[A-Za-z0-9_-]{4,40}$" },
+    "Assertion": { "type": "string", "pattern": "^v1\\.[A-Za-z0-9_-]{20,1800}\\.[A-Za-z0-9_-]{80,90}$" },
+    "Key": { "type": "string", "pattern": "^c[bt][kahc]_[0-9a-f]{48}$" },
+    "Act": { "type": "string", "enum": ["session", "games", "billing", "invited", "role", "handoff", "stepup", "paid", "payable", "purge"] },
+    "StepAction": { "type": "string", "enum": ["pay", "upgrade", "role-add", "role-remove", "draft-delete", "cancel"] },
+
+    "AssertionPayload": {
+      "type": "object",
+      "required": ["v", "kid", "aud", "sub", "act", "jti", "iat", "exp"],
+      "properties": {
+        "v": { "const": 1 },
+        "kid": { "type": "string", "pattern": "^[a-z0-9]{1,12}$" },
+        "aud": { "type": "string", "pattern": "^https?://[a-z0-9.\\-]+(:[0-9]+)?$" },
+        "sub": { "$ref": "#/$defs/Hash" },
+        "em": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "maxLength": 254 },
+        "act": { "$ref": "#/$defs/Act" },
+        "eid": { "$ref": "#/$defs/Eid" },
+        "sa": { "$ref": "#/$defs/StepAction" },
+        "hint": { "$ref": "#/$defs/RoleName" },
+        "jti": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,43}$" },
+        "iat": { "type": "integer", "minimum": 1700000000 },
+        "exp": { "type": "integer", "minimum": 1700000000 }
+      }
+    },
+
+    "Error": {
+      "type": "object",
+      "required": ["ok", "error", "message"],
+      "properties": {
+        "ok": { "const": false },
+        "error": { "type": "string", "enum": ["bad_assertion", "expired", "wrong_audience", "replayed", "unknown_kid", "wrong_act", "forbidden", "step_up_required", "not_found", "rate_limited", "conflict", "invalid", "too_late", "not_yours"] },
+        "message": { "type": "string", "minLength": 8, "maxLength": 240 },
+        "where": { "type": "string", "maxLength": 120 },
+        "fix": { "type": "string", "maxLength": 240 }
+      }
+    },
+
+    "Money": {
+      "type": "object",
+      "required": ["amountMinor", "currency"],
+      "properties": { "amountMinor": { "type": "integer", "minimum": 0 }, "currency": { "$ref": "#/$defs/Currency" } }
+    },
+
+    "Capabilities": {
+      "type": "object",
+      "required": ["ok", "bridge", "schema", "game", "gameName", "gameVersion", "origin", "kids", "sizes", "freeDemoCap", "currencies", "features", "limits"],
+      "properties": {
+        "ok": { "const": true },
+        "bridge": { "const": 1 },
+        "schema": { "type": "integer", "minimum": 1 },
+        "game": { "$ref": "#/$defs/GameId" },
+        "gameName": { "type": "string", "minLength": 3, "maxLength": 60 },
+        "gameVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "origin": { "type": "string", "pattern": "^https?://[a-z0-9.\\-]+(:[0-9]+)?$" },
+        "kids": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string", "pattern": "^[a-z0-9]{1,12}$" } },
+        "sizes": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "object", "required": ["pack", "inrMinor", "usdMinor", "free"], "properties": { "pack": { "type": "integer", "minimum": 1 }, "inrMinor": { "type": "integer", "minimum": 0 }, "usdMinor": { "type": ["integer", "null"], "minimum": 0 }, "free": { "type": "boolean" } } }
+        },
+        "freeDemoCap": { "type": "integer", "minimum": 0 },
+        "currencies": { "type": "array", "items": { "$ref": "#/$defs/Currency" }, "minItems": 1 },
+        "features": {
+          "type": "object",
+          "required": ["roles", "log", "upgrade", "preview", "trail", "invited"],
+          "properties": { "roles": { "type": "boolean" }, "log": { "type": "boolean" }, "upgrade": { "type": "boolean" }, "preview": { "type": "boolean" }, "trail": { "type": "boolean" }, "invited": { "type": "boolean" } }
+        },
+        "limits": { "type": "object", "required": ["drafts"], "properties": { "drafts": { "type": "integer", "minimum": 1 } } },
+        "previewUrl": { "type": "string", "pattern": "^/screenview/$" },
+        "options": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "SessionRequest": {
+      "type": "object", "required": ["assertion"],
+      "properties": { "assertion": { "$ref": "#/$defs/Assertion" }, "create": { "type": "boolean" } }
+    },
+    "ScopedKey": {
+      "type": "object", "required": ["eid", "role", "key", "expiresMs"],
+      "properties": { "eid": { "$ref": "#/$defs/Eid" }, "role": { "type": "string", "enum": ["host", "cohost"] }, "key": { "$ref": "#/$defs/Key" }, "expiresMs": { "type": "integer" } }
+    },
+    "SessionResponse": {
+      "type": "object", "required": ["ok", "created", "organizer", "scoped"],
+      "properties": {
+        "ok": { "const": true },
+        "created": { "type": "boolean" },
+        "organizer": { "oneOf": [{ "type": "null" }, { "type": "object", "required": ["key", "expiresMs", "label"], "properties": { "key": { "$ref": "#/$defs/Key" }, "expiresMs": { "type": "integer" }, "label": { "const": "console" } } }] },
+        "scoped": { "type": "array", "items": { "$ref": "#/$defs/ScopedKey" } }
+      }
+    },
+
+    "ListRequest": {
+      "type": "object", "required": ["assertion"],
+      "properties": { "assertion": { "$ref": "#/$defs/Assertion" }, "cursor": { "type": "string", "maxLength": 80 }, "limit": { "type": "integer", "minimum": 1, "maximum": 100 } }
+    },
+    "GameRow": {
+      "type": "object",
+      "required": ["game", "eid", "role", "status", "startMs", "cap", "pack", "name", "payment", "invitedBy", "liveNow", "nextAction", "createdMs"],
+      "properties": {
+        "game": { "$ref": "#/$defs/GameId" },
+        "eid": { "$ref": "#/$defs/Eid" },
+        "role": { "$ref": "#/$defs/RoleName" },
+        "status": { "$ref": "#/$defs/Status" },
+        "startMs": { "type": ["integer", "null"] },
+        "cap": { "type": "integer", "minimum": 1 },
+        "pack": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string", "maxLength": 80 },
+        "payment": {
+          "type": "object", "required": ["state"],
+          "properties": { "state": { "type": "string", "enum": ["none", "free", "waiting", "paid", "credit"] }, "amountMinor": { "type": "integer", "minimum": 0 }, "currency": { "$ref": "#/$defs/Currency" } }
+        },
+        "invitedBy": { "type": ["string", "null"], "maxLength": 80 },
+        "liveNow": { "type": "boolean" },
+        "nextAction": { "type": "string", "enum": ["publish", "pay", "accept", "run", "share", "none"] },
+        "roleId": { "type": "string", "pattern": "^[0-9a-f]{10}$" },
+        "joined": { "type": "integer", "minimum": 0 },
+        "yourLimit": { "type": "integer", "minimum": 0 },
+        "createdMs": { "type": "integer" }
+      }
+    },
+    "GamesResponse": {
+      "type": "object", "required": ["ok", "games", "next"],
+      "properties": { "ok": { "const": true }, "games": { "type": "array", "items": { "$ref": "#/$defs/GameRow" } }, "next": { "type": ["string", "null"] } }
+    },
+
+    "BillingRequest": {
+      "type": "object", "required": ["assertion"],
+      "properties": { "assertion": { "$ref": "#/$defs/Assertion" }, "cursor": { "type": "string", "maxLength": 80 }, "fromMs": { "type": "integer" }, "toMs": { "type": "integer" } }
+    },
+    "BillingRow": {
+      "type": "object",
+      "required": ["tsMs", "game", "eid", "gameName", "what", "amountMinor", "currency", "status", "paidBy", "invoice"],
+      "properties": {
+        "tsMs": { "type": "integer" },
+        "game": { "$ref": "#/$defs/GameId" },
+        "eid": { "$ref": "#/$defs/Eid" },
+        "gameName": { "type": "string", "maxLength": 80 },
+        "what": { "type": "string", "enum": ["pack", "upgrade", "credit_used"] },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "$ref": "#/$defs/Currency" },
+        "status": { "type": "string", "enum": ["paid", "waiting", "cancelled"] },
+        "paidBy": { "type": "string", "enum": ["organizer", "host", "cohost", "link"] },
+        "invoice": { "type": ["string", "null"], "pattern": "^/api/invoice/inv_[0-9a-f]{32}$" }
+      }
+    },
+    "BillingResponse": {
+      "type": "object", "required": ["ok", "rows", "credit", "next"],
+      "properties": {
+        "ok": { "const": true },
+        "rows": { "type": "array", "items": { "$ref": "#/$defs/BillingRow" } },
+        "credit": { "oneOf": [{ "type": "null" }, { "type": "object", "required": ["balanceMinor", "currency", "expiresMs"], "properties": { "balanceMinor": { "type": "integer", "minimum": 0 }, "currency": { "$ref": "#/$defs/Currency" }, "expiresMs": { "type": "integer" } } }] },
+        "next": { "type": ["string", "null"] }
+      }
+    },
+
+    "InvitedRequest": { "type": "object", "required": ["assertion"], "properties": { "assertion": { "$ref": "#/$defs/Assertion" } } },
+    "InvitedResponse": {
+      "type": "object", "required": ["ok", "cards"],
+      "properties": { "ok": { "const": true }, "cards": { "type": "array", "items": { "type": "object", "required": ["game", "eid", "name", "startMs", "link"], "properties": { "game": { "$ref": "#/$defs/GameId" }, "eid": { "$ref": "#/$defs/Eid" }, "name": { "type": "string", "maxLength": 80 }, "startMs": { "type": ["integer", "null"] }, "link": { "type": "string", "pattern": "^https?://" } } } } }
+    },
+
+    "RoleListRequest": { "type": "object", "required": ["op", "eid"], "properties": { "op": { "const": "list" }, "eid": { "$ref": "#/$defs/Eid" } } },
+    "RoleInviteRequest": { "type": "object", "required": ["op", "eid", "role", "email"], "properties": { "op": { "const": "invite" }, "eid": { "$ref": "#/$defs/Eid" }, "role": { "type": "string", "enum": ["host", "cohost"] }, "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "maxLength": 254 } } },
+    "RoleRemoveRequest": { "type": "object", "required": ["op", "eid", "roleId"], "properties": { "op": { "const": "remove" }, "eid": { "$ref": "#/$defs/Eid" }, "roleId": { "type": "string", "pattern": "^[0-9a-f]{10}$" } } },
+    "RoleAnswerRequest": { "type": "object", "required": ["op", "eid", "roleId", "assertion"], "properties": { "op": { "type": "string", "enum": ["accept", "decline"] }, "eid": { "$ref": "#/$defs/Eid" }, "roleId": { "type": "string", "pattern": "^[0-9a-f]{10}$" }, "assertion": { "$ref": "#/$defs/Assertion" } } },
+    "RoleListResponse": {
+      "type": "object", "required": ["ok", "roles"],
+      "properties": { "ok": { "const": true }, "roles": { "type": "array", "items": { "type": "object", "required": ["roleId", "role", "state", "emailHint"], "properties": { "roleId": { "type": "string", "pattern": "^[0-9a-f]{10}$" }, "role": { "type": "string", "enum": ["host", "cohost"] }, "state": { "type": "string", "enum": ["invited", "accepted"] }, "emailHint": { "type": "string", "maxLength": 40 } } } } }
+    },
+    "RoleInviteResponse": { "type": "object", "required": ["ok", "roleId"], "properties": { "ok": { "const": true }, "roleId": { "type": "string", "pattern": "^[0-9a-f]{10}$" } } },
+    "RoleDoneResponse": { "type": "object", "required": ["ok"], "properties": { "ok": { "const": true } } },
+    "RoleAcceptResponse": { "type": "object", "required": ["ok", "scoped"], "properties": { "ok": { "const": true }, "scoped": { "$ref": "#/$defs/ScopedKey" } } },
+
+    "HandoffRequest": { "type": "object", "required": ["target"], "properties": { "eid": { "$ref": "#/$defs/Eid" }, "target": { "type": "string", "enum": ["organizer", "host", "big", "tournament", "pay", "publish", "new"] }, "free": { "const": true } } },
+    "HandoffResponse": { "type": "object", "required": ["ok", "url", "expiresMs"], "properties": { "ok": { "const": true }, "url": { "type": "string", "pattern": "^https?://[^ ]+/signin\\.html\\?t=[0-9a-f]{48}&go=console&e=[A-Za-z0-9_-]{4,40}(&to=(organizer|host|big|tournament|pay|publish)|&free=1)?$" }, "expiresMs": { "type": "integer" } } },
+    "HandoffRedeemRequest": { "type": "object", "required": ["t"], "properties": { "t": { "type": "string", "pattern": "^[0-9a-f]{48}$" } } },
+    "HandoffRedeemResponse": { "type": "object", "required": ["ok", "key", "kind", "eid", "expiresMs"], "properties": { "ok": { "const": true }, "key": { "$ref": "#/$defs/Key" }, "kind": { "type": "string", "enum": ["master", "host", "cohost"] }, "eid": { "$ref": "#/$defs/Eid" }, "expiresMs": { "type": "integer" } } },
+
+    "PurgeRequest": { "type": "object", "required": ["assertion"], "properties": { "assertion": { "$ref": "#/$defs/Assertion" } } },
+    "PurgeResponse": { "type": "object", "required": ["ok", "removed"], "properties": { "ok": { "const": true }, "removed": { "type": "integer", "minimum": 0 }, "rolesErased": { "type": "integer", "minimum": 0 } } },
+
+    "LiveResponse": { "type": "object", "required": ["ok", "game", "playing", "startingWithin60"], "properties": { "ok": { "const": true }, "game": { "$ref": "#/$defs/GameId" }, "playing": { "type": "integer", "minimum": 0 }, "startingWithin60": { "type": "integer", "minimum": 0 }, "tournamentsRunning": { "type": "integer", "minimum": 0 }, "story": { "type": "string", "maxLength": 160 }, "counts": { "type": "object", "additionalProperties": false, "properties": { "joined": { "type": "integer", "minimum": 0 }, "waiting": { "type": "integer", "minimum": 0 }, "done": { "type": "integer", "minimum": 0 }, "total": { "type": "integer", "minimum": 0 } } } } },
+
+    "PreviewRequest": { "type": "object", "required": ["eid"], "properties": { "eid": { "$ref": "#/$defs/Eid" } } },
+    "PreviewResponse": { "type": "object", "required": ["ok", "url", "expiresMs"], "properties": { "ok": { "const": true }, "url": { "type": "string", "pattern": "^https?://[^ ]+/screenview/[A-Za-z0-9_-]{4,40}\\?t=[A-Za-z0-9_.\\-]{20,400}$" }, "expiresMs": { "type": "integer" } } },
+
+    "UpgradeQuoteRequest": { "type": "object", "required": ["toPack"], "properties": { "toPack": { "type": "integer", "minimum": 1 } } },
+    "UpgradeQuoteResponse": {
+      "type": "object", "required": ["ok", "fromPack", "toPack", "currency", "priceMinor", "paidMinor", "creditMinor", "differenceMinor"],
+      "properties": { "ok": { "const": true }, "fromPack": { "type": "integer" }, "toPack": { "type": "integer" }, "currency": { "$ref": "#/$defs/Currency" }, "priceMinor": { "type": "integer", "minimum": 0 }, "paidMinor": { "type": "integer", "minimum": 0 }, "creditMinor": { "type": "integer", "minimum": 0 }, "differenceMinor": { "type": "integer", "minimum": 0 } }
+    },
+
+    "LogRow": {
+      "type": "object", "required": ["seq", "tsMs", "kind", "who", "text", "data"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 1 },
+        "tsMs": { "type": "integer" },
+        "kind": { "type": "string", "enum": ["created", "published", "payment", "setting", "role_added", "role_removed", "role_accepted", "started", "paused", "resumed", "number_called", "winner", "ended", "report_sent", "upgraded", "cancelled"] },
+        "who": { "type": "string", "enum": ["organizer", "host", "cohost", "system"] },
+        "text": { "type": "string", "maxLength": 200 },
+        "data": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean", "null"] } }
+      }
+    },
+    "LogResponse": { "type": "object", "required": ["ok", "rows", "next"], "properties": { "ok": { "const": true }, "rows": { "type": "array", "items": { "$ref": "#/$defs/LogRow" } }, "next": { "type": "integer", "minimum": 0 } } }
+  }
+}

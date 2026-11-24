@@ -21,7 +21,7 @@ const j = async (r: Response) => (await r.json()) as any;
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" };
 });
 
 async function organizer() {
@@ -32,6 +32,7 @@ async function organizer() {
 const auditRows = () => raw.prepare("SELECT method, path, status, key_id FROM ai_audit ORDER BY id").all() as { method: string; path: string; status: number; key_id: string }[];
 const linkGet = (key: string, rest = "", headers: Record<string, string> = {}) => call("GET", `/ai/${key}${rest}`, undefined, headers);
 
+const hostGame = async (h: Record<string, string>, id = "HG-1") => { await call("POST", "/api/z", { id, startRound: FUT, callSeconds: 9, cap: 100 }, h); return id; }; // 1.6.3: a Host belongs to one game, so the game is made first
 describe("the paste text and the manual", () => {
   test("the paste is two short lines plus the link, framed as the owner's own documentation, with the key only inside the link", async () => {
     const o = await organizer();
@@ -54,7 +55,7 @@ describe("the paste text and the manual", () => {
     for (const must of [`GET ${base}/z/{id}/summary`, `POST ${base}/z `, `PATCH ${base}/z/{id}/settings`, `POST ${base}/z/{id}/roster`, `POST ${base}/z/{id}/announce`, `POST ${base}/z/{id}/prizegiven`, `GET ${base}/z/schedule`, `POST ${base}/org/host`, `GET ${base}/org/ai/audit`])
       expect(t).toContain(must);
     expect(t).toMatch(/ONE question at a time/); expect(t).toMatch(/_method=POST/); expect(t).toMatch(/about 20 people/); expect(t).toMatch(/WHAT YOU CANNOT DO/);
-    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Erase participant data/); expect(t).toMatch(/Pause, resume or stop/); expect(t).toMatch(/a result or a place in the ranking/);
+    expect(t).toMatch(/Pay for anything/); expect(t).toMatch(/Publish\./); expect(t).toMatch(/Delete participant data/); expect(t).toMatch(/Pause, resume or stop/); expect(t).toMatch(/a result or a place in the ranking/);
     expect(t).toMatch(/Only the owner's own messages/); expect(t).toMatch(/Not found/); // injection rule + what a dead link says
     // every example address in the manual carries the key; no bare /api/ address without it except the optional header path
     for (const line of t.split("\n").filter((l) => /^\s*(Read|Create|Change|Load|Send)[^:]*:\s+GET /.test(l))) expect(line).toContain(base);
@@ -70,7 +71,7 @@ describe("the paste text and the manual", () => {
   });
   test("a co-host key gets a narrower manual shaped for that role", async () => {
     const o = await organizer();
-    const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.hostKey).toMatch(/^cbh_/); expect(hk.manualUrl).toBe(`${ORIGIN}/ai/${hk.hostKey}`);
+    const hk = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), mobile: "9876500009", email: "host@acme.com" }, o.h)); expect(hk.hostKey).toMatch(/^cbh_/); expect(hk.manualUrl).toBe(`${ORIGIN}/ai/${hk.hostKey}`);
     const t = await (await linkGet(hk.hostKey)).text();
     expect(t).toMatch(/Host's AI assistant/); expect(t).toMatch(/You help a Host/); expect(t).toContain(`${ORIGIN}/ai/${hk.hostKey}/z/{id}/announce`);
     expect(t).not.toMatch(/PATCH .*settings/); expect(t).not.toContain("/roster"); expect(t).not.toMatch(/org\/host/);
@@ -118,7 +119,7 @@ describe("key in the address behaves exactly like the header", () => {
     expect(JSON.stringify(trail)).not.toContain(o.ai);
   });
   test("a co-host's link calls are audited as well", async () => {
-    const o = await organizer(); const hk = await j(await call("POST", "/api/org/host", { email: "host@acme.com", mobile: "9876500009" }, o.h));
+    const o = await organizer(); const hk = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), email: "host@acme.com", mobile: "9876500009" }, o.h));
     await linkGet(hk.hostKey); await call("GET", `/ai/${hk.hostKey}/whoami`);
     expect(auditRows().slice(-2).map((r) => r.path)).toEqual(["/ai/manual", "/api/whoami"]);
   });
@@ -224,10 +225,10 @@ describe("what the organizer's AI may and may not do now", () => {
   });
   test("it may create a co-host key and gets its own link for them, but the report address never reaches it", async () => {
     const o = await liveEngagement("CAP-5");
-    const hk = await j(await call("POST", "/api/org/host", { email: "host@acme.com", mobile: "9876500009" }, o.h)); expect(hk.manualUrl).toContain("/ai/cbh_");
+    const hk = await j(await call("POST", "/api/org/host", { e: await hostGame(o.h), email: "host@acme.com", mobile: "9876500009" }, o.h)); expect(hk.manualUrl).toContain("/ai/cbh_");
     const rep = await j(await call("GET", `/ai/${o.ai}/z/CAP-5/reportlink`)); expect(rep.url).toBeNull(); expect(rep.note).toMatch(/e-mailed to them/);
   });
-  test("it still cannot pay, publish, erase, pause, settle, touch winners, or manage the organizer's keys", async () => {
+  test("it still cannot pay, publish, delete, pause, settle, touch winners, or manage the organizer's keys", async () => {
     const o = await liveEngagement("CAP-6");
     const pub = await j(await call("POST", `/ai/${o.ai}/z/CAP-D2/publish`, contact)); expect(pub.error ?? "").toBeDefined();
     for (const [m, p, b] of [["POST", "/z/CAP-6/erase", {}], ["POST", "/z/CAP-6/settle", { results: [] }], ["PUT", "/z/CAP-6/control/key", { publicKey: "aa" }], ["GET", "/org/keys", undefined], ["POST", "/org/keys/revoke", { id: "x" }], ["POST", "/org/ai", {}], ["POST", "/org", {}], ["POST", "/checkout", { eid: "CAP-6", org: "X", email: "x@x.com" }]] as const)
@@ -244,7 +245,7 @@ describe("what the organizer's AI may and may not do now", () => {
     expect((raw.prepare("SELECT COUNT(*) AS c FROM kv WHERE k='pub/CAP-7'").get() as any).c).toBe(0);
   });
   test("a co-host key keeps its narrow rights through the link", async () => {
-    const o = await liveEngagement("CAP-8"); const hk = await j(await call("POST", "/api/org/host", { mobile: "9876500009", email: "host@acme.com" }, o.h));
+    const o = await liveEngagement("CAP-8"); const hk = await j(await call("POST", "/api/org/host", { e: "CAP-8", mobile: "9876500009", email: "host@acme.com" }, o.h));
     expect((await call("POST", `/ai/${hk.hostKey}/z/CAP-8/announce`, { text: "Hello" })).status).toBe(200);
     expect((await call("GET", `/ai/${hk.hostKey}/z/CAP-8/summary`)).status).toBe(200);
     for (const [m, p, b] of [["PATCH", "/z/CAP-8/settings", { cap: 9 }], ["POST", "/z/CAP-8/roster", { people: [{ phone: "9876543210" }] }], ["POST", "/z/CAP-8/unbind", { phone: "9876543210" }], ["POST", "/z/CAP-8/mark", { phone: "9876543210", role: "host" }], ["POST", "/org/host", {}], ["POST", "/z", eng("CAP-H")], ["POST", "/z/CAP-8/erase", {}]] as const)

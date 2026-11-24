@@ -56,7 +56,7 @@ const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { sta
 const sha = async (s: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), (b) => b.toString(16).padStart(2, "0")).join("");
 const randHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
 async function body(req: Request, max = 2048): Promise<any | null> { const t = await req.text(); if (t.length > max) return null; try { const v = JSON.parse(t); return v && typeof v === "object" ? v : null; } catch { return null; } }
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+const EMAIL_RE = /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/;
 const validEmail = (v: unknown): string => { const e = typeof v === "string" ? v.trim().toLowerCase() : ""; return EMAIL_RE.test(e) ? e : ""; };
 const clean = (v: unknown, n: number): string => (typeof v === "string" ? v.replace(/[<>`]/g, "").trim().slice(0, n) : "");
 const TOKEN = /^[0-9a-f]{48}$/;
@@ -361,13 +361,14 @@ export async function helpdeskRoute(req: Request, env: PayEnv, now: number, spen
     if (a.pub.tmp_key_hash) await db.prepare("UPDATE organizer_key SET revoked=1 WHERE hash=?").bind(a.pub.tmp_key_hash).run();
     const hn = await helperName(db, link.partner_code), label = `Help desk: ${hn}`.slice(0, 40);
     let deskKey = "";
-    const have = link.host_hash ? await db.prepare("SELECT 1 AS x FROM organizer_key WHERE hash=? AND kind='host' AND revoked=0").bind(link.host_hash).first() : null;
+    const have = link.host_hash ? await db.prepare("SELECT 1 AS x FROM organizer_key WHERE hash=? AND kind='host' AND revoked=0 AND eid=?").bind(link.host_hash, a.pub.eid).first() : null; // 1.6.3 (security audit M-3): the desk Host belongs to one game; a game of the same organizer gets its own desk Host
     let hid = link.host_hash;
+    if (!have && link.host_hash) await retireHost(db, link.host_hash); // 1.6.3: the desk Host of an earlier game stops; this game gets its own
     if (!have) { // the helper becomes the desk Host: not counted among the Organizer's 5 Hosts, named "Help desk: <name>" in the team list
       deskKey = "cbh_" + randHex(24); hid = await sha("key|" + deskKey);
       const h = await db.prepare("SELECT email_sealed FROM helpdesk_helper WHERE partner_code=?").bind(link.partner_code).first<{ email_sealed: string }>();
       await db.batch([
-        db.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0),?,?,NULL,'d',?)").bind(hid, a.pub.org, "host", now, a.pub.org, label, h?.email_sealed ?? null, hid),
+        db.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,is_test,label,email_sealed,pii,created_by,host_id,eid) VALUES(?,?,?,0,?,COALESCE((SELECT MAX(k2.is_test) FROM organizer_key k2 WHERE k2.org=?),0),?,?,NULL,'d',?,?)").bind(hid, a.pub.org, "host", now, a.pub.org, label, h?.email_sealed ?? null, hid, a.pub.eid),
         db.prepare("INSERT INTO host_state(host_id,org,link_exp_ms,mobile_ok) VALUES(?,?,?,0)").bind(hid, a.pub.org, now + HOST_LINK_TTL_MS),
         db.prepare("UPDATE helpdesk_link SET host_hash=? WHERE id=?").bind(hid, link.id),
       ]);

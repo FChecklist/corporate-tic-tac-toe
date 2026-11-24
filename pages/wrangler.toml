@@ -23,3 +23,11 @@ PAY_HOP_URL = "https://itservices-rajat-agarwal.pages.dev/payframe/"   # Option 
 # PUBLIC_ORIGIN, MAIL_FROM and OWNER_NOTIFY_EMAIL are Pages variables set in Cloudflare (a name cannot be in both places); the code defaults carry the same values.
 OWNER_EMAIL = "hello@corporatetambola.com"
 COMPANY_JSON = '{"email":"hello@corporatetambola.com","phone":"(+91) 96503 97480","sacDescription":"Software solutions and products"}'
+
+# Visitor analytics: this game's own tracker also copies each visit into ONE central database (apps/edge/src/analytics-core.ts).
+# The central database `site-analytics` was created 3 Nov 2026 and its id is below; the copy does nothing unless this binding AND the secret exist (no-op, never throws).
+# Also a Pages secret (never written here): ANALYTICS_KEY (the SAME value on every site, so one visitor can be followed across sites).
+[[d1_databases]]
+binding = "ANALYTICS"
+database_name = "site-analytics"
+database_id = "056cf051-6cf9-4e9e-b8f8-bc5fdfd3c817"

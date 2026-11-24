@@ -12,9 +12,16 @@ describe("P12: the version stamp", () => {
   test("it holds the commit, whether files differed from it, the build time and the game, and nothing else", () => {
     const calls: string[][] = [];
     const v = versionStamp({ root: ROOT, game: "corporate-test", now: () => new Date("2026-10-14T05:00:00Z"), run: (a: string[]) => { calls.push(a); return a[0] === "rev-parse" ? "abc123def456" : ""; } });
-    expect(v).toEqual({ commit: "abc123def456", dirty: false, builtAt: "2026-10-14T05:00:00.000Z", game: "corporate-test" });
-    expect(Object.keys(v).sort()).toEqual(["builtAt", "commit", "dirty", "game"]);
+    expect(v).toEqual({ commit: "abc123def456", dirty: false, builtAt: "2026-10-14T05:00:00.000Z", releasedAtIST: "2026-10-14T10:30:00+05:30", game: "corporate-test" });
+    expect(Object.keys(v).sort()).toEqual(["builtAt", "commit", "dirty", "game", "releasedAtIST"]);
     expect(versionStamp({ root: ROOT, game: "g", run: (a: string[]) => (a[0] === "rev-parse" ? "abc123def456" : " M file.ts") }).dirty).toBe(true);
+  });
+  test("M-2: Indian time is UTC + 5:30, also across midnight and a year end, and the stamp never lies about the clock it was given", () => {
+    const at = (iso: string) => versionStamp({ root: ROOT, game: "g", now: () => new Date(iso), run: (a: string[]) => (a[0] === "rev-parse" ? "abc123def456" : "") });
+    expect(at("2026-11-23T07:09:37Z").releasedAtIST).toBe("2026-11-23T12:39:37+05:30");
+    expect(at("2026-11-23T20:00:00Z").releasedAtIST).toBe("2026-11-24T01:30:00+05:30"); // IST is already the next day
+    expect(at("2026-12-31T19:00:00Z").releasedAtIST).toBe("2027-01-01T00:30:00+05:30");
+    expect(at("2026-11-23T07:09:37Z").builtAt).toBe("2026-11-23T07:09:37.000Z");
   });
   test("built outside git it says so instead of failing", () => {
     const v = versionStamp({ root: ROOT, game: "g", run: () => { throw new Error("not a git repository"); } });
@@ -27,6 +34,7 @@ describe("P12: the version stamp", () => {
     expect(v.game).toBe(pkg.name);
     expect(v.commit).toMatch(/^([0-9a-f]{7,40}|unknown)$/);
     expect(new Date(v.builtAt).toISOString()).toBe(v.builtAt);
+    expect(v.releasedAtIST).toBe(new Date(new Date(v.builtAt).getTime() + 19_800_000).toISOString().slice(0, 19) + "+05:30"); // M-2 (audit 1): the same moment in Indian time, UTC + 5:30, with its offset
     expect(typeof v.dirty).toBe("boolean");
     const head = Bun.spawnSync(["git", "rev-parse", "--short=12", "HEAD"], { cwd: ROOT, stdout: "pipe" });
     if (head.exitCode === 0) expect(v.commit).toBe(new TextDecoder().decode(head.stdout).trim());

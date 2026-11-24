@@ -25,16 +25,16 @@ describe("join gaps", () => {
     const locked = await join(id, 2, {}, roundMs(startIn(2 * HOUR)) - 10_000);
     expect(locked.status).toBe(403); expect((await j(locked)).code).toBe("locked");
   });
-  test("GAP-03: in mode 'both' a person admitted by the organizer gets in with the ID they typed, instead of waiting for ever", async () => {
+  test("GAP-03: a person admitted by the organizer gets in with the ID they typed (and their mobile number and e-mail), instead of waiting for ever", async () => {
     const g = await paidGame({ cap: 20, over: { whoCanJoin: "list" } });
-    expect((await call("PATCH", `/api/z/${g.id}/settings`, { verify: "both", employeesOnly: true }, keyH(g.key))).status).toBe(200);
+    expect((await call("PATCH", `/api/z/${g.id}/settings`, { verify: "id", employeesOnly: true }, keyH(g.key))).status).toBe(200);
     expect((await call("POST", `/api/z/${g.id}/people`, { people: [{ name: "Asha Rao", empId: "E1", phone: mob(1) }] }, keyH(g.key))).status).toBe(200);
-    const first = await join(g.id, 1, { empId: "E2" }); // listed number, wrong ID: the organizer decides
+    const first = await join(g.id, 1, { empId: "E2", email: "asha@acme.test" }); // wrong ID (with the mobile number and e-mail): the organizer decides
     expect(first.status).toBe(403); expect((await j(first)).waiting).toBe(true);
     const row = (await j(await call("GET", `/api/z/${g.id}/waiting`, undefined, keyH(g.key)))).waiting[0];
     expect(row).toBeTruthy();
     expect((await call("POST", `/api/z/${g.id}/waiting/${row.id}`, { decision: "admit" }, keyH(g.key))).status).toBe(200);
-    const again = await join(g.id, 1, { empId: "E2" }); // the phone sends the same request again after the yes
+    const again = await join(g.id, 1, { empId: "E2", email: "asha@acme.test" }); // the phone sends the same request again after the yes
     expect(again.status).toBe(200); expect((await j(again)).pid).toBeTruthy();
   });
   test("GAP-J1: an Indian number that cannot be a mobile (first digit 5) is refused on join like it is in a list; real Indian and foreign numbers still join", async () => {
@@ -125,7 +125,7 @@ describe("join gaps", () => {
   });
   test("a Host's narrow AI work link cannot register keys or file pause / stop / erase requests (permissions family)", async () => {
     const g = await paidGame({ cap: 20 });
-    const hostKey = (await j(await call("POST", "/api/org/host", { label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, keyH(g.key)))).hostKey as string;
+    const hostKey = (await j(await call("POST", "/api/org/host", { e: g.id, label: "Priya", email: "priya@acme.com", mobile: "9876500001" }, keyH(g.key)))).hostKey as string;
     const link = { "x-organizer": hostKey, "x-cb-link": "1" };
     for (const [m, p, b] of [["POST", `/api/z/${g.id}/control/request`, { action: "stop" }], ["GET", `/api/z/${g.id}/control/request`, undefined], ["PUT", `/api/z/${g.id}/control/key`, { publicKey: "00".repeat(32) }]] as const) {
       const r = await call(m, p, b, link); expect([m, p.slice(-16), r.status]).toEqual([m, p.slice(-16), 403]);

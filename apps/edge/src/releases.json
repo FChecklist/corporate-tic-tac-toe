@@ -1,5 +1,134 @@
 [
   {
+    "version": "1.6.4",
+    "date": "2026-11-24",
+    "commit": "1cb00f1",
+    "title": "Wording fix: the join page no longer claims the short check on the phone shows that a person is there",
+    "changes": [
+      "When a guest asks to join and is not on the list, the page now says \"One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.\" It no longer claims that the check shows a person is there, because the small piece of work only slows down scripts. How long it takes was not measured on real phones"
+    ]
+  },
+  {
+    "version": "1.6.3",
+    "date": "2026-11-24",
+    "commit": "2424af0",
+    "title": "Fixes from the fourth audit round: guests on the list cannot be locked out, the waiting room can be closed and cleared in one tap and cannot be flooded by a script, and a Host belongs to one game",
+    "changes": [
+      "Employee ID tries: only a WRONG ID is counted now. One address (or a crowd of addresses) can no longer use up the game's allowance and shut every listed guest out. A right ID is let in whatever other people did. Each network still gets 30 wrong tries in ten minutes, and the whole game 600 (or 3 for every place in a game over 200 places)",
+      "Waiting room: a game takes at most 60 NEW requests to join in ten minutes, from all networks together. When it is more, the person is told to try again in a few minutes or to ask the organizer",
+      "Waiting room: the Organizer and every Host get two buttons in the waiting panel. One tap stops new requests and clears the list; another allows requests again. The list also says when it is full (500) and the guest is told so in words",
+      "Waiting room: before a new request is taken, the guest's phone does a small piece of work (a few seconds, not measured on real phones) to slow down scripts. It does not prove that a person is asking. No outside service and no key is used",
+      "A Host belongs to one game. A Host can no longer be made without a game. A Host made before, with no game, has no access to any game until the Organizer removes them and adds them again from inside a game",
+      "A Host can no longer read the team of another game, remove a Co-host of another game, make a pay link or pay with credit for another game, or see the other games in the games list. A Help Desk helper's Host belongs to the game that was published",
+      "One player can write at most 40 entries to one board, so a player cannot fill a board and freeze the match"
+    ]
+  },
+  {
+    "version": "1.6.2",
+    "date": "2026-11-24",
+    "commit": "0a9966b",
+    "title": "Fixes from the third audit round: a Host works in one game only, a classic board cannot be won by reporting alone, the bracket and the podium cannot be forged, the ID allowance covers the join, names are protected, the first move of a stage game is safe, and your setup screen tells the join rule",
+    "changes": [
+      "A Host you add inside a game works in that game only. Before, a Host key could open the waiting list and the cancel screen of your other games",
+      "Classic tournament: one player can no longer win a board just by reporting when the other player has written nothing. A report is kept after 30 seconds only when the board shows the other player is away: they played once, or a clock-out claim is stored. A clock-out claim is stored only after the clock has really run out. One player can write at most 5 times a second to one board, and a board holds at most 120 entries",
+      "Classic tournament: a later match can only be registered by the winners of the two matches it comes from, in the right order, and the final result must name the real winner of the final, the other finalist and real semi-finalists. Nobody can name a first-round loser champion",
+      "The guesses of an ID on the join step now count against the same allowance of the game as the Is this you? step. A right ID after the allowance is used up is refused like a wrong one",
+      "The ranking, the champion and the live view show full names only to the players of the game (with their phone), the organizer and Hosts. Everybody else with the link sees a first name and an initial",
+      "Stage game: the second player can no longer take the first move. A missed first move counts only after the 10-second clock of the slot has run out",
+      "Your setup screen now tells the join rule as it is: a guest who is not on your list only needs a name; ID, department or team, region, mobile number and e-mail are optional. Only you and your Hosts see what they give"
+    ]
+  },
+  {
+    "version": "1.6.1",
+    "date": "2026-11-23",
+    "commit": "8bf8c5d",
+    "title": "A guest who is not on your list gives only a name; two sentences on both screens; an optional details panel; fixes from the second audit",
+    "changes": [
+      "A guest with no ID, or whose ID is not on your list, now needs to give only a name. ID, department or team, region, mobile number and e-mail are optional. You or a Host still say yes or no, and only you and your Hosts see what was given",
+      "After a guest is in, a small closed panel lets them add name, department or team, region, mobile number and e-mail, all optional. Both screens say, word for word: Above details are optional. You can play without giving these details also. And: All the details will be deleted and erased from the system within 24 hours after the game is over",
+      "A mobile number a guest types is no longer a way to take someone else's place: a guest who is not on your list is known by their own phone. People you added by mobile number still come in with their personal link",
+      "Tournament: only the two players of a game can write to it, a missed move counts only after the move clock has run out, a missed move no longer freezes a game, a later round can only be opened with players of the two earlier games, and a result can only name people who played",
+      "Privacy and abuse: look-ups of an ID and open requests are limited per network and per game; the player list shows full names only to players and to you; error reports and waiting e-mails that name a game are deleted with its guest data; the version page now shows the time in Indian time too",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
+    "version": "1.6.0",
+    "date": "2026-11-23",
+    "commit": "da3e485",
+    "title": "One way in for every guest: an ID, or name, mobile number and e-mail for your organizer to say yes",
+    "changes": [
+      "Every guest uses the same game link. They type an ID: if it is on your list they come straight in, and you need not do a thing",
+      "A guest with no ID, or an ID that is not on your list, gives their name, mobile number and e-mail. The request goes to you or a Host, who says yes or no. Only you and your Hosts see these details",
+      "The ID is one field. The choice between mobile number, ID, either or both is gone. A-1101, A 1101 and A/1101 are the same ID, and lists made before this change still work",
+      "Everything, the list, the IDs and the requests, is deleted within 24 hours after the game ends",
+      "A game that anyone with the link may join keeps asking only for a name",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
+    "version": "1.5.1",
+    "date": "2026-11-23",
+    "commit": "50efacd",
+    "title": "Fixes after the third audit: IPv6 address limits, erasing console helper data, help line",
+    "changes": [
+      "Limits that count tries per internet address (wrong employee IDs, sign-in link failures, game starts, joins, payment-link tries) now treat all addresses inside one IPv6 home or phone network as one, so changing address no longer gives a fresh allowance. IPv4 works as before",
+      "When a game is deleted, the Host and Co-host roles made for it through the console (with the sealed e-mail address), its console sign-ins and any unopened console link are deleted too",
+      "Help now says that opening a game from your console signs you out of any other sign-in saved on this device",
+      "Nothing is deployed and no payment switch is on"
+    ]
+  },
+  {
+    "version": "1.5.0",
+    "date": "2026-11-22",
+    "commit": "c5ac57d",
+    "title": "The live game code is merged in: everything that is running now, plus the console Pay step",
+    "changes": [
+      "This branch had missed 108 changes that are running live (live commit fa5ab0afa895, deployed 5 Nov 2026). They are now merged in, so a deploy of this branch drops nothing that is live",
+      "The live rule for employee IDs (it depends on when the game was made) is kept, and the older-list fix from 1.4.2 still works on top of it",
+      "The live limit of 2,000 people per game, the live wording about credit, and the live report timing (link works 19 hours, names deleted at 20 hours) are kept; the screens still speak to you and use the rupee sign",
+      "The two database files added by this branch are renamed 0032 and 0033, because live already uses 0030 and 0031",
+      "Nothing about payment is switched on"
+    ]
+  },
+  {
+    "version": "1.4.2",
+    "date": "2026-11-22",
+    "commit": "f1d18fa",
+    "title": "Fixes from the audits: a console sign-in for one game stays in its own tab, payments cannot be counted twice, old employee lists still work",
+    "changes": [
+      "A sign-in the console opens for one game now stays in that browser tab only. It is not saved on the device, and an older saved sign-in can no longer take its place",
+      "Sign out in that tab now ends the key straight away",
+      "A second, different payment for a game that is already paid is now refused instead of being accepted",
+      "Employee lists made before version 1.4.1 still work when a person types the ID the way the list holds it",
+      "The help for organizers now speaks to you everywhere, and says plainly that an employee ID is checked against your list but does not prove who typed it",
+      "Nothing about payment is switched on"
+    ]
+  },
+  {
+    "version": "1.4.1",
+    "date": "2026-11-22",
+    "commit": "d1c046b",
+    "title": "Checked before the audit: employee IDs, plain wording for organizers, safer console keys",
+    "changes": [
+      "An employee ID is now read one way everywhere: A-1101, A 1101 and A/1101 are the same person",
+      "The organizer and host screens now speak to you, show money with the rupee sign, and carry one privacy line and one fairness sentence",
+      "A console sign-in made for one game can no longer cause an error by opening a broken address; it is simply refused",
+      "Nothing about payment is switched on: the console's Pay step and the old-link redirect stay off"
+    ]
+  },
+  {
+    "version": "1.4.0",
+    "date": "2026-11-20",
+    "commit": "02cdab1",
+    "title": "Ready for the console's one Pay step (switched off)",
+    "changes": [
+      "The console can now ask this game who owns a game and what size it is (payInfo) and tell it that the game is paid (markPaid, safe to repeat); only that notice unlocks the start. Nothing changes for anyone until the owner switches the console's payment on",
+      "The old Pay now link keeps working exactly as before; with the switch PAY_VIA_CONSOLE set to 1 it sends people to the console instead",
+      "Security rules: only the organizer page may show the secure payment window and talk to the console"
+    ]
+  },
+  {
     "version": "1.3.1",
     "date": "2026-10-27",
     "commit": "f64da69",

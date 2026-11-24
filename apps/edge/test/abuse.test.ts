@@ -12,7 +12,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
 const j = async (r: Response) => (await r.json()) as any;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
 const dev = (i: number) => String(i).padStart(32, "0");
-const join = (i: number, ip: string, id = "ABUSE-1", now = T) => call("POST", `/api/z/${id}/join`, { phone: "98" + String(10000000 + i), device: dev(i) }, { "cf-connecting-ip": ip }, now);
+const join = (i: number, ip: string, id = "ABUSE-1", now = T) => call("POST", `/api/z/${id}/join`, { phone: "98" + String(10000000 + i), name: "Guest " + i, email: `g${i}@acme.test`, device: dev(i) }, { "cf-connecting-ip": ip }, now);
 
 async function published(id: string, over: Record<string, unknown> = {}) {
   const x = await j(await call("POST", "/api/start", { email: "boss" + id + "@acme.com" }, { "cf-connecting-ip": "10.0.0." + id.length }));
@@ -21,7 +21,7 @@ async function published(id: string, over: Record<string, unknown> = {}) {
   await call("POST", "/api/z/" + id + "/publish", { email: "boss" + id + "@acme.com", phone: "98765 43210" }, h);
   return h;
 }
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "k" }; });
 
 describe("joining from one network", () => {
   test("a network may open only so many new seats a day; the answer is friendly; other networks and the same people coming back are not affected", async () => {
@@ -53,7 +53,7 @@ describe("joining from one network", () => {
     (env as any).JOIN_PER_IP_DAY = "1"; const h = await published("ABUSE-4", { closed: true });
     expect((await join(1, "3.3.3.3", "ABUSE-4")).status).toBe(403);
     await call("POST", "/api/z/ABUSE-4/roster", { people: [{ phone: "9810000002", name: "Listed" }] }, h);
-    expect((await call("POST", "/api/z/ABUSE-4/join", { phone: "9810000002", device: dev(2) }, { "cf-connecting-ip": "3.3.3.3" })).status).toBe(200);
+    const again = await call("POST", "/api/z/ABUSE-4/join", { phone: "9810000002", name: "Listed", device: dev(2) }, { "cf-connecting-ip": "3.3.4.4" }); expect(again.status).toBe(403); expect((await again.json() as any).code).toBe("waiting"); // 1.6.1: a mobile number is not a key: a typed number never lets anybody in, even one the organizer listed; the person waits for a yes (the personal link or the ID is the way in)
   });
   test("the counters expire with the daily sweep", async () => {
     await published("ABUSE-1"); await join(1, "4.4.4.4");

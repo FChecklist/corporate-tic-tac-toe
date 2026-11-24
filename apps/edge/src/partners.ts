@@ -7,6 +7,7 @@
 //   - Attribution lasts ATTRIBUTION_DAYS from the click (kept in the buyer's own browser); the server only checks the code is a real, active partner.
 //   - Payouts are made by us, outside this Worker (KYC, TDS and the payout channel are decided separately); here we only record that a payout was made.
 import type { D1, Env } from "./worker";
+import { netKeyOf } from "./netkey";
 import { sendMail, type PayEnv } from "./pay";
 import { testFlag } from "./mode";
 import { syncCommissions } from "./ledgerc";
@@ -84,7 +85,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
   const busy = () => json({ error: "It is very busy right now. Please try again in a few minutes." }, 503);
   const origin = env.PUBLIC_ORIGIN ?? url.origin;
 
-  const ipHash = async () => (await sha("pip|" + (req.headers.get("cf-connecting-ip") ?? "local"))).slice(0, 16);
+  const ipHash = async () => (await sha("pip|" + netKeyOf(req))).slice(0, 16);
   const dayKey = new Date(now).toISOString().slice(0, 10);
   /** Counts one try against a daily limit kept by network (a salted-free hash that is deleted after two days by the retention sweep). */
   const overLimit = async (kind: string, max: number): Promise<boolean> => {
@@ -94,7 +95,7 @@ export async function partnerRoute(req: Request, env: PayEnv, now: number, spend
     await db.prepare("INSERT INTO kv(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=?").bind(k, String(n + 1), String(n + 1)).run();
     return false;
   };
-  const validEmail = (v: unknown): string => { const e = typeof v === "string" ? v.trim().toLowerCase() : ""; return /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(e) ? e : ""; };
+  const validEmail = (v: unknown): string => { const e = typeof v === "string" ? v.trim().toLowerCase() : ""; return /^[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,64}@[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{1,255}\.[^\s@\u0085\u200B-\u200D\u2060\uFEFF]{2,}$/.test(e) ? e : ""; };
 
   if (req.method === "GET" && p === "/api/partner/check") { // the landing page asks whether a ?ref= code is real, to show "referred by a partner"; limited per network so codes cannot be tried one after another
     if (await overLimit("check", 60)) return json({ valid: false });

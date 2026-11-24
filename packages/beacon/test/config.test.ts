@@ -13,10 +13,10 @@ const ok = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); i
 const bad = (i: any, base?: EngagementCfg) => { const v = validateCfg(i, base); expect(v.ok).toBe(false); return (v as any).error as string; };
 
 describe("engagement settings", () => {
-  test("nothing set gives one card, the three default places with no text, auto marking and no breaks", () => {
+  test("nothing set gives one card, the five default places with no text, auto marking and no breaks", () => {
     const c = ok({});
     expect(c.tickets).toBe(1);
-    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third"]);
+    expect(c.rewards.map((r) => r.pattern)).toEqual(["first", "second", "third", "fourth", "fifth"]);
     expect(c.rewards.every((r) => r.ordinal === 1 && r.scope === "ticket" && r.text === "")).toBe(true);
     expect(c.mark).toBeUndefined();
     expect(c.breaks).toEqual([]);
@@ -75,14 +75,14 @@ describe("two cards", () => {
   });
   test("a house is completed by the better of the two cards", () => {
     const tk = ticketsFor(E, "q5", 2);
-    const single = tk.map((t) => completionIndexKey([t], "blackout", LOG));
-    expect(completionIndexKey(tk, "blackout", LOG)).toBe(Math.min(...single));
+    const single = tk.map((t) => completionIndexKey([t], "blackout" as any, LOG));
+    expect(completionIndexKey(tk, "blackout" as any, LOG)).toBe(Math.min(...single));
   });
   test("still to win counts the nearer card", () => {
     const tk = ticketsFor(E, "q6", 2); const part = LOG.slice(0, 25);
     const left = (t: any) => ticketNumbers(t).filter((n) => !part.includes(n)).length;
-    expect(stillToWin(tk, "blackout", part)).toBe(Math.min(left(tk[0]), left(tk[1])));
-    expect(stillToWin(tk, "blackout", LOG)).toBe(0);
+    expect(stillToWin(tk, "blackout" as any, part)).toBe(Math.min(left(tk[0]), left(tk[1])));
+    expect(stillToWin(tk, "blackout" as any, LOG)).toBe(0);
   });
 });
 

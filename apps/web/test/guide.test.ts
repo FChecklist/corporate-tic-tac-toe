@@ -15,10 +15,10 @@ async function page(html = "pricing.html", url = "/pricing.html") {
   const p = await openPage(w.world, { url: "http://localhost" + url, html, scripts: ["guide.js"] });
   open.push(p); return p;
 }
-/** every `error: "..."` the server can send, with the status written next to it */
+/** every `error: "..."` the server can send, with the status written next to it. price-adjust.ts is left out on purpose: its messages are owner-only and a guide entry would put them in a public script (see price-adjust-secret.test.ts) */
 function serverMessages() {
   const out: { file: string; line: number; status: number; msg: string }[] = [];
-  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts"))) {
+  for (const f of readdirSync(EDGE).filter((x) => x.endsWith(".ts") && x !== "price-adjust.ts")) {
     readFileSync(join(EDGE, f), "utf8").split("\n").forEach((l, i) => {
       for (const m of l.matchAll(/error:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/g)) {
         const st = /\}\s*,\s*(\d{3})\s*\)/.exec(l.slice(m.index! + m[0].length)) ?? /status:\s*(\d{3})/.exec(l);
@@ -120,6 +120,21 @@ describe("showing it: pop-up, in place, take me there, back to where you were", 
   });
 });
 
+describe("help lines added with the invite rule and the console sign-in", () => {
+  test("the 'one game only' help tells you that opening a game from your console signs you out of any other sign-in saved on this device", async () => {
+    const p = await page(); const g = p.win.CTG.find({ status: 403, message: "This sign-in is for one game only." }); expect(g.matched).toBe(true);
+    expect(g.entry.d).toContain("Opening a game from your console signs you out of any other sign-in saved on this device.");
+    const shown = p.win.CTG.explain({ status: 403, message: "This sign-in is for one game only." }); expect(shown.steps.join(" ")).toContain("signs you out of any other sign-in saved on this device");
+  });
+  test("a guest who has no ID, or whose ID is not on the list, is told kindly what to give, and that only the organizer and hosts see it", async () => {
+    const p = await page();
+    for (const msg of ["That ID is not on the list. Please type your name. The organizer or host will decide whether to let you in.", "Please type your name. The organizer or host will decide whether to let you in."]) {
+      const g = p.win.CTG.explain({ status: 400, message: msg }); expect(g.matched).toBe(true);
+      expect(g.steps.join(" ")).toContain("Only your organizer and hosts see them"); expect(g.steps.join(" ")).toContain("deleted within 24 hours");
+    }
+  });
+});
+
 describe("the screens use it", () => {
   test("the console, the pay page, the pay link, the player screen and the shared helper all give their errors a guide", () => {
     const PUB = join(import.meta.dir, "../public");
@@ -157,5 +172,16 @@ describe("the right guide for the right message and the right person", () => {
     const rt = readFileSync(join(import.meta.dir, "../../../packages/beacon/src/phone-runtime.ts"), "utf8");
     expect(rt).toContain('st === 403 || st === 410 ? String(e?.message');
     expect(readFileSync(join(import.meta.dir, "../public/zgame.js"), "utf8")).toContain("The game could not be opened just now");
+  });
+});
+
+describe("owner number", () => {
+  test("every page that shows the number links it to WhatsApp with the ready first line", () => {
+    const pub = new URL("../public/", import.meta.url);
+    const link = 'href="https://wa.me/919650397480?text=Hi%2C%20I%20am%20interested%20in%20corporate%20games"';
+    for (const f of readdirSync(pub).filter((n) => n.endsWith(".html"))) {
+      const h = readFileSync(new URL(f, pub), "utf8");
+      if (h.includes("96503 97480")) { expect(h).toContain(link); expect(h).not.toContain("tel:+919650397480"); }
+    }
   });
 });

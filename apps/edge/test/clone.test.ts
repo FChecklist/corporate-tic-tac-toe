@@ -30,7 +30,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test", OWNER_EMAIL: "owner@platform.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -45,7 +45,7 @@ const world = async (publish = true) => {
   const master = await start("boss@acme.com"); const ai = lastAi;
   expect((await call("POST", "/api/z", { id: "OLD-1", startRound: roundAt(GAME_START), callSeconds: 12, cap: 300, tickets: 2, rounds: 2, rewards: REWARDS, brand: BRAND, name: "Diwali Party" }, master)).status).toBe(200);
   expect((await call("PATCH", "/api/z/OLD-1/settings", { guestInvites: { on: true, per: 3 }, whoCanJoin: "list", coHostLimit: 50 }, master)).status).toBe(200);
-  const host = (await j(await call("POST", "/api/org/host", { mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
+  const host = (await j(await call("POST", "/api/org/host", { e: "OLD-1", mobile: "9876500009", label: "Priya", email: "priya@acme.com" }, master))).hostKey as string;
   const cohost = (await j(await call("POST", "/api/org/cohost", { label: "Ravi", phone: "98765 00001", e: "OLD-1" }, master))).cohostKey as string;
   if (publish) await call("POST", "/api/z/OLD-1/publish", PUB, master);
   return { master, ai, host, cohost };
@@ -149,7 +149,8 @@ describe("bring my people list", () => {
   test("the listed and the joined people come along as new un-joined invitations with NEW personal links; the old links stay with the old game", async () => {
     const t = await world();
     await people(t.master, [{ name: "Ben", phone: "9876543211" }, { name: "Chitra", phone: "9876543212" }, { name: "Asha", phone: "9876543210" }]);
-    expect((await call("POST", "/api/z/OLD-1/join", { phone: "9876543210", name: "Asha" })).status).toBe(200); // joined: on the list as 'joined'
+    const asha = ((await j(await call("GET", "/api/z/OLD-1/people", undefined, t.master))).people as any[]).find((x) => x.name === "Asha"); // a number alone is no way in any more (owner rule 23 Nov 2026): Asha opens her personal link
+    expect((await call("POST", "/api/z/OLD-1/join", { token: String(asha.link).split("/j/")[1], name: "Asha", device: "ab".repeat(16) })).status).toBe(200); // joined: on the list as 'joined'
     expect((await call("POST", "/api/z/OLD-1/roster", { people: [{ name: "Dev", phone: "9876543213" }] }, t.master)).status).toBe(200); // an older-style loaded list: a seat with no list entry
     const old = raw.prepare("SELECT tok_hash FROM person WHERE eid='OLD-1'").all().map((x: any) => x.tok_hash);
     const b = await j(await clone(t.master, { withPeople: true, startRound: roundAt(T + 4 * DAY) }));
@@ -163,15 +164,15 @@ describe("bring my people list", () => {
     expect(list.people.map((x: any) => x.name).sort()).toEqual(["Asha", "Ben", "Chitra", "Dev"]); expect(list.people.every((x: any) => x.link.startsWith("https://bingo.test/j/") && x.status === "invited")).toBe(true);
     expect(count("SELECT COUNT(*) AS c FROM person WHERE eid='OLD-1'")).toBeGreaterThanOrEqual(3); // the old game keeps its own
   });
-  test("without the tick box nobody comes along; once the old list is erased the answer says so calmly", async () => {
+  test("without the tick box nobody comes along; once the old list is auto-deleted the answer says so calmly", async () => {
     const t = await world(); await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
     expect((await j(await clone(t.master, {}))).peopleCopied).toBe(0);
     await call("POST", "/api/z/OLD-1/erase", {}, t.master);
     const b = await j(await clone(t.master, { withPeople: true }));
-    expect(b.peopleCopied).toBe(0); expect(b.peopleNote).toBe("The old guest list has been erased, so add your people again.");
+    expect(b.peopleCopied).toBe(0); expect(b.peopleNote).toBe("The old guest list has been auto-deleted, so add your people again.");
     expect(count("SELECT COUNT(*) AS c FROM person WHERE eid=?", b.id)).toBe(0);
   });
-  test("the copy belongs to the new game and follows ITS clock: the old game's copy is erased on the old clock, the new list survives", async () => {
+  test("the copy belongs to the new game and follows ITS clock: the old game's copy is auto-deleted on the old clock, the new list survives", async () => {
     const t = await world();
     await people(t.master, [{ name: "Ben", phone: "9876543211" }]);
     const b = await j(await clone(t.master, { withPeople: true, startRound: roundAt(T + 10 * DAY) }));

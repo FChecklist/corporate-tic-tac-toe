@@ -1,0 +1,14 @@
+{
+ "note": "Copied from the console repo (packages/game-pack). Do not edit here: change it there, then run tools/vendor-pack.mjs --game <this game>.",
+ "files": {
+  "confirm.js": "67057b6682771d49fb70dd5ad9c33b911a401a30c15db6a026054923d23f4e55",
+  "employee-id.js": "64856da498e8dc55623ebdbd89d5b8fc16b4146f0fd413f180acb69b717b7cf9",
+  "gamelog.html": "dd9e7de8be39b6e471f5ac2e4f7826029f652badd1bd0d21489116c5e4af021b",
+  "gamelog.js": "43d529d556b847b48cba0d70a63326fdfeaee4b65c2d94d7bf5b907869c7bb53",
+  "pack.css": "b14ac831b8a133ee67e3e10e93aba009e70d1bd2c8c12a59de4c114b61908fc0",
+  "polish.js": "2023f6c7bb2f64a3ea31942c614838e0967006c7be46775bbd810f29de337bd3",
+  "runbar.js": "eedb015d9f64feb03e751ae458b4743a02b72660995abeb8ad861cd5d5e3451d",
+  "zc-flow.css": "f205272322bec1af65c4d0c5d1d1c62adfc16e57e8a77728bdd9ac845e9316a4",
+  "zc-flow.js": "cea78a7e56695790b82b7a478bf6d1f72f5e537c3b4505f030bc86e91b6e503f"
+ }
+}

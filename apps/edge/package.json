@@ -1,1 +1,1 @@
-{ "name": "@tictactoe/edge", "version": "0.1.0", "type": "module", "main": "src/worker.ts" }
+{ "name": "@tictactoe/edge", "version": "1.6.4", "type": "module", "main": "src/worker.ts" }
