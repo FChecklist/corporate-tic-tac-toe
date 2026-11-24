@@ -3,6 +3,7 @@
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
 ## 1.6.2 - 2026-11-24
+Code commit `dfc77ca` (made 2026-11-24 03:29 UTC = 2026-11-24 08:59 IST). The head of the PR is the record-only commit that follows it: a commit cannot name its own hash, so `version.json` and `releases.json` name the code commit.
 Fixes for the two failed audits of `776e5ee6` (PR 9, 23 Nov 2026, 20:25 and 20:34 UTC). Nothing is deployed and no payment switch is on (`PAY_VIA_CONSOLE` and `CONSOLE_PUBKEYS` are untouched). The retention rules for winners, organizers, the chain, the payer, e-mail and invoices are not changed (BOSS comment of 23 Nov, item 6).
 ### Fixed (security audit)
 - **A Host works in one game only.** A Host you add from inside a game belongs to that game. Before, that Host key could read the waiting list (names, mobile numbers, e-mails) and the cancel screen of every other game of your account. Now the other games answer 403. The game goes with every key the Host gets later, for example when they sign in with their e-mail on a new phone. A Host of one game cannot add a Co-host to another game.

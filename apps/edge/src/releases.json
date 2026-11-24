@@ -2,7 +2,7 @@
   {
     "version": "1.6.2",
     "date": "2026-11-24",
-    "commit": "776e5ee",
+    "commit": "dfc77ca",
     "title": "Fixes from the third audit round: a Host works in one game only, a classic board cannot be won by reporting alone, the bracket and the podium cannot be forged, the ID allowance covers the join, names are protected, the first move of a stage game is safe, and your setup screen tells the join rule",
     "changes": [
       "A Host you add inside a game works in that game only. Before, a Host key could open the waiting list and the cancel screen of your other games",
