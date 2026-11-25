@@ -240,6 +240,7 @@
   const render0 = (s) => {
     try { reactTo(s); } catch {}
     if (window.ctzView) window.ctzView({ phase: s.phase === "champion" || s.phase === "out" ? "ended" : String(s.phase || "") }); // the flight recorder (blackbox.js) learns the stage
+    if (s.phase === "champion" || s.phase === "out") { try { document.dispatchEvent(new Event("ttt:game-over")); } catch (e) { /* the notify block (push-game.js) is optional */ } } // the game is over for this player: the notify block offers "Keep notifying me about new games"
     last = s; skew = (s.serverNow || Date.now()) - Date.now();
     panelOn(s.phase === "waiting");
     if (s.phase === "waiting") set(`${top()}<div class="zcard twait" role="status"><h2>You are in</h2><div class="tbig" aria-hidden="true"><span class="tmk x">X</span><span class="tmk o">O</span></div><p class="tlead">Waiting for the host to start the tournament.</p><p class="tjoined"><b id="tjn" data-count="${Number(s.joined) || 0}" data-ck="joined">${Number(s.joined) || 0}</b> ${Number(s.joined) === 1 ? "player has" : "players have"} joined so far</p><div class="tdo"><b>What to do:</b> nothing yet. Keep this page open. When the host starts, your board appears here.</div>${planned()}<p class="zsmall">Who plays whom is fixed before anyone joins, so nobody can change it. Its fingerprint: <span class="mono">${esc((s.commit || "").slice(0, 16))}</span>. After the start the host shows the secret, so anybody can check it.</p></div>`);

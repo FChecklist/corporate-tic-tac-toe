@@ -19,6 +19,15 @@
       ]
     },
     {
+      "id": "push-notify",
+      "store": "localStorage",
+      "say": "On a phone where the notify button on a game page was tapped (the button is switched off until the push service is set up): a yes-or-no note for each game or for new games, and, only when stopping could not reach the server, the browser address, so the delete can be tried again the next time.",
+      "keys": [
+        "corporatePush.v1.*",
+        "corporatePush.v1pending"
+      ]
+    },
+    {
       "id": "console-trial",
       "store": "localStorage",
       "say": "In an organizer's browser, only when the console shows a trial of the phone page: a trial player's id, device id and progress.",

@@ -91,6 +91,8 @@ export interface Env {
   CONSOLE_PUBKEYS?: string; CONSOLE_ORIGIN?: string;
   /** "1" = the old pay routes send people to the console (the console's one Pay step). Off or missing: the old "Pay now" works exactly as before. Only the owner turns it on (pay-redirect.ts). */
   PAY_VIA_CONSOLE?: string;
+  /** "Notify me when this game begins" (push.ts), dark until BOTH exist: PUSH_URL (the corporate-push service's https address, a plain setting) and PUSH_ADMIN_KEY (a secret). */
+  PUSH_URL?: string; PUSH_ADMIN_KEY?: string;
 }
 const controlKey = (id: string) => `c/${id}.json`;
 const controlUrl = (env: Env, id: string) => (env.CONTROL_BASE && env.CONTROL_R2 ? `${env.CONTROL_BASE.replace(/\/$/, "")}/${controlKey(id)}` : null);

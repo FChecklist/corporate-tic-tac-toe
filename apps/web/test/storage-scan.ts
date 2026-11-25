@@ -35,7 +35,7 @@ function norm(expr: string, src: string, depth = 0): string {
     const parts: string[] = []; let d = 0, cur = "";
     for (const c of e) { if (c === "(" || c === "[") d++; if (c === ")" || c === "]") d--; if (c === "+" && d === 0) { parts.push(cur); cur = ""; } else cur += c; }
     parts.push(cur);
-    return parts.map((p) => { const q = p.trim(); return lit.test(q) ? lit.exec(q)![2]! : "*"; }).join("").replace(/\*+/g, "*");
+    return parts.map((p) => { const q = p.trim(); if (lit.test(q)) return lit.exec(q)![2]!; if (depth <= 3 && /^[A-Za-z_$][\w$]*$/.test(q)) { const k = norm(q, src, depth + 1); if (!k.startsWith("?")) return k; } return "*"; }).join("").replace(/\*+/g, "*"); // a piece that is a constant ("corporatePush.v1." + scope) keeps its fixed text
   }
   if (depth > 3) return "?" + e;
   m = /^([A-Za-z_$][\w$]*)$/.exec(e);

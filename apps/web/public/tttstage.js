@@ -47,6 +47,7 @@
       else if (prevPlace && v.place && v.place !== prevPlace && !st.over && clock.phase === "slot") { if (v.safe && v.place < prevPlace && prevPlace - v.place >= 3) ctx.rx("comeback_time"); else if (!v.safe && v.placesToLine <= 2) ctx.rx("so_close"); }
       prevOut = v.isOut; if (v.place) prevPlace = v.place;
       if (st.over) {
+        try { document.dispatchEvent(new Event("ttt:game-over")); } catch (e) { /* the notify block (push-game.js) is optional */ }
         if (st.winners && st.winners.includes(pid) && prevSlotWon !== "final") { prevSlotWon = "final"; ctx.rx("champion", true); }
         const top = (st.winners || []).map((p, i) => `<li><b>${esc(nm[p] || "Player")}</b> <small>${["1st", "2nd", "3rd", "4th", "5th"][i]}</small></li>`).join("");
         const won = st.winners && st.winners.includes(pid) ? `<div class="zcard tchamp" role="status"><h2>You won</h2><p>${esc(["1st", "2nd", "3rd", "4th", "5th"][st.winners.indexOf(pid)])} place.</p></div>` : "";

@@ -1,0 +1,58 @@
+/* corporate-push opt-in block. Small on purpose. Override the --cp-* values to match a site. */
+.cp-optin {
+  --cp-accent: #1a56db;
+  --cp-accent-text: #fff;
+  --cp-border: currentColor;
+  --cp-radius: 10px;
+  box-sizing: border-box;
+  max-width: 28rem;
+  margin: 1rem auto;
+  padding: 0.75rem;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+}
+.cp-optin *,
+.cp-optin *::before,
+.cp-optin *::after { box-sizing: inherit; }
+
+.cp-optin__btn,
+.cp-optin__stop {
+  display: block;
+  width: 100%;
+  min-height: 44px; /* easy to tap */
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: var(--cp-radius);
+  cursor: pointer;
+}
+.cp-optin__btn {
+  color: var(--cp-accent-text);
+  background: var(--cp-accent);
+  border: 2px solid var(--cp-accent);
+}
+.cp-optin__stop {
+  color: inherit;
+  background: transparent;
+  border: 2px solid var(--cp-border);
+}
+.cp-optin__btn:disabled,
+.cp-optin__stop:disabled { opacity: 0.6; cursor: not-allowed; }
+.cp-optin button:focus-visible,
+.cp-optin a:focus-visible { outline: 3px solid #f5a623; outline-offset: 2px; }
+
+.cp-optin [hidden] { display: none !important; }
+
+.cp-optin__note,
+.cp-optin__status,
+.cp-optin__privacy { margin: 0.4rem 0 0; font-size: 0.875rem; line-height: 1.4; }
+.cp-optin__note { font-weight: 600; }
+.cp-optin__privacy { opacity: 0.8; font-size: 0.8125rem; }
+.cp-optin__privacy a { color: inherit; text-decoration: underline; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cp-optin button { transition: opacity 0.15s ease; }
+}

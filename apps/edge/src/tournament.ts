@@ -16,6 +16,7 @@
 import { transientDb } from "./transient";
 import { commitOf, newSecret, seedOf } from "../../../packages/ttt/src/seal";
 import type { Env } from "./worker";
+import { announceBegin } from "./push";
 
 export const TTT_SCHEMA: string[] = [
   `CREATE TABLE IF NOT EXISTS ttt_t (eid TEXT PRIMARY KEY, commit_hash TEXT NOT NULL, secret TEXT, state TEXT NOT NULL DEFAULT 'open', opts TEXT, seed TEXT, size INTEGER, rounds INTEGER, entrants INTEGER, players INTEGER, started_ms INTEGER, ended_ms INTEGER, pause_at INTEGER, pause_total INTEGER NOT NULL DEFAULT 0, champion TEXT, ranking TEXT)`,
@@ -244,7 +245,8 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
       const rounds = Number(b.rounds), size = Number(b.size), entrants = Number(b.entrantCount ?? 0);
       if (!Number.isInteger(rounds) || rounds < 0 || rounds > 14 || !Number.isInteger(size) || typeof b.digest !== "string" || !/^[0-9a-f]{64}$/.test(b.digest)) return json({ error: "The draw is not complete." }, 400);
       const o = { ...optsOf(t), planDigest: b.digest };
-      await env.DB.prepare("UPDATE ttt_t SET state='running', started_ms=?, rounds=?, size=?, entrants=?, opts=? WHERE eid=? AND state='starting'").bind(now, rounds, size, entrants || null, JSON.stringify(o), eid).run();
+      const began = await env.DB.prepare("UPDATE ttt_t SET state='running', started_ms=?, rounds=?, size=?, entrants=?, opts=? WHERE eid=? AND state='starting'").bind(now, rounds, size, entrants || null, JSON.stringify(o), eid).run();
+      if ((began.meta?.changes ?? 0) > 0) await announceBegin(env, eid, c.url.origin); // "notify me when this game begins" (push.ts): dark unless PUSH_URL and PUSH_ADMIN_KEY are set; once per game; never stops the start
       return json({ ok: true, state: "running", startedMs: now });
     }
     return json({ ok: true, state: "starting", stored: b.matches.length });
@@ -486,7 +488,8 @@ export async function tttRoute(c: TttCtx): Promise<Response> {
     const stmts: any[] = [env.DB.prepare("DELETE FROM ttt_p WHERE eid=?").bind(eid)]; // players first, "running" last (see the start step above)
     for (const p of players) stmts.push(env.DB.prepare("INSERT OR REPLACE INTO ttt_p(eid,pid,name,ent) VALUES(?,?,?,NULL)").bind(eid, p.pid, p.name));
     for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90));
-    await env.DB.prepare("UPDATE ttt_t SET state='running', opts=?, seed=?, players=?, started_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify({ stages: true }), seed, players.length, startMs, eid).run();
+    const began = await env.DB.prepare("UPDATE ttt_t SET state='running', opts=?, seed=?, players=?, started_ms=? WHERE eid=? AND state='open'").bind(JSON.stringify({ stages: true }), seed, players.length, startMs, eid).run();
+    if ((began.meta?.changes ?? 0) > 0 && startMs <= now + 5000) await announceBegin(env, eid, c.url.origin); // a game started for a later published time is announced by the minute job (push.ts announceDueGames) when that time comes
     return json({ ok: true, players: players.length, commit: t.commit_hash, state: "running", startedMs: startMs, seed });
   }
   if (sub === "stagelog" && method === "POST") {

@@ -7,9 +7,9 @@
  *  - Pages: network first (new versions arrive when online), the saved copy when offline.
  *  - Other files: the saved copy at once, refreshed quietly in the background.
  */
-const CACHE = "ttt-game-v14"; // bump when the game files change shape, so every phone saves a matching set
+const CACHE = "ttt-game-v15"; // bump when the game files change shape, so every phone saves a matching set
 const FILES = ["/offline.html", "/offline.js", "/z.html", "/blackbox.js", "/demo-label.js", "/guide.js", "/zc.html", "/big.html", "/host.html", "/ttt.js", "/rights.js", "/tttgame.js", "/termsbox.js", "/zc.js", "/big.js", "/host.js", "/zgame.js", "/control.js", "/common.js",
-  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/pwa.js", "/keep.js", "/autoupdate.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
+  "/app.css", "/z.css", "/ttt.css", "/big.css", "/fonts.css", "/pwa.js", "/push-game.js", "/keep.js", "/autoupdate.js", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/logo-mark.svg",
   "/fonts/Fraunces-italic-500.woff2", "/fonts/Fraunces-normal-500-700.woff2", "/fonts/IBMPlexMono-normal-500.woff2", "/fonts/Inter-normal-400.woff2"];
 
 // A saved copy must be a plain answer (not a redirect) or the browser refuses to show it from the saved set.
@@ -65,6 +65,9 @@ async function showNews() {
 }
 self.addEventListener("periodicsync", (e) => { if (e.tag === "cb-news") e.waitUntil(showNews()); });
 self.addEventListener("notificationclick", (e) => {
+  const raw = e.notification.data && e.notification.data.url;
+  if (typeof raw === "string" && /^https?:/i.test(raw)) return; // a game message from the notify service (full address): sw-push-snippet.js, loaded at the end of this file, opens it only if it is this site or one of the company's own sites
+  e.stopImmediatePropagation(); // our own news (a path on this site) is handled below, once: the snippet's click handler, which comes after this one, must not open a second window
   e.notification.close();
   const url = (e.notification.data && e.notification.data.url) || "/";
   e.waitUntil(self.clients.matchAll({ type: "window" }).then((cs) => { for (const c of cs) if ("focus" in c) { c.navigate(url).catch(() => {}); return c.focus(); } return self.clients.openWindow(url); }));
@@ -93,3 +96,7 @@ self.addEventListener("fetch", (e) => {
     return (await refresh) || Response.error();
   })());
 });
+
+// ---- notify me when a game begins (dark until the push service is set up, see push-game.js): the two handlers the corporate-push service needs, "push" (shows the message) and "notificationclick" (opens the game link).
+// The file is the shared snippet, unchanged except for this site's own host in its list. It is loaded LAST, so the click handler above runs first and decides which of the two handles a click. If the file cannot be read the game still works: only the notification is lost.
+try { importScripts("/sw-push-snippet.js"); } catch (e) { /* the game is saved on the phone and works without it */ }

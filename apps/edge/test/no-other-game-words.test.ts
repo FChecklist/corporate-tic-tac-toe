@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { layoutReport, type ReportData } from "../src/report-layout";
 
 const WEB = join(import.meta.dir, "../../web/public"), SRC = join(import.meta.dir, "../src");
-const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "tttgame.js", "reportgen.js"]); // the games bar lists the other games; the others are built bundles with internal names
+const SKIP = new Set(["gamesbar.js", "control.js", "zgame.js", "tttgame.js", "reportgen.js", "sw-push-snippet.js"]); // the games bar lists the other games; the others are built bundles with internal names; sw-push-snippet.js is the shared notify snippet, copied unchanged: its list of the company's own sites and its fallback title name the sister games, and the test apps/web/test/push-vendor.test.ts allows exactly those words in it and nothing else
 const WORDS = /\b(bingo|tambola|housie)\b/i;
 const UNIFORM_FOOTER = /<footer class="(?:uf|ck-foot)"[\s\S]*?<\/footer>/; // the same footer on every Corporate Games site (games-ops/footer/ufooter.py): it links the other games
 

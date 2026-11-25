@@ -24,6 +24,7 @@ import { CONSOLE_KEY_LABEL } from "./console-adapter";
 import { eraseCohostsSql, mailDataDeleted, mailErasureHeadsUp } from "./cancel";
 import { creditTick } from "./credit";
 import { endBoundTtt } from "./tournament";
+import { announceDueGames, purgeGame } from "./push";
 import type { D1, Env } from "./worker";
 
 export const GENESIS = 1692803367;
@@ -141,11 +142,14 @@ export async function erasePersonal(env: Env, eid: string, now: number, by: stri
     env.DB.prepare("DELETE FROM ttt_e WHERE eid=?").bind(eid), env.DB.prepare("UPDATE ttt_t SET ranking=NULL WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM ttt_mv WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM ttt_r WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM ttt_f WHERE eid=?").bind(eid), env.DB.prepare("DELETE FROM ttt_x WHERE eid=?").bind(eid), // the display names of the tournament go with the other personal data
     env.DB.prepare("DELETE FROM kv WHERE k=? OR k=? OR k=? OR k=? OR (k >= ? AND k < ?) OR k=?").bind(`seats-base/${eid}`, `rpt/${eid}`, `rptopen/${eid}`, `rptremind/${eid}`, `rptc/${eid}/`, prefixEnd(`rptc/${eid}/`), `seats-blk/${eid}`),
     env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?)").bind(`wnet/${eid}/`, prefixEnd(`wnet/${eid}/`), `idlook/${eid}/`, prefixEnd(`idlook/${eid}/`), `idlookg/${eid}/`, prefixEnd(`idlookg/${eid}/`), `idmiss/${eid}/`, prefixEnd(`idmiss/${eid}/`)), // the counters that held a network's hash for this game go with the game's participant data (1.6.1)
+    env.DB.prepare("DELETE FROM kv WHERE k=?").bind(`pushbegin/${eid}`), // the "begin message was sent" flag of the notify button (push.ts) goes with the game's data
     env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR k=?").bind(`idmissg/${eid}/`, prefixEnd(`idmissg/${eid}/`), `wnew/${eid}/`, prefixEnd(`wnew/${eid}/`), `wroom/${eid}`), // 1.6.3: the per-game counters of wrong IDs and of new waiting requests, and the closed flag of the waiting room
     env.DB.prepare("DELETE FROM kv WHERE (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR (k >= ? AND k < ?) OR k=?").bind(`present/${eid}/`, prefixEnd(`present/${eid}/`), `ckfail/${eid}/`, prefixEnd(`ckfail/${eid}/`), `idx/${eid}/`, prefixEnd(`idx/${eid}/`), `empmig/${eid}`), // the check-in records of every participant go with their data (the winners' evidence, wev/, stays with the winners record for 365 days)
     env.DB.prepare(eraseCohostsSql).bind(eid), // the game's Co-hosts: name, mobile number and key go with the participants' data
     env.DB.prepare("INSERT INTO life(eid,end_ms,end_src,purged_ms,report_state) VALUES(?,?, 'organizer', ?, ?) ON CONFLICT(eid) DO UPDATE SET purged_ms=?, report_state=COALESCE(life.report_state, ?)").bind(eid, now, now, by, now, by),
   ]);
+  // "Notify me when this game begins" (push.ts, dark unless PUSH_URL and PUSH_ADMIN_KEY are set): the push service is told to forget this game whenever its data is deleted, by the 24-hour job, by the Organizer or after an e-mailed request. After the atomic batch and on its own, so a service that is down never stops the deletion (it deletes a game's rows 24 hours after the tap at the latest anyway).
+  await purgeGame(env, eid).catch(() => false);
   // The new flow's stage log (table ttt_sl, migration 0030). Deleted AFTER the atomic batch above and on its own, so a database that does not have the table yet can never stop the participant data from being deleted.
   try { await env.DB.prepare("DELETE FROM ttt_sl WHERE eid=?").bind(eid).run(); } catch { /* no such table yet: nothing to delete */ }
   // 1.6.1 (owner brief 07:16, rule 6; audit 2, M7): the 24-hour deletion also reaches the error reports and the mail outbox. Each on its own and after the atomic batch, so a database without these tables never stops the participant data from being deleted.
@@ -389,6 +393,7 @@ export async function unplayedPass(env: LifeEnv, now: number): Promise<number> {
 /** Runs the lifecycle for engagements that still hold personal data. Bounded: at most 25 engagements, one report step each. */
 export async function lifecycleTick(env: LifeEnv, now: number): Promise<{ checked: number; reportSteps: number; reportsDone: number; purged: number }> {
   const out = { checked: 0, reportSteps: 0, reportsDone: 0, purged: 0 };
+  try { await announceDueGames(env, now); } catch { /* the notify button (push.ts) is optional and dark unless PUSH_URL and PUSH_ADMIN_KEY are set; it never stops the housekeeping */ }
   // paid (or cancelled) games that still hold personal data: guests, people on a list, waiting requests. A game nobody paid for is the "did not start" pass below.
   // 25 games per call, taken round and round by start time (a cursor in kv): when more than 25 games hold personal data at once, no game waits behind the same 25 for ever
   const SEL = "SELECT e.*, (SELECT COUNT(*) FROM participant p WHERE p.eid=e.id) AS npart FROM engagement e LEFT JOIN life l ON l.eid=e.id WHERE l.purged_ms IS NULL AND (e.pack IS NOT 0 OR e.cancelled_ms IS NOT NULL) AND (EXISTS (SELECT 1 FROM participant p WHERE p.eid=e.id) OR EXISTS (SELECT 1 FROM person q WHERE q.eid=e.id) OR EXISTS (SELECT 1 FROM waiting w WHERE w.eid=e.id) OR EXISTS (SELECT 1 FROM ttt_p x WHERE x.eid=e.id))";

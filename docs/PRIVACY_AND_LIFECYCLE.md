@@ -111,6 +111,18 @@ Every action that writes something (join, consent, each move, start, pause, cons
 
 No card or bank details are ever stored or logged. Players never pay. Price table: the same packs as Corporate Bingo.
 
+### 2h. Game-start notification (switched off: no page offers it and the service is not set up)
+
+If the owner sets it up, a player can tap one button on the game page to be told when the game begins. Nothing happens before the tap; the browser asks its own permission question first. The service is a separate small Cloudflare Worker (the corporate-push service, IT Services by Rajat Agarwal). This game's database never holds a browser address.
+
+| Field | Why | Where stored | Who | How long |
+|---|---|---|---|---|
+| Browser push address and the browser's two keys, for this one game (`game:<id>`) | To send one short message when the game begins | The corporate-push service's own database, table `push_subscription` | CF; the message travels through the push service of the browser's maker (Google, Apple, Mozilla or Microsoft) | Deleted with the game: this game calls the service's `POST /purge` whenever its own data is deleted (`erasePersonal`), and the service deletes a game's rows 24 hours after the tap at the latest. The Stop button deletes it at once |
+| A flag that the begin message was already sent (`kv pushbegin/<id>`) | So the message goes out once per game | `kv` (no person in it) | CF | Deleted with the game's participant data |
+| Yes-or-no notes `corporatePush.v1.<scope>` and, only after a Stop the server could not receive, the browser address `corporatePush.v1pending` | So the page shows the right button, and a failed delete is tried again | The phone's own browser storage | The player's browser | Until Stop, or until the player clears the browser data |
+
+Not stored: name, e-mail, phone, network address, cookie id, user agent. The service refuses any extra field.
+
 ## 3. Who processes data for us
 
 | Processor | For what | Which data |
