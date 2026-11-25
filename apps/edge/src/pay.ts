@@ -528,7 +528,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
       game: { id: eid, name: gameName, startMs: (1692803367 + (g.start_round - 1) * 3) * 1000 }, organizer: { name: s(b.name, 120) || undefined, org: s(b.org, 120) || undefined, email: s(b.email, 120) || undefined },
       note: "This is a proforma invoice. It is NOT PAID and is not a tax invoice. Pay now to receive your invoice, and the same invoice is e-mailed to you and to the organizer." };
     const full = renderInvoiceHtml(data), style = full.match(/<style>[\s\S]*?<\/style>/)?.[0] ?? "";
-    const html = style + full.replace(/^[\s\S]*?<\/head>\s*(<body[^>]*>)?/i, "").replace(/<\/body>\s*<\/html>\s*$/i, "");
+    const html = style + full.replace(/^[\s\S]*?<\/head>\s*(<body[^>]*>)?/i, "").replace(/<\/body>\s*<\/html>\s*$/i, "").replace(/<div class="mark139"[^>]*><span>[^<]*<\/span><\/div>/, "");
     return json({ ok: true, number: data.number, total, currency: cur, html });
   }
   // The invoice shown on the payment-done screen: the invoice markup alone (drawn inside a shadow root by the page), a real PDF to download, and "e-mail it to me".
@@ -540,7 +540,7 @@ export async function payRoute(req: Request, env: PayEnv, now: number, spend: (n
     const origin = env.PUBLIC_ORIGIN ?? url.origin;
     if (req.method === "GET" && ix[2] === ".fragment") {
       const full = renderInvoiceHtml(data), style = full.match(/<style>[\s\S]*?<\/style>/)?.[0] ?? "";
-      const body = full.replace(/^[\s\S]*?<\/head>\s*(<body[^>]*>)?/i, "").replace(/<\/body>\s*<\/html>\s*$/i, "");
+      const body = full.replace(/^[\s\S]*?<\/head>\s*(<body[^>]*>)?/i, "").replace(/<\/body>\s*<\/html>\s*$/i, "").replace(/<div class="mark139"[^>]*><span>[^<]*<\/span><\/div>/, "");
       return new Response(style + body, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
     }
     if (req.method === "GET" && ix[2] === ".pdf") {
