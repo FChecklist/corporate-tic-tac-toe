@@ -62,3 +62,5 @@ One portal where every product shows its AI-facing API on one page, built step b
 - Check this map before building anything, so you do not rebuild what another repository already does.
 
 Other older repositories (jyotish-*, veridian-brain, veridian-ai-os, veridian-bridge and similar) are outside this map unless their own README says otherwise. Ask BOSS.
+
+See also `docs/REPO-KNOWLEDGE.md` (this repository: stack, build, test, deploy, rollback, current version) and `CHANGELOG.md`.
