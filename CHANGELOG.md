@@ -3,7 +3,7 @@
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
 ## 1.6.6 - 2026-11-27 (not deployed)
-K3 (owner decision 27 Nov 2026): hide the public pages of this game without deleting anything. Based on stacked on PR 12 (head 8928039). Nothing is deployed and the switch is OFF by default.
+K3 (decision of 27 Nov 2026): hide the public pages of this game without deleting anything. Based on stacked on PR 12 (head 8928039). Nothing is deployed and the switch is OFF by default.
 ### Added
 - `SITE_HIDDEN` switch (`apps/edge/src/site-hidden.ts`, called from `pages/functions/_middleware.ts`). Public pages can be hidden with one switch. With SITE_HIDDEN set to 1 (a Cloudflare Pages variable, no rebuild) the landing page and the sales pages (/, /index, /about, /brochure, /pricing, /trust, /organizer-guide and the how-it-works pages) show a short 'This game is coming soon' page with a link to home.corporatetambola.com, send noindex (meta tag and X-Robots-Tag), and /llms.txt and /sitemap.xml answer 404; that page has no schema, no Open Graph and no agree buttons. Join links (/j/...), the player page, the host and organizer pages, sign-in, payment return, the legal pages, /api and the console links are NOT touched, so people who already have a link or a game still play. Switch off or unset: nothing changes. Nothing is deleted.
 - Test `apps/edge/test/site-hidden.test.ts` (switch off = unchanged, switch on = coming soon, join/host/api untouched).
