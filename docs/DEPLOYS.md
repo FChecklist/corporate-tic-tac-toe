@@ -2,7 +2,7 @@
 
 What is live, and how to know.
 
-* Open `/version.json` on the site. It holds `commit` (the git commit the pages were built from), `dirty` (true if files differed from that commit), `builtAt` (UTC) and `game`. It holds nothing else.
+* Open `/version.json` on the site. It holds `version` (the release number, e.g. 1.3.1; from `apps/edge/src/releases.json`, newest first, or the root `version.json`), `commit` (the git commit the pages were built from), `dirty` (true if files differed from that commit), `builtAt` (UTC) and `game`. It holds nothing else.
 * A deploy is made with `bun run pages:deploy`: it builds `pages/public` (which writes `version.json`), then uploads it to the Cloudflare Pages project `corporate-tic-tac-toe`. The Worker's database changes are the numbered files in `apps/edge/migrations`.
 * TEST or LIVE mode (whether real payments are taken) is separate from a deploy: `GET /api/mode`.
 

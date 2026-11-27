@@ -33,3 +33,6 @@ More in `docs/RUNNING.md`. The rules are in `docs/RULES.md`; each rule has a tes
 Payments go only through the central service "IT Services by Rajat Agarwal" (Razorpay). Players' names are deleted 23 hours after the tournament ends (the promise is 24 hours); the organizer's details and the winners record (seat numbers only) stay until 00:00 IST at the end of day 365, then everything goes. Invoices and the payment ledger are kept separately for the legal period. The data map is `docs/PRIVACY_AND_LIFECYCLE.md`.
 
 Contact: rajatsiroffice@gmail.com, +91 96503 97480.
+
+
+See [KNOWLEDGE-MAP.md](KNOWLEDGE-MAP.md) for what this repository is for and what the other repositories are for (updated 14 Nov 2026).
