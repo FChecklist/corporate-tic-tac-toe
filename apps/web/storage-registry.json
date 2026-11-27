@@ -41,7 +41,6 @@
         "cbz-aimsg",
         "cbz-email",
         "cbz-phone",
-        "cbz-name",
         "cbz-pl",
         "cbz-shield",
         "cbz-cap"
@@ -81,6 +80,14 @@
       "say": "In an organizer's browser: the name, e-mail, mobile number and invoice details typed on the payment page, so the form is filled in next time.",
       "keys": [
         "cb-payer"
+      ]
+    },
+    {
+      "id": "pay-draft",
+      "store": "sessionStorage",
+      "say": "On the screen of whoever is paying: the country chosen, the Game ID typed on the payment test and, after paying, the payment's reference and the optional invoice details typed (name, company, tax number). Kept only in this tab so nothing is lost if the page reloads, and gone when the tab closes.",
+      "keys": [
+        "cbz-paydraft-*"
       ]
     },
     {
@@ -154,9 +161,26 @@
     {
       "id": "guide-return",
       "store": "sessionStorage",
-      "say": "On any page, in this tab only: when we send you to fix something, a note of where you were working, so one tap brings you back. It is removed when you come back or close the tab.",
+      "say": "On any page, in this tab only: when you are sent to fix something, a note of where you were working, so one tap brings you back. It is removed when you come back or close the tab.",
       "keys": [
         "ctz-return"
+      ]
+    },
+    {
+      "id": "site-theme",
+      "store": "localStorage",
+      "say": "On any page, on this device: the colour and light or dark choice you make in the header or footer, so the site looks the same next time.",
+      "keys": [
+        "ct-theme",
+        "cg-theme"
+      ]
+    },
+    {
+      "id": "site-flow",
+      "store": "localStorage",
+      "say": "On the player page and the tournament page, on this device: whether you chose to try the new screens, so the same screens show next time.",
+      "keys": [
+        "ct-flow"
       ]
     }
   ],

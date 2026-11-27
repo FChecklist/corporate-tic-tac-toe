@@ -149,7 +149,7 @@ describe("invoice details (2026-10-10 owner list)", () => {
   });
   test("page 2 is a separate printed page with the terms", () => {
     const h = renderInvoiceHtml(base());
-    expect(h).toContain('class="sheet terms"'); expect(h).toContain("page-break-before:always"); expect(h).toContain("We do not give refunds"); expect(h.indexOf("Terms and conditions")).toBeGreaterThan(h.indexOf("TOTAL"));
+    expect(h).toContain('class="sheet terms"'); expect(h).toContain("page-break-before:always"); expect(h).toContain("the payment stays as credit on the organizer"); expect(h.indexOf("Terms and conditions")).toBeGreaterThan(h.indexOf("TOTAL"));
   });
   test("USD invoice (outside India) says no GST and prints US$", () => {
     const h = renderInvoiceHtml({ ...base(), currency: "USD", tax: splitGst(17, "USD", "", undefined, false), buyer: { name: "Bob", email: "b@x.com", country: "US" } });

@@ -15,6 +15,13 @@
   if (!gpc) {
     var m = (doc.cookie || "").match(/(?:^|;\s*)cbv=([a-f0-9]{32})(?:;|$)/);
     vid = ls("cbv_id") || (m && m[1]) || "";
+    // a visitor code handed over by one of our other sites (#cv=<32 hex>): taken once, removed from the address bar, and the earlier code is told to the server once (ov) so both stay one person
+    var hm = /(?:^#|&)cv=([a-f0-9]{32})(?:&|$)/.exec(location.hash || ""), oldVid = "";
+    if (hm) {
+      if (/^[a-f0-9]{32}$/.test(vid) && vid !== hm[1]) oldVid = vid;
+      vid = hm[1];
+      try { var h2 = (location.hash || "").replace(/(^#|&)cv=[a-f0-9]{32}(&|$)/, function (x, a, b) { return b ? a : ""; }); history.replaceState(history.state, "", location.pathname + location.search + (h2 && h2 !== "#" ? h2 : "")); } catch (e) {}
+    }
     if (!/^[a-f0-9]{32}$/.test(vid)) vid = rnd(16);
     ls("cbv_id", vid);
     try { doc.cookie = "cbv=" + vid + "; Max-Age=31536000; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : ""); } catch (e) {}
@@ -38,6 +45,7 @@
     while (q.length) {
       var b = { s: sid, g: gpc ? 1 : 0, dv: innerWidth < 700 ? "mobile" : innerWidth < 1100 ? "tablet" : "desktop", l: (nav.language || "").slice(0, 12), e: q.splice(0, BATCH) };
       if (!gpc) b.d = vid;
+      if (!gpc && typeof oldVid === "string" && oldVid) { b.ov = oldVid; oldVid = ""; }
       if (fresh) { // what only the first message of a visit needs: where it came from
         b.lp = path; fresh = false; ss("cbv_sent", "1");
         try { b.r = doc.referrer ? new URL(doc.referrer).hostname : ""; } catch (e) { b.r = ""; }

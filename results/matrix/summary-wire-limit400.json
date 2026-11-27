@@ -1,0 +1,30 @@
+{
+ "when": "2026-10-30T03:47:49.623Z",
+ "tier": "wire",
+ "limit": 400,
+ "seconds": 10,
+ "total": 368,
+ "pass": 368,
+ "fail": 0,
+ "checks": 1344,
+ "tiers": {
+  "wire": {
+   "total": 368,
+   "pass": 368,
+   "fail": 0,
+   "checks": 1344
+  }
+ },
+ "pureDimensions": {
+  "idFormat": 47,
+  "idBase": 2,
+  "gameEra": 2,
+  "verifyConfig": 8,
+  "emailCase": 8,
+  "emailNoise": 7,
+  "emailPath": 3,
+  "linkType": 5
+ },
+ "pureProduct": 1263360,
+ "firstFailures": []
+}

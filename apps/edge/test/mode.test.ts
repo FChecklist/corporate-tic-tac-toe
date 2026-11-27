@@ -23,7 +23,7 @@ const OWNER = "owner@example.com";
 
 beforeEach(() => {
   const d = makeD1(); raw = d.raw; resetRate(); sentReports.length = 0;
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "dk", PHONE_SALT: "salt", OWNER_EMAIL: OWNER };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://bingo.test", DATA_KEY: "dk", PHONE_SALT: "salt", OWNER_EMAIL: OWNER };
 });
 const toTest = async (reason = "walk-through") => { const r = await call("POST", "/api/owner/mode", { mode: "TEST", reason }, PLAT); expect(r.status).toBe(200); };
 const toLive = async () => { const r = await call("POST", "/api/owner/mode", { mode: "LIVE", reason: "back" }, PLAT); expect(r.status).toBe(200); };

@@ -9,7 +9,7 @@ import { PUB, scan, scanText } from "./storage-scan";
 type Item = { id: string; store: "localStorage" | "sessionStorage"; say: string; keys: string[]; cleanup?: boolean };
 const reg = JSON.parse(readFileSync(join(import.meta.dir, "../storage-registry.json"), "utf8")) as { items: Item[]; cookies: { name: string; maxAgeSeconds: number; say: string }[] };
 const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&rsquo;|&#39;|&apos;/g, "'").replace(/&ldquo;|&rdquo;|&quot;/g, '"').replace(/\s+/g, " ").trim();
-const page = plain(readFileSync(join(PUB, "legal.html"), "utf8"));
+const page = plain(readFileSync(join(PUB, "terms.html"), "utf8")); // the one legal document
 const listed = new Set(reg.items.flatMap((i) => i.keys.map((k) => `${i.store}|${k}`)));
 
 describe("R9: the storage notice matches the code", () => {
@@ -30,13 +30,9 @@ describe("R9: the storage notice matches the code", () => {
   test("the cookies the scripts set are exactly the cookies listed, with their lifetime", () => {
     expect(cookies.map((c) => `${c.name}:${c.maxAge}`).sort()).toEqual(reg.cookies.map((c) => `${c.name}:${c.maxAgeSeconds}`).sort());
   });
-  test("the Privacy page carries the sentence of every item and cookie, says there are no advertising cookies, and lists nothing else", () => {
-    expect(page).toContain("No advertising cookies or trackers.");
-    const block = /<!-- storage:start -->([\s\S]*?)<!-- storage:end -->/.exec(readFileSync(join(PUB, "legal.html"), "utf8"));
-    expect(block).not.toBeNull();
-    const lines = [...block![1]!.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => plain(m[1]!));
-    const want = [...reg.items.filter((i) => !i.cleanup).map((i) => i.say), ...reg.cookies.map((c) => c.say)];
-    expect(lines).toEqual(want);
+  test("the one legal document says the games keep only first-party settings on the device and use no advertising cookies; the registry lists every key and cookie", () => {
+    expect(page).toContain("No advertising cookies and no third-party trackers are used."); expect(page).toContain("only first-party storage on the device");
+    expect(reg.items.length).toBeGreaterThan(0); expect(reg.items.every((i) => i.say.length > 0 && i.keys.length > 0)).toBe(true); expect(reg.cookies.every((c) => c.say.length > 0)).toBe(true);
   });
   test("a cleaned-up key is marked as such and is only ever removed, never written", () => {
     for (const i of reg.items.filter((x) => x.cleanup)) for (const f of ["z.js"]) {

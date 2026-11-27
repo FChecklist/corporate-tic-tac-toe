@@ -15,7 +15,7 @@ const call = (method: string, path: string, body?: unknown, headers: Record<stri
   handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...headers }, body: withDevice(method, path, body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const roundAt = (ms: number) => Math.floor((ms / 1000 - 1692803367) / 3) + 1;
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: ORIGIN, DATA_KEY: "test-data-key" }; });
 
 const PLANTED = [{ name: "Plantina Zyxwvu", phone: "9123456789" }, { name: "Rosterio Quuxbar", phone: "9345678901" }, { name: "Winnerella Blorptag", phone: "9456789012" }];
 const needles = () => PLANTED.flatMap((p) => [p.name, p.name.split(" ")[0]!, p.phone, p.phone.slice(-4), "XXXXXXXX" + p.phone.slice(-2), p.phone.replace(/(\d{5})(\d{5})/, "$1 $2")]);

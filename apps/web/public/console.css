@@ -1,0 +1,108 @@
+/* Corporate Games brand kit: organizer console (the master console and the console of every game).
+   Same tokens, type, radius and spacing as the websites (needs tokens.css, fonts.css and components.css first).
+   The ten steps keep their colours: blue, aqua, violet, magenta, green, yellow, orange, lime, violet, red.
+   Every class starts with cs-. Put class "ck cs" on <body>. Phone: bottom tabs. Laptop (900 px and up): step list on the left. */
+
+body.cs{font-size:var(--fs-console);line-height:1.5}
+.cs-top{background:linear-gradient(180deg,var(--bar-a),var(--bar-b));border-bottom:3px solid var(--bar-edge);color:var(--on-bar)}
+.cs-top-in{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-height:var(--bar);padding-block:8px;width:min(100% - 2*var(--gutter),1120px);margin-inline:auto}
+.cs-top .ck-brand .ck-badge{width:38px;height:38px}
+.cs-top .ck-name b{font-size:19px}
+.cs-top-end{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cs-who{font-size:14px;color:var(--on-bar-muted);overflow-wrap:anywhere}
+.cs-top a.cs-link,.cs-top button.cs-link{display:inline-flex;align-items:center;min-height:var(--tap);padding:0 14px;border-radius:var(--r-pill);border:1px solid rgba(255,255,255,.55);background:transparent;color:var(--on-bar);font:600 14.5px/1 var(--sans);text-decoration:none;cursor:pointer}
+.ck .cs-top a.cs-link{color:var(--on-bar)}
+.cs-main{width:min(100% - 2*var(--gutter),1120px);margin-inline:auto;padding-block:20px 96px}
+.ck .cs-title{font:700 clamp(24px,3vw,32px)/1.15 var(--serif);margin:0 0 4px}
+.cs-sub{margin:0 0 18px;color:var(--muted)}
+
+/* payment strip and progress */
+.cs-pay{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 16px;margin:0 0 16px;border-radius:var(--r-md);background:var(--st-yellow-bg);color:var(--st-yellow-tx);font-size:15px;font-weight:600}
+.cs-progress{display:flex;align-items:center;gap:12px;margin:0 0 16px;color:var(--muted);font-weight:600;font-size:15px}
+.cs-meter{flex:1;height:10px;border:0;border-radius:var(--r-pill);background:var(--line);overflow:hidden;appearance:none;-webkit-appearance:none}
+.cs-meter::-webkit-progress-bar{background:var(--line);border-radius:var(--r-pill)}
+.cs-meter::-webkit-progress-value{background:var(--action);border-radius:var(--r-pill)}
+.cs-meter::-moz-progress-bar{background:var(--action);border-radius:var(--r-pill)}
+
+/* status chips: always a word, never colour alone */
+.cs-chip{display:inline-flex;align-items:center;gap:7px;min-height:28px;padding:2px 12px;border-radius:var(--r-pill);font:700 13.5px/1.2 var(--sans);white-space:nowrap;background:var(--st-draft-bg);color:var(--st-draft-tx)}
+.cs-chip:before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.cs-chip[data-s=waiting]{background:var(--st-yellow-bg);color:var(--st-yellow-tx)}
+.cs-chip[data-s=ready]{background:var(--st-blue-bg);color:var(--st-blue-tx)}
+.cs-chip[data-s=playing]{background:var(--st-green-bg);color:var(--st-green-tx)}
+.cs-chip[data-s=playing]:before{animation:cs-pulse 1.6s ease-in-out infinite}
+.cs-chip[data-s=finished]{background:var(--st-violet-bg);color:var(--st-violet-tx)}
+.cs-chip[data-s=cancelled]{background:var(--st-red-bg);color:var(--st-red-tx)}
+.cs-chip[data-s=notstarted]{background:var(--st-orange-bg);color:var(--st-orange-tx)}
+@keyframes cs-pulse{50%{opacity:.35}}
+
+/* layout: list of steps + the open step */
+.cs-layout{display:grid;gap:16px;grid-template-columns:1fr}
+.cs-side{display:none}
+.cs-steps{display:grid;gap:12px;list-style:none;margin:0;padding:0}
+
+/* one step card */
+.cs-step{--s:var(--st-blue);--s-on:var(--st-blue-on);--s-bg:var(--st-blue-bg);--s-tx:var(--st-blue-tx);background:var(--paper);border:1px solid var(--line);border-left:8px solid var(--s);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.cs-step[data-c=blue]{--s:var(--st-blue);--s-on:var(--st-blue-on);--s-bg:var(--st-blue-bg);--s-tx:var(--st-blue-tx)}
+.cs-step[data-c=aqua]{--s:var(--st-aqua);--s-on:var(--st-aqua-on);--s-bg:var(--st-aqua-bg);--s-tx:var(--st-aqua-tx)}
+.cs-step[data-c=violet]{--s:var(--st-violet);--s-on:var(--st-violet-on);--s-bg:var(--st-violet-bg);--s-tx:var(--st-violet-tx)}
+.cs-step[data-c=magenta]{--s:var(--st-magenta);--s-on:var(--st-magenta-on);--s-bg:var(--st-magenta-bg);--s-tx:var(--st-magenta-tx)}
+.cs-step[data-c=green]{--s:var(--st-green);--s-on:var(--st-green-on);--s-bg:var(--st-green-bg);--s-tx:var(--st-green-tx)}
+.cs-step[data-c=yellow]{--s:var(--st-yellow);--s-on:var(--st-yellow-on);--s-bg:var(--st-yellow-bg);--s-tx:var(--st-yellow-tx)}
+.cs-step[data-c=orange]{--s:var(--st-orange);--s-on:var(--st-orange-on);--s-bg:var(--st-orange-bg);--s-tx:var(--st-orange-tx)}
+.cs-step[data-c=lime]{--s:var(--st-lime);--s-on:var(--st-lime-on);--s-bg:var(--st-lime-bg);--s-tx:var(--st-lime-tx)}
+.cs-step[data-c=red]{--s:var(--st-red);--s-on:var(--st-red-on);--s-bg:var(--st-red-bg);--s-tx:var(--st-red-tx)}
+.cs-step-head{display:flex;align-items:center;gap:14px}
+.cs-num{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--s);color:var(--s-on);font:700 18px/1 var(--sans)}
+.cs-step-text{flex:1;min-width:0}
+.ck .cs-step-title{margin:0;font:600 clamp(19px,2vw,22px)/1.25 var(--serif);flex:1;min-width:0}
+.cs-step-hint{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
+.cs-step-tag{flex:none;padding:3px 12px;border-radius:var(--r-pill);background:var(--s-bg);color:var(--s-tx);font:700 13px/1.3 var(--sans)}
+.cs-step-body{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:12px}
+.cs-says{margin:0;padding:12px 16px;border-radius:var(--r-md);background:var(--s-bg);color:var(--s-tx);font-weight:600}
+.cs-step.is-locked{opacity:.7}
+.cs-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.cs-actions .ck-btn{min-height:48px;padding:0 22px;font-size:16px}
+.cs-skip{background:none;border:0;color:var(--link);font:600 15px/1 var(--sans);min-height:var(--tap);padding:0 8px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+/* lists and tiles (master console: my games, create) */
+.cs-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);min-width:0}
+.cs-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.cs-tile{position:relative;display:flex;flex-direction:column;gap:8px;padding:18px 18px 14px;border-radius:var(--r);background:var(--paper);border:1px solid var(--line);border-top:8px solid var(--c,var(--saffron));box-shadow:var(--shadow);text-decoration:none;color:var(--ink);min-width:0}
+.ck .cs-tile{color:var(--ink)}
+.cs-tile .ck-badge{width:56px;height:56px}
+.cs-tile b{font:600 19px/1.25 var(--serif)}
+.cs-tile span{color:var(--muted);font-size:15px}
+.cs-tile:hover{box-shadow:var(--shadow-lift)}
+.cs-rows{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+.cs-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 16px;border-radius:var(--r-md);background:var(--paper);border:1px solid var(--line);border-left:8px solid var(--c,var(--line))}
+.cs-row .ck-badge{width:44px;height:44px}
+.cs-row-main{flex:1;min-width:160px}
+.cs-row-main b{display:block;font-size:17px}
+.cs-row-main span{color:var(--muted);font-size:14.5px}
+
+/* game day: the live control bar */
+.cs-live{display:grid;gap:12px;padding:18px;border-radius:var(--r);background:var(--paper);border:2px solid var(--st-green)}
+.cs-live-status{margin:0;font:600 20px/1.3 var(--serif)}
+.cs-live-big{min-height:64px;font-size:20px}
+.cs-live-small{display:flex;flex-wrap:wrap;gap:8px}
+.cs-people{margin:0;color:var(--muted);font-weight:600}
+
+/* phone: bottom tabs */
+.cs-tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:10px;padding:10px var(--gutter) calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(27,20,66,.08)}
+.cs-tabs .ck-btn{flex:1 1 0;min-height:48px;padding:0 10px;font-size:15.5px}
+.cs-tabs .ck-btn.main{flex:1.35 1 0}
+
+@media (min-width:900px){
+  .cs-layout{grid-template-columns:260px 1fr;align-items:start;gap:24px}
+  .cs-side{display:block;position:sticky;top:12px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--shadow)}
+  .cs-side ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+  .cs-side a{display:flex;align-items:center;gap:10px;min-height:var(--tap);padding:4px 10px;border-radius:var(--r-sm);color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}
+  .ck .cs-side a{color:var(--ink)}
+  .cs-side a:hover,.cs-side a[aria-current=step]{background:var(--tint)}
+  .cs-side .cs-num{width:28px;height:28px;font-size:14px}
+  .cs-tabs{display:none}
+  .cs-main{padding-bottom:48px}
+}
+@media (max-width:899.98px){.cs-step-head{flex-wrap:wrap}.cs-step-tag{order:3}}
+@media (prefers-reduced-motion:reduce){.cs-chip[data-s=playing]:before{animation:none}}

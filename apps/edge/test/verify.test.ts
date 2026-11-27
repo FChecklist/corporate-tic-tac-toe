@@ -5,6 +5,7 @@ import { handle } from "./with-terms";
 import type { PayEnv } from "../src/pay";
 import { normEmp, empHashOf } from "../src/people";
 import { makeD1 } from "./d1-sqlite";
+import { setMode } from "../src/mode";
 
 const T = Date.UTC(2026, 9, 1, 10, 0, 0);
 const GEN = 1692803367;
@@ -12,8 +13,9 @@ const roundAt = (ms: number) => Math.floor((ms / 1000 - GEN) / 3) + 1;
 const START = roundAt(T) + 1200; // one hour after T
 let env: PayEnv; let raw: ReturnType<typeof makeD1>["raw"]; let ipN = 0;
 const realFetch = globalThis.fetch;
-const call = (method: string, path: string, body?: unknown, key?: string, now = T) =>
-  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, now);
+const NOKEY = { "x-runner-key": "" }; // "no runner key" (the test preload otherwise adds the right one)
+const call = (method: string, path: string, body?: unknown, key?: string, now = T, h: Record<string, string> = {}) =>
+  handle(new Request("http://x" + path, { method, headers: { "content-type": "application/json", ...(key ? { "x-organizer": key } : {}), ...h }, body: body === undefined ? undefined : JSON.stringify(body) }), env as Env, now);
 const j = async (r: Response) => (await r.json()) as any;
 const mob = (i: number) => "9" + String(100000000 + i);
 const dev = (i: number) => (String(i).padStart(2, "0") + "b".repeat(32)).slice(0, 32);
@@ -32,12 +34,12 @@ async function setup(opts: { closed?: boolean; verify?: string; employeesOnly?: 
 }
 const add = (key: string, people: unknown[]) => call("POST", "/api/z/PPL-1/people", { people }, key);
 
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "1000000", PUBLIC_ORIGIN: "https://tictactoe.test", PHONE_SALT: "salt" }; (globalThis as any).fetch = async () => new Response("{}", { status: 404 }); });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 describe("employee ID", () => {
   test("an ID is trimmed and upper-cased; rubbish is refused; blank is blank", () => {
-    expect(normEmp(" ab 123 ")).toBe("AB123"); expect(normEmp("")).toBe(""); expect(normEmp(undefined)).toBe(""); expect(normEmp("a<b>")).toBeNull(); expect(normEmp("x".repeat(31))).toBeNull();
+    expect(normEmp(" ab 123 ")).toBe("AB123"); expect(normEmp("")).toBe(""); expect(normEmp(undefined)).toBe(""); expect(normEmp("a<b>")).toBe("AB"); expect(normEmp("<>")).toBeNull(); /* test author 30 Oct 2026: symbols are removed now (ids.ts); only an ID with nothing left is refused */ expect(normEmp("x".repeat(31))).toBeNull();
   });
 });
 
@@ -183,6 +185,7 @@ describe("the list download carries the ID", () => {
 
 describe("the owner's three test sign-ins", () => {
   test("demo1/2/3@xyz.in sign in with 123456, no e-mail is sent, the same account comes back each time, and a wrong code or another address is refused", async () => {
+    await setMode(env as any, "TEST", "test sign-ins work only in TEST mode (TT-21)", T);
     for (const em of ["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]) {
       expect((await call("POST", "/api/auth/email", { email: em })).status).toBe(200);
       const a = await j(await call("POST", "/api/auth/verify", { email: em, code: "123456" })); expect(a.token).toMatch(/^cbk_/);
@@ -193,15 +196,37 @@ describe("the owner's three test sign-ins", () => {
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(3);
     expect((await call("POST", "/api/auth/verify", { email: "demo4@xyz.in", code: "123456" })).status).toBe(400);
   });
-  test("the test sign-ins are limited per network per day, record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+  test("the test sign-ins have no daily limit (owner order 4 Nov 2026), record no Terms consent, never send mail, and keep only their latest six keys", async () => {
+    await setMode(env as any, "TEST", "test sign-ins work only in TEST mode (TT-21)", T);
     const em = "demo2@xyz.in"; const fire = () => call("POST", "/api/auth/verify", { email: em, code: "123456" });
-    for (let i = 0; i < 30; i++) expect((await fire()).status).toBe(200);
-    const blocked = await fire(); expect(blocked.status).toBe(429);
+    for (let i = 0; i < 35; i++) expect((await fire()).status).toBe(200); // owner order 4 Nov 2026: no per-network daily limit any more
+    expect((await fire()).status).toBe(200);
     expect(rowsOf("SELECT COUNT(*) c FROM consent_log WHERE kind='K2'")[0].c).toBe(0);
     const org = rowsOf("SELECT org FROM organizer_email")[0].org;
     expect(rowsOf("SELECT COUNT(*) c FROM organizer_key WHERE org=? AND kind='master'", org)[0].c).toBeLessThanOrEqual(6);
     const { sendMail } = await import("../src/pay"); expect(await sendMail(env as any, (env as any).DB, em, "Your report", "text", T)).toBe(false);
     expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
+  });
+});
+
+describe("the owner's three test sign-ins need the runner key, in any mode (TT-21, WP-17; RUNNER_KEY, 5 Nov 2026)", () => {
+  test("without the runner key demo1/2/3@xyz.in with 123456 open nothing: no token, no organizer account made, and the request-a-code call gives no hint", async () => {
+    for (const em of ["demo1@xyz.in", "demo2@xyz.in", "demo3@xyz.in"]) {
+      const r = await call("POST", "/api/auth/verify", { email: em, code: "123456" }, undefined, T, NOKEY);
+      expect(r.status).toBe(400); expect((await j(r)).token).toBeUndefined();
+      expect((await call("POST", "/api/auth/email", { email: em })).status).toBe(200); // same plain answer as for any address; no code is made or mailed for these
+      expect((await call("POST", "/api/auth/verify", { email: em, code: "123456" }, undefined, T, NOKEY)).status).toBe(400);
+    }
+    expect(rowsOf("SELECT COUNT(*) c FROM organizer_email")[0].c).toBe(0);
+    expect(rowsOf("SELECT COUNT(*) c FROM organizer_key")[0].c).toBe(0);
+    expect(rowsOf("SELECT COUNT(*) c FROM outbox WHERE to_addr LIKE '%xyz.in'")[0].c).toBe(0);
+  });
+  test("without the key they stay closed in LIVE even for an account made earlier in TEST; with the key they open in LIVE too", async () => {
+    await setMode(env as any, "TEST", "walk-through", T);
+    const a = await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" })); expect(a.token).toMatch(/^cbk_/);
+    await setMode(env as any, "LIVE", "go live", T);
+    const b = await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }, undefined, T, NOKEY); expect(b.status).toBe(400); expect((await j(b)).token).toBeUndefined();
+    expect((await j(await call("POST", "/api/auth/verify", { email: "demo1@xyz.in", code: "123456" }))).token).toMatch(/^cbk_/); // the key opens it in LIVE too
   });
 });
 
@@ -211,7 +236,12 @@ describe("this game's name-only joining with IDs asked", () => {
     const nameOnly = await join("PPL-1", { name: "Sam", device: dev(1) }); expect(nameOnly.status).toBe(400); expect((await j(nameOnly)).code).toBe("need-id");
     expect((await joinAs("PPL-1", 2, { empId: undefined })).status).toBe(200); // an outsider with a mobile number only
     expect((await join("PPL-1", { name: "Sam", device: dev(3), empId: "E-7" })).status).toBe(403); // an ID that is on no list waits for the organizer's answer
-    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "both" }, t.master)).status).toBe(200);
+    // owner rule (1.4.1): once someone has joined, what people must give cannot change; the same value is allowed
+    const locked = await call("PATCH", "/api/z/PPL-1/settings", { verify: "both" }, t.master); expect(locked.status).toBe(409); expect((await j(locked)).code).toBe("id-kind-locked");
+    expect((await call("PATCH", "/api/z/PPL-1/settings", { verify: "id" }, t.master)).status).toBe(200);
+  });
+  test("'both' needs the mobile number with the ID (game made with 'both' from the start)", async () => {
+    await setup({ verify: "both" });
     const noPhone = await join("PPL-1", { name: "Tia", device: dev(4), empId: "E-8" }); expect(noPhone.status).toBe(400); expect((await j(noPhone)).code).toBe("need-id");
   });
 });

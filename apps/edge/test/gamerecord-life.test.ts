@@ -12,13 +12,13 @@ const tick = (now: number) => lifecycleTick(W.env as any, now);
 describe("game settings record", () => {
   test("a played game: the record is made, survives the deletion of the players' data, holds counts and not one person", async () => {
     const id = uid("REC");
-    expect((await create(undefined, id, { startRound: startIn(-2 * HOUR), callSeconds: 6, cap: 5000 })).status).toBe(200);
+    expect((await create(undefined, id, { startRound: startIn(-2 * HOUR), callSeconds: 6, cap: 2000 })).status).toBe(200);
     await W.env.DB.prepare("INSERT INTO kv(k,v) VALUES(?,?)").bind(`contact/${id}`, JSON.stringify({ email: "boss@acme.com", phone: "9811122233" })).run();
     for (let i = 1; i <= 3; i++) expect((await join(id, i, {}, T - 3 * HOUR)).status).toBe(200);
     const end = await endBoundMs(W.env as any, one("SELECT * FROM engagement WHERE id=?", id));
     await tick(end + 5 * MIN);
     const mid = one("SELECT * FROM game_record WHERE eid=?", id);
-    expect(mid).toBeTruthy(); expect(JSON.parse(mid.settings)).toMatchObject({ gameId: id, callSeconds: 6, cap: 5000 });
+    expect(mid).toBeTruthy(); expect(JSON.parse(mid.settings)).toMatchObject({ gameId: id, callSeconds: 6, cap: 2000 });
     await tick(end + 22 * HOUR); // the players' data is deleted at 20 hours
     expect(one("SELECT COUNT(*) c FROM participant WHERE eid=?", id).c).toBe(0);
     const after = one("SELECT * FROM game_record WHERE eid=?", id);

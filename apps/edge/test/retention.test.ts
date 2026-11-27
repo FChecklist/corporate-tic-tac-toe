@@ -12,7 +12,7 @@ const day = (n: number) => new Date(T - n * DAY).toISOString().slice(0, 10);
 const kv = (k: string, v = "1") => raw.prepare("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)").run(k, v);
 const has = (k: string) => !!raw.prepare("SELECT 1 FROM kv WHERE k=?").get(k);
 const key = (hash: string, org: string, kind: string, revoked: number, created: number, exp: number | null) => raw.prepare("INSERT INTO organizer_key(hash,org,kind,revoked,created_ms,expires_ms) VALUES(?,?,?,?,?,?)").run(hash, org, kind, revoked, created, exp);
-beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000" }; });
+beforeEach(() => { const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000" }; });
 
 describe("the daily sweep", () => {
   test("network-address hashes older than two days go; newer ones stay", async () => {
@@ -55,7 +55,7 @@ describe("the daily sweep", () => {
     raw.prepare("DROP TABLE usage").run(); // one step will fail
     await purgeOld(env as Env, T);
     expect(has(`start/${day(5)}/zzzz`)).toBe(false);
-    const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000" };
+    const d = makeD1(); raw = d.raw; env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000" };
     kv(`start/${day(5)}/yyyy`);
     await handle(new Request("http://x/api/whoami", { headers: { "x-organizer": "plat" } }), env as Env, T);
     await handle(new Request("http://x/api/history", { headers: { "x-organizer": "plat" } }), env as Env, T);

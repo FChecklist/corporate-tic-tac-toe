@@ -4,10 +4,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { handle, type Env } from "../src/worker";
-import { CONSENT_VERSION, KINDS, boxesOf, hasConsented, wordingOf, type Kind } from "../src/consent";
+import { CONSENT_VERSION, KINDS, NOTICE_TEXT, boxesOf, hasConsented, wordingOf, type Kind } from "../src/consent";
+import { NOTICE_TEXT as CORE_NOTICE_TEXT } from "../../../vendor/game-core/packages/wording/src/consent";
 import { TERMS_VERSION } from "../src/brand";
 import TEXT from "../src/consent-text.json";
 import { makeD1 } from "./d1-sqlite";
+import { Window } from "happy-dom";
 
 const realFetch = globalThis.fetch;
 const T = Date.UTC(2026, 9, 1, 10, 0, 0), GEN = 1692803367;
@@ -20,7 +22,10 @@ const dev = (i: number) => i.toString(16).padStart(4, "0").repeat(8);
 const tick = (k: Kind, v: string = CONSENT_VERSION) => ({ v, boxes: boxesOf(k).map(([id]) => id) });
 const rows = (kind: string) => raw.query("SELECT * FROM consent_log WHERE kind=? ORDER BY at_ms, id").all(kind) as any[];
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-async function draft(key: string, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
+const NOTICE = "By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules.";
+const hashOf = (_k: Kind) => sha(NOTICE); // no tick-boxes since 1 Nov 2026: the proof hashes the one notice line
+test("the notice line the Worker hashes is exactly the one in game-core (the Worker may not import the vendor folder, so it holds a copy)", () => { expect(NOTICE_TEXT).toBe(CORE_NOTICE_TEXT); expect(NOTICE_TEXT).toBe(NOTICE); });
+async function draft(key: Record<string, string>, id: string, cap = 100) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 9, cap }, key)).status).toBe(200); return id; }
 const JSON_FILE = "C:/Users/Dell/AppData/Local/Temp/claude/C--ct-ct/2cf843e7-2735-4b37-9fc2-d660aa06a369/scratchpad/CONSENT_TEXT.json";
 
 beforeEach(() => {
@@ -30,13 +35,13 @@ beforeEach(() => {
     if (u.startsWith("https://rzp.test/v1/orders")) { const b = JSON.parse(init.body); return new Response(JSON.stringify({ id: "order_1", amount: b.amount, currency: b.currency, receipt: b.receipt, status: "created" })); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env;
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://ttt.test", PHONE_SALT: "salt", DATA_KEY: "k" } as Env;
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
 async function organizer(email = "boss@acme.com") { const r = await j(await call("POST", "/api/start", { email, consent: tick("K2") })); return { "x-organizer": r.token as string }; }
 async function game(h: Record<string, string>, id: string) { expect((await call("POST", "/api/z", { id, startRound: START, callSeconds: 6, cap: 100 }, h)).status).toBe(200); return id; }
-const REFUSED = { error: "Please tick the box to continue.", code: "consent-required" };
+const REFUSED = { error: "This page is out of date. Please reload it and try again. Sorry for the trouble.", code: "consent-required" };
 
 describe("test 5: the wording is the contract's wording, from one place", () => {
   test("consent-text.json holds the version and the exact boxes; the version is the one constant in brand.ts", () => {
@@ -54,7 +59,38 @@ describe("test 5: the wording is the contract's wording, from one place", () => 
   test("no page types the wording itself, and nothing is ticked in advance", () => {
     const dir = new URL("../../web/public/", import.meta.url);
     const all = Object.entries(TEXT as any).filter(([k]) => /^K\d/.test(k)).flatMap(([, v]) => Object.values(v as any)) as string[];
-    for (const f of readdirSync(dir).filter((x) => /\.(js|html)$/.test(x) && !["terms.html", "legal-position.html"].includes(x))) { const t = readFileSync(new URL(f, dir), "utf8"); for (const w of all) expect([f, t.includes(w)]).toEqual([f, false]); if (["termsbox.js", "ttt.js", "site.js", "pay.js", "paylink.js", "signin.js", "ai-link.js", "host.js"].includes(f)) expect([f, /type="checkbox"[^>]*[ ]checked[ >]/.test(t)]).toEqual([f, false]); }
+    for (const f of readdirSync(dir).filter((x) => /\.(js|html)$/.test(x) && !["terms.html", "legal-position.html", "consent.js"].includes(x))) { const t = readFileSync(new URL(f, dir), "utf8"); for (const w of all) expect([f, t.includes(w)]).toEqual([f, false]); if (["termsbox.js", "ttt.js", "site.js", "pay.js", "paylink.js", "signin.js", "ai-link.js", "host.js"].includes(f)) expect([f, /type="checkbox"[^>]*[ ]checked[ >]/.test(t)]).toEqual([f, false]); }
+  });
+});
+
+describe("test 5b: consent.js (the three payment pages) draws the one notice line and carries the agreed version", () => {
+  const AGREED = TEXT as any;
+  const pageWindow = () => { // consent.js as the browser runs it
+    const win: any = new Window({ url: "http://localhost/", settings: { disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
+    new Function("window", "document", readFileSync(new URL("../../web/public/consent.js", import.meta.url), "utf8")).call(win, win, win.document);
+    return win;
+  };
+  test("version and texts: the same as the server's, string for string", () => {
+    const win = pageWindow(); expect(win.CBConsent.version).toBe(TERMS_VERSION);
+    for (const kind of ["K1", "K2", "K3", "K4", "K5", "K6"] as const) expect([kind, win.CBConsent.text[kind]]).toEqual([kind, AGREED[kind]]);
+  });
+  test("no tick-boxes: every point draws the one small line, and its three names are links into the one document", () => {
+    const win = pageWindow();
+    for (const kind of ["K1", "K2", "K3", "K4", "K5", "K6"] as const) {
+      const host = win.document.createElement("div"); host.innerHTML = win.CBConsent.html(kind); win.document.body.appendChild(host);
+      expect(host.querySelectorAll("input").length).toBe(0);
+      expect([kind, host.textContent.trim()]).toEqual([kind, "By continuing, you agree to the Terms and Conditions, Privacy and Data, and Game rules."]);
+    }
+    const host = win.document.createElement("div"); host.innerHTML = win.CBConsent.html("K3");
+    expect(Array.from(host.querySelectorAll("a")).map((a: any) => [a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")])).toEqual([["https://home.corporatetambola.com/terms#terms", "_blank", "noopener"], ["https://home.corporatetambola.com/terms#privacy", "_blank", "noopener"], ["https://home.corporatetambola.com/terms#game-rules", "_blank", "noopener"]]);
+  });
+  test("a button is never held back by a box, and the request carries the version and the points (so the server keeps its proof)", () => {
+    const win = pageWindow();
+    const host = win.document.createElement("div"); host.innerHTML = win.CBConsent.html("K3") + `<button id="b" data-needs="K3">go</button><button id="h" data-needs="K3" data-hold="1">held</button>`; win.document.body.appendChild(host);
+    win.CBConsent.wire(host, "K3", {});
+    const b = host.querySelector("#b") as any, h = host.querySelector("#h") as any;
+    expect([b.disabled, b.getAttribute("aria-disabled")]).toEqual([false, "false"]); expect(h.disabled).toBe(true);
+    expect(win.CBConsent.payload(host, "K3")).toEqual({ v: TERMS_VERSION, boxes: ["A"], notice: true });
   });
 });
 
@@ -65,7 +101,7 @@ describe("tests 1-4 at every point", () => {
     expect((await call("POST", "/api/start", { email: "a@acme.com", consent: { v: CONSENT_VERSION, boxes: [] } })).status).toBe(400);
     const ok = await call("POST", "/api/start", { email: "a@acme.com", consent: tick("K2") }, {}, T + 5); expect(ok.status).toBe(200);
     const r = rows("K2"); expect(r.length).toBe(1);
-    expect(r[0]).toMatchObject({ kind: "K2", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: sha(wordingOf("K2")) });
+    expect(r[0]).toMatchObject({ kind: "K2", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: hashOf("K2") });
     expect(r[0].subject).toBe((raw.query("SELECT org FROM organizer_email").get() as any).org);
     expect((raw.query("SELECT COUNT(*) c FROM organizer_terms").get() as any).c).toBe(1); // the older record of the Terms version is kept too
   });
@@ -84,7 +120,7 @@ describe("tests 1-4 at every point", () => {
     expect(rows("K1").length).toBe(0); expect((raw.query("SELECT pack FROM engagement WHERE id=?").get(id) as any).pack).toBe(0);
     expect((await call("POST", `/api/z/${id}/publish`, { ...body, consent: tick("K1") }, h, T + 9)).status).toBe(200);
     const r = rows("K1"); expect(r.length).toBe(1);
-    expect(r[0]).toMatchObject({ kind: "K1", ref: id, version: CONSENT_VERSION, boxes: "A,B", at_ms: T + 9, text_hash: sha(wordingOf("K1")) });
+    expect(r[0]).toMatchObject({ kind: "K1", ref: id, version: CONSENT_VERSION, boxes: "A,B", at_ms: T + 9, text_hash: hashOf("K1") });
     expect(r[0].subject).toBe((raw.query("SELECT org FROM engagement WHERE id=?").get(id) as any).org);
   });
   test("K1: the AI helper's path stays a hand-over; it cannot tick (it only gets 'ask the organizer')", async () => {
@@ -99,7 +135,7 @@ describe("tests 1-4 at every point", () => {
     const no = await call("POST", "/api/checkout", pay, h); expect(no.status).toBe(400); expect(await j(no)).toMatchObject({ ...REFUSED, kind: "K3" });
     expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 0 });
     expect((await call("POST", "/api/checkout", { ...pay, consent: tick("K3") }, h, T + 3)).status).toBe(200);
-    const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 3, text_hash: sha(wordingOf("K3")) });
+    const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 3, text_hash: hashOf("K3") });
     expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
   });
   test("K3 before the Rs 1 payment test: refused without the tick (no order, no row); with it the order is made and the row names the test payment", async () => {
@@ -109,14 +145,14 @@ describe("tests 1-4 at every point", () => {
     const old = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3", "1999-01-01") }); expect(old.status).toBe(400);
     expect(raw.query("SELECT COUNT(*) c FROM payment").get()).toEqual({ c: 0 }); expect(rows("K3").length).toBe(0);
     const ok = await call("POST", "/api/payments/paytest", { ...pt, consent: tick("K3") }, {}, T + 5); expect(ok.status).toBe(200);
-    const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: sha(wordingOf("K3")) });
+    const r = rows("K3"); expect(r.length).toBe(1); expect(r[0]).toMatchObject({ kind: "K3", version: CONSENT_VERSION, boxes: "A", at_ms: T + 5, text_hash: hashOf("K3") });
     expect(r[0].ref).toBe((raw.query("SELECT id FROM payment").get() as any).id);
   });
-  test("the payment test page draws the K3 box, unticked, with its button disabled until ticked, and sends the tick", () => {
+  test("the payment test page draws the K3 notice (nothing to tick), its button waits only for the country, and sends the version", () => {
     const web = (f: string) => readFileSync(new URL("../../web/public/" + f, import.meta.url), "utf8");
-    expect(web("paytest.html")).toContain('<script src="/termsbox.js"></script>');
+    expect(web("paytest.html")).toContain('<script src="/consent.js"></script>');
     const js = web("paytest.js");
-    expect(js).toContain('TermsBox.mount(slot, "K3"'); expect(js).toMatch(/id="go" disabled aria-disabled="true"/); expect(js).toMatch(/{ consent, org:/);
+    expect(js).toContain('CBConsent.html("K3")'); expect(js).toContain('CBConsent.payload($app, "K3")'); expect(js).toMatch(/disabled aria-disabled="true"/); expect(js).not.toContain("TermsBox");
   });
   async function published(id: string) { const h = await organizer(); await game(h, id); await call("POST", `/api/z/${id}/publish`, { email: "boss@acme.com", phone: "98765 43210", consent: tick("K1") }, h); raw.run("UPDATE engagement SET pack=100 WHERE id=?", [id]); return h; }
   test("K4 joining: no seat and no name stored without both boxes; with both the person joins and the row is tied to their seat", async () => {
@@ -126,19 +162,19 @@ describe("tests 1-4 at every point", () => {
     expect(raw.query("SELECT COUNT(*) c FROM seat").get()).toEqual({ c: 0 }); expect(raw.query("SELECT COUNT(*) c FROM participant").get()).toEqual({ c: 0 });
     const ok = await call("POST", "/api/z/CON-3/join", { ...body, consent: tick("K4") }, {}, T + 7); expect(ok.status).toBe(200); const pid = (await j(ok)).pid;
     const r = rows("K4"); expect(r.length).toBe(1);
-    expect(r[0]).toMatchObject({ subject: pid, kind: "K4", ref: "CON-3", version: CONSENT_VERSION, boxes: "A,B", at_ms: T + 7, text_hash: sha(wordingOf("K4")) });
+    expect(r[0]).toMatchObject({ subject: pid, kind: "K4", ref: "CON-3", version: CONSENT_VERSION, boxes: "A,B", at_ms: T + 7, text_hash: hashOf("K4") });
   });
   test("K4 adults only: box B says only that the person is 18 or older (no parent's-device alternative); box A says what is kept; neither is ticked for the person; a join with only A is refused; the exact wording is hashed with the row", async () => {
     const [a, b] = boxesOf("K4").map((x) => x[1]); expect(b).toBe("I am 18 or older.");
     expect(wordingOf("K4")).not.toMatch(/parent|guardian|device with/i);
-    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "results are kept for 365 days, without names", "We keep billing data for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
+    for (const part of ["deleted within 24 hours", "who invited me is recorded until then", "results are kept for 365 days, without names", "Billing data is kept for audit and tax reasons.", "Hindi on request"]) expect(a).toContain(part);
     expect(a).not.toMatch(/forever|for ever|permanent/i);
     await published("CON-A18"); const body = { name: "Maya Lopez", device: dev(1) };
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["A"] } })).status).toBe(400); // the age box is required by the server
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: CONSENT_VERSION, boxes: ["B"] } })).status).toBe(400);
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: { v: "2026-10-14", boxes: ["A", "B"] } })).status).toBe(400); // the old version no longer counts
     expect((await call("POST", "/api/z/CON-A18/join", { ...body, consent: tick("K4") }, {}, T + 9)).status).toBe(200);
-    expect(rows("K4")[0]).toMatchObject({ boxes: "A,B", version: CONSENT_VERSION, text_hash: sha(wordingOf("K4")) });
+    expect(rows("K4")[0]).toMatchObject({ boxes: "A,B", version: CONSENT_VERSION, text_hash: hashOf("K4") });
   });
   test("K4: the notice says who invited me is recorded; 24 hours after the game that row, the seat and the invitation record are gone, the organizer's rows stay", async () => {
     const h = await published("CON-4"); expect(boxesOf("K4")[0]![1]).toContain("who invited me is recorded until then");
@@ -163,7 +199,7 @@ describe("tests 1-4 at every point", () => {
     expect((await call("POST", "/api/org/role/accept", {}, ch)).status).toBe(400);
     expect((await call("POST", "/api/org/role/accept", { consent: tick("K5") }, ch, T + 4)).status).toBe(200);
     expect((await call("GET", "/api/z/CON-5/cohost", undefined, ch)).status).toBe(200);
-    expect(rows("K5")[0]).toMatchObject({ kind: "K5", ref: "CON-5", version: CONSENT_VERSION, boxes: "A", at_ms: T + 4, text_hash: sha(wordingOf("K5")) });
+    expect(rows("K5")[0]).toMatchObject({ kind: "K5", ref: "CON-5", version: CONSENT_VERSION, boxes: "A", at_ms: T + 4, text_hash: hashOf("K5") });
     raw.run("UPDATE consent_log SET version='2020-01-01' WHERE kind='K5'"); // as if the Terms had changed since
     expect((await call("GET", "/api/z/CON-5/cohost", undefined, ch)).status).toBe(403);
   });
@@ -178,7 +214,7 @@ describe("tests 1-4 at every point", () => {
     for (const path of ["/api/z/CON-6/roster", "/api/z/CON-6/people"]) { const no = await call("POST", path, list, h); expect([path, no.status]).toEqual([path, 400]); expect(await j(no)).toMatchObject({ ...REFUSED, kind: "K6" }); }
     expect((raw.query("SELECT COUNT(*) c FROM person WHERE eid='CON-6'").get() as any).c).toBe(0);
     expect((await call("POST", "/api/z/CON-6/people", { ...list, consent: tick("K6") }, h, T + 8)).status).toBe(200);
-    expect(rows("K6")[0]).toMatchObject({ kind: "K6", ref: "CON-6", version: CONSENT_VERSION, boxes: "A", at_ms: T + 8, text_hash: sha(wordingOf("K6")) });
+    expect(rows("K6")[0]).toMatchObject({ kind: "K6", ref: "CON-6", version: CONSENT_VERSION, boxes: "A", at_ms: T + 8, text_hash: hashOf("K6") });
   });
 });
 

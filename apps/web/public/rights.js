@@ -67,7 +67,7 @@
 
   function leaveDialog() {
     const who = WHO(); if (!who) return;
-    const d = open('<h2 id="rt-title">Leave this game?</h2><p>Your name and your place are deleted from our system now. You cannot undo this.</p><p class="rt-err" id="rt-err" role="alert"></p>' +
+    const d = open('<h2 id="rt-title">Leave this game?</h2><p>Your name and your place are deleted from the system now. You cannot undo this.</p><p class="rt-err" id="rt-err" role="alert"></p>' +
       '<div class="rt-row"><button class="rt-b bad" id="rt-yes" type="button">Yes, leave the game</button><button class="rt-b alt" id="rt-no" type="button" autofocus>No, stay</button></div>');
     d.querySelector("#rt-no").onclick = close;
     d.querySelector("#rt-yes").onclick = async () => {
@@ -105,7 +105,7 @@
         const r = await post(who.eid, "datareq", { pid: who.pid, device: who.device, kind, note: d.querySelector("#rt-note").value });
         if (r.erased) { forgetThisPhone(who); finished(r.message); return; }
         form.hidden = true;
-        d.querySelector("#rt-result").innerHTML = "<p><b>" + esc(r.message) + "</b></p>" + (r.held ? "<p>This is what we hold about you now:</p>" + heldHtml(r.held) : "") + '<div class="rt-row"><button class="rt-b" id="rt-ok" type="button">Close</button></div>';
+        d.querySelector("#rt-result").innerHTML = "<p><b>" + esc(r.message) + "</b></p>" + (r.held ? "<p>This is what is held about you now:</p>" + heldHtml(r.held) : "") + '<div class="rt-row"><button class="rt-b" id="rt-ok" type="button">Close</button></div>';
         d.querySelector("#rt-ok").onclick = close; d.querySelector("#rt-ok").focus();
       } catch (e) { btn.disabled = false; err.textContent = e.message; }
     };

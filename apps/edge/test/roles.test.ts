@@ -24,7 +24,7 @@ beforeEach(() => {
     if (pm) { const p = payments[pm[1]!]; if (pm[2]) p.status = "captured"; return new Response(JSON.stringify(p)); }
     return new Response("{}", { status: 404 });
   };
-  env = { DB: d.db, ORGANIZER_SECRET: "plat", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
+  env = { DB: d.db, ORGANIZER_SECRET: "plat", RUNNER_KEY: "test-runner-key-test-runner-key-test0000", DAILY_WRITE_BUDGET: "100000", RAZORPAY_KEY_ID: "rzp_test_x", RAZORPAY_KEY_SECRET: "sek", RAZORPAY_WEBHOOK_SECRET: "whsec", RAZORPAY_BASE_URL: "https://rzp.test/v1", PUBLIC_ORIGIN: "https://bingo.test" };
 });
 afterEach(() => { globalThis.fetch = realFetch; });
 
@@ -116,7 +116,7 @@ describe("what each role may do", () => {
   test("a Co-host reads only the small game header, with an own invite link", async () => {
     const t = await team();
     const h = await j(await call("GET", "/api/z/ROLE-1/cohost", undefined, t.cohost));
-    expect(Object.keys(h).sort()).toEqual(["brought", "cap", "credit", "creditApplied", "creditExpiresMs", "didNotStart", "erasureMs", "inviteLink", "joined", "name", "payment", "price", "startMs", "waitingFor"]);
+    expect(Object.keys(h).sort()).toEqual(["brought", "cap", "credit", "creditApplied", "creditExpiresMs", "didNotStart", "erasureMs", "inviteLink", "joined", "name", "payable", "payment", "price", "startMs", "waitingFor"]);
     expect(h).toMatchObject({ cap: 300, joined: 0, brought: 0, payment: { status: "pending" } });
     expect(h.inviteLink).toBeNull(); // a draft cannot take guests yet
     const other = await team("other@rival.com", "ROLE-2");

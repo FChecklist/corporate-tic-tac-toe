@@ -26,6 +26,6 @@
   Referrer-Policy: no-referrer
   X-Frame-Options: DENY
 /*.js
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache
 /*.css
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache

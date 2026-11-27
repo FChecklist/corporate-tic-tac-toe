@@ -87,7 +87,7 @@ const consoleOf = (ctx: GoCtx, id: string, act = "") => `${ctx.origin}/zc.html?e
 export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Promise<Screen> {
   const L = (s: string, set: Record<string, string> = {}) => link(ctx, s, q, set);
   switch (step) {
-    case "": case "start": return { say: "Hello! I can set up or manage your Corporate Tic Tac Toe game with you. What would you like to do?", choices: choices([["Start a new game", `${ctx.base}/go/new`, true], ["Change a game that has not started yet", `${ctx.base}/go/games`], ["Show the links of a game", `${ctx.base}/go/games?then=links`], ["Tell me about the software (is it safe, private, legal?)", `${ctx.base}/facts`], ["Try a free demo first", `${ctx.origin}/demo.html`]]), ifWrong: WRONG };
+    case "": case "start": return { say: "Hello! I can set up or manage your Corporate Tic Tac Toe game with you. What would you like to do?", choices: choices([["Start a new game", `${ctx.base}/go/new`, true], ["Change a game that has not started yet", `${ctx.base}/go/games`], ["Show the links of a game", `${ctx.base}/go/games?then=links`], ["Tell me about the software (is it safe, secure, legal?)", `${ctx.base}/facts`], ["Try a free demo first", `${ctx.origin}/demo.html`]]), ifWrong: WRONG };
     case "new":
       if (!zoneKey(q)) return { say: "Which time zone are you in? (The start time is set in it.)", choices: choices(Object.entries(ZONES).map(([k, z]) => [z.label, L("new", { z: k })] as [string, string, boolean?])), ifWrong: WRONG };
       return { say: `Which day is the game? (${zoneLabel(q)})`, choices: choices(dayRows(ctx, q, "time")), ifWrong: WRONG };
@@ -101,7 +101,7 @@ export async function goScreen(ctx: GoCtx, step: string, q: URLSearchParams): Pr
       const lines = `Here is how it will play: a knockout tournament, one against one or in teams (you choose the format and the move clock on the day). ${j ? "Invite-only." : "Open to anyone with the link."} ${v ? `Guests may invite up to ${v} more people each.` : "Guests may not invite others."}`;
       return { say: `${lines} These are the recommended choices. Change anything, or continue.`, choices: choices([["Looks good, continue", L("prizes"), true], [j ? "Open to anyone with the link" : "Invite-only (only people on my list)", L("play", { j: j ? "o" : "c" })], [v ? "Guests may not invite others" : "Let each guest invite up to 4 more (family, colleagues)", L("play", { v: v ? "0" : "4" })]]), ifWrong: WRONG };
     }
-    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; we only provide the software. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
+    case "prizes": return { say: "Which prizes do you want to run? (You give the prizes; the software is all that is provided. You name each prize afterwards.)", choices: choices(Object.entries(BUNDLES).map(([k, b]) => [b.label, L("review", { p: k }), k === "c"] as [string, string, boolean?])), ifWrong: WRONG };
     case "extras": return goScreen(ctx, "review", q); // an old link from the days of the lucky draw step
     case "review": {
       if (!validDay(q.get("d")) || !validTime(q.get("t")) || !q.get("c")) return goScreen(ctx, "new", q);
@@ -166,7 +166,7 @@ async function gameStep(ctx: GoCtx, step: string, q: URLSearchParams): Promise<S
   const rows: [string, string, boolean?][] = [["Change the day or time", `${ctx.base}/go/gtime?id=${id}`], ["Show the links", `${ctx.base}/go/links?id=${id}`], ["How many have joined", `${ctx.base}/go/who?id=${id}`], ["Create a Host link", `${ctx.base}/go/helper?id=${id}`]];
   if (published) rows.splice(2, 0, ["Send a message to every guest", `${ctx.base}/go/say?id=${id}`]);
   if (draft) rows.unshift(["Publish (free): the organizer taps once", consoleOf(ctx, id, "publish"), true]);
-  rows.push(["Erase all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["Pause or stop: the organizer taps once", consoleOf(ctx, id, "pause")]);
+  rows.push(["Delete all guest data now: the organizer confirms", consoleOf(ctx, id, "erase")], ["Pause or stop: the organizer taps once", consoleOf(ctx, id, "pause")]);
   return { say: [`Game ${id}: ${s.status}. Starts ${s.startsAtIST}. Up to ${s.limit} people, ${s.participants} joined.`, ...(unpaid && s.payBefore ? [`Payment is due before ${s.payBefore} (the organizer pays; I never do).`] : []), "What would you like to do?"].join("\n"), choices: choices(rows), ifWrong: WRONG };
 }
 

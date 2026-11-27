@@ -60,6 +60,27 @@ export function planPayload(p: Plan): { rounds: number; size: number; entrants: 
   return { rounds: p.t.rounds, size: p.t.size, entrants: p.t.entrants, digest: p.digest, matches };
 }
 
+/** The draw is sent to the mailbox in several requests, each under the mailbox's 400,000-character read limit (apps/edge/src/tournament.ts, plan route) and at most 400 matches (limit 600).
+ *  The entrants used to ride in the FIRST request together with 400 matches: from about 4,600 players on that request passed the limit and the mailbox answered "Bad draw." for good (smoke-test T-51).
+ *  Now the entrants go first, in slices of at most PLAN_ENTRANT_CHARS characters with no matches (the plan route accepts entrants in any request); the last request carries the closing facts. */
+export const PLAN_BODY_LIMIT = 400_000, PLAN_ENTRANT_CHARS = 150_000, PLAN_MATCHES_PER_REQUEST = 400;
+export function planRequests(pl: ReturnType<typeof planPayload>): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  let slice: Entrant[] = [], size = 0;
+  for (const e of pl.entrants) {
+    const n = JSON.stringify(e).length + 1;
+    if (slice.length && size + n > PLAN_ENTRANT_CHARS) { out.push({ matches: [], entrants: slice }); slice = []; size = 0; }
+    slice.push(e); size += n;
+  }
+  if (slice.length) out.push({ matches: [], entrants: slice });
+  const closing = { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length };
+  for (let i = 0; i < pl.matches.length || i === 0; i += PLAN_MATCHES_PER_REQUEST) {
+    const last = i + PLAN_MATCHES_PER_REQUEST >= pl.matches.length;
+    out.push({ matches: pl.matches.slice(i, i + PLAN_MATCHES_PER_REQUEST), ...(last ? closing : {}) });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------------------------- one match, replayed from what the mailbox stored
 const ctxAt = (p: Plan, startAt: number): MatchCtx => ({ ...ctxOf(p.t), startAt, entrant: (id) => p.E.get(id)! });
 
@@ -96,14 +117,14 @@ export async function replayMatch(p: Plan, startAt: number, m: MatchState, rec: 
 }
 
 // ---------------------------------------------------------------------------------------------------------------- what a screen shows
-export interface BoardShown { j: number; a: string; b: string; aName: string; bName: string; cells: number[]; x: string; o: string; gameNo: number; games: number; turn: string | null; deadlineMs: number | null; done: boolean; winner: string | null; via: string | null; ply: number; lastAuto: boolean; yourMark?: "X" | "O" | null; yourTurn?: boolean }
+export interface BoardShown { j: number; a: string; b: string; aName: string; bName: string; cells: number[]; x: string; o: string; gameNo: number; games: number; turn: string | null; deadlineMs: number | null; done: boolean; winner: string | null; via: string | null; ply: number; lastAuto: boolean; yourMark?: "X" | "O" | null; yourTurn?: boolean; youWon?: boolean }
 export function boardView(b: BoardState, names: Record<string, string>, pauses: readonly [number, number | null][], paused: boolean, me?: string): BoardShown {
   const g = b.games[b.games.length - 1]!; const mover = b.done ? null : moverOf(g); const n = (id: string) => names[id] ?? "?";
   return {
     j: b.j, a: n(b.a), b: n(b.b), aName: n(b.a), bName: n(b.b), cells: [...g.cells], x: n(g.x), o: n(g.o), gameNo: g.no, games: b.games.length, turn: mover ? n(mover) : null,
     deadlineMs: b.done || paused ? null : wallOf(pauses, g.deadline), done: b.done, winner: b.winner ? n(b.winner) : null, via: b.via ?? null, ply: g.moves.length,
     lastAuto: g.moves.length ? !!g.moves[g.moves.length - 1]!.auto : false,
-    ...(me ? { yourMark: (g.x === me ? "X" : g.o === me ? "O" : null) as "X" | "O" | null, yourTurn: mover === me } : {}),
+    ...(me ? { yourMark: (g.x === me ? "X" : g.o === me ? "O" : null) as "X" | "O" | null, yourTurn: mover === me, youWon: b.done && b.winner === me } : {}), // youWon is by id: two players may share a name
   };
 }
 
@@ -328,10 +349,7 @@ export class TttConsole {
     const v = await this.get("view"); const state: Setup["state"] = v.state; this.n++;
     if (state === "starting" && !this.planSent) {
       const s: Setup = await this.get("setup"); const plan = await planOf({ ...s, startedMs: s.serverNow }); const pl = planPayload(plan);
-      for (let i = 0; i < pl.matches.length || i === 0; i += 400) {
-        const last = i + 400 >= pl.matches.length;
-        await this.post("plan", { matches: pl.matches.slice(i, i + 400), ...(i === 0 ? { entrants: pl.entrants } : {}), ...(last ? { last: true, rounds: pl.rounds, size: pl.size, digest: pl.digest, entrantCount: pl.entrants.length } : {}) });
-      }
+      for (const body of planRequests(pl)) await this.post("plan", body); // entrants in char-bounded slices, then matches 400 at a time (T-51 / smoke fix)
       this.planSent = true; return { state: "running", sentPlan: true };
     }
     if (state !== "running") return { state };
