@@ -1,10 +1,16 @@
 {
   "product": "corporate-tic-tac-toe",
-  "version": "1.6.4",
-  "commit": "1cb00f1",
-  "releasedAtUTC": "2026-11-24T11:56:16Z",
-  "releasedAtIST": "2026-11-24T17:26:16+05:30",
+  "version": "1.6.5",
+  "commit": "this release",
+  "releasedAtUTC": "2026-11-27T07:00:00Z",
+  "releasedAtIST": "2026-11-27T12:30:00+05:30",
   "changes": [
+    {
+      "id": "1.6.5-pay-via-console",
+      "what": "Payment only through the console: with PAY_VIA_CONSOLE set to 1 the pay pages go to the console (302) and the old pay, pay-link, pay-with-credit, credit and proforma routes of the API answer 410 (gone) with the console's address (they answered 302 before); no order is opened with Razorpay or the central service; the credit-expiry and ledger C jobs do not run. Razorpay's own notice (webhook) and the status route stay open. Switch off: nothing changes. The console's read-only question POST /api/console/payable and the paid notice were already in the bridge and the adapter (payInfo, markPaid)",
+      "where": "apps/edge/src/pay-redirect.ts, pay.ts, worker.ts, lifecycle.ts; tests pay-via-console, console-pay-step",
+      "pr": "this PR"
+    },
     {
       "id": "1.6.4-audit-wording",
       "what": "Wording fix from the second security audit of PR 9 at 02b56a1a (M-1): the join page, the server's 'one moment' sentence and the guide no longer claim that the phone is checking whether a person is there, because the small proof of work only slows down scripts and does not show that a person is asking. They now say: 'One moment please. Your phone is doing a short check before your request is sent. This takes a few seconds.' The release notes no longer give an unmeasured time of one second (now 'a few seconds, not measured on real phones'). Nothing else changed",

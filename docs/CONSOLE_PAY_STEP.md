@@ -9,3 +9,8 @@ The console (console.corporatetambola.com) shows the one Pay step; this game onl
 - Security rules (`pages/build.mjs`): only the organizer page `/zc` gets `frame-src` for the payment window address (`payframeOrigins` in the console's `config/games.json`) and `connect-src` for the console. No wildcard.
 - Not in this game: its own sign-in, payment page, chat or price number for this step. The pay-link, Razorpay pages and the credit code are the older own payment path; they stay behind the switch and are not deleted.
 - Tests: `apps/edge/test/console-pay-step.test.ts`.
+
+## Added in 1.6.5 (payment only through the console, 27 Nov 2026)
+- With `PAY_VIA_CONSOLE` set to 1 the old pay pages answer 302 to the console; the pay routes of the API (`/api/checkout`, `/api/proforma`, `/api/payments/test|paytest|verify`, `/api/paylink/*`, `/api/org/credit`, `/api/z/<id>/paylink|credit|apply-credit|pay-with-credit`) answer **410** with `{code:"pay-in-console", console}`. `/api/payments/webhook` and `/api/payments/status` stay open.
+- `placeOrder` throws before any central or Razorpay call; the credit-expiry and ledger C jobs are skipped. Switch off: unchanged.
+- Not verified: a run against the real console and Moneypenny (its pay step needs `/v1/game_pay/*`, on an unmerged branch).

@@ -39,7 +39,7 @@ import { creditAppliedFor, creditFromPayment, creditUsesFor, mailCreditCreated, 
 
 export interface PayEnv extends Env, Pick<ModeEnv, "OWNER_EMAIL" | "TEST_MAIL_ALLOW"> {
   RAZORPAY_KEY_ID?: string; RAZORPAY_KEY_SECRET?: string; RAZORPAY_WEBHOOK_SECRET?: string; RAZORPAY_BASE_URL?: string; RAZORPAY_INTERNATIONAL?: string;
-  PARTNER_COMMISSION_RATE?: string; TEST_MODE?: string; COMPANY_JSON?: string; RESEND_API_KEY?: string; FREE_LAUNCH?: string; MAIL_FROM?: string; MAIL_REPLY_TO?: string; PUBLIC_ORIGIN?: string; PAY_HOP_URL?: string; PAY_SERVICE_KEY?: string; PAY_SERVICE_URL?: string; PAY_SITE?: string;
+  PAY_VIA_CONSOLE?: string; PARTNER_COMMISSION_RATE?: string; TEST_MODE?: string; COMPANY_JSON?: string; RESEND_API_KEY?: string; FREE_LAUNCH?: string; MAIL_FROM?: string; MAIL_REPLY_TO?: string; PUBLIC_ORIGIN?: string; PAY_HOP_URL?: string; PAY_SERVICE_KEY?: string; PAY_SERVICE_URL?: string; PAY_SITE?: string;
 }
 
 export const PAY_SCHEMA = [
@@ -70,6 +70,7 @@ const rzpOf = (env: PayEnv): (RazorpayConfig) | null => (env.RAZORPAY_KEY_ID && 
  * Without PAY_SERVICE_KEY, or if the central service cannot be reached, the order is opened directly with Razorpay exactly as before (the webhook still reaches the ledger).
  */
 async function placeOrder(env: PayEnv, rzp: RazorpayConfig, o: { amountMinor: number; currency: "INR" | "USD"; receipt: string; notes: Record<string, string>; plan: string; user?: string | null; email?: string; gameId?: string | null }): Promise<CreatedOrder> {
+  if (env.PAY_VIA_CONSOLE === "1") throw new Error("payments go through the console"); // no central or direct-Razorpay order while the console takes the payment
   const c = centralOf(env);
   if (c) {
     try {

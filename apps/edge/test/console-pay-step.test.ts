@@ -193,13 +193,13 @@ describe("through the bridge's own addresses (the console's signed notices)", ()
 
 describe("the old Pay now link (PAY_VIA_CONSOLE)", () => {
   const OLD: Array<[string, string]> = [["GET", "/pay.html"], ["GET", "/paylink.html"], ["GET", "/paytest.html"], ["POST", "/api/checkout"], ["POST", "/api/payments/test"], ["POST", "/api/payments/paytest"], ["GET", "/api/paylink/" + "a".repeat(48)], ["POST", "/api/paylink/" + "a".repeat(48) + "/checkout"], ["POST", "/api/z/PAY-ONE/paylink"], ["POST", "/api/z/PAY-ONE/pay-with-credit"]];
-  const KEEP: Array<[string, string]> = [["POST", "/api/payments/webhook"], ["POST", "/api/payments/verify"], ["GET", "/api/payments/status"], ["GET", "/zc.html"], ["GET", "/api/whoami"]];
+  const KEEP: Array<[string, string]> = [["POST", "/api/payments/webhook"], ["GET", "/api/payments/status"], ["GET", "/zc.html"], ["GET", "/api/whoami"]];
   const req = (m: string, p: string) => new Request(ORIGIN + p, { method: m });
   test("switch off (or any value but 1): payRedirect answers nothing for every route", () => {
     for (const flag of [undefined, "", "0", "true"]) for (const [m, p] of [...OLD, ...KEEP]) expect([flag, p, payRedirect(req(m, p), { PAY_VIA_CONSOLE: flag })]).toEqual([flag, p, null]);
   });
-  test("switch on: every old pay route sends the person to the console; webhook, verify, status and the other pages stay", () => {
-    for (const [m, p] of OLD) { const r = payRedirect(req(m, p), { PAY_VIA_CONSOLE: "1" })!; expect([p, r?.status, r?.headers.get("location")]).toEqual([p, 302, "https://console.corporatetambola.com/"]); }
+  test("switch on: every old pay page goes to the console (302), every old pay route of the API answers 410; webhook, status and the other pages stay", () => {
+    for (const [m, p] of OLD) { const r = payRedirect(req(m, p), { PAY_VIA_CONSOLE: "1" })!; expect([p, r?.status, r?.headers.get("location")]).toEqual(p.startsWith("/api/") ? [p, 410, null] : [p, 302, "https://console.corporatetambola.com/"]); }
     for (const [m, p] of KEEP) expect([p, payRedirect(req(m, p), { PAY_VIA_CONSOLE: "1" })]).toEqual([p, null]);
     expect(payRedirect(req("GET", "/pay.html"), { PAY_VIA_CONSOLE: "1", CONSOLE_ORIGIN: "https://corporate-console.pages.dev/" })!.headers.get("location")).toBe("https://corporate-console.pages.dev/");
   });
@@ -218,9 +218,9 @@ describe("the old Pay now link (PAY_VIA_CONSOLE)", () => {
     const tr = await call("POST", "/api/payments/test", { ...body, eid: "OLD-TWO", email: "old2@acme.com" }, { "x-organizer": t.key });
     expect(tr.status).not.toBe(302);
   });
-  test("switch on through the real router: /api/checkout answers 302 to the console, the webhook route is still the game's own", async () => {
+  test("switch on through the real router: /api/checkout answers 410 with the console address, the webhook route is still the game's own", async () => {
     await boot({ PAY_VIA_CONSOLE: "1" });
-    const r = await call("POST", "/api/checkout", {}); expect(r.status).toBe(302); expect(r.headers.get("location")).toBe("https://console.corporatetambola.com/");
+    const r = await call("POST", "/api/checkout", {}); expect(r.status).toBe(410); expect((await r.json() as any).console).toBe("https://console.corporatetambola.com/");
     expect((await call("GET", "/api/payments/status")).status).toBe(200);
     expect((await call("POST", "/api/payments/webhook", {})).status).not.toBe(302);
   });
