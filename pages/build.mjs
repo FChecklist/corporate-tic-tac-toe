@@ -42,5 +42,5 @@ versionRefs(OUT, STAMP.commit); // every local script and stylesheet address in 
 hideFromSearch(OUT); // 1 Nov 2026: noindex meta on every page, robots.txt Disallow all, no sitemap
 writeFileSync(join(OUT, "_headers"), rules);
 writeFileSync(join(OUT, "version.json"), JSON.stringify(STAMP) + "\n"); // what is live (P12): served at /version.json
-writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/vendor/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/*.txt", "/*.xml", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));
+writeFileSync(join(OUT, "_routes.json"), JSON.stringify({ version: 1, include: ["/*"], exclude: ["/img/*", "/fonts/*", "/vendor/*", "/*.js", "/*.css", "/*.png", "/*.svg", "/*.webmanifest", "/robots.txt", "/*.pdf", "/*.mp4", "/*.ico", "/*.woff2"] }));
 console.log("pages/public ready");
