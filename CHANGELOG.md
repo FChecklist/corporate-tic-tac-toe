@@ -2,6 +2,9 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.6.5 - 2026-11-27
+Payment only through the console (owner order 27 Nov 2026). With `PAY_VIA_CONSOLE` set to 1: the pay pages (`/pay.html`, `/paylink.html`, `/paytest.html`) go to the console (302); the old pay, pay-link, pay-with-credit, credit and proforma routes of the API answer **410 (gone)** with the console's address (they answered 302 before); `placeOrder` opens no order (no Razorpay, no central service); the credit-expiry and ledger C jobs are skipped. `/api/payments/webhook` and `/api/payments/status` stay open (money already paid must still be recorded). Switch off: unchanged (rollback). `POST /api/console/payable` and the paid notice were already built in (1.4.0). Tests: `pay-via-console.test.ts` (new, 6), `console-pay-step.test.ts` (updated). Not run against the real console or Moneypenny.
+
 ## 1.6.4 - 2026-11-24
 Code commit `1cb00f1`. Wording fix for the one open Medium of the security audit of `02b56a1a` (PR 9, 24 Nov 2026, M-1: an unbacked claim shown to players). Nothing else changed. Nothing is deployed and no payment switch is on. Payments go only through IT Services by Rajat Agarwal and Razorpay.
 ### Fixed (security audit)

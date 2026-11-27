@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.6.5",
+    "date": "2026-11-27",
+    "commit": "this release",
+    "title": "Payment only through the console: the old pay routes answer 410 when the switch is on",
+    "changes": [
+      "With PAY_VIA_CONSOLE set to 1 the old pay pages go to the console and the old pay, pay-link, credit and proforma routes now answer 410 (gone) with the console's address; they sent a redirect before",
+      "With the switch on, no order is opened with Razorpay or the central service, and the credit-expiry and commission-ledger background jobs do not run. Razorpay's own notice to this game is still taken, so money already paid is recorded",
+      "With the switch off nothing changes. The console can ask what must be paid (POST /api/console/payable) and send the paid notice; both were already built in"
+    ]
+  },
+  {
     "version": "1.6.4",
     "date": "2026-11-24",
     "commit": "1cb00f1",

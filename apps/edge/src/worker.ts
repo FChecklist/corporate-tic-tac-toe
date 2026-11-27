@@ -523,7 +523,7 @@ export async function housekeeping(env: Env, now: number): Promise<void> {
 export async function runTick(env: Env, now: number) {
   await adminTick(env.DB, now); // old error counters and old mail events go (admin.ts)
   await remindUnpaid(env, now);
-  const ledgerC = await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
+  const ledgerC = (env as PayEnv).PAY_VIA_CONSOLE === "1" ? null : await ledgerCTick(env as PayEnv, now); // ledger C -> B: a few commission rows and, every 30 minutes, the monthly figures (ledgerc.ts)
   const life = await lifecycleTick(env as any, now);
   let tttDue = 0; try { tttDue = await tttTick(env, now); } catch { /* tried again next minute */ } // clock-outs that are due in running tournaments
   const purged = await purgeOld(env, now);
