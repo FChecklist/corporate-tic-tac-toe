@@ -3,7 +3,7 @@
 Newest first. Release entries below are taken from `apps/edge/src/releases.json` (the source of truth, served to the owner at `/api/owner/releases`); this file mirrors them. The number a running site reports is `version` in `/version.json`.
 
 ## 1.3.2 - 2026-11-27 (not deployed)
-Owner decision 27 Nov 2026: hide the public pages of this game without deleting anything. Based on the live code (fa5ab0a), standalone: it does not depend on the pay-via-console branches. Nothing is deployed and the switch is OFF by default.
+Decision of 27 Nov 2026: hide the public pages of this game without deleting anything. Based on the live code (fa5ab0a), standalone: it does not depend on the pay-via-console branches. Nothing is deployed and the switch is OFF by default.
 ### Added
 - `SITE_HIDDEN` switch (`apps/edge/src/site-hidden.ts`, called from `pages/functions/_middleware.ts`). With SITE_HIDDEN set to 1 (a Cloudflare Pages variable, no rebuild) the landing page and the sales pages (/, /index, /about, /brochure, /pricing, /trust, /organizer-guide and the how-it-works pages) show a short 'This game is coming soon' page with a link to home.corporatetambola.com, send noindex (meta tag and X-Robots-Tag), and /llms.txt and /sitemap.xml answer 404; that page has no schema, no Open Graph and no agree buttons. Join links (/j/...), the player page, the host and organizer pages, sign-in, payment return, the legal pages, /api and the console links are NOT touched, so people who already have a link or a game still play. Switch off or unset: nothing changes. Nothing is deleted.
 - Test `apps/edge/test/site-hidden.test.ts` (switch off = unchanged, switch on = coming soon, join/host/api untouched).
