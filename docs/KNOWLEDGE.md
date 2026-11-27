@@ -1,4 +1,4 @@
-# Knowledge: Corporate Tic Tac Toe (updated 27 Nov 2026, version 1.6.5)
+# Knowledge: Corporate Tic Tac Toe (updated 27 Nov 2026, version 1.6.6)
 
 What a new session must know before touching this game. No secrets and no business figures here.
 
@@ -90,3 +90,6 @@ Owner words, 23 Nov 2026, for every game that comes in through console.corporate
 - **Per-address limit, funnel:** `funnel.ts` now counts the page beacon per `netKeyOf(req)` like every other limit.
 - `bun.lock` is tracked in this PR (new on `master`). `@types/bun` is pinned to `latest` there.
 - Help: `guide.js` has an entry for "No ID, or not on the list" and the console sign-in help line "Opening a game from your console signs you out of any other sign-in saved on this device." now has its own test (`guide.test.ts`).
+
+## Site hidden switch (SITE_HIDDEN, 1.6.6, 27 Nov 2026)
+Owner decision 27 Nov 2026: Tic-Tac-Toe, Snakes and Ladders and Luck by Chance are shown as 'coming soon' to the public while Tambola, Bingo and Lucky Draw stay. One Cloudflare Pages variable `SITE_HIDDEN` = `1` turns it on (unset or any other value = off, today's behaviour). Code: `apps/edge/src/site-hidden.ts`, hooked in `pages/functions/_middleware.ts`; test `apps/edge/test/site-hidden.test.ts`. It hides only the marketing pages, `/llms.txt` and `/sitemap.xml`; join links, the player page, host pages, sign-in, payments, legal pages and `/api` are never touched. Same name and same file in the other two hidden games.

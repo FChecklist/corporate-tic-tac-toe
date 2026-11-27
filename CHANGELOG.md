@@ -2,6 +2,16 @@
 
 Newest first. Each entry: what changed, where, PR, audits, rollback id.
 
+## 1.6.6 - 2026-11-27 (not deployed)
+K3 (owner decision 27 Nov 2026): hide the public pages of this game without deleting anything. Based on stacked on PR 12 (head 8928039). Nothing is deployed and the switch is OFF by default.
+### Added
+- `SITE_HIDDEN` switch (`apps/edge/src/site-hidden.ts`, called from `pages/functions/_middleware.ts`). Public pages can be hidden with one switch. With SITE_HIDDEN set to 1 (a Cloudflare Pages variable, no rebuild) the landing page and the sales pages (/, /index, /about, /brochure, /pricing, /trust, /organizer-guide and the how-it-works pages) show a short 'This game is coming soon' page with a link to home.corporatetambola.com, send noindex (meta tag and X-Robots-Tag), and /llms.txt and /sitemap.xml answer 404; that page has no schema, no Open Graph and no agree buttons. Join links (/j/...), the player page, the host and organizer pages, sign-in, payment return, the legal pages, /api and the console links are NOT touched, so people who already have a link or a game still play. Switch off or unset: nothing changes. Nothing is deleted.
+- Test `apps/edge/test/site-hidden.test.ts` (switch off = unchanged, switch on = coming soon, join/host/api untouched).
+### Changed
+- `pages/build.mjs`: `/llms.txt` and `/sitemap.xml` are now served through the function so the switch can answer them (off: they are served exactly as before).
+### Rollback
+- Unset `SITE_HIDDEN` in Cloudflare Pages (instant, no deploy), or redeploy the previous version (1.6.5).
+
 ## 1.6.5 - 2026-11-27
 Payment only through the console (owner order 27 Nov 2026). With `PAY_VIA_CONSOLE` set to 1: the pay pages (`/pay.html`, `/paylink.html`, `/paytest.html`) go to the console (302); the old pay, pay-link, pay-with-credit, credit and proforma routes of the API answer **410 (gone)** with the console's address (they answered 302 before); `placeOrder` opens no order (no Razorpay, no central service); the credit-expiry and ledger C jobs are skipped. `/api/payments/webhook` and `/api/payments/status` stay open (money already paid must still be recorded). Switch off: unchanged (rollback). `POST /api/console/payable` and the paid notice were already built in (1.4.0). Tests: `pay-via-console.test.ts` (new, 6), `console-pay-step.test.ts` (updated). Not run against the real console or Moneypenny.
 
