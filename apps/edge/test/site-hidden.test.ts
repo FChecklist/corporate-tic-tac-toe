@@ -71,3 +71,27 @@ describe("build wiring", () => {
     expect(b).not.toContain('"/*.txt"'); expect(b).not.toContain('"/*.xml"'); expect(b).toContain('"/robots.txt"');
   });
 });
+
+describe("SITE_HIDDEN on: odd spellings of an address are tidied before the lookup (K5)", () => {
+  const env = { SITE_HIDDEN: "1" };
+  test("//about, /%61bout and mixed forms still show coming soon", async () => {
+    for (const p of ["//about", "/%61bout", "///about", "/%41BOUT", "//about//", "/about%2F", "/%61bout.html", "/%2fabout", "//"]) {
+      const r = siteHidden(req(p), env, BRAND.name);
+      expect(r, p).not.toBeNull();
+      expect(await r!.text(), p).toContain("coming soon");
+    }
+  });
+  test("//sitemap.xml, //llms.txt and /%73itemap.xml answer 404", () => {
+    for (const p of ["//sitemap.xml", "//llms.txt", "/%73itemap.xml", "/%6Clms.txt"]) { const r = siteHidden(req(p), env, BRAND.name); expect(r, p).not.toBeNull(); expect(r!.status).toBe(404); }
+  });
+  test("odd spellings of link-holder and API addresses are still not touched", () => {
+    for (const p of ["//j/abcdef", "/%6a/abcdef", "//api/mode", "/%61pi/mode", "//host", "/z//x"]) expect(siteHidden(req(p), env, BRAND.name), p).toBeNull();
+  });
+  test("a broken % escape does not throw and is not a hidden page", () => {
+    expect(siteHidden(req("/%E0%A4%A"), env, BRAND.name)).toBeNull();
+    expect(siteHidden(req("/%zz"), env, BRAND.name)).toBeNull();
+  });
+  test("flag off stays untouched for the odd spellings too", () => {
+    for (const p of ["//about", "/%61bout", "//sitemap.xml"]) { expect(siteHidden(req(p), {}, BRAND.name)).toBeNull(); expect(siteHidden(req(p), { SITE_HIDDEN: "true" }, BRAND.name)).toBeNull(); }
+  });
+});
